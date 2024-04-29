@@ -40,7 +40,7 @@ python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.4.2"
-pytest = "^8.1.1"
+pytest = "^8.2.0"
 autoimport = "^1.4.0"
 isort = "^5.13.2"
 coverage = {extras = ["toml"], version = "^7.5.0"}
