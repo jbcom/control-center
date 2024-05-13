@@ -46,13 +46,13 @@ pyflakes = ">=3.0.0"
 
 [[package]]
 name = "autoimport"
-version = "1.4.0"
+version = "1.5.0"
 description = "Autoimport missing python libraries."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "autoimport-1.4.0-py3-none-any.whl", hash = "sha256:12469a8b56a923249393a95acda84fe9873adc408f4cc893a51301584d90c11d"},
-    {file = "autoimport-1.4.0.tar.gz", hash = "sha256:7b0441c6952d3c1aa6cec53ff750ae97392872e2bcfa0d3d2107ba864f2ef85e"},
+    {file = "autoimport-1.5.0-py3-none-any.whl", hash = "sha256:8966768b35219fdcf457c708391072bbd38da134253f376d07d72822bd73a8de"},
+    {file = "autoimport-1.5.0.tar.gz", hash = "sha256:c136a3944d2267d5f6f228221956b55b55a53bd9c43b0719d08e3a0252a35e9a"},
 ]
 
 [package.dependencies]
@@ -604,4 +604,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.8.1"
-content-hash = "08633eeaaef7a8dea6301822baef4c4e9cfa880376e1384b5360b66702ae65be"
+content-hash = "7706e29ec112d2703bfc7c90cac685ce45b76da26959d0ce2f3583ac3467b84c"
