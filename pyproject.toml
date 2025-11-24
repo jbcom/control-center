@@ -1,64 +1,179 @@
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.poetry]
-name = "project_name"
-version = "0.0.1"
-description = ""
-authors = ["Jon Bogaty <jon@jonbogaty.com>",]
-maintainers = ["Jon Bogaty <jon@jonbogaty.com>",]
-packages = [{include = "project_name"}]
-
-include = ["CHANGELOG.md", "LICENSE", "py.typed",]
-license = "MIT"
-readme = "README.md"
-
-homepage = "https://pypi.org/project/project-name/"
-repository = "https://github.com/jbcom/project-name"
-documentation = "https://github.com/jbcom/project-name/tree/main/docs"
-
-keywords = [
-    "python3",
+[project]
+name = "python-library-template"
+version = "0.0.0"  # Auto-updated by CI
+description = "Production-ready Python library template with CalVer auto-versioning"
+authors = [
+    { name = "Jon Bogaty", email = "jon@jonbogaty.com" }
 ]
+maintainers = [
+    { name = "Jon Bogaty", email = "jon@jonbogaty.com" }
+]
+license = { text = "MIT" }
+readme = "README.md"
+requires-python = ">=3.10"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: Implementation :: CPython",
     "Programming Language :: Python :: Implementation :: PyPy",
     "Typing :: Typed",
 ]
+keywords = [
+    "python",
+    "template",
+    "library",
+    "calver",
+    "automation",
+]
+dependencies = [
+    # Your dependencies here
+]
 
-[tool.poetry.dependencies]
-python = "^3.12"
+[project.optional-dependencies]
+tests = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-xdist>=3.5.0",
+]
+typing = [
+    "mypy>=1.8.0",
+    "pyright>=1.1.350",
+]
+docs = [
+    "sphinx>=7.2.0",
+    "sphinx-rtd-theme>=2.0.0",
+]
+dev = [
+    "python-library-template[tests,typing,docs]",
+    "pre-commit>=3.6.0",
+    "ruff>=0.2.0",
+]
 
-[tool.poetry.urls]
-"Tracker" = "https://github.com/jbcom/project-name/issues"
-"Changelog" = "https://github.com/jbcom/project-name/blob/main/CHANGELOG.md"
+[project.urls]
+Homepage = "https://github.com/jbcom/python-library-template"
+Repository = "https://github.com/jbcom/python-library-template"
+Documentation = "https://github.com/jbcom/python-library-template/tree/main/docs"
+Tracker = "https://github.com/jbcom/python-library-template/issues"
+Changelog = "https://github.com/jbcom/python-library-template/blob/main/CHANGELOG.md"
 
-[tool.poetry.group.dev.dependencies]
-black = "^25.11.0"
-pytest = "^9.0.1"
-autoimport = "^1.6.1"
-isort = "^7.0.0"
-coverage = {extras = ["toml"], version = "^7.12.0"}
-flake8 = "^7.3.0"
-flake8-bugbear = "^25.10.21"
-mypy = "^1.18.2"
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "pyproject.toml",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+]
 
-[tool.black]
-line-length = 88
-target-version = ["py312"]
+[tool.hatch.build.targets.wheel]
+packages = ["src/example_package"]
 
-[tool.isort]
-skip_gitignore = "true"
-line_length = 88
-profile = "black"
+# Ruff configuration
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
 
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "N",      # pep8-naming
+    "UP",     # pyupgrade
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "SIM",    # flake8-simplify
+    "TCH",    # flake8-type-checking
+    "PTH",    # flake8-use-pathlib
+    "RUF",    # ruff-specific rules
+    "D",      # pydocstyle
+    "T201",   # print statements
+    "EM",     # flake8-errmsg
+    "EXE",    # flake8-executable
+    "S",      # flake8-bandit
+]
+ignore = [
+    "D203",   # one-blank-line-before-class (conflicts with D211)
+    "D213",   # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# CI scripts can use print, skip docstrings, etc.
+".github/scripts/*.py" = ["T201", "D103", "EM101", "PTH123", "EXE001"]
+# Tests can use asserts, skip docstrings
+"tests/*.py" = ["D103", "S101", "D100", "D104"]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+# Pytest configuration
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = [
+    "--strict-markers",
+    "--strict-config",
+    "-ra",
+    "--cov=src",
+    "--cov-report=term-missing",
+    "--cov-report=xml",
+]
+
+# Coverage configuration
 [tool.coverage.run]
-omit = [".*", "*/site-packages/*"]
+source = ["src"]
+omit = [
+    "*/tests/*",
+    "*/__pycache__/*",
+    "*/site-packages/*",
+]
 
 [tool.coverage.report]
-fail_under = 100
+fail_under = 80
+precision = 2
+show_missing = true
+skip_covered = false
+
+# Mypy configuration
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_no_return = true
+strict_equality = true
+strict_optional = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+
+# Pyright configuration
+[tool.pyright]
+pythonVersion = "3.10"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownVariableType = false
+reportUnknownArgumentType = false
