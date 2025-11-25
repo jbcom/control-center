@@ -37,7 +37,7 @@ system_prompt: |
   | port-api | Go | Port.io API client |
   | terraform-github-markdown | HCL | TF modules |
   | terraform-repository-automation | HCL | TF modules |
-  | jbcom-conttol-center | Python | Control hub |
+  | jbcom-control-center | Python | Control hub |
 
   #### Game Development
   | Repo | Language | Status |
