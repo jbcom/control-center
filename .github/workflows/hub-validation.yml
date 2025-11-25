@@ -99,7 +99,7 @@ jobs:
           required_files=(
             "pyproject.toml"
             "README.md"
-            "AGENTS.MD"
+            "AGENTS.md"
             "ARCHITECTURE.md"
             ".cursorrules"
             ".github/copilot-instructions.md"
