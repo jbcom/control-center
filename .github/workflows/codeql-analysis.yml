@@ -3,15 +3,10 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-  schedule:
-    - cron: '41 10 * * 5'
   workflow_dispatch:
 
-# NOTE: Requires code scanning to be enabled in repository settings
+# NOTE: Disabled - Requires GitHub Advanced Security subscription
+# Code scanning is not available for this repository type
 
 jobs:
   analyse:
