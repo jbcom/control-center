@@ -59,7 +59,7 @@ repos:
       # Validate agentic documentation
       - id: validate-agentic-docs
         name: Validate Agentic Documentation
-        entry: python3 tools/validate_agentic_docs.py
+        entry: python3 tools/validators/validate_agentic_docs.py
         language: system
         files: ^\.ruler/.*\.(md|toml)$
         pass_filenames: false
@@ -67,15 +67,15 @@ repos:
       # Validate GitHub workflows
       - id: validate-workflows
         name: Validate GitHub Workflows
-        entry: python3 tools/validate_workflows.py
+        entry: python3 tools/validators/validate_workflows.py
         language: system
-        files: ^(\.github/workflows/|workflows/).*\.yml$
+        files: ^(\.github/workflows/|templates/).*\.yml$
         pass_filenames: false
 
       # Validate ecosystem state
       - id: validate-ecosystem-state
         name: Validate Ecosystem State
-        entry: python3 tools/validate_ecosystem_state.py
+        entry: python3 tools/validators/validate_ecosystem_state.py
         language: system
-        files: ^ECOSYSTEM_STATE\.json$
+        files: ^ecosystem/ECOSYSTEM_STATE\.json$
         pass_filenames: false

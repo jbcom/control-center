@@ -113,14 +113,14 @@ def validate_required_workflows() -> list[str]:
     errors = []
 
     # Check for hub validation workflow
-    hub_validation = Path(".github/workflows/template-validation.yml")
+    hub_validation = Path(".github/workflows/hub-validation.yml")
     if not hub_validation.exists():
         errors.append("❌ Missing hub validation workflow")
 
-    # Check for standard CI workflow for distribution
-    standard_ci = Path("workflows/standard-ci.yml")
-    if not standard_ci.exists():
-        errors.append("❌ Missing workflows/standard-ci.yml for distribution")
+    # Check for standard Python library CI workflow for distribution
+    python_ci = Path("templates/python/library-ci.yml")
+    if not python_ci.exists():
+        errors.append("❌ Missing templates/python/library-ci.yml for distribution")
 
     return errors
 
@@ -157,7 +157,9 @@ def main() -> None:
     # Find all workflow files
     workflow_dirs = [
         Path(".github/workflows"),
-        Path("workflows"),
+        Path("templates/python"),
+        Path("templates/typescript"),
+        Path("templates/rust"),
     ]
 
     workflow_files: list[Path] = []

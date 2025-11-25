@@ -1,6 +1,6 @@
 name: Hub Validation
 
-# This CI validates the MANAGEMENT HUB ITSELF
+# This CI validates the CONTROL HUB ITSELF
 # It ensures management tools, workflows, and processes are correct
 
 permissions:
@@ -74,15 +74,15 @@ jobs:
       
       - name: Check for required workflow components
         run: |
-          # Ensure standard-ci.yml exists in workflows/ for distribution
-          if [ ! -f workflows/standard-ci.yml ]; then
-            echo "❌ Missing workflows/standard-ci.yml"
+          # Ensure standard Python library CI exists in templates/ for distribution
+          if [ ! -f templates/python/library-ci.yml ]; then
+            echo "❌ Missing templates/python/library-ci.yml"
             exit 1
           fi
           
           # Ensure hub validation exists
-          if [ ! -f .github/workflows/template-validation.yml ]; then
-            echo "❌ Missing .github/workflows/template-validation.yml"
+          if [ ! -f .github/workflows/hub-validation.yml ]; then
+            echo "❌ Missing .github/workflows/hub-validation.yml"
             exit 1
           fi
           
@@ -99,17 +99,19 @@ jobs:
           required_files=(
             "pyproject.toml"
             "README.md"
-            "AGENTS.md"
+            "AGENTS.MD"
+            "ARCHITECTURE.md"
             ".cursorrules"
             ".github/copilot-instructions.md"
             ".github/scripts/set_version.py"
-            "workflows/standard-ci.yml"
+            "templates/python/library-ci.yml"
             "src/example_package/__init__.py"
             "tests/test_default.py"
-            "ECOSYSTEM_STATE.json"
+            "ecosystem/ECOSYSTEM_STATE.json"
             ".ruler/AGENTS.md"
             ".ruler/ruler.toml"
-            "tools/deploy_workflows.py"
+            "tools/deploy/deploy_workflow.py"
+            "tools/monitor/health_check.py"
             "docs/MANAGEMENT.md"
           )
           
@@ -135,11 +137,11 @@ jobs:
       - name: Verify ecosystem documentation
         run: |
           # Check ECOSYSTEM_STATE.json is valid
-          python3 -c "import json; json.load(open('ECOSYSTEM_STATE.json'))"
+          python3 -c "import json; json.load(open('ecosystem/ECOSYSTEM_STATE.json'))"
           echo "✅ ECOSYSTEM_STATE.json is valid JSON"
           
           # Check managed repos are documented
-          if ! grep -q "extended-data-types" ECOSYSTEM_STATE.json; then
+          if ! grep -q "extended-data-types" ecosystem/ECOSYSTEM_STATE.json; then
             echo "❌ ECOSYSTEM_STATE.json missing managed repos"
             exit 1
           fi
@@ -272,13 +274,18 @@ jobs:
       
       - name: Check management tools
         run: |
-          if [ ! -f "tools/deploy_workflows.py" ]; then
-            echo "❌ Missing tools/deploy_workflows.py"
+          if [ ! -f "tools/deploy/deploy_workflow.py" ]; then
+            echo "❌ Missing tools/deploy/deploy_workflow.py"
             exit 1
           fi
           
-          if [ ! -x "tools/deploy_workflows.py" ]; then
-            echo "❌ tools/deploy_workflows.py is not executable"
+          if [ ! -x "tools/deploy/deploy_workflow.py" ]; then
+            echo "❌ tools/deploy/deploy_workflow.py is not executable"
+            exit 1
+          fi
+          
+          if [ ! -f "tools/monitor/health_check.py" ]; then
+            echo "❌ Missing tools/monitor/health_check.py"
             exit 1
           fi
           
@@ -288,7 +295,7 @@ jobs:
         run: |
           python3 <<'EOF'
           import json
-          state = json.load(open('ECOSYSTEM_STATE.json'))
+          state = json.load(open('ecosystem/ECOSYSTEM_STATE.json'))
           assert 'repositories' in state
           assert 'standards' in state
           assert len(state['repositories']) >= 4

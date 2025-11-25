@@ -16,10 +16,10 @@ from pathlib import Path
 def validate_json_syntax() -> list[str]:
     """Validate JSON syntax."""
     errors = []
-    state_file = Path("ECOSYSTEM_STATE.json")
+    state_file = Path("ecosystem/ECOSYSTEM_STATE.json")
 
     if not state_file.exists():
-        return ["❌ ECOSYSTEM_STATE.json not found"]
+        return ["❌ ecosystem/ECOSYSTEM_STATE.json not found"]
 
     try:
         with open(state_file) as f:
@@ -33,7 +33,7 @@ def validate_json_syntax() -> list[str]:
 def validate_structure() -> list[str]:
     """Validate the structure of ECOSYSTEM_STATE.json."""
     errors = []
-    state_file = Path("ECOSYSTEM_STATE.json")
+    state_file = Path("ecosystem/ECOSYSTEM_STATE.json")
 
     try:
         with open(state_file) as f:
@@ -99,7 +99,7 @@ def validate_structure() -> list[str]:
 def validate_repository_consistency() -> list[str]:
     """Validate consistency between repositories and other files."""
     errors = []
-    state_file = Path("ECOSYSTEM_STATE.json")
+    state_file = Path("ecosystem/ECOSYSTEM_STATE.json")
 
     try:
         with open(state_file) as f:

@@ -113,9 +113,9 @@ def validate_ecosystem_docs() -> list[str]:
         return errors
 
     # Check ECOSYSTEM_STATE.json exists
-    state_json = Path("ECOSYSTEM_STATE.json")
+    state_json = Path("ecosystem/ECOSYSTEM_STATE.json")
     if not state_json.exists():
-        errors.append("❌ ECOSYSTEM_STATE.json not found")
+        errors.append("❌ ecosystem/ECOSYSTEM_STATE.json not found")
         return errors
 
     # Validate they reference the same repos
