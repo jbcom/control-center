@@ -7,7 +7,9 @@
 
 name: Unit tests
 
-on: [ push ]
+# Disabled - functionality covered by template-validation.yml
+on:
+  workflow_dispatch:
 
 jobs:
   test:

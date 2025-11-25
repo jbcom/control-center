@@ -1,7 +1,7 @@
-name: Template Validation
+name: Hub Validation
 
-# This CI validates the TEMPLATE ITSELF, not the distributed workflow
-# It ensures all scripts, workflows, and processes are correct
+# This CI validates the MANAGEMENT HUB ITSELF
+# It ensures management tools, workflows, and processes are correct
 
 permissions:
   contents: read
@@ -69,13 +69,13 @@ jobs:
       
       - name: Check for required workflow components
         run: |
-          # Ensure ci.yml exists for distribution
-          if [ ! -f .github/workflows/ci.yml ]; then
-            echo "❌ Missing .github/workflows/ci.yml"
+          # Ensure standard-ci.yml exists in workflows/ for distribution
+          if [ ! -f workflows/standard-ci.yml ]; then
+            echo "❌ Missing workflows/standard-ci.yml"
             exit 1
           fi
           
-          # Ensure template-validation.yml exists
+          # Ensure hub validation exists
           if [ ! -f .github/workflows/template-validation.yml ]; then
             echo "❌ Missing .github/workflows/template-validation.yml"
             exit 1
@@ -83,25 +83,29 @@ jobs:
           
           echo "✅ Required workflow files present"
 
-  validate-template-structure:
-    name: Validate Template Structure
+  validate-hub-structure:
+    name: Validate Hub Structure
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v5
       
-      - name: Check required files
+      - name: Check required management files
         run: |
           required_files=(
             "pyproject.toml"
             "README.md"
             "AGENTS.md"
-            "TEMPLATE_USAGE.md"
             ".cursorrules"
             ".github/copilot-instructions.md"
             ".github/scripts/set_version.py"
-            ".github/workflows/ci.yml"
+            "workflows/standard-ci.yml"
             "src/example_package/__init__.py"
             "tests/test_default.py"
+            "ECOSYSTEM_STATE.json"
+            ".ruler/AGENTS.md"
+            ".ruler/ruler.toml"
+            "tools/deploy_workflows.py"
+            "docs/MANAGEMENT.md"
           )
           
           for file in "${required_files[@]}"; do
@@ -111,7 +115,7 @@ jobs:
             fi
           done
           
-          echo "✅ All required template files present"
+          echo "✅ All required management hub files present"
       
       - name: Verify placeholders are documented
         run: |
@@ -123,17 +127,19 @@ jobs:
           
           echo "✅ Placeholders properly documented"
       
-      - name: Check for leftover project-specific content
+      - name: Verify ecosystem documentation
         run: |
-          # copilot-instructions.md should use ${REPO_NAME} placeholder
-          if grep -q "lifecyclelogging" .github/copilot-instructions.md; then
-            echo "⚠️  Warning: copilot-instructions.md contains 'lifecyclelogging' - should use \${REPO_NAME}"
+          # Check ECOSYSTEM_STATE.json is valid
+          python3 -c "import json; json.load(open('ECOSYSTEM_STATE.json'))"
+          echo "✅ ECOSYSTEM_STATE.json is valid JSON"
+          
+          # Check managed repos are documented
+          if ! grep -q "extended-data-types" ECOSYSTEM_STATE.json; then
+            echo "❌ ECOSYSTEM_STATE.json missing managed repos"
+            exit 1
           fi
           
-          # Check for extended-data-types in examples
-          if grep -q "from extended_data_types import" .github/copilot-instructions.md; then
-            echo "⚠️  Warning: copilot-instructions.md contains project-specific imports"
-          fi
+          echo "✅ Ecosystem documentation valid"
 
   validate-package-structure:
     name: Validate Example Package
@@ -192,9 +198,9 @@ jobs:
       - name: Check README completeness
         run: |
           required_sections=(
-            "Quick Start"
-            "Usage"
-            "CalVer"
+            "Management Hub"
+            "Managed Repositories"
+            "Agent"
           )
           
           for section in "${required_sections[@]}"; do
@@ -231,14 +237,55 @@ jobs:
       - name: Check ruler directory exists
         run: |
           if [ ! -d ".ruler" ]; then
-            echo "⚠️  .ruler directory not found - may not be initialized yet"
-            exit 0
+            echo "❌ .ruler directory not found"
+            exit 1
           fi
           
-          # If .ruler exists, validate its structure
-          if [ ! -f ".ruler/config.yaml" ]; then
-            echo "❌ Missing .ruler/config.yaml"
+          # Validate ruler configuration
+          if [ ! -f ".ruler/ruler.toml" ]; then
+            echo "❌ Missing .ruler/ruler.toml"
+            exit 1
+          fi
+          
+          if [ ! -f ".ruler/AGENTS.md" ]; then
+            echo "❌ Missing .ruler/AGENTS.md"
             exit 1
           fi
           
           echo "✅ Ruler structure validated"
+  
+  validate-management-tools:
+    name: Validate Management Tools
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      
+      - name: Check management tools
+        run: |
+          if [ ! -f "tools/deploy_workflows.py" ]; then
+            echo "❌ Missing tools/deploy_workflows.py"
+            exit 1
+          fi
+          
+          if [ ! -x "tools/deploy_workflows.py" ]; then
+            echo "❌ tools/deploy_workflows.py is not executable"
+            exit 1
+          fi
+          
+          echo "✅ Management tools present and executable"
+      
+      - name: Validate ECOSYSTEM_STATE.json
+        run: |
+          python3 -c "
+import json
+state = json.load(open('ECOSYSTEM_STATE.json'))
+assert 'repositories' in state
+assert 'standards' in state
+assert len(state['repositories']) >= 4
+print('✅ ECOSYSTEM_STATE.json structure valid')
+"
