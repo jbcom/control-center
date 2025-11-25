@@ -25,7 +25,8 @@ import yaml
 
 def load_manifest() -> dict:
     """Load the ecosystem manifest."""
-    manifest_path = Path(__file__).parent.parent.parent / "ecosystem" / "ECOSYSTEM_MANIFEST.yaml"
+    project_root = Path(__file__).resolve().parents[2]
+    manifest_path = project_root / "ecosystem" / "ECOSYSTEM_MANIFEST.yaml"
     if not manifest_path.exists():
         print(f"❌ Manifest not found: {manifest_path}")
         sys.exit(1)
