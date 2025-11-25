@@ -96,8 +96,8 @@
       "visibility": "public"
     },
     {
-      "name": "jbcom-conttol-center",
-      "url": "https://github.com/jbcom/jbcom-conttol-center",
+      "name": "jbcom-control-center",
+      "url": "https://github.com/jbcom/jbcom-control-center",
       "status": "active",
       "language": "python",
       "role": "control-center",
