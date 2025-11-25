@@ -125,6 +125,6 @@ Game repos have scattered integration code that should be in vendor-connectors:
 
 ## Links
 
-- [ECOSYSTEM_MANIFEST.yaml](../ecosystem/ECOSYSTEM_MANIFEST.yaml)
+- [ECOSYSTEM_MANIFEST.yaml](../../ecosystem/ECOSYSTEM_MANIFEST.yaml)
 - [Vendor Connectors Architecture](../../docs/VENDOR_CONNECTORS_MULTILANG.md)
 - [Cleanup Report](../../REPO_CLEANUP_PROPOSAL.md)
