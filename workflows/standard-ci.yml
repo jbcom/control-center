@@ -1,3 +1,8 @@
+# This is the STANDARD CI workflow deployed to all jbcom Python libraries
+# Version: 1.0.0
+# Maintained in: jbcom/python-library-template (management hub)
+# DO NOT edit in managed repositories - changes deploy from hub
+
 name: CI
 
 permissions:
@@ -96,7 +101,7 @@ jobs:
     needs: tests
     permissions:
       contents: read
-      pull-requests: write  # Needed for writing to step summary
+      pull-requests: write
     steps:
       - uses: actions/checkout@v5
       - name: Install uv
@@ -113,15 +118,12 @@ jobs:
       - name: Generate coverage report
         run: |
           uv tool install coverage
-
           coverage combine
           coverage html --skip-covered --skip-empty
-
           echo "## Coverage Report" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           coverage report --format=markdown >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-
           coverage report
       - name: Upload HTML report
         uses: actions/upload-artifact@v5
@@ -133,7 +135,6 @@ jobs:
   release:
     name: Build signed package for release
     runs-on: ubuntu-24.04
-    # Only run on main branch after all tests pass
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [tests, typechecking, linting, coverage]
     concurrency: release
@@ -168,7 +169,7 @@ jobs:
     runs-on: ubuntu-24.04
     environment:
       name: pypi
-      url: https://pypi.org/project/lifecyclelogging/${{ needs.release.outputs.package_version }}
+      url: https://pypi.org/project/${{ github.event.repository.name }}/${{ needs.release.outputs.package_version }}
     permissions:
       id-token: write
 
