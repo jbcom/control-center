@@ -1,0 +1,81 @@
+# Pre-commit hooks for the jbcom Python Library Management Hub
+# See https://pre-commit.com for more information
+
+repos:
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.8.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter
+      - id: ruff-format
+
+  # Mypy - Static type checker
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.14.0
+    hooks:
+      - id: mypy
+        args: [--strict, --ignore-missing-imports]
+        additional_dependencies: [types-all]
+        files: ^(src/|tools/|\.github/scripts/).*\.py$
+
+  # Standard pre-commit hooks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: [--allow-multiple-documents]
+      - id: check-added-large-files
+        args: [--maxkb=500]
+      - id: check-json
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-case-conflict
+      - id: detect-private-key
+      - id: mixed-line-ending
+        args: [--fix=lf]
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.43.0
+    hooks:
+      - id: markdownlint
+        args: [--fix, --disable, MD013, MD033, MD041]
+
+  # YAML linting
+  - repo: https://github.com/adrienverge/yamllint
+    rev: v1.35.1
+    hooks:
+      - id: yamllint
+        args: [-c=.yamllint.yaml]
+
+  # Custom validators for this management hub
+  - repo: local
+    hooks:
+      # Validate agentic documentation
+      - id: validate-agentic-docs
+        name: Validate Agentic Documentation
+        entry: python3 tools/validate_agentic_docs.py
+        language: system
+        files: ^\.ruler/.*\.(md|toml)$
+        pass_filenames: false
+
+      # Validate GitHub workflows
+      - id: validate-workflows
+        name: Validate GitHub Workflows
+        entry: python3 tools/validate_workflows.py
+        language: system
+        files: ^(\.github/workflows/|workflows/).*\.yml$
+        pass_filenames: false
+
+      # Validate ecosystem state
+      - id: validate-ecosystem-state
+        name: Validate Ecosystem State
+        entry: python3 tools/validate_ecosystem_state.py
+        language: system
+        files: ^ECOSYSTEM_STATE\.json$
+        pass_filenames: false

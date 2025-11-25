@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def find_init_file():
+def find_init_file() -> Path:
     """Find the __init__.py file with a valid __version__ declaration."""
     src = Path("src")
     if not src.exists():
@@ -65,7 +65,7 @@ def update_docs_version(new_version: str) -> None:
         print(f"Warning: Could not find version assignment in {docs_conf}")
 
 
-def main():
+def main() -> int:
     # Get GitHub run number (always incrementing)
     run_number = os.environ.get("GITHUB_RUN_NUMBER", "0")
 
