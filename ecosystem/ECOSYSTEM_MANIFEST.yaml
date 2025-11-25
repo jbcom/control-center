@@ -93,7 +93,7 @@ infrastructure:
       modules: [terraform-pipeline, terraform-remote-module-buildout, terraform-remote-module-variables, terraform-secrets, terraform-workflow, terraform-workspace]
 
   control_center:
-    - name: jbcom-conttol-center
+    - name: jbcom-control-center
       url: https://github.com/jbcom/jbcom-conttol-center
       status: active
       visibility: private
