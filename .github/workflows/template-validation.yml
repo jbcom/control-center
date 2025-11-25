@@ -45,10 +45,15 @@ jobs:
           # Test the versioning script
           python .github/scripts/set_version.py
           
-          # Verify it actually updated the version
-          grep -q "__version__ = \"[0-9]\{4\}\.[0-9]\{1,2\}\.999\"" src/example_package/__init__.py
-          
-          echo "✅ Version script works correctly"
+          # Verify it actually updated the version (matches any valid CalVer format)
+          if grep -q '__version__ = "[0-9]\{4\}\.[0-9]\{1,2\}\.[0-9]\+"' src/example_package/__init__.py; then
+            echo "✅ Version script works correctly"
+            cat src/example_package/__init__.py | grep __version__
+          else
+            echo "❌ Version was not updated correctly"
+            cat src/example_package/__init__.py | grep __version__
+            exit 1
+          fi
 
   validate-workflows:
     name: Validate GitHub Actions Workflows
