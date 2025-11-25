@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# ruff: noqa: T201, D103, EM101, PTH123
 """Auto-version script: Updates version based on GitHub run number.
 
 Uses CalVer format: YYYY.MM.BUILD_NUMBER
@@ -11,10 +10,10 @@ This ensures:
 - No git tags required
 - Always publishable to PyPI
 """
+
 import os
 import re
 import sys
-
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -25,9 +24,7 @@ def find_init_file():
     if not src.exists():
         raise FileNotFoundError("src/ directory not found")
 
-    found_files = [
-        f for f in src.rglob("__init__.py") if "__version__" in f.read_text()
-    ]
+    found_files = [f for f in src.rglob("__init__.py") if "__version__" in f.read_text()]
 
     if not found_files:
         raise FileNotFoundError("No __init__.py with __version__ found in src/")
@@ -75,7 +72,8 @@ def main():
     # Get current date in UTC
     now = datetime.now(timezone.utc)
 
-    # Generate CalVer: YYYY.MM.BUILD (month not zero-padded; project-specific choice for brevity, not required by CalVer)
+    # Generate CalVer: YYYY.MM.BUILD
+    # (month not zero-padded; project choice for brevity, not required by CalVer)
     new_version = f"{now.year}.{now.month}.{run_number}"
 
     # Find and update __init__.py

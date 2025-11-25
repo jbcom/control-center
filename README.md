@@ -26,8 +26,11 @@ cd my-new-library
 ### 2. Customize Your Project
 
 ```bash
+# Note: On macOS, use sed -i '' instead of sed -i
+
 # Update package name in pyproject.toml
-sed -i 's/python-library-template/my-new-library/g' pyproject.toml
+sed -i 's/python-library-template/my-new-library/g' pyproject.toml  # Linux
+# sed -i '' 's/python-library-template/my-new-library/g' pyproject.toml  # macOS
 
 # Rename the package directory
 mv src/example_package src/my_new_library
@@ -35,8 +38,9 @@ mv src/example_package src/my_new_library
 # Update imports and references
 sed -i 's/example_package/my_new_library/g' pyproject.toml
 
-# Update agent documentation
-sed -i 's/\${REPO_NAME}/my-new-library/g' AGENTS.md .github/copilot-instructions.md
+# Update agent documentation with ruler
+# (ruler will regenerate from .ruler/ sources)
+ruler apply
 
 # Update workflow environment URL
 sed -i 's/python-library-template/my-new-library/g' .github/workflows/ci.yml

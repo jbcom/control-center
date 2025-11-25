@@ -66,11 +66,12 @@ EOF
 Update repo name in documentation files:
 
 ```bash
-# Update AGENTS.md
-sed -i 's/\${REPO_NAME}/my-new-library/g' AGENTS.md
+# Update ruler source files (Note: On macOS, use sed -i '' instead of sed -i)
+sed -i 's/\${REPO_NAME}/my-new-library/g' .ruler/AGENTS.md  # Linux
+# sed -i '' 's/\${REPO_NAME}/my-new-library/g' .ruler/AGENTS.md  # macOS
 
-# Update copilot-instructions.md
-sed -i 's/\${REPO_NAME}/my-new-library/g' .github/copilot-instructions.md
+# Regenerate agent-specific instructions
+ruler apply
 ```
 
 ### 5. Configure PyPI Publishing
