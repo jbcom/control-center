@@ -2,10 +2,9 @@
 
 name: Ruff
 
+# Disabled - functionality covered by template-validation.yml
 on:
-  push:
-    branches:
-      - '**'
+  workflow_dispatch:
 
 permissions:
   contents: write

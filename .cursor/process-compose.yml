@@ -1,0 +1,40 @@
+version: "1.0"
+
+environment:
+  GITHUB_TOKEN: "${GITHUB_JBCOM_TOKEN}"
+
+processes:
+  github-mcp:
+    command: "npx"
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-github"
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    environment:
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_JBCOM_TOKEN}"
+    log_location: "/tmp/mcp-github.log"
+
+  filesystem-mcp:
+    command: "npx"
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-filesystem"
+      - "/workspace"
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    log_location: "/tmp/mcp-filesystem.log"
+
+  git-mcp:
+    command: "npx"
+    args:
+      - "-y"
+      - "@modelcontextprotocol/server-git"
+      - "--repository"
+      - "/workspace"
+    availability:
+      restart: "on_failure"
+      max_restarts: 3
+    log_location: "/tmp/mcp-git.log"

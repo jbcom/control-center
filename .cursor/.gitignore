@@ -1,0 +1,6 @@
+# Don't commit process-compose logs
+*.log
+.pc-*
+
+# Don't commit local MCP state
+.mcp-state/
