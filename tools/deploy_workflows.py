@@ -23,7 +23,7 @@ def load_ecosystem_state() -> dict[str, Any]:
 
 def deploy_workflow(workflow_name: str, repositories: list[str] | None = None) -> None:
     """Deploy a workflow to specified repositories.
-    
+
     Args:
         workflow_name: Name of workflow file (e.g., 'standard-ci.yml')
         repositories: List of repo names, or None for all managed repos
@@ -34,7 +34,7 @@ def deploy_workflow(workflow_name: str, repositories: list[str] | None = None) -
         print(f"❌ Workflow not found: {workflow_path}")
         sys.exit(1)
 
-    workflow_content = workflow_path.read_text()
+    _workflow_content = workflow_path.read_text()  # For future use in API calls
     state = load_ecosystem_state()
 
     if repositories is None:
