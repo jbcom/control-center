@@ -116,6 +116,10 @@ ignore = [
 ".github/scripts/*.py" = ["T201", "D103", "EM101", "PTH123", "EXE001", "S603", "S607"]
 # Tests can use asserts, skip docstrings
 "tests/*.py" = ["D103", "S101", "D100", "D104"]
+# Nox files can skip docstrings
+"noxfile.py" = ["D100", "D103"]
+# Management tools can use print, skip docstrings
+"tools/*.py" = ["T201", "D103", "S603", "S607"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

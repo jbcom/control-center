@@ -29,19 +29,19 @@ def deploy_workflow(workflow_name: str, repositories: list[str] | None = None) -
         repositories: List of repo names, or None for all managed repos
     """
     workflow_path = Path(__file__).parent.parent / "workflows" / workflow_name
-    
+
     if not workflow_path.exists():
         print(f"❌ Workflow not found: {workflow_path}")
         sys.exit(1)
-    
+
     workflow_content = workflow_path.read_text()
     state = load_ecosystem_state()
-    
+
     if repositories is None:
         repositories = [r["name"] for r in state.get("repositories", [])]
-    
+
     print(f"📦 Deploying {workflow_name} to {len(repositories)} repositories...")
-    
+
     for repo_name in repositories:
         print(f"\n🔄 {repo_name}")
         # In practice, this would:
@@ -51,7 +51,7 @@ def deploy_workflow(workflow_name: str, repositories: list[str] | None = None) -
         # 4. Create PR with description
         # 5. Link to other deployment PRs
         print(f"   ✅ Would create PR in {repo_name}")
-    
+
     print(f"\n✅ Deployment initiated for {len(repositories)} repositories")
     print("   Monitor PRs and CI results")
 
@@ -59,7 +59,7 @@ def deploy_workflow(workflow_name: str, repositories: list[str] | None = None) -
 def main() -> None:
     """Main entry point."""
     import argparse
-    
+
     parser = argparse.ArgumentParser(description="Deploy workflows to managed repositories")
     parser.add_argument("workflow", help="Workflow file name (e.g., standard-ci.yml)")
     parser.add_argument(
@@ -72,12 +72,12 @@ def main() -> None:
         action="store_true",
         help="Show what would be done without making changes",
     )
-    
+
     args = parser.parse_args()
-    
+
     if args.dry_run:
         print("🔍 DRY RUN MODE - No changes will be made")
-    
+
     deploy_workflow(args.workflow, args.repos if args.repos else None)
 
 
