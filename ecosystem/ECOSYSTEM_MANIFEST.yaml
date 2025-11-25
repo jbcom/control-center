@@ -215,15 +215,15 @@ archived:
 # STATISTICS
 # ============================================================================
 stats:
-  total_active: 24
-  total_archived: 3
+  total_active: 20
+  total_archived: 7
   by_language:
-    python: 10
-    typescript: 7
+    python: 8
+    typescript: 5
     go: 1
     hcl: 2
-    gdscript: 2
+    gdscript: 1
     rust: 1
   by_visibility:
     public: 12
-    private: 12
+    private: 8
