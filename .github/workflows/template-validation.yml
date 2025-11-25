@@ -281,11 +281,11 @@ jobs:
       
       - name: Validate ECOSYSTEM_STATE.json
         run: |
-          python3 -c "
-import json
-state = json.load(open('ECOSYSTEM_STATE.json'))
-assert 'repositories' in state
-assert 'standards' in state
-assert len(state['repositories']) >= 4
-print('✅ ECOSYSTEM_STATE.json structure valid')
-"
+          python3 <<'EOF'
+          import json
+          state = json.load(open('ECOSYSTEM_STATE.json'))
+          assert 'repositories' in state
+          assert 'standards' in state
+          assert len(state['repositories']) >= 4
+          print('✅ ECOSYSTEM_STATE.json structure valid')
+          EOF
