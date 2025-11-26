@@ -121,7 +121,7 @@ system_prompt: |
     10:35 - PyPI: directed-inputs-class available
     10:40 - Update vendor-connectors
     10:45 - Merge vendor-connectors PR
-    10:50 - PyPI: cloud-connectors available
+    10:50 - PyPI: vendor-connectors available
     11:00 - All game repos can now use new features
   ```
 
