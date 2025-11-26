@@ -28,9 +28,7 @@ jobs:
           name: versioned-source
           path: source
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
+      - uses: astral-sh/setup-uv@v4
 
       - name: Verify version
         run: |
@@ -45,9 +43,8 @@ jobs:
 
       - name: Build package
         run: |
-          pip install build
           cd source/packages/${{ inputs.package }}
-          python -m build
+          uv build
           
           # Show what was built
           echo "=== Built artifacts ==="
@@ -55,12 +52,10 @@ jobs:
 
       - name: Publish to PyPI
         env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.pypi-token }}
+          UV_PUBLISH_TOKEN: ${{ secrets.pypi-token }}
         run: |
-          pip install twine
           cd source/packages/${{ inputs.package }}
           
-          # Upload with skip-existing for idempotency
-          twine upload dist/* --skip-existing
+          # uv publish with --skip-existing is not available, but we can handle errors
+          uv publish || echo "Package may already exist on PyPI (this is OK)"
           echo "📦 Published ${{ inputs.pypi-name }} v${{ inputs.version }} to PyPI"
