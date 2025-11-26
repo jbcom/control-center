@@ -14,6 +14,7 @@ Functions:
     - convert_special_types: Converts an object and its contents to simpler forms.
     - reconstruct_special_type: Reconstructs a simplified type back to its original form.
     - reconstruct_special_types: Reconstructs an object and its contents back to their original types.
+    - make_hashable: Converts an object to a hashable type for use in cache keys or sets.
 
 Classes:
     - ConversionError: Custom error class for handling conversion failures.
@@ -468,3 +469,34 @@ def reconstruct_special_types(obj: Any, fail_silently: bool = False) -> Any:
     if isinstance(obj, set):
         return {reconstruct_special_types(v, fail_silently=fail_silently) for v in obj}
     return obj
+
+
+def make_hashable(obj: Any) -> Any:
+    """Convert an object to a hashable type for use in cache keys or sets.
+
+    This function recursively converts objects to hashable types:
+    - Primitives (str, int, float, bool, None) are returned as-is
+    - Lists and tuples are converted to tuples (recursively)
+    - Dicts are converted to sorted tuples of (key, value) pairs
+    - Other types are converted to strings
+
+    Args:
+        obj: The object to convert to a hashable type
+
+    Returns:
+        A hashable representation of the object
+
+    Example:
+        >>> make_hashable({"a": 1, "b": [2, 3]})
+        (('a', 1), ('b', (2, 3)))
+        >>> make_hashable([1, 2, {"x": "y"}])
+        (1, 2, (('x', 'y'),))
+    """
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return tuple(make_hashable(item) for item in obj)
+    if isinstance(obj, dict):
+        return tuple(sorted((k, make_hashable(v)) for k, v in obj.items()))
+    # For other types, convert to string
+    return str(obj)

@@ -20,6 +20,7 @@ from extended_data_types.type_utils import (
     convert_special_types,
     get_default_value_for_type,
     get_primitive_type_for_instance_type,
+    make_hashable,
     reconstruct_special_type,
     reconstruct_special_types,
     strtobool,
@@ -528,3 +529,87 @@ def test_reconstruct_special_type_fail_silently() -> None:
 def test_reconstruct_deeply_nested_structure(obj: Any, expected: Any) -> None:
     """Tests reconstruction of deeply nested structures."""
     assert reconstruct_special_types(obj, fail_silently=False) == expected
+
+
+# -------------------------------------------------------------------------
+# Tests for make_hashable
+# -------------------------------------------------------------------------
+
+
+def test_make_hashable_primitives() -> None:
+    """Test that primitives are returned as-is."""
+    assert make_hashable("string") == "string"
+    assert make_hashable(42) == 42
+    assert make_hashable(3.14) == 3.14
+    assert make_hashable(True) is True
+    assert make_hashable(False) is False
+    assert make_hashable(None) is None
+
+
+def test_make_hashable_list() -> None:
+    """Test that lists are converted to tuples."""
+    assert make_hashable([1, 2, 3]) == (1, 2, 3)
+    assert make_hashable([]) == ()
+
+
+def test_make_hashable_tuple() -> None:
+    """Test that tuples are converted to tuples (recursively)."""
+    assert make_hashable((1, 2, 3)) == (1, 2, 3)
+    assert make_hashable(()) == ()
+
+
+def test_make_hashable_dict() -> None:
+    """Test that dicts are converted to sorted tuples of key-value pairs."""
+    result = make_hashable({"a": 1, "b": 2})
+    assert result == (("a", 1), ("b", 2))
+    
+    # Test with unsorted dict
+    result = make_hashable({"z": 1, "a": 2, "m": 3})
+    assert result == (("a", 2), ("m", 3), ("z", 1))
+
+
+def test_make_hashable_nested() -> None:
+    """Test recursive conversion of nested structures."""
+    obj = {"a": [1, 2], "b": {"c": 3}}
+    result = make_hashable(obj)
+    assert result == (("a", (1, 2)), ("b", (("c", 3),)))
+
+
+def test_make_hashable_complex_nested() -> None:
+    """Test with deeply nested structures."""
+    obj = [1, 2, {"x": "y", "z": [3, 4, {"nested": True}]}]
+    result = make_hashable(obj)
+    expected = (1, 2, (("x", "y"), ("z", (3, 4, (("nested", True),)))))
+    assert result == expected
+
+
+def test_make_hashable_custom_object() -> None:
+    """Test that custom objects are converted to strings."""
+    class CustomObj:
+        def __str__(self):
+            return "custom"
+    
+    obj = CustomObj()
+    result = make_hashable(obj)
+    assert result == "custom"
+    assert isinstance(result, str)
+
+
+def test_make_hashable_result_is_hashable() -> None:
+    """Test that the result can be used in sets and as dict keys."""
+    obj1 = {"a": [1, 2], "b": 3}
+    obj2 = {"b": 3, "a": [1, 2]}  # Same content, different order
+    
+    hash1 = make_hashable(obj1)
+    hash2 = make_hashable(obj2)
+    
+    # Both should be hashable
+    assert hash(hash1) == hash(hash1)
+    assert hash(hash2) == hash(hash2)
+    
+    # Should be equal since dict keys are sorted
+    assert hash1 == hash2
+    
+    # Can be used in a set
+    s = {hash1, hash2}
+    assert len(s) == 1  # Only one unique element
