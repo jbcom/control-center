@@ -131,6 +131,14 @@ ignore = [
 "noxfile.py" = ["D100", "D103"]
 # Management tools can use print, skip docstrings
 "tools/*.py" = ["T201", "D103", "S603", "S607"]
+# vendor-connectors: Python 3.9 compat, minimal docstring requirements, relaxed security for connectors
+"packages/vendor-connectors/**/*.py" = [
+    "UP006", "UP007", "UP035", "UP045",  # Python 3.9 compat (Optional, Dict, List, etc.)
+    "D",      # Skip docstring requirements during refactor
+    "S",      # Skip security checks for credential handling patterns
+    "B008",   # Function calls in defaults
+    "C901",   # Complexity
+]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
