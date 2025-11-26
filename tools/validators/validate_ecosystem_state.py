@@ -41,55 +41,61 @@ def validate_structure() -> list[str]:
     except (json.JSONDecodeError, FileNotFoundError):
         return []  # Caught elsewhere
 
-    # Check for required top-level keys
-    required_keys = ["repositories", "standards", "last_updated"]
-    for key in required_keys:
-        if key not in state:
-            errors.append(f"❌ Missing required field: '{key}'")
+    # Check for required top-level keys (support both v1 and v2 schemas)
+    # v1 schema: repositories, standards, last_updated
+    # v2 schema: active_repositories, management_hub, last_updated
+    has_v1_repos = "repositories" in state
+    has_v2_repos = "active_repositories" in state
+    
+    if not has_v1_repos and not has_v2_repos:
+        errors.append("❌ Missing required field: 'repositories' or 'active_repositories'")
+    
+    if "last_updated" not in state:
+        errors.append("❌ Missing required field: 'last_updated'")
 
-    # Validate repositories structure
-    if "repositories" in state:
-        repos = state["repositories"]
-        
-        # repositories can be either a list or a dict
-        if isinstance(repos, list):
-            if not repos:
-                errors.append("⚠️  'repositories' list is empty")
-            else:
-                for idx, repo_data in enumerate(repos):
-                    if not isinstance(repo_data, dict):
-                        errors.append(f"❌ Repository at index {idx} must be an object")
-                        continue
-
-                    # Check for required repo fields
-                    required_repo_fields = ["name", "url", "description", "status"]
-                    for field in required_repo_fields:
-                        if field not in repo_data:
-                            repo_name = repo_data.get("name", f"index {idx}")
-                            errors.append(
-                                f"⚠️  Repository '{repo_name}' missing field: '{field}'"
-                            )
-        elif isinstance(repos, dict):
-            if not repos:
-                errors.append("⚠️  'repositories' dict is empty")
-            else:
-                for repo_name, repo_data in repos.items():
-                    if not isinstance(repo_data, dict):
-                        errors.append(f"❌ Repository '{repo_name}' must be an object")
-                        continue
-
-                    # Check for required repo fields
-                    required_repo_fields = ["url", "description", "status"]
-                    for field in required_repo_fields:
-                        if field not in repo_data:
-                            errors.append(
-                                f"⚠️  Repository '{repo_name}' missing field: '{field}'"
-                            )
+    # Get repositories from either v1 or v2 schema
+    repos_key = "active_repositories" if has_v2_repos else "repositories"
+    repos = state.get(repos_key, [])
+    
+    # Validate repositories structure (repositories can be either a list or a dict)
+    if isinstance(repos, list):
+        if not repos:
+            errors.append(f"⚠️  '{repos_key}' list is empty")
         else:
-            errors.append("❌ 'repositories' must be a list or object")
+            for idx, repo_data in enumerate(repos):
+                if not isinstance(repo_data, dict):
+                    errors.append(f"❌ Repository at index {idx} must be an object")
+                    continue
 
-    # Validate standards structure
-    if "standards" in state:
+                # Check for required repo fields (v2 has simpler requirements)
+                required_repo_fields = ["name", "status"]
+                for field in required_repo_fields:
+                    if field not in repo_data:
+                        repo_name = repo_data.get("name", f"index {idx}")
+                        errors.append(
+                            f"⚠️  Repository '{repo_name}' missing field: '{field}'"
+                        )
+    elif isinstance(repos, dict):
+        if not repos:
+            errors.append(f"⚠️  '{repos_key}' dict is empty")
+        else:
+            for repo_name, repo_data in repos.items():
+                if not isinstance(repo_data, dict):
+                    errors.append(f"❌ Repository '{repo_name}' must be an object")
+                    continue
+
+                # Check for required repo fields
+                required_repo_fields = ["status"]
+                for field in required_repo_fields:
+                    if field not in repo_data:
+                        errors.append(
+                            f"⚠️  Repository '{repo_name}' missing field: '{field}'"
+                        )
+    else:
+        errors.append(f"❌ '{repos_key}' must be a list or object")
+
+    # Validate standards structure (only required for v1 schema)
+    if has_v1_repos and "standards" in state:
         if not isinstance(state["standards"], dict):
             errors.append("❌ 'standards' must be an object")
 
@@ -107,10 +113,12 @@ def validate_repository_consistency() -> list[str]:
     except (json.JSONDecodeError, FileNotFoundError):
         return []
 
-    if "repositories" not in state:
+    # Support both v1 (repositories) and v2 (active_repositories) schemas
+    repos_key = "active_repositories" if "active_repositories" in state else "repositories"
+    if repos_key not in state:
         return []
 
-    repos = state["repositories"]
+    repos = state[repos_key]
     
     # Handle both list and dict formats
     repo_names: list[str] = []

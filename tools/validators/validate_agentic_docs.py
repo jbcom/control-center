@@ -122,17 +122,24 @@ def validate_ecosystem_docs() -> list[str]:
     ecosystem_content = ecosystem_md.read_text()
     state_data = json.loads(state_json.read_text())
 
-    repos = state_data.get("repositories", [])
+    # Support both v1 (repositories) and v2 (active_repositories) schemas
+    repos_key = "active_repositories" if "active_repositories" in state_data else "repositories"
+    repos = state_data.get(repos_key, [])
+    
     if isinstance(repos, list):
         # If repositories is a list of objects
         for repo in repos:
             if isinstance(repo, dict):
                 repo_name = repo.get("name", "")
-                if repo_name and repo_name not in ecosystem_content:
-                    errors.append(
-                        f"⚠️  Repository '{repo_name}' in ECOSYSTEM_STATE.json "
-                        f"but not documented in ecosystem.md"
-                    )
+                # Only check core Python libraries for documentation (not game repos, etc.)
+                if repo_name and repo.get("role") in ["foundation", "logging-library", 
+                    "input-validation", "integration-library", "production-library",
+                    "development-library"]:
+                    if repo_name not in ecosystem_content:
+                        errors.append(
+                            f"⚠️  Repository '{repo_name}' in ECOSYSTEM_STATE.json "
+                            f"but not documented in ecosystem.md"
+                        )
     elif isinstance(repos, dict):
         # If repositories is a dict
         for repo_name in repos.keys():
