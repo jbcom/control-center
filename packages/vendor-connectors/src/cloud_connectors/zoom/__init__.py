@@ -1,5 +1,5 @@
 import base64
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
 
 import requests
 
@@ -7,11 +7,7 @@ from cloud_connectors.base.utils import Utils
 
 
 class ZoomConnector(Utils):
-    def __init__(self,
-                 client_id: str,
-                 client_secret: str,
-                 account_id: str,
-                 **kwargs):
+    def __init__(self, client_id: str, client_secret: str, account_id: str, **kwargs):
         super().__init__(**kwargs)
 
         self.client_id = client_id or self.get_input("ZOOM_CLIENT_ID", required=True)
@@ -22,12 +18,9 @@ class ZoomConnector(Utils):
         url = "https://zoom.us/oauth/token"
         headers = {
             "Authorization": f"Basic {base64.b64encode(f'{self.client_id}:{self.client_secret}'.encode()).decode()}",
-            "Content-Type": "application/x-www-form-urlencoded"
+            "Content-Type": "application/x-www-form-urlencoded",
         }
-        data = {
-            "grant_type": "account_credentials",
-            "account_id": self.account_id
-        }
+        data = {"grant_type": "account_credentials", "account_id": self.account_id}
 
         try:
             response = requests.post(url, headers=headers, data=data)
@@ -41,12 +34,9 @@ class ZoomConnector(Utils):
         token = self.get_access_token()
         if not token:
             raise RuntimeError("Failed to get access token")
-        return {
-            'Authorization': f'Bearer {token}',
-            'Content-Type': 'application/json'
-        }
+        return {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
 
-    def get_zoom_users(self) -> Dict[str, Dict[str, Any]]:
+    def get_zoom_users(self) -> dict[str, dict[str, Any]]:
         url = "https://api.zoom.us/v2/users"
         headers = self.get_headers()
         users = {}
@@ -54,17 +44,18 @@ class ZoomConnector(Utils):
         next_page_token = None
 
         while True:
-            params = {
-                "page_size": page_size,
-                "next_page_token": next_page_token
-            } if next_page_token else {"page_size": page_size}
+            params = (
+                {"page_size": page_size, "next_page_token": next_page_token}
+                if next_page_token
+                else {"page_size": page_size}
+            )
 
             try:
                 response = requests.get(url, headers=headers, params=params)
                 response.raise_for_status()
                 data = response.json()
                 for user in data.get("users", []):
-                    users[user['email']] = user
+                    users[user["email"]] = user
 
                 next_page_token = data.get("next_page_token")
                 if not next_page_token:
@@ -93,8 +84,8 @@ class ZoomConnector(Utils):
                 "email": email,
                 "type": 2,  # 2 denotes Licensed user
                 "first_name": first_name,
-                "last_name": last_name
-            }
+                "last_name": last_name,
+            },
         }
         try:
             response = requests.post(url, headers=headers, json=user_info)

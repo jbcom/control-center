@@ -2,10 +2,11 @@ import logging
 import os
 import re
 from collections import defaultdict
-from copy import deepcopy, copy
-from typing import Mapping, Literal, Any
+from collections.abc import Mapping
+from copy import copy, deepcopy
+from typing import Any, Literal
 
-from extended_data_types import strtobool, get_unique_signature, is_nothing, wrap_raw_data_for_export, all_non_empty
+from extended_data_types import all_non_empty, get_unique_signature, is_nothing, strtobool, wrap_raw_data_for_export
 from rich.logging import RichHandler
 
 from cloud_connectors.base.settings import DEFAULT_LOG_LEVEL, VERBOSITY
@@ -68,10 +69,8 @@ def add_file_handler(logger: logging.Logger, log_file_name: str) -> None:
     if not sanitized_name[:1].isalnum():
         first_alpha = re.search(r"[A-Za-z0-9]", sanitized_name)
         if not first_alpha:
-            raise RuntimeError(
-                f"Malformed log file name: {sanitized_name} must contain at least one ASCII character"
-            )
-        sanitized_name = sanitized_name[first_alpha.start():]
+            raise RuntimeError(f"Malformed log file name: {sanitized_name} must contain at least one ASCII character")
+        sanitized_name = sanitized_name[first_alpha.start() :]
 
     log_file = f"{sanitized_name}.log"
     file_handler = logging.FileHandler(log_file)
@@ -116,15 +115,15 @@ class Logging:
     """
 
     def __init__(
-            self,
-            to_console: bool = False,
-            to_file: bool = True,
-            logger: logging.Logger | None = None,
-            logger_name: str | None = None,
-            log_file_name: str | None = None,
-            log_marker: str | None = None,
-            logged_statements_allowlist: list[str] | None = None,
-            logged_statements_denylist: list[str] | None = None
+        self,
+        to_console: bool = False,
+        to_file: bool = True,
+        logger: logging.Logger | None = None,
+        logger_name: str | None = None,
+        log_file_name: str | None = None,
+        log_marker: str | None = None,
+        logged_statements_allowlist: list[str] | None = None,
+        logged_statements_denylist: list[str] | None = None,
     ):
         """
         Initializes the Logging class with options for console and file logging.
@@ -154,12 +153,12 @@ class Logging:
         self.log_file_count = 0
 
     def get_logger(
-            self,
-            to_console: bool | None = None,
-            to_file: bool | None = None,
-            logger: logging.Logger | None = None,
-            logger_name: str | None = None,
-            log_file_name: str | None = None,
+        self,
+        to_console: bool | None = None,
+        to_file: bool | None = None,
+        logger: logging.Logger | None = None,
+        logger_name: str | None = None,
+        log_file_name: str | None = None,
     ) -> logging.Logger:
         """
         Configures and returns a logger with console and/or file handlers.
@@ -238,20 +237,18 @@ class Logging:
         return verbosity > max_verbosity
 
     def logged_statement(
-            self,
-            msg: str,
-            json_data: list[Mapping[str, Any]] | Mapping[str, Any] | None = None,
-            labeled_json_data: Mapping[str, Mapping[str, Any]] | None = None,
-            identifiers: list[str] | None = None,
-            verbose: bool | None = False,
-            verbosity: int | None = 1,
-            active_marker: str | None = None,
-            log_level: Literal[
-                "debug", "info", "warning", "error", "fatal", "critical"
-            ] = "debug",
-            log_marker: str | None = None,
-            allowlist: list[str] | None = None,
-            denylist: list[str] | None = None,
+        self,
+        msg: str,
+        json_data: list[Mapping[str, Any]] | Mapping[str, Any] | None = None,
+        labeled_json_data: Mapping[str, Mapping[str, Any]] | None = None,
+        identifiers: list[str] | None = None,
+        verbose: bool | None = False,
+        verbosity: int | None = 1,
+        active_marker: str | None = None,
+        log_level: Literal["debug", "info", "warning", "error", "fatal", "critical"] = "debug",
+        log_marker: str | None = None,
+        allowlist: list[str] | None = None,
+        denylist: list[str] | None = None,
     ) -> str | None:
         """
         Logs a statement with optional data and verbosity controls.
@@ -304,9 +301,9 @@ class Logging:
         denylist = denylist or self.default_logged_statements_denylist or []
 
         if (
-                not is_nothing(log_marker)
-                and (is_nothing(allowlist) or log_level in allowlist)
-                and log_level not in denylist
+            not is_nothing(log_marker)
+            and (is_nothing(allowlist) or log_level in allowlist)
+            and log_level not in denylist
         ):
             self.logs[log_marker].add(f":warning: {msg}" if log_level not in ["debug", "info"] else msg)
 

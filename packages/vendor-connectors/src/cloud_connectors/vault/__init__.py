@@ -11,11 +11,11 @@ class VaultConnector(Utils):
     """Simplified Vault client with token and AppRole authentication."""
 
     def __init__(
-            self,
-            vault_address: Optional[str] = None,
-            vault_namespace: Optional[str] = None,
-            vault_token: Optional[str] = None,
-            **kwargs,
+        self,
+        vault_address: Optional[str] = None,
+        vault_namespace: Optional[str] = None,
+        vault_token: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.vault_address = vault_address
@@ -31,9 +31,9 @@ class VaultConnector(Utils):
                 "config": {
                     "has_address": bool(vault_address),
                     "has_namespace": bool(vault_namespace),
-                    "has_token": bool(vault_token)
+                    "has_token": bool(vault_token),
                 }
-            }
+            },
         )
 
     @property
@@ -58,9 +58,9 @@ class VaultConnector(Utils):
                 "connection": {
                     "address": vault_address,
                     "has_namespace": bool(vault_namespace),
-                    "has_token": bool(vault_token)
+                    "has_token": bool(vault_token),
                 }
-            }
+            },
         )
 
         vault_opts = {
@@ -70,7 +70,7 @@ class VaultConnector(Utils):
             vault_opts["namespace"] = vault_namespace
         if vault_token:
             vault_opts["token"] = vault_token
-            
+
         try:
             self._vault_client = hvac.Client(**vault_opts)
 
@@ -85,7 +85,7 @@ class VaultConnector(Utils):
 
         # Fallback to AppRole authentication
         self.logger.info("Attempting App Role authentication flow")
-        
+
         try:
             app_role_path = self.get_input("VAULT_APPROLE_PATH", required=False, default="approle")
             role_id = self.get_input("VAULT_ROLE_ID", required=False)
@@ -98,14 +98,14 @@ class VaultConnector(Utils):
                         "has_path": bool(app_role_path),
                         "has_role_id": bool(role_id),
                         "has_secret_id": bool(secret_id),
-                        "path": app_role_path
+                        "path": app_role_path,
                     }
-                }
+                },
             )
 
             if role_id and secret_id:
                 self.logger.info("Attempting App Role authentication")
-                
+
                 # Re-create client for app role auth (clear any previous token)
                 vault_opts = {
                     "url": vault_address,
@@ -116,24 +116,21 @@ class VaultConnector(Utils):
                 self._vault_client = hvac.Client(**vault_opts)
 
                 auth_response = self._vault_client.auth.approle.login(
-                    role_id=role_id,
-                    secret_id=secret_id,
-                    mount_point=app_role_path,
-                    use_token=True
+                    role_id=role_id, secret_id=secret_id, mount_point=app_role_path, use_token=True
                 )
 
                 if self._vault_client.is_authenticated():
                     self._set_token_expiration()
-                    
+
                     self.logged_statement(
                         "App Role authentication successful",
                         labeled_json_data={
                             "auth": {
                                 "mount_point": app_role_path,
                                 "policies": auth_response.get("auth", {}).get("policies", []),
-                                "lease_duration": auth_response.get("auth", {}).get("lease_duration")
+                                "lease_duration": auth_response.get("auth", {}).get("lease_duration"),
                             }
-                        }
+                        },
                     )
                     return self._vault_client
                 else:
@@ -162,17 +159,12 @@ class VaultConnector(Utils):
             self.logged_statement(
                 "Token expiration lookup",
                 labeled_json_data={
-                    "token": {
-                        "has_expire_time": bool(expire_time),
-                        "available_fields": list(token_data.keys())
-                    }
-                }
+                    "token": {"has_expire_time": bool(expire_time), "available_fields": list(token_data.keys())}
+                },
             )
 
             if expire_time:
-                self._vault_token_expiration = datetime.fromisoformat(expire_time[:-1]).replace(
-                    tzinfo=timezone.utc
-                )
+                self._vault_token_expiration = datetime.fromisoformat(expire_time[:-1]).replace(tzinfo=timezone.utc)
                 self.logger.debug(f"Token expiration set to: {self._vault_token_expiration.isoformat()}")
             else:
                 self.logger.warning("No expiration time found in token data")
@@ -195,17 +187,20 @@ class VaultConnector(Utils):
                 "validity": {
                     "is_valid": is_valid,
                     "expires_at": self._vault_token_expiration.isoformat(),
-                    "current_time": datetime.now(timezone.utc).isoformat()
+                    "current_time": datetime.now(timezone.utc).isoformat(),
                 }
-            }
+            },
         )
 
         return is_valid
 
     @classmethod
     def get_vault_client(
-            cls, vault_address: Optional[str] = None, vault_namespace: Optional[str] = None,
-            vault_token: Optional[str] = None, **kwargs
+        cls,
+        vault_address: Optional[str] = None,
+        vault_namespace: Optional[str] = None,
+        vault_token: Optional[str] = None,
+        **kwargs,
     ) -> hvac.Client:
         """Get an instance of the Vault client."""
         instance = cls(vault_address, vault_namespace, vault_token, **kwargs)

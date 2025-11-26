@@ -1,13 +1,14 @@
+from collections.abc import Mapping, Sequence
 from itertools import batched
 from time import sleep
-from typing import Any, List, Mapping, Optional, Sequence, Union
+from typing import Any, List, Optional, Union
 
 from slack_sdk.errors import SlackApiError
 from slack_sdk.web import WebClient
 
 from cloud_connectors.base import settings, utils
-from cloud_connectors.base.utils import Utils
 from cloud_connectors.base.errors import FailedResponseError
+from cloud_connectors.base.utils import Utils
 
 
 def get_divider():
@@ -41,9 +42,7 @@ def get_field_context_message_blocks(field_name: str, context_data: Mapping):
         get_divider(),
     ]
 
-    for field_keys in batched(
-        context_data.keys(), 10
-    ):  # Max supported by Slack context blocks
+    for field_keys in batched(context_data.keys(), 10):  # Max supported by Slack context blocks
         context_elements = []
 
         for field_key in field_keys:
@@ -98,7 +97,7 @@ def get_key_value_blocks(k: str, v: Any):
 
 
 def get_rich_text_blocks(
-    lines: List[str],
+    lines: list[str],
     bold: bool = False,
     italic: bool = False,
     strike: bool = False,
@@ -147,8 +146,8 @@ class SlackConnector(Utils):
         self,
         channel_name: str,
         text: str,
-        blocks: Optional[List] = None,
-        lines: Optional[List[str]] = None,
+        blocks: Optional[list] = None,
+        lines: Optional[list[str]] = None,
         bold: bool = False,
         italic: bool = False,
         strike: bool = False,
@@ -159,11 +158,7 @@ class SlackConnector(Utils):
             lines = []
 
         if len(lines) > 0:
-            blocks.extend(
-                get_rich_text_blocks(
-                    lines=lines, bold=bold, italic=italic, strike=strike
-                )
-            )
+            blocks.extend(get_rich_text_blocks(lines=lines, bold=bold, italic=italic, strike=strike))
 
         channels = self.get_bot_channels()
         if channel_name not in channels:
@@ -175,10 +170,10 @@ class SlackConnector(Utils):
         if utils.is_nothing(channel_id):
             raise RuntimeError(f"{channel_name} does not have a channel ID")
 
-        opts = dict(
-            channel=channel_id,
-            text=text,
-        )
+        opts = {
+            "channel": channel_id,
+            "text": text,
+        }
 
         if not utils.is_nothing(blocks):
             opts["blocks"] = blocks
@@ -196,10 +191,7 @@ class SlackConnector(Utils):
 
     def get_bot_channels(self):
         try:
-            return {
-                channel["name"]: channel
-                for channel in self.bot_web_client.users_conversations()["channels"]
-            }
+            return {channel["name"]: channel for channel in self.bot_web_client.users_conversations()["channels"]}
         except SlackApiError as exc:
             raise FailedResponseError(exc.response)
 
@@ -214,9 +206,7 @@ class SlackConnector(Utils):
         **kwargs,
     ):
         if include_locale is None:
-            include_locale = self.get_input(
-                "include_locale", required=False, is_bool=True
-            )
+            include_locale = self.get_input("include_locale", required=False, is_bool=True)
 
         if limit is None:
             limit = self.get_input("limit", required=False)
@@ -225,19 +215,13 @@ class SlackConnector(Utils):
             team_id = self.get_input("team_id", required=False)
 
         if include_deleted is None:
-            include_deleted = self.get_input(
-                "include_deleted", required=False, default=False, is_bool=True
-            )
+            include_deleted = self.get_input("include_deleted", required=False, default=False, is_bool=True)
 
         if include_bots is None:
-            include_bots = self.get_input(
-                "include_bots", required=False, default=False, is_bool=True
-            )
+            include_bots = self.get_input("include_bots", required=False, default=False, is_bool=True)
 
         if include_app_users is None:
-            include_app_users = self.get_input(
-                "include_app_users", required=False, default=False, is_bool=True
-            )
+            include_app_users = self.get_input("include_app_users", required=False, default=False, is_bool=True)
         self.logger.info("Retrieving users from Slack")
 
         response = self.users_list(
@@ -256,9 +240,7 @@ class SlackConnector(Utils):
 
         for user_id, user_data in response.items():
             deleted = user_data.get("deleted", False)
-            is_bot = user_data.get("is_bot", False) or user_data.get(
-                "is_workflow_bot", False
-            )
+            is_bot = user_data.get("is_bot", False) or user_data.get("is_workflow_bot", False)
             is_app_user = user_data.get("is_app_user", False)
 
             if (
@@ -283,24 +265,16 @@ class SlackConnector(Utils):
         **kwargs,
     ):
         if include_count is None:
-            include_count = self.get_input(
-                "include_count", required=False, is_bool=True
-            )
+            include_count = self.get_input("include_count", required=False, is_bool=True)
 
         if include_disabled is None:
-            include_disabled = self.get_input(
-                "include_disabled", required=False, is_bool=True
-            )
+            include_disabled = self.get_input("include_disabled", required=False, is_bool=True)
 
         if include_users is None:
-            include_users = self.get_input(
-                "include_users", required=False, is_bool=True
-            )
+            include_users = self.get_input("include_users", required=False, is_bool=True)
 
         if expand_users is None:
-            expand_users = self.get_input(
-                "expand_users", required=False, default=False, is_bool=True
-            )
+            expand_users = self.get_input("expand_users", required=False, default=False, is_bool=True)
 
         if team_id is None:
             team_id = self.get_input("team_id", required=False)
@@ -321,6 +295,9 @@ class SlackConnector(Utils):
 
         if not expand_users:
             return response
+
+        # Fetch users to expand usergroup user IDs
+        users = self.list_users(**kwargs)
 
         expanded = {}
 
@@ -355,13 +332,13 @@ class SlackConnector(Utils):
         return (response.get("members", []),)
 
     def update_channel_members(
-            self,
-            channel_name: Optional[str] = None,
-            user_ids: Optional[List[str]] = None,
-            is_private: Optional[bool] = None,
-            remove_other_users: Optional[bool] = None,
-            raise_on_api_error: bool = True,
-            **kwargs,
+        self,
+        channel_name: Optional[str] = None,
+        user_ids: Optional[list[str]] = None,
+        is_private: Optional[bool] = None,
+        remove_other_users: Optional[bool] = None,
+        raise_on_api_error: bool = True,
+        **kwargs,
     ):
         """
         Ensures that the specified channel exists and has the specified members.
@@ -400,16 +377,16 @@ class SlackConnector(Utils):
                 is_private=is_private,
                 user_ids=user_ids,
                 raise_on_api_error=raise_on_api_error,
-                **kwargs
+                **kwargs,
             )
-            channel_id = channel.get('id')
+            channel_id = channel.get("id")
             self.logger.info(f"Channel '{channel_name}' created with ID {channel_id}")
 
             # Since the channel is newly created and users are already invited, we can return here
             return channel
         else:
             # Channel exists
-            channel_id = channel.get('id')
+            channel_id = channel.get("id")
             self.logger.info(f"Channel '{channel_name}' exists with ID {channel_id}")
 
         # Proceed to update members only if the channel was not newly created
@@ -424,7 +401,7 @@ class SlackConnector(Utils):
                 self.bot_web_client.conversations_join(channel=channel_id)
                 current_member_ids.append(bot_user_id)
             except SlackApiError as e:
-                error = e.response['error']
+                error = e.response["error"]
                 self.logger.error(f"Error joining channel '{channel_name}': {error}")
                 if raise_on_api_error:
                     raise FailedResponseError(e.response)
@@ -434,9 +411,9 @@ class SlackConnector(Utils):
         # Get channel creator to avoid removing them
         try:
             channel_info = self.bot_web_client.conversations_info(channel=channel_id)
-            channel_creator = channel_info['channel'].get('creator')
+            channel_creator = channel_info["channel"].get("creator")
         except SlackApiError as e:
-            error = e.response['error']
+            error = e.response["error"]
             self.logger.error(f"Error retrieving channel info for '{channel_name}': {error}")
             if raise_on_api_error:
                 raise FailedResponseError(e.response)
@@ -460,12 +437,9 @@ class SlackConnector(Utils):
             self.logger.info(f"Inviting users {list(users_to_invite)} to channel '{channel_name}'")
             # Slack API allows inviting up to 1000 users at a time
             try:
-                self.bot_web_client.conversations_invite(
-                    channel=channel_id,
-                    users=list(users_to_invite)
-                )
+                self.bot_web_client.conversations_invite(channel=channel_id, users=list(users_to_invite))
             except SlackApiError as e:
-                error = e.response['error']
+                error = e.response["error"]
                 self.logger.error(f"Error inviting users to channel '{channel_name}': {error}")
                 if raise_on_api_error:
                     raise FailedResponseError(e.response)
@@ -482,12 +456,9 @@ class SlackConnector(Utils):
         for user_id in users_to_remove:
             self.logger.info(f"Removing user {user_id} from channel '{channel_name}'")
             try:
-                self.bot_web_client.conversations_kick(
-                    channel=channel_id,
-                    user=user_id
-                )
+                self.bot_web_client.conversations_kick(channel=channel_id, user=user_id)
             except SlackApiError as e:
-                error = e.response['error']
+                error = e.response["error"]
                 self.logger.error(f"Error removing user {user_id} from channel '{channel_name}': {error}")
                 if raise_on_api_error:
                     raise FailedResponseError(e.response)
@@ -512,12 +483,12 @@ class SlackConnector(Utils):
         return None
 
     def create_channel(
-            self,
-            name: Optional[str] = None,
-            is_private: Optional[bool] = None,
-            user_ids: Optional[Union[str, List[str]]] = None,
-            raise_on_api_error: bool = True,
-            **kwargs,
+        self,
+        name: Optional[str] = None,
+        is_private: Optional[bool] = None,
+        user_ids: Optional[Union[str, list[str]]] = None,
+        raise_on_api_error: bool = True,
+        **kwargs,
     ):
         """
         Creates a Slack channel.
@@ -545,11 +516,7 @@ class SlackConnector(Utils):
         self.logger.info(f"Creating Slack channel '{name}' (private: {is_private})")
 
         try:
-            response = self.bot_web_client.conversations_create(
-                name=name,
-                is_private=is_private,
-                **kwargs
-            )
+            response = self.bot_web_client.conversations_create(name=name, is_private=is_private, **kwargs)
             channel = response.get("channel")
             channel_id = channel.get("id")
             self.logger.info(f"Channel '{name}' created with ID {channel_id}")
@@ -557,14 +524,13 @@ class SlackConnector(Utils):
             if user_ids:
                 self.logger.info(f"Inviting users {user_ids} to channel '{name}'")
                 self.bot_web_client.conversations_invite(
-                    channel=channel_id,
-                    users=user_ids if isinstance(user_ids, list) else [user_ids]
+                    channel=channel_id, users=user_ids if isinstance(user_ids, list) else [user_ids]
                 )
 
             return channel
 
         except SlackApiError as e:
-            error = e.response['error']
+            error = e.response["error"]
             self.logger.error(f"Error creating channel '{name}': {error}")
             if raise_on_api_error:
                 raise FailedResponseError(e.response)
@@ -582,9 +548,7 @@ class SlackConnector(Utils):
         **kwargs,
     ):
         if exclude_archived is None:
-            exclude_archived = self.get_input(
-                "exclude_archived", required=False, is_bool=True
-            )
+            exclude_archived = self.get_input("exclude_archived", required=False, is_bool=True)
 
         if limit is None:
             limit = self.get_input("limit", required=False)
@@ -596,14 +560,10 @@ class SlackConnector(Utils):
             types = self.decode_input("types", required=False)
 
         if get_members is None:
-            get_members = self.get_input(
-                "get_members", required=False, default=False, is_bool=True
-            )
+            get_members = self.get_input("get_members", required=False, default=False, is_bool=True)
 
         if channels_only is None:
-            channels_only = self.get_input(
-                "channels_only", required=False, default=False, is_bool=True
-            )
+            channels_only = self.get_input("channels_only", required=False, default=False, is_bool=True)
 
         self.logger.info("Getting Slack conversations")
 
@@ -674,13 +634,9 @@ class SlackConnector(Utils):
                         total_delay += delay
 
                         if total_delay > settings.MAX_PROC_RUN_TIME:
-                            raise TimeoutError(
-                                f"Slack WebClient {method} timed out after {total_delay} seconds"
-                            )
+                            raise TimeoutError(f"Slack WebClient {method} timed out after {total_delay} seconds")
 
-                        self.logger.warning(
-                            f"Rate limited. Retrying Slack WebClient {method} in {delay} seconds"
-                        )
+                        self.logger.warning(f"Rate limited. Retrying Slack WebClient {method} in {delay} seconds")
                         sleep(delay)
                         attempt += 1
                     else:
@@ -694,9 +650,7 @@ class SlackConnector(Utils):
             for datum in response.get(group_by, {}):
                 datum_id = datum.get(id_field_name)
                 if utils.is_nothing(datum_id):
-                    raise RuntimeError(
-                        f"No ID for field {id_field_name} in returned Slack WebClient datum: {datum}"
-                    )
+                    raise RuntimeError(f"No ID for field {id_field_name} in returned Slack WebClient datum: {datum}")
 
                 grouped[datum_id] = datum
 
