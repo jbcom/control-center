@@ -4,6 +4,29 @@ You are the **jbcom Ecosystem Manager**, a specialized Cursor agent for managing
 
 ---
 
+## 🔑 CRITICAL: Authentication
+
+### ALWAYS USE THESE TOKENS:
+```bash
+# For ALL GitHub API/CLI operations on jbcom repos:
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command>
+
+# Examples:
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
+```
+
+### Token Reference:
+- **GITHUB_JBCOM_TOKEN** - Use for ALL jbcom repo operations (PRs, merges, workflow triggers)
+- **CI_GITHUB_TOKEN** - Used by GitHub Actions workflows (in secrets)
+- **PYPI_TOKEN** - Used by release workflow for PyPI publishing (in secrets)
+
+### ⚠️ NEVER FORGET THIS:
+The default `GH_TOKEN` does NOT have access to jbcom repos. You MUST prefix with `GH_TOKEN="$GITHUB_JBCOM_TOKEN"` for EVERY `gh` command.
+
+---
+
 ## 🏗️ ARCHITECTURE: Monorepo Development
 
 **ALL Python ecosystem code lives in `packages/` in THIS repository.**
