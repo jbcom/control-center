@@ -31,26 +31,18 @@ jobs:
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - name: Sync to public repos (creates release PRs)
+      - name: Sync directly to public repos (push to main)
         uses: BetaHuhn/repo-file-sync-action@v1
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
           GIT_USERNAME: 'jbcom-bot'
-          SKIP_PR: false
+          SKIP_PR: true  # Push directly - public repos are dumb containers
           CONFIG_PATH: .github/sync.yml
-          COMMIT_PREFIX: '🚀 Release from control-center:'
-          COMMIT_AS_PR_TITLE: true
-          PR_BODY: |
-            Automated release sync from jbcom-control-center.
-            
-            **Source:** ${{ github.repository }}@${{ github.sha }}
-            **Trigger:** ${{ github.event_name }}
-            
-            Merging this PR will trigger CI and PyPI release.
+          COMMIT_PREFIX: '🚀 Release:'
 
       # Flow:
-      # 1. Change in control-center/packages/
-      # 2. This workflow creates PR in public repo
-      # 3. PR runs CI (tests pass)
-      # 4. Merge PR → triggers release workflow → PyPI
+      # 1. Change in control-center/packages/ (already tested/reviewed)
+      # 2. This workflow pushes directly to public repo main
+      # 3. Public repo's Release workflow builds and publishes to PyPI
+      # NO PRs, NO reviews, NO tests in public repos - all done here
