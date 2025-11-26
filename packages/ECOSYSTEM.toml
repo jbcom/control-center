@@ -67,6 +67,20 @@ creates_prs = true
 pr_prefix = "🚀 Release from control-center"
 uses_secret = "CI_GITHUB_TOKEN"
 
+# Review architecture
+[review]
+# ALL reviews happen HERE in control-center, BEFORE sync
+pre_sync_workflow = ".github/workflows/claude-review.yml"
+uses_claude_code_action = true
+auto_heal = true  # Claude fixes issues automatically
+
+# Public repos are DUMB RELEASE CONTAINERS
+# - No tests (already tested here)
+# - No reviews (already reviewed here)
+# - No CodeQL, no Copilot, no nothing
+# - Just: push to main → build → PyPI
+public_repo_ci = "templates/python/minimal-ci.yml"
+
 # Standards
 [standards]
 versioning = "CalVer (YYYY.MM.BUILD)"
