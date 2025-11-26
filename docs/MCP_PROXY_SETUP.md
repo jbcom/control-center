@@ -231,10 +231,10 @@ from tools.mcp_client import MCP
 
 def deploy_workflow(repo_name: str):
     mcp = MCP()
-    
+
     # Use MCP instead of gh CLI
     pr = mcp.github.create_pull_request(...)
-    
+
     return pr["html_url"]
 ```
 

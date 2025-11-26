@@ -20,6 +20,7 @@ from extended_data_types.type_utils import (
     convert_special_types,
     get_default_value_for_type,
     get_primitive_type_for_instance_type,
+    make_hashable,
     reconstruct_special_type,
     reconstruct_special_types,
     strtobool,
@@ -528,3 +529,57 @@ def test_reconstruct_special_type_fail_silently() -> None:
 def test_reconstruct_deeply_nested_structure(obj: Any, expected: Any) -> None:
     """Tests reconstruction of deeply nested structures."""
     assert reconstruct_special_types(obj, fail_silently=False) == expected
+
+
+class TestMakeHashable:
+    """Tests for the make_hashable function."""
+
+    def test_primitives_unchanged(self) -> None:
+        """Test that primitive types are returned unchanged."""
+        assert make_hashable("string") == "string"
+        assert make_hashable(42) == 42
+        assert make_hashable(3.14) == 3.14
+        assert make_hashable(True) is True
+        assert make_hashable(None) is None
+
+    def test_list_to_tuple(self) -> None:
+        """Test that lists are converted to tuples."""
+        assert make_hashable([1, 2, 3]) == (1, 2, 3)
+        assert make_hashable(["a", "b"]) == ("a", "b")
+
+    def test_tuple_stays_tuple(self) -> None:
+        """Test that tuples remain tuples."""
+        assert make_hashable((1, 2, 3)) == (1, 2, 3)
+
+    def test_dict_to_frozenset(self) -> None:
+        """Test that dicts are converted to frozensets of tuples."""
+        result = make_hashable({"a": 1, "b": 2})
+        assert isinstance(result, frozenset)
+        assert result == frozenset([("a", 1), ("b", 2)])
+
+    def test_nested_structure(self) -> None:
+        """Test that nested structures are recursively converted."""
+        result = make_hashable({"key": [1, 2, {"nested": "value"}]})
+        assert isinstance(result, frozenset)
+        # The list should be converted to tuple, and nested dict to frozenset
+        expected_nested = frozenset([("nested", "value")])
+        expected_list = (1, 2, expected_nested)
+        assert result == frozenset([("key", expected_list)])
+
+    def test_result_is_hashable(self) -> None:
+        """Test that the result can be used as a dict key."""
+        complex_obj = {"a": [1, 2], "b": {"c": 3}}
+        hashable = make_hashable(complex_obj)
+        # Should not raise - can be used as dict key
+        test_dict = {hashable: "value"}
+        assert test_dict[hashable] == "value"
+
+    def test_custom_object_to_string(self) -> None:
+        """Test that custom objects are converted to string."""
+
+        class CustomClass:
+            def __str__(self) -> str:
+                return "custom_str"
+
+        result = make_hashable(CustomClass())
+        assert result == "custom_str"

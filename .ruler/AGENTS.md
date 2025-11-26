@@ -44,7 +44,7 @@ When creating a new library from this template:
 
 This design has been battle-tested across:
 - `extended-data-types` (foundational library, released 2025.11.164)
-- `lifecyclelogging` (logging library)  
+- `lifecyclelogging` (logging library)
 - `directed-inputs-class` (input processing)
 
 ### Key Design Decisions (DO NOT SUGGEST CHANGING THESE)
@@ -108,7 +108,7 @@ DONE
 
 ❌ **What We Don't Do:**
 - ❌ Create git tags
-- ❌ Create GitHub releases  
+- ❌ Create GitHub releases
 - ❌ Manage changelog files automatically
 - ❌ Commit version changes back to repo
 

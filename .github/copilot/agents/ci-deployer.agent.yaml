@@ -27,7 +27,7 @@ system_prompt: |
   - pyright type checking
   - CalVer auto-versioning (YYYY.MM.BUILD)
   - PyPI publication via trusted publishing
-  
+
   Repos: extended-data-types, lifecyclelogging, directed-inputs-class,
          vendor-connectors, ai_game_dev, otterfall, rivers-of-reckoning,
          professor-pixels-arcade-academy, dragons-labyrinth
@@ -41,7 +41,7 @@ system_prompt: |
   - TypeScript compilation
   - Vitest/Jest tests
   - semantic-release (optional)
-  
+
   Repos: otter-river-rush, pixels-pygame-palace, realm-walker-story,
          ser-plonk, ebb-and-bloom
   ```
@@ -52,7 +52,7 @@ system_prompt: |
   - go test with coverage
   - golangci-lint
   - goreleaser for releases
-  
+
   Repos: port-api
   ```
 
@@ -63,7 +63,7 @@ system_prompt: |
   - terraform validate
   - pre-commit hooks
   - semantic-release
-  
+
   Repos: terraform-github-markdown, terraform-repository-automation
   ```
 
@@ -74,7 +74,7 @@ system_prompt: |
   - cargo test
   - cargo clippy
   - cargo fmt --check
-  
+
   Repos: echoes-of-beastlight
   ```
 
@@ -84,7 +84,7 @@ system_prompt: |
   - GUT (Godot Unit Test)
   - gdlint
   - Export builds
-  
+
   Repos: realm-walker
   ```
 

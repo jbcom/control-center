@@ -97,7 +97,7 @@ exclude = ["docs"]
 
 [tool.ruff.lint]
 select = ["ALL"]
-ignore = ["ANN", "COM", "E501", "FBT", "PLR0913", "C901"]
+ignore = ["ANN", "COM", "E501", "FBT", "PLR0913", "C901", "TRY300"]
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

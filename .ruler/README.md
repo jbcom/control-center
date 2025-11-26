@@ -26,7 +26,7 @@ Current files:
 Ruler generates these files (DO NOT edit directly):
 
 - **`.cursorrules`** - Cursor AI configuration
-- **`.claud`** - Claude Code configuration  
+- **`.claud`** - Claude Code configuration
 - **`.github/copilot-instructions.md`** - GitHub Copilot instructions
 - **`AGENTS.md`** (root) - For Aider and general AI agents
 

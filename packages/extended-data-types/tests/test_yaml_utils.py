@@ -29,7 +29,7 @@ from extended_data_types.yaml_utils import (
 CUSTOM_TAG_VALUE = 12345
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_yaml_fixture() -> str:
     """Provides a simple YAML string for testing.
 
@@ -39,7 +39,7 @@ def simple_yaml_fixture() -> str:
     return "test_key: test_value\nnested:\n  key1: value1\n  key2: value2\nlist:\n  - item1\n  - item2\n"
 
 
-@pytest.fixture()
+@pytest.fixture
 def complex_yaml_fixture() -> str:
     """Provides a complex YAML string representing an AWS CloudFormation template for testing.
 

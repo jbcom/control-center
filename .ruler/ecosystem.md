@@ -68,12 +68,12 @@ Declarative input validation and processing.
 
 ### 4. vendor-connectors
 **Location:** `packages/vendor-connectors/`
-**PyPI:** `cloud-connectors`
+**PyPI:** `vendor-connectors`
 **Public Repo:** `jbcom/vendor-connectors`
 
-Unified cloud provider connectors (AWS, GCP, GitHub, Slack, Vault, Zoom).
+Unified vendor connectors (AWS, GCP, GitHub, Slack, Vault, Zoom).
 
-**Depends on:** extended-data-types, lifecyclelogging
+**Depends on:** extended-data-types, lifecyclelogging, directed-inputs-class
 
 ---
 
@@ -88,7 +88,7 @@ extended-data-types (FOUNDATION)
 
 **Release Order:** Always release in this order:
 1. extended-data-types
-2. lifecyclelogging  
+2. lifecyclelogging
 3. directed-inputs-class
 4. vendor-connectors
 
@@ -195,7 +195,7 @@ done
 ```bash
 pip index versions extended-data-types
 pip index versions lifecyclelogging
-pip index versions cloud-connectors
+pip index versions vendor-connectors
 ```
 
 ### Trigger Manual Sync

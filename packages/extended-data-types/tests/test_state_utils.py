@@ -134,9 +134,9 @@ def test_all_non_empty(args, kwargs, expected):
         The result of all_non_empty matches the expected value.
     """
     result = all_non_empty(*args, **kwargs)
-    assert (
-        result == expected
-    ), f"Args: '{args}', Kwargs: '{kwargs}', Expected {expected}, got {result}"
+    assert result == expected, (
+        f"Args: '{args}', Kwargs: '{kwargs}', Expected {expected}, got {result}"
+    )
 
 
 @pytest.mark.parametrize(

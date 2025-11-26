@@ -35,7 +35,7 @@ from extended_data_types.file_data_type import (
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 
-@pytest.fixture()
+@pytest.fixture
 def valid_file_path() -> Path:
     """Provides a valid file path for testing.
 
@@ -45,7 +45,7 @@ def valid_file_path() -> Path:
     return Path("/path/to/file.txt")
 
 
-@pytest.fixture()
+@pytest.fixture
 def valid_repo_data() -> dict:
     """Provides valid data for testing repository functions.
 

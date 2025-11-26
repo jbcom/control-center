@@ -18,7 +18,7 @@ Model Context Protocol (MCP) is an open protocol that enables AI assistants to c
   - Check workflow runs
   - Much more...
 
-### 2. Filesystem MCP Server  
+### 2. Filesystem MCP Server
 - **Package**: `@modelcontextprotocol/server-filesystem`
 - **Capabilities**:
   - Read/write files
@@ -108,7 +108,7 @@ await mcp.github.create_pull_request({
 
 This is:
 - ✅ Faster
-- ✅ More reliable  
+- ✅ More reliable
 - ✅ Better error handling
 - ✅ Type-safe
 - ✅ No shell command parsing

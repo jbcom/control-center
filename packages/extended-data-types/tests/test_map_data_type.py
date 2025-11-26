@@ -46,7 +46,7 @@ from extended_data_types.map_data_type import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_map() -> dict:
     """Provides a sample map with nested structures for testing.
 
@@ -62,7 +62,7 @@ def test_map() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def duplicated_map() -> dict:
     """Provides a map with duplicate values for testing deduplication.
 
@@ -76,7 +76,7 @@ def duplicated_map() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_keys() -> list[str]:
     """Provides a list of keys for testing.
 
@@ -86,7 +86,7 @@ def test_keys() -> list[str]:
     return ["key2", "key4", "key1"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def flattened_map() -> dict:
     """Provides the expected flat map for testing.
 
@@ -106,7 +106,7 @@ def flattened_map() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def a_list() -> list[str]:
     """Provides a sample list of strings for testing zipmap.
 
@@ -116,7 +116,7 @@ def a_list() -> list[str]:
     return ["a", "b", "c"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def b_list() -> list[str]:
     """Provides another sample list of strings for testing zipmap.
 
@@ -126,7 +126,7 @@ def b_list() -> list[str]:
     return ["1", "2", "3"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def zipmap_result() -> dict:
     """Provides the expected result of the zipmap operation.
 
@@ -136,7 +136,7 @@ def zipmap_result() -> dict:
     return {"a": "1", "b": "2", "c": "3"}
 
 
-@pytest.fixture()
+@pytest.fixture
 def camel_case_map() -> dict:
     """Provides a sample map with camelCase keys for testing unhump_map.
 
@@ -150,7 +150,7 @@ def camel_case_map() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def snake_case_map() -> dict:
     """Provides the expected snake_case map after unhump_map.
 
@@ -163,7 +163,7 @@ def snake_case_map() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def filter_map_data() -> dict:
     """Provides a sample map for testing filter_map.
 
@@ -178,7 +178,7 @@ def filter_map_data() -> dict:
     }
 
 
-@pytest.fixture()
+@pytest.fixture
 def allowlist() -> list[str]:
     """Provides a list of allowed keys for filter_map.
 
@@ -188,7 +188,7 @@ def allowlist() -> list[str]:
     return ["allowed1", "allowed2"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def denylist() -> list[str]:
     """Provides a list of denied keys for filter_map.
 

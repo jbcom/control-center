@@ -51,4 +51,6 @@ jobs:
           esac
 
       - name: Test
-        run: pytest packages/${{ inputs.package }}/tests -v --tb=short
+        run: |
+          cd packages/${{ inputs.package }}
+          pytest tests -v --tb=short

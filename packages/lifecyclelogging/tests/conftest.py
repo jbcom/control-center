@@ -10,7 +10,7 @@ import pytest
 from lifecyclelogging import Logging
 
 
-@pytest.fixture()
+@pytest.fixture
 def logger() -> Logging:
     """Create a logger instance for testing with outputs disabled.
 

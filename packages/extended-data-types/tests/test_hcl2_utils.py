@@ -21,7 +21,7 @@ from extended_data_types.hcl2_utils import decode_hcl2, encode_hcl2
 from lark.exceptions import UnexpectedToken
 
 
-@pytest.fixture()
+@pytest.fixture
 def hcl2_data() -> str:
     """Provides a sample HCL2 string for testing.
 
@@ -41,7 +41,7 @@ def hcl2_data() -> str:
     """
 
 
-@pytest.fixture()
+@pytest.fixture
 def expected_output() -> dict:
     """Provides the expected decoded output for the sample HCL2 string.
 
