@@ -65,7 +65,7 @@ dependents = []
 trigger_on = ["push", "release", "workflow_dispatch"]
 creates_prs = true
 pr_prefix = "🚀 Release from control-center"
-requires_secret = "JBCOM_SYNC_TOKEN"
+uses_secret = "GITHUB_JBCOM_TOKEN"
 
 # Standards
 [standards]
