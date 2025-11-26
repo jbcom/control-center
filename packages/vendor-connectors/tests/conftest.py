@@ -11,10 +11,6 @@ def mock_logger():
     """Provide a mock Logging instance for testing."""
     logging = MagicMock(spec=Logging)
     logging.logger = MagicMock()
-    logging.logger.info = MagicMock()
-    logging.logger.debug = MagicMock()
-    logging.logger.warning = MagicMock()
-    logging.logger.error = MagicMock()
     return logging
 
 
