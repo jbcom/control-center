@@ -1,7 +1,7 @@
 """This module provides utilities for handling maps (dictionaries).
 
-It includes functions to manipulate, flatten, and filter dictionaries, and to
-convert keys from camelCase to snake_case.
+It includes functions to manipulate, flatten, filter, and deeply merge
+dictionaries, and to convert keys from camelCase to snake_case.
 """
 
 from __future__ import annotations
@@ -12,9 +12,91 @@ from typing import Any, TypeVar
 
 import inflection
 
+from deepmerge import Merger
 from sortedcontainers import SortedDict
 
 from .type_utils import convert_special_types
+
+
+# Default merger configuration:
+# - Lists: append elements
+# - Dicts: recursively merge
+# - Sets: union
+# - Fallback: override with newer value
+_DEFAULT_MERGER = Merger(
+    type_strategies=[
+        (list, ["append"]),
+        (dict, ["merge"]),
+        (set, ["union"]),
+    ],
+    fallback_strategies=["override"],
+    type_conflict_strategies=["override"],
+)
+
+
+def deep_merge(*mappings: Mapping[str, Any]) -> dict[str, Any]:
+    """Deeply merge multiple mappings into a single dictionary.
+
+    This function recursively merges dictionaries, with later values taking
+    precedence over earlier ones. Lists are appended, sets are unioned, and
+    other types are overridden.
+
+    Args:
+        *mappings: Variable number of mappings to merge. Later mappings
+            take precedence over earlier ones.
+
+    Returns:
+        A new dictionary containing the deeply merged result.
+
+    Example:
+        >>> a = {"x": {"y": 1}, "list": [1, 2]}
+        >>> b = {"x": {"z": 2}, "list": [3]}
+        >>> deep_merge(a, b)
+        {'x': {'y': 1, 'z': 2}, 'list': [1, 2, 3]}
+    """
+    result: dict[str, Any] = {}
+    for mapping in mappings:
+        if mapping:
+            result = _DEFAULT_MERGER.merge(result, dict(mapping))
+    return result
+
+
+def create_merger(
+    list_strategy: str = "append",
+    dict_strategy: str = "merge",
+    set_strategy: str = "union",
+    fallback_strategy: str = "override",
+    type_conflict_strategy: str = "override",
+) -> Merger:
+    """Create a custom Merger instance with specified strategies.
+
+    This factory function allows creating mergers with different behaviors
+    for combining data structures.
+
+    Args:
+        list_strategy: Strategy for merging lists. Options: "append", "override".
+        dict_strategy: Strategy for merging dicts. Options: "merge", "override".
+        set_strategy: Strategy for merging sets. Options: "union", "override".
+        fallback_strategy: Default strategy for unhandled types.
+        type_conflict_strategy: Strategy when types conflict.
+
+    Returns:
+        A configured Merger instance.
+
+    Example:
+        >>> merger = create_merger(list_strategy="override")
+        >>> merger.merge({"a": [1]}, {"a": [2]})
+        {'a': [2]}
+    """
+    return Merger(
+        type_strategies=[
+            (list, [list_strategy]),
+            (dict, [dict_strategy]),
+            (set, [set_strategy]),
+        ],
+        fallback_strategies=[fallback_strategy],
+        type_conflict_strategies=[type_conflict_strategy],
+    )
 
 
 def first_non_empty_value_from_map(m: Mapping[str, Any], *keys: str) -> Any:

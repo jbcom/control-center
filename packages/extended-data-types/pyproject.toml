@@ -25,6 +25,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
+    "deepmerge>=2.0",
     "gitpython>=3.1.0",
     "inflection>=0.5.1",
     "num2words>=0.5.14",
