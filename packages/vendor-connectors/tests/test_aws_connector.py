@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from cloud_connectors.aws import AWSConnector
+from vendor_connectors.aws import AWSConnector
 
 
 class TestAWSConnector:
@@ -16,7 +16,6 @@ class TestAWSConnector:
         connector = AWSConnector(**base_connector_kwargs)
         assert connector.execution_role_arn is None
         assert connector.aws_sessions == {}
-        assert connector.aws_clients == {}
         assert connector.default_aws_session is not None
 
     def test_init_with_role(self, base_connector_kwargs):
@@ -25,10 +24,9 @@ class TestAWSConnector:
         connector = AWSConnector(execution_role_arn=role_arn, **base_connector_kwargs)
         assert connector.execution_role_arn == role_arn
 
-    @patch("cloud_connectors.aws.boto3.Session")
+    @patch("vendor_connectors.aws.boto3.Session")
     def test_assume_role_success(self, mock_session_class, base_connector_kwargs):
         """Test successful role assumption."""
-        # Setup mocks
         mock_sts_client = MagicMock()
         mock_sts_client.assume_role.return_value = {
             "Credentials": {
@@ -41,7 +39,6 @@ class TestAWSConnector:
 
         mock_default_session = MagicMock()
         mock_default_session.client.return_value = mock_sts_client
-
         mock_session_class.return_value = mock_default_session
 
         connector = AWSConnector(**base_connector_kwargs)
@@ -52,7 +49,7 @@ class TestAWSConnector:
 
         mock_sts_client.assume_role.assert_called_once_with(RoleArn=role_arn, RoleSessionName="test-session")
 
-    @patch("cloud_connectors.aws.boto3.Session")
+    @patch("vendor_connectors.aws.boto3.Session")
     def test_assume_role_failure(self, mock_session_class, base_connector_kwargs):
         """Test failed role assumption."""
         mock_sts_client = MagicMock()
@@ -78,14 +75,13 @@ class TestAWSConnector:
         session = connector.get_aws_session()
         assert session == connector.default_aws_session
 
-    @patch("cloud_connectors.aws.boto3.Session")
-    def test_create_standard_retry_config(self, mock_session_class, base_connector_kwargs):
+    def test_create_standard_retry_config(self):
         """Test creating standard retry configuration."""
         config = AWSConnector.create_standard_retry_config(max_attempts=5)
         assert config.retries["max_attempts"] == 5
         assert config.retries["mode"] == "standard"
 
-    @patch("cloud_connectors.aws.boto3.Session")
+    @patch("vendor_connectors.aws.boto3.Session")
     def test_get_aws_client(self, mock_session_class, base_connector_kwargs):
         """Test getting AWS client."""
         mock_session = MagicMock()
@@ -101,7 +97,7 @@ class TestAWSConnector:
         assert client == mock_client
         mock_session.client.assert_called_once()
 
-    @patch("cloud_connectors.aws.boto3.Session")
+    @patch("vendor_connectors.aws.boto3.Session")
     def test_get_aws_resource(self, mock_session_class, base_connector_kwargs):
         """Test getting AWS resource."""
         mock_session = MagicMock()

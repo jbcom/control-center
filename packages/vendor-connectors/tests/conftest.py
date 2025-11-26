@@ -1,19 +1,21 @@
-"""Pytest configuration and fixtures for cloud_connectors tests."""
+"""Pytest configuration and fixtures for vendor_connectors tests."""
 
 from unittest.mock import MagicMock
 
 import pytest
+from lifecyclelogging import Logging
 
 
 @pytest.fixture
 def mock_logger():
-    """Provide a mock logger for testing."""
-    logger = MagicMock()
-    logger.info = MagicMock()
-    logger.debug = MagicMock()
-    logger.warning = MagicMock()
-    logger.error = MagicMock()
-    return logger
+    """Provide a mock Logging instance for testing."""
+    logging = MagicMock(spec=Logging)
+    logging.logger = MagicMock()
+    logging.logger.info = MagicMock()
+    logging.logger.debug = MagicMock()
+    logging.logger.warning = MagicMock()
+    logging.logger.error = MagicMock()
+    return logging
 
 
 @pytest.fixture
@@ -21,6 +23,5 @@ def base_connector_kwargs(mock_logger):
     """Provide common kwargs for all connectors."""
     return {
         "logger": mock_logger,
-        "to_console": False,
-        "to_file": False,
+        "from_environment": False,
     }
