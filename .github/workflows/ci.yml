@@ -1,8 +1,8 @@
 # Master CI/CD orchestration workflow
 #
 # Uses reusable workflows with stacked matrices:
-# - Package × Python version for testing
-# - Package × Target repo for sync/release/docs
+# - Package x Python version for testing
+# - Package x Target repo for sync/release/docs
 #
 # On PR:   Test + Lint
 # On main: Test + Lint + Sync + Release + Docs + Enforce Standards
@@ -47,7 +47,7 @@ jobs:
           
           PYTHON_VERSIONS='["3.9","3.13"]'
           
-          # Test matrix: package × python
+          # Test matrix: package x python
           TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
           
           # Deploy matrix: just packages with their metadata
@@ -58,7 +58,7 @@ jobs:
           echo "deploy-matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
 
   # ============================================
-  # TEST (package × python matrix)
+  # TEST (package x python matrix)
   # ============================================
   test:
     needs: matrix

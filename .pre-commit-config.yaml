@@ -53,6 +53,12 @@ repos:
       - id: yamllint
         args: [-c=.yamllint.yaml]
 
+  # GitHub Actions workflow linting - catches schema issues before push
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.4
+    hooks:
+      - id: actionlint
+
   # Custom validators for this management hub
   - repo: local
     hooks:
