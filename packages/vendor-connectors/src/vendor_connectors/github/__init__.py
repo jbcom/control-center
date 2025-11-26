@@ -3,27 +3,21 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from typing import Any, Optional, Union
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import is_nothing, wrap_raw_data_for_export
+from extended_data_types import (
+    get_encoding_for_file_path,
+    is_nothing,
+    unwrap_raw_data_from_import,
+    wrap_raw_data_for_export,
+)
 from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 from lifecyclelogging import Logging
 from python_graphql_client import GraphqlClient
 
 FilePath = Union[str, bytes, os.PathLike[Any]]
-
-
-def get_encoding_for_file_path(file_path: FilePath) -> str:
-    """Get encoding type based on file extension."""
-    suffix = Path(file_path).suffix
-    if suffix in [".yaml", ".yml"]:
-        return "yaml"
-    elif suffix in [".json"]:
-        return "json"
-    return "raw"
 
 
 def get_github_api_error(exc: GithubException) -> Optional[str]:
@@ -164,7 +158,16 @@ class GithubConnector(DirectedInputsClass):
         if not decode or is_nothing(file_data):
             return get_retval(file_data, file_sha, file_path)
 
-        return file_data
+        # Parse file content based on file extension
+        encoding = get_encoding_for_file_path(file_path)
+        if encoding != "raw":
+            try:
+                file_data = unwrap_raw_data_from_import(file_data, encoding)
+            except ValueError:
+                # If decoding fails, return raw content
+                self.logger.warning(f"Failed to decode {file_path} as {encoding}, returning raw content")
+
+        return get_retval(file_data, file_sha, file_path)
 
     def update_repository_file(
         self,
