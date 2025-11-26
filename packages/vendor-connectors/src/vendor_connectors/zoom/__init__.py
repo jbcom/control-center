@@ -9,6 +9,9 @@ import requests
 from directed_inputs_class import DirectedInputsClass
 from lifecyclelogging import Logging
 
+# Default timeout for HTTP requests in seconds
+DEFAULT_REQUEST_TIMEOUT = 30
+
 
 class ZoomConnector(DirectedInputsClass):
     """Zoom connector for user management."""
@@ -40,7 +43,7 @@ class ZoomConnector(DirectedInputsClass):
         data = {"grant_type": "account_credentials", "account_id": self.account_id}
 
         try:
-            response = requests.post(url, headers=headers, data=data, timeout=30)
+            response = requests.post(url, headers=headers, data=data, timeout=DEFAULT_REQUEST_TIMEOUT)
             response.raise_for_status()
             return response.json().get("access_token")
         except requests.exceptions.RequestException as exc:
@@ -67,7 +70,7 @@ class ZoomConnector(DirectedInputsClass):
                 params["next_page_token"] = next_page_token
 
             try:
-                response = requests.get(url, headers=headers, params=params, timeout=30)
+                response = requests.get(url, headers=headers, params=params, timeout=DEFAULT_REQUEST_TIMEOUT)
                 response.raise_for_status()
                 data = response.json()
                 for user in data.get("users", []):
@@ -86,7 +89,7 @@ class ZoomConnector(DirectedInputsClass):
         url = f"https://api.zoom.us/v2/users/{email}"
         headers = self.get_headers()
         try:
-            response = requests.delete(url, headers=headers, timeout=30)
+            response = requests.delete(url, headers=headers, timeout=DEFAULT_REQUEST_TIMEOUT)
             response.raise_for_status()
             self.logger.warning(f"Removed Zoom user {email}")
         except requests.exceptions.RequestException as exc:
@@ -101,7 +104,7 @@ class ZoomConnector(DirectedInputsClass):
             "user_info": {"email": email, "type": 2, "first_name": first_name, "last_name": last_name},
         }
         try:
-            response = requests.post(url, headers=headers, json=user_info, timeout=30)
+            response = requests.post(url, headers=headers, json=user_info, timeout=DEFAULT_REQUEST_TIMEOUT)
             response.raise_for_status()
             self.logger.info(f"Created Zoom user {email}")
             return True
