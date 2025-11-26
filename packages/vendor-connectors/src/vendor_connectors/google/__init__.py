@@ -1,173 +1,130 @@
+"""Google Connector using jbcom ecosystem packages."""
+
+from __future__ import annotations
+
 import json
-from functools import cache, lru_cache
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Optional
 
-import googleapiclient.discovery
-from google.api_core import retry
-from google.auth.transport.requests import Request
-from google.cloud import billing_v1, resourcemanager_v3
+from directed_inputs_class import DirectedInputsClass
 from google.oauth2 import service_account
+from googleapiclient.discovery import build
+from lifecyclelogging import Logging
 
-from cloud_connectors.base.utils import Utils, get_default_dict
-
-CLOUD_CLIENTS = {
-    "billing": {
-        "v1": billing_v1.CloudBillingClient,
-    },
-    "resourcemanager": {
-        "v3": resourcemanager_v3.ProjectsClient,
-    },
-}
+# Default Google scopes
+DEFAULT_SCOPES = [
+    "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/admin.directory.user",
+    "https://www.googleapis.com/auth/admin.directory.group",
+]
 
 
-class GoogleConnector(Utils):
-    """
-    Google Client with lazy credential loading for both Workspace and Cloud Platform APIs.
-    """
+class GoogleConnector(DirectedInputsClass):
+    """Google Cloud and Workspace connector."""
 
     def __init__(
         self,
-        scopes: list[str],
-        service_account_file: Union[str, dict[str, Any]],
+        service_account_info: Optional[dict[str, Any] | str] = None,
+        scopes: Optional[list[str]] = None,
         subject: Optional[str] = None,
+        logger: Optional[Logging] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.scopes = scopes
-        self._parse_service_account(service_account_file)
+        self.logging = logger or Logging(logger_name="GoogleConnector")
+        self.logger = self.logging.logger
 
-        # Set subject but don't authenticate yet
-        self.subject = subject or self.service_account_file.get("client_email")
-        if not self.subject:
-            raise ValueError("Subject is required or must be in service account file")
+        self.scopes = scopes or DEFAULT_SCOPES
+        self.subject = subject
 
-        # Initialize credential placeholders
-        self._credentials = {}  # Cache for workspace credentials by subject
-        self._cloud_credentials = None
+        # Get service account info from input if not provided
+        if service_account_info is None:
+            service_account_info = self.get_input("GOOGLE_SERVICE_ACCOUNT", required=True)
 
-        # Service cache
-        self.services = get_default_dict(levels=3)
+        # Parse if string
+        if isinstance(service_account_info, str):
+            service_account_info = json.loads(service_account_info)
 
-        self.logger.debug("Client initialized with lazy credential loading")
+        self.service_account_info = service_account_info
+        self._credentials: Optional[service_account.Credentials] = None
+        self._services: dict[str, Any] = {}
 
-    def _parse_service_account(self, service_account_file: Union[str, dict[str, Any]]) -> None:
-        """Parse and validate service account file."""
-        if isinstance(service_account_file, str):
-            try:
-                self.service_account_file = json.loads(service_account_file)
-                self.logger.debug("Successfully parsed service account JSON string")
-            except json.JSONDecodeError as e:
-                self.logger.error(f"Failed to parse service account JSON: {e}")
-                raise
-        elif isinstance(service_account_file, dict):
-            self.service_account_file = service_account_file
-        else:
-            self.logger.error("Invalid service account file format")
-            raise ValueError("Service account file must be a JSON string or dictionary")
+        self.logger.info("Initialized Google connector")
 
-        # Verify required fields
-        required_fields = {"client_email", "private_key", "project_id"}
-        missing_fields = required_fields - self.service_account_file.keys()
-        if missing_fields:
-            raise ValueError(f"Service account file missing required fields: {missing_fields}")
+    @property
+    def credentials(self) -> service_account.Credentials:
+        """Get or create Google credentials."""
+        if self._credentials is None:
+            self._credentials = service_account.Credentials.from_service_account_info(
+                self.service_account_info,
+                scopes=self.scopes,
+            )
+            if self.subject:
+                self._credentials = self._credentials.with_subject(self.subject)
 
-    def _get_workspace_credentials(self, subject: str) -> service_account.Credentials:
-        """
-        Get or create Workspace credentials for a specific subject.
-        Lazy loads credentials only when needed.
-        """
-        credentials = self._credentials.get(subject)
+        return self._credentials
 
-        if not credentials or not credentials.valid:
-            if credentials and credentials.expired and credentials.refresh_token:
-                credentials.refresh(Request())
-            else:
-                base_credentials = service_account.Credentials.from_service_account_info(
-                    self.service_account_file,
-                    scopes=self.scopes,
-                    subject=self.subject,
-                )
+    def get_service(self, service_name: str, version: str) -> Any:
+        """Get a Google API service client."""
+        cache_key = f"{service_name}:{version}"
+        if cache_key not in self._services:
+            self._services[cache_key] = build(service_name, version, credentials=self.credentials)
+            self.logger.info(f"Created Google service: {service_name} v{version}")
+        return self._services[cache_key]
 
-                if subject != self.subject:
-                    credentials = base_credentials.create_delegated(subject)
-                else:
-                    credentials = base_credentials
+    def get_admin_directory_service(self) -> Any:
+        """Get the Admin Directory API service."""
+        return self.get_service("admin", "directory_v1")
 
-                self._credentials[subject] = credentials
-                self.logger.debug(f"Created new credentials for subject: {subject}")
+    def get_cloud_resource_manager_service(self) -> Any:
+        """Get the Cloud Resource Manager API service."""
+        return self.get_service("cloudresourcemanager", "v3")
 
-        return credentials
+    def get_iam_service(self) -> Any:
+        """Get the IAM API service."""
+        return self.get_service("iam", "v1")
 
-    def _get_cloud_credentials(self) -> service_account.Credentials:
-        """
-        Get or create Cloud Platform credentials.
-        Lazy loads credentials only when needed.
-        """
-        if not self._cloud_credentials or not self._cloud_credentials.valid:
-            if self._cloud_credentials and self._cloud_credentials.expired:
-                self._cloud_credentials.refresh(Request())
-            else:
-                self._cloud_credentials = service_account.Credentials.from_service_account_info(
-                    self.service_account_file,
-                    scopes=self.scopes,
-                )
-                self.logger.debug("Created new cloud credentials")
+    def list_users(self, domain: Optional[str] = None, max_results: int = 500) -> list[dict[str, Any]]:
+        """List users from Google Workspace."""
+        service = self.get_admin_directory_service()
+        users: list[dict[str, Any]] = []
+        page_token = None
 
-        return self._cloud_credentials
+        while True:
+            params: dict[str, Any] = {"customer": "my_customer", "maxResults": max_results}
+            if domain:
+                params["domain"] = domain
+            if page_token:
+                params["pageToken"] = page_token
 
-    @cache
-    def _is_cloud_service(self, service_name: str, version_name: str) -> bool:
-        """Determine if a service is a Cloud Platform service."""
-        return service_name in CLOUD_CLIENTS and version_name in CLOUD_CLIENTS[service_name]
+            response = service.users().list(**params).execute()
+            users.extend(response.get("users", []))
 
-    def get_service(self, service_name: str, version_name: str, user_email: Optional[str] = None) -> Any:
-        """
-        Get a service client, creating it and its credentials only when first needed.
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
-        Args:
-            service_name: Service name (e.g., 'admin', 'drive', 'billing')
-            version_name: API version (e.g., 'v1', 'v3')
-            user_email: Optional email to impersonate (for Workspace APIs)
+        self.logger.info(f"Retrieved {len(users)} users from Google Workspace")
+        return users
 
-        Returns:
-            Either a Workspace service client or Cloud Platform client
-        """
-        subject = user_email or self.subject
+    def list_groups(self, domain: Optional[str] = None, max_results: int = 200) -> list[dict[str, Any]]:
+        """List groups from Google Workspace."""
+        service = self.get_admin_directory_service()
+        groups: list[dict[str, Any]] = []
+        page_token = None
 
-        # Check cache first
-        if (
-            subject in self.services
-            and service_name in self.services[subject]
-            and version_name in self.services[subject][service_name]
-        ):
-            return self.services[subject][service_name][version_name]
+        while True:
+            params: dict[str, Any] = {"customer": "my_customer", "maxResults": max_results}
+            if domain:
+                params["domain"] = domain
+            if page_token:
+                params["pageToken"] = page_token
 
-        # Determine service type and get appropriate credentials
-        is_cloud = self._is_cloud_service(service_name, version_name)
+            response = service.groups().list(**params).execute()
+            groups.extend(response.get("groups", []))
 
-        try:
-            if is_cloud:
-                credentials = self._get_cloud_credentials()
-                service = CLOUD_CLIENTS[service_name][version_name](credentials=credentials)
-                self.logger.debug(f"Created new cloud service: {service_name} {version_name}")
-            else:
-                credentials = self._get_workspace_credentials(subject)
-                service = googleapiclient.discovery.build(
-                    serviceName=service_name,
-                    version=version_name,
-                    credentials=credentials,
-                )
-                self.logger.debug(f"Created new workspace service: {service_name} {version_name}")
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
-            # Cache the service
-            if subject not in self.services:
-                self.services[subject] = {}
-            if service_name not in self.services[subject]:
-                self.services[subject][service_name] = {}
-            self.services[subject][service_name][version_name] = service
-
-            return service
-
-        except Exception as e:
-            self.logger.error(f"Failed to create service {service_name} {version_name}: {str(e)}")
-            raise
+        self.logger.info(f"Retrieved {len(groups)} groups from Google Workspace")
+        return groups

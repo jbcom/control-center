@@ -1,13 +1,14 @@
-"""Cloud Connectors - Universal cloud provider connectors."""
+"""Vendor Connectors - Universal vendor connectors for the jbcom ecosystem."""
 
 __version__ = "0.1.0"
 
-from cloud_connectors.aws import AWSConnector
-from cloud_connectors.github import GithubConnector
-from cloud_connectors.google import GoogleConnector
-from cloud_connectors.slack import SlackConnector
-from cloud_connectors.vault import VaultConnector
-from cloud_connectors.zoom import ZoomConnector
+from vendor_connectors.aws import AWSConnector
+from vendor_connectors.github import GithubConnector
+from vendor_connectors.google import GoogleConnector
+from vendor_connectors.slack import SlackConnector
+from vendor_connectors.vault import VaultConnector
+from vendor_connectors.zoom import ZoomConnector
+from vendor_connectors.connectors import VendorConnectors
 
 __all__ = [
     "AWSConnector",
@@ -16,4 +17,5 @@ __all__ = [
     "SlackConnector",
     "VaultConnector",
     "ZoomConnector",
+    "VendorConnectors",
 ]
