@@ -28,10 +28,6 @@ jobs:
           name: versioned-source
           path: source
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.13'
-
       - uses: astral-sh/setup-uv@v4
 
       - name: Build docs
@@ -40,14 +36,9 @@ jobs:
           
           echo "=== Building docs for ${{ inputs.package }} v${{ inputs.version }} ==="
           
-          # Install dependencies
-          uv pip install sphinx sphinx-rtd-theme myst-parser --system
-          
-          # Install package for API docs
-          uv pip install -e source/packages/extended-data-types --system
-          if [ "${{ inputs.package }}" != "extended-data-types" ]; then
-            uv pip install -e "$PKG_DIR" --system
-          fi
+          # Sync workspace with docs dependencies
+          cd source
+          uv sync --package ${{ inputs.package }} --extra docs
           
           # Ensure docs/_build directory exists
           mkdir -p "$PKG_DIR/docs/_build"
@@ -56,21 +47,10 @@ jobs:
           if [ -d "$PKG_DIR/docs" ] && [ -f "$PKG_DIR/docs/conf.py" ]; then
             echo "Building Sphinx docs..."
             cd "$PKG_DIR/docs"
-            sphinx-build -b html . _build || echo "Sphinx build had warnings"
+            uv run sphinx-build -b html . _build || echo "Sphinx build had warnings"
           else
             echo "No Sphinx docs found, generating placeholder..."
-            cat > "$PKG_DIR/docs/_build/index.html" << EOF
-          <!DOCTYPE html>
-          <html>
-          <head><meta charset="utf-8"><title>${{ inputs.package }} v${{ inputs.version }}</title></head>
-          <body>
-            <h1>${{ inputs.package }}</h1>
-            <p>Version: ${{ inputs.version }}</p>
-            <p>Documentation coming soon.</p>
-            <p><a href="https://pypi.org/project/${{ inputs.package }}/">PyPI</a></p>
-          </body>
-          </html>
-          EOF
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><title>${{ inputs.package }} v${{ inputs.version }}</title></head><body><h1>${{ inputs.package }}</h1><p>Version: ${{ inputs.version }}</p><p>Documentation coming soon.</p><p><a href="https://pypi.org/project/${{ inputs.package }}/">PyPI</a></p></body></html>' > "$PKG_DIR/docs/_build/index.html"
           fi
 
       - name: Deploy to gh-pages
