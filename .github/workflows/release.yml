@@ -73,8 +73,8 @@ jobs:
         run: |
           pip install build twine
           
-          # Set CalVer version: YYYY.MMDD.BUILD
-          VERSION="$(date +%Y).$(date +%-m%d).${{ github.run_number }}"
+          # PyCalVer format: YYYYMM.NNNN (e.g., 202511.0001)
+          VERSION="$(date +%Y%m).$(printf '%04d' ${{ github.run_number }})"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           
           # Update version in __init__.py
