@@ -90,7 +90,7 @@ jobs:
           python-version: '3.13'
 
       - name: Install pycalver
-        run: pip install pycalver
+        run: pip install setuptools pycalver
 
       - name: Bump version with pycalver
         id: bump
