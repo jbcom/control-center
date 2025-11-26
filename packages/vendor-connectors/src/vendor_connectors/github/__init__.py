@@ -6,7 +6,13 @@ import os
 from typing import Any, Optional, Union
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import get_encoding_for_file_path, is_nothing, wrap_raw_data_for_export
+from extended_data_types import (
+    decode_json,
+    decode_yaml,
+    get_encoding_for_file_path,
+    is_nothing,
+    wrap_raw_data_for_export,
+)
 from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 from lifecyclelogging import Logging
@@ -150,7 +156,24 @@ class GithubConnector(DirectedInputsClass):
             self.logger.warning(f"Reading {file_path} not supported: {exc}")
             decode = False
 
-        return get_retval(file_data, file_sha, file_path)
+        if not decode or is_nothing(file_data):
+            return get_retval(file_data, file_sha, file_path)
+
+        # Decode file content based on file type
+        encoding = get_encoding_for_file_path(file_path)
+        try:
+            if encoding == "json":
+                decoded_data = decode_json(file_data)
+            elif encoding == "yaml":
+                decoded_data = decode_yaml(file_data)
+            else:
+                # For raw or unknown types, return the string as-is
+                decoded_data = file_data
+        except Exception as exc:
+            self.logger.warning(f"Failed to decode {file_path} as {encoding}: {exc}")
+            decoded_data = file_data
+
+        return get_retval(decoded_data, file_sha, file_path)
 
     def update_repository_file(
         self,

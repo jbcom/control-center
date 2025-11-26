@@ -27,6 +27,7 @@ class ZoomConnector(DirectedInputsClass):
         super().__init__(**kwargs)
         self.logging = logger or Logging(logger_name="ZoomConnector")
         self.logger = self.logging.logger
+        self.errors: list[str] = []  # Track errors for programmatic access
 
         self.client_id = client_id or self.get_input("ZOOM_CLIENT_ID", required=True)
         self.client_secret = client_secret or self.get_input("ZOOM_CLIENT_SECRET", required=True)
@@ -93,7 +94,9 @@ class ZoomConnector(DirectedInputsClass):
             response.raise_for_status()
             self.logger.warning(f"Removed Zoom user {email}")
         except requests.exceptions.RequestException as exc:
-            self.logger.error(f"Failed to remove Zoom user {email}: {exc}")
+            error_msg = f"Failed to remove Zoom user {email}: {exc}"
+            self.errors.append(error_msg)
+            self.logger.error(error_msg)
 
     def create_zoom_user(self, email: str, first_name: str, last_name: str) -> bool:
         """Create a Zoom user with a paid license."""
@@ -109,5 +112,7 @@ class ZoomConnector(DirectedInputsClass):
             self.logger.info(f"Created Zoom user {email}")
             return True
         except requests.exceptions.RequestException as exc:
-            self.logger.error(f"Failed to create Zoom user {email}: {exc}")
+            error_msg = f"Failed to create Zoom user {email}: {exc}"
+            self.errors.append(error_msg)
+            self.logger.error(error_msg)
             return False
