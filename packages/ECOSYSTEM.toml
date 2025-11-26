@@ -1,0 +1,76 @@
+# jbcom Python Ecosystem - Single Source of Truth
+# All packages developed here, synced to public repos, released to PyPI
+
+[ecosystem]
+name = "jbcom-python"
+description = "Python library ecosystem for jbcom"
+source_of_truth = "packages/"
+sync_workflow = ".github/workflows/sync-packages.yml"
+
+# Dependency order (ALWAYS release in this order)
+release_order = [
+    "extended-data-types",
+    "lifecyclelogging", 
+    "directed-inputs-class",
+    "vendor-connectors",
+]
+
+[packages.extended-data-types]
+path = "packages/extended-data-types"
+pypi_name = "extended-data-types"
+public_repo = "jbcom/extended-data-types"
+role = "foundation"
+description = "Core utilities, type conversions, serialization"
+provides = [
+    "gitpython",
+    "inflection", 
+    "lark",
+    "orjson",
+    "python-hcl2",
+    "ruamel.yaml",
+    "sortedcontainers",
+    "wrapt",
+]
+dependents = ["lifecyclelogging", "directed-inputs-class", "vendor-connectors"]
+
+[packages.lifecyclelogging]
+path = "packages/lifecyclelogging"
+pypi_name = "lifecyclelogging"
+public_repo = "jbcom/lifecyclelogging"
+role = "logging"
+description = "Structured lifecycle logging with sanitization"
+depends_on = ["extended-data-types"]
+dependents = ["vendor-connectors"]
+
+[packages.directed-inputs-class]
+path = "packages/directed-inputs-class"
+pypi_name = "directed-inputs-class"
+public_repo = "jbcom/directed-inputs-class"
+role = "input-processing"
+description = "Declarative input validation and processing"
+depends_on = ["extended-data-types"]
+dependents = []
+
+[packages.vendor-connectors]
+path = "packages/vendor-connectors"
+pypi_name = "cloud-connectors"
+public_repo = "jbcom/vendor-connectors"
+role = "integrations"
+description = "Unified cloud provider connectors"
+depends_on = ["extended-data-types", "lifecyclelogging"]
+dependents = []
+
+# Sync configuration
+[sync]
+trigger_on = ["push", "release", "workflow_dispatch"]
+creates_prs = true
+pr_prefix = "🚀 Release from control-center"
+requires_secret = "JBCOM_SYNC_TOKEN"
+
+# Standards
+[standards]
+versioning = "CalVer (YYYY.MM.BUILD)"
+python_versions = ["3.9", "3.10", "3.11", "3.12", "3.13"]
+linting = "ruff"
+testing = "pytest"
+typing = "mypy"
