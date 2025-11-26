@@ -9,9 +9,9 @@ from lifecyclelogging import Logging
 @pytest.fixture
 def mock_logger():
     """Provide a mock Logging instance for testing."""
-    logging = MagicMock(spec=Logging)
-    logging.logger = MagicMock()
-    return logging
+    mock_logging = MagicMock(spec=Logging)
+    mock_logging.logger = MagicMock()
+    return mock_logging
 
 
 @pytest.fixture
