@@ -259,7 +259,7 @@ class VendorConnectors(DirectedInputsClass):
             "github",
             connector,
             github_owner=github_owner,
-        cache_sa = make_hashable(service_account_info) if service_account_info is not None else None
+            github_repo=github_repo,
             github_branch=github_branch,
             github_token=github_token,
         )
