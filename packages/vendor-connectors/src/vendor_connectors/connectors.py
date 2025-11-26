@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import hashlib
 from typing import TYPE_CHECKING, Any, Optional
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import get_unique_signature, is_nothing, make_hashable
+from extended_data_types import get_unique_signature
 from lifecyclelogging import Logging
 
 from vendor_connectors.aws import AWSConnector
@@ -17,9 +18,9 @@ from vendor_connectors.zoom import ZoomConnector
 
 if TYPE_CHECKING:
     import boto3
+    import hvac
     from boto3.resources.base import ServiceResource
     from botocore.config import Config
-    import hvac
 
 
 def _get_default_dict(levels: int = 2) -> dict:
@@ -29,6 +30,25 @@ def _get_default_dict(levels: int = 2) -> dict:
     if levels <= 1:
         return defaultdict(dict)
     return defaultdict(lambda: _get_default_dict(levels - 1))
+
+
+def _make_hashable(obj: Any) -> Any:
+    """Convert an object to a hashable type for use in cache keys.
+
+    Args:
+        obj: The object to convert to a hashable type
+
+    Returns:
+        A hashable representation of the object
+    """
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return tuple(_make_hashable(item) for item in obj)
+    if isinstance(obj, dict):
+        return tuple(sorted((k, _make_hashable(v)) for k, v in obj.items()))
+    # For other types, convert to string
+    return str(obj)
 
 
 class VendorConnectors(DirectedInputsClass):
@@ -58,7 +78,7 @@ class VendorConnectors(DirectedInputsClass):
 
     def _get_cache_key(self, **kwargs) -> frozenset:
         """Generate a hashable cache key from kwargs."""
-        hashable_kwargs = {k: make_hashable(v) for k, v in kwargs.items()}
+        hashable_kwargs = {k: _make_hashable(v) for k, v in kwargs.items()}
         return frozenset(hashable_kwargs.items())
 
     def _get_cached_client(self, client_type: str, **kwargs) -> Optional[Any]:
@@ -99,9 +119,9 @@ class VendorConnectors(DirectedInputsClass):
         client_name: str,
         execution_role_arn: Optional[str] = None,
         role_session_name: Optional[str] = None,
-        config: Optional["Config"] = None,
+        config: Optional[Config] = None,
         **client_args,
-    ) -> "boto3.client":
+    ) -> boto3.client:
         """Get a cached boto3 client."""
         execution_role_arn = execution_role_arn or self.get_input("EXECUTION_ROLE_ARN", required=False)
         role_session_name = role_session_name or self.get_input("ROLE_SESSION_NAME", required=False)
@@ -137,9 +157,9 @@ class VendorConnectors(DirectedInputsClass):
         service_name: str,
         execution_role_arn: Optional[str] = None,
         role_session_name: Optional[str] = None,
-        config: Optional["Config"] = None,
+        config: Optional[Config] = None,
         **resource_args,
-    ) -> "ServiceResource":
+    ) -> ServiceResource:
         """Get a cached boto3 resource."""
         execution_role_arn = execution_role_arn or self.get_input("EXECUTION_ROLE_ARN", required=False)
         role_session_name = role_session_name or self.get_input("ROLE_SESSION_NAME", required=False)
@@ -174,7 +194,7 @@ class VendorConnectors(DirectedInputsClass):
         self,
         execution_role_arn: Optional[str] = None,
         role_session_name: Optional[str] = None,
-    ) -> "boto3.Session":
+    ) -> boto3.Session:
         """Get a cached boto3 session."""
         execution_role_arn = execution_role_arn or self.get_input("EXECUTION_ROLE_ARN", required=False)
         role_session_name = role_session_name or self.get_input("ROLE_SESSION_NAME", required=False)
@@ -258,8 +278,10 @@ class VendorConnectors(DirectedInputsClass):
         """Get a cached GoogleConnector instance."""
         service_account_info = service_account_info or self.get_input("GOOGLE_SERVICE_ACCOUNT", required=True)
 
-        # For caching, we need a hashable representation
-        cache_sa = str(service_account_info)[:50] if service_account_info else None
+        # For caching, use a hash to avoid exposing sensitive data
+        cache_sa = (
+            hashlib.sha256(str(service_account_info).encode()).hexdigest()[:16] if service_account_info else None
+        )
 
         cached = self._get_cached_client(
             "google",
@@ -319,7 +341,7 @@ class VendorConnectors(DirectedInputsClass):
         vault_url: Optional[str] = None,
         vault_namespace: Optional[str] = None,
         vault_token: Optional[str] = None,
-    ) -> "hvac.Client":
+    ) -> hvac.Client:
         """Get a cached Vault hvac.Client instance."""
         vault_url = vault_url or self.get_input("VAULT_ADDR", required=False)
         vault_namespace = vault_namespace or self.get_input("VAULT_NAMESPACE", required=False)
