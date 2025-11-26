@@ -214,14 +214,14 @@ push = false
     'current_version = "{pycalver}"',
 ]
 "packages/extended-data-types/src/extended_data_types/__init__.py" = [
-    '__version__ = "{pep440_version}"',
+    '__version__ = "{pep440_pycalver}"',
 ]
 "packages/lifecyclelogging/src/lifecyclelogging/__init__.py" = [
-    '__version__ = "{pep440_version}"',
+    '__version__ = "{pep440_pycalver}"',
 ]
 "packages/directed-inputs-class/src/directed_inputs_class/__init__.py" = [
-    '__version__ = "{pep440_version}"',
+    '__version__ = "{pep440_pycalver}"',
 ]
 "packages/vendor-connectors/src/vendor_connectors/__init__.py" = [
-    '__version__ = "{pep440_version}"',
+    '__version__ = "{pep440_pycalver}"',
 ]

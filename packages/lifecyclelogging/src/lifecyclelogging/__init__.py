@@ -4,7 +4,7 @@ This package provides utilities for managing application lifecycle logs, includi
 configurable logging for console and file outputs.
 """
 
-__version__ = "2025.11.1"
+__version__ = "202511.1"
 
 from .logging import Logging
 
