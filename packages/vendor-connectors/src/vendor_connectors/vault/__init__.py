@@ -268,9 +268,9 @@ class VaultConnector(DirectedInputsClass):
             self.logger.debug(f"Resolved secret path: {secret_path}")
 
             try:
-                secret_data = client.secrets.kv.v2.read_secret_version(
-                    path=secret_path, mount_point=mount_point
-                )["data"]["data"]
+                secret_data = client.secrets.kv.v2.read_secret_version(path=secret_path, mount_point=mount_point)[
+                    "data"
+                ]["data"]
                 self.logger.debug(f"Retrieved secret data for {secret_path}")
             except VaultError as e:
                 self.logger.warning(
@@ -283,9 +283,7 @@ class VaultConnector(DirectedInputsClass):
         # No secret_name provided - search under path
         self.logger.info(f"Finding secrets under {path}")
 
-        matching_secret_paths = self.list_secrets(
-            root_path=path, mount_point=mount_point
-        )
+        matching_secret_paths = self.list_secrets(root_path=path, mount_point=mount_point)
         self.logger.debug(f"Found {len(matching_secret_paths)} potential secrets")
 
         if is_nothing(matching_secret_paths):
@@ -310,9 +308,7 @@ class VaultConnector(DirectedInputsClass):
 
             # If no matchers, take the first non-empty secret
             if is_nothing(matchers):
-                self.logger.warning(
-                    "No matchers provided, taking the first non-empty secret found"
-                )
+                self.logger.warning("No matchers provided, taking the first non-empty secret found")
                 secret_data = matching_secret_data
                 continue
 
@@ -321,9 +317,7 @@ class VaultConnector(DirectedInputsClass):
             for k, v in matchers.items():
                 datum = matching_secret_data.get(k)
                 if datum == v:
-                    self.logger.info(
-                        f"Matching {secret_path} on matcher {k}: {datum} equals {v}"
-                    )
+                    self.logger.info(f"Matching {secret_path} on matcher {k}: {datum} equals {v}")
                     found_match = True
                     break
 
