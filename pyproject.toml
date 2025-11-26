@@ -6,6 +6,12 @@ build-backend = "hatchling.build"
 [tool.uv.workspace]
 members = ["packages/*"]
 
+[tool.uv.sources]
+extended-data-types = { workspace = true }
+lifecyclelogging = { workspace = true }
+directed-inputs-class = { workspace = true }
+cloud-connectors = { workspace = true }
+
 [project]
 name = "jbcom-control-center"
 version = "0.0.0"
@@ -55,13 +61,14 @@ typing = [
     "pyright>=1.1.350",
 ]
 docs = [
-    "sphinx>=7.2.0",
+    "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0.0",
 ]
 dev = [
-    "python-library-template[tests,typing,docs]",
+    "jbcom-control-center[tests,typing,docs]",
     "pre-commit>=3.6.0",
     "ruff>=0.2.0",
+    "pycalver>=202010.0",
 ]
 
 [project.urls]

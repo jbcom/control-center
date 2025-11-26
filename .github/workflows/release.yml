@@ -37,7 +37,7 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Bump version with pycalver
         id: bump
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.check.outputs.should_release == 'true'
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Build ${{ matrix.package.name }}
         if: steps.check.outputs.should_release == 'true'
