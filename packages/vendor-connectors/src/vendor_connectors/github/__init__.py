@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, Optional, Union
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import is_nothing, wrap_raw_data_for_export
+from extended_data_types import decode_hcl2, decode_json, decode_yaml, is_nothing, wrap_raw_data_for_export
 from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 from lifecyclelogging import Logging
@@ -23,6 +23,8 @@ def get_encoding_for_file_path(file_path: FilePath) -> str:
         return "yaml"
     elif suffix in [".json"]:
         return "json"
+    elif suffix in [".hcl", ".hcl2"]:
+        return "hcl2"
     return "raw"
 
 
@@ -164,7 +166,24 @@ class GithubConnector(DirectedInputsClass):
         if not decode or is_nothing(file_data):
             return get_retval(file_data, file_sha, file_path)
 
-        return file_data
+        # Decode file content based on file extension
+        encoding = get_encoding_for_file_path(file_path)
+        try:
+            if encoding == "yaml":
+                decoded_data = decode_yaml(file_data)
+            elif encoding == "json":
+                decoded_data = decode_json(file_data)
+            elif encoding == "hcl2":
+                decoded_data = decode_hcl2(file_data)
+            else:
+                # For 'raw' or unknown extensions, return as-is
+                decoded_data = file_data
+            
+            return get_retval(decoded_data, file_sha, file_path)
+        except Exception as exc:
+            self.logger.warning(f"Failed to decode {file_path} as {encoding}: {exc}")
+            # Fall back to returning raw data if decoding fails
+            return get_retval(file_data, file_sha, file_path)
 
     def update_repository_file(
         self,
