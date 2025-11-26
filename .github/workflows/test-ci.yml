@@ -1,0 +1,12 @@
+name: Test CI
+
+on:
+  push:
+    branches: [fix/ci-unicode-characters]
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Hello World"
