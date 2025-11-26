@@ -1,0 +1,43 @@
+# Reusable release workflow - publishes package to PyPI
+name: Release Package
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
+      pypi-name:
+        required: true
+        type: string
+    secrets:
+      pypi-token:
+        required: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Build & Publish
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.pypi-token }}
+        run: |
+          pip install build twine pycalver
+          
+          # Bump version
+          pycalver bump --release final --no-commit --no-tag --no-push || true
+          
+          # Build
+          cd packages/${{ inputs.package }}
+          python -m build
+          
+          # Publish
+          twine upload dist/* --skip-existing
+          echo "📦 Released ${{ inputs.pypi-name }}"
