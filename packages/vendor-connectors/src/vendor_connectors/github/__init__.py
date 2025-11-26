@@ -145,7 +145,7 @@ class GithubConnector(DirectedInputsClass):
                 return retval[0]
             return tuple(retval)
 
-        file_data = {} if decode else ""
+        file_data = ""
         file_sha = None
 
         self.logger.debug(f"Getting repository file: {file_path}")
