@@ -5,11 +5,23 @@ concurrency:
   cancel-in-progress: true
 
 on:
+  # Sync on release (preferred - public repos match PyPI)
+  release:
+    types: [published]
+  
+  # Or sync on push to packages/
   push:
     branches: [main]
     paths:
       - 'packages/**'
-  workflow_dispatch: {}
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to sync (or "all")'
+        required: false
+        default: 'all'
 
 jobs:
   sync:
