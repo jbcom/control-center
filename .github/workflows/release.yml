@@ -1,0 +1,96 @@
+# Release packages to PyPI directly from control center
+# Public repos are just code mirrors - no workflows needed
+
+name: Release to PyPI
+
+on:
+  # After sync completes, release
+  workflow_run:
+    workflows: ["Sync Packages to Public Repos"]
+    types: [completed]
+    branches: [main]
+  
+  # Manual release
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to release (or "all")'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - extended-data-types
+          - lifecyclelogging
+          - directed-inputs-class
+          - vendor-connectors
+
+jobs:
+  release:
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - name: extended-data-types
+            path: packages/extended-data-types
+            pypi: extended-data-types
+          - name: lifecyclelogging
+            path: packages/lifecyclelogging
+            pypi: lifecyclelogging
+          - name: directed-inputs-class
+            path: packages/directed-inputs-class
+            pypi: directed-inputs-class
+          - name: vendor-connectors
+            path: packages/vendor-connectors
+            pypi: cloud-connectors
+    steps:
+      - name: Check if should release
+        id: check
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package.name }}" ]; then
+              echo "should_release=true" >> $GITHUB_OUTPUT
+            else
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_release=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check.outputs.should_release == 'true'
+
+      - uses: actions/setup-python@v5
+        if: steps.check.outputs.should_release == 'true'
+        with:
+          python-version: '3.11'
+
+      - name: Build ${{ matrix.package.name }}
+        if: steps.check.outputs.should_release == 'true'
+        working-directory: ${{ matrix.package.path }}
+        run: |
+          pip install build twine
+          
+          # Set CalVer version
+          VERSION="$(date +%Y).$(date +%-m).${{ github.run_number }}"
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          
+          # Update version in __init__.py
+          find src -name "__init__.py" -exec sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" {} \;
+          
+          # Build
+          python -m build
+          
+          echo "📦 Built ${{ matrix.package.pypi }} v$VERSION"
+
+      - name: Publish ${{ matrix.package.name }} to PyPI
+        if: steps.check.outputs.should_release == 'true'
+        working-directory: ${{ matrix.package.path }}
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          twine upload dist/* --skip-existing
+          echo "🚀 Published ${{ matrix.package.pypi }} v${{ env.VERSION }} to PyPI"
