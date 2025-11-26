@@ -14,7 +14,7 @@ from slack_sdk.errors import SlackApiError
 from slack_sdk.web import WebClient
 
 # Settings
-MAX_PROC_RUN_TIME = 30
+MAX_RETRY_TIMEOUT_SECONDS = 30
 
 
 class SlackAPIError(RuntimeError):
