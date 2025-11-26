@@ -45,7 +45,9 @@ class TestZoomConnector:
     @patch("vendor_connectors.zoom.requests.post")
     def test_get_access_token_failure(self, mock_post, base_connector_kwargs):
         """Test failed access token retrieval."""
-        mock_post.side_effect = Exception("Connection error")
+        import requests
+
+        mock_post.side_effect = requests.exceptions.RequestException("Connection error")
 
         connector = ZoomConnector(
             client_id="test-client-id",
