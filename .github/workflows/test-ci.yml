@@ -6,5 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  call-lint:
-    uses: ./.github/workflows/reusable/lint.yml
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Testing inline job"
