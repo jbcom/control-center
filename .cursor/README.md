@@ -1,6 +1,42 @@
+# Cursor Agent Configuration
+
+This directory contains agent configuration, memory-bank for session persistence, and MCP server configuration.
+
+## Directory Structure
+
+```
+.cursor/
+├── memory-bank/                # Agent persistent memory
+│   ├── activeContext.md       # Current work focus
+│   ├── progress.md            # Task tracking
+│   ├── agenticRules.md        # Behavior rules
+│   └── README.md              # Memory-bank docs
+├── agents/                     # Agent role definitions
+│   ├── jbcom-ecosystem-manager.md
+│   └── ci-deployer.md
+├── process-compose.yml         # MCP server management
+└── README.md                   # This file
+```
+
+## Memory Bank
+
+The `memory-bank/` directory enables session continuity. Agents should:
+
+1. **Read at session start**: Check `activeContext.md` and `progress.md`
+2. **Update during work**: Log progress and decisions
+3. **Update at session end**: Note next actions
+
+See `memory-bank/README.md` for full documentation.
+
+## GitHub Project Tracking
+
+Active project: [jbcom Ecosystem Integration](https://github.com/users/jbcom/projects/2)
+
+---
+
 # Model Context Protocol (MCP) Setup
 
-This directory contains MCP server configuration and Cursor agents that leverage MCP for powerful GitHub integration.
+This section covers MCP server configuration for GitHub integration.
 
 ## What is MCP?
 

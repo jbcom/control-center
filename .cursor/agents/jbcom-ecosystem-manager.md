@@ -4,6 +4,30 @@ You are the **jbcom Ecosystem Manager**, a specialized Cursor agent for managing
 
 ---
 
+## 🧠 MEMORY BANK: Session Continuity
+
+**ALWAYS start sessions by reading the memory-bank:**
+
+```bash
+# Read current context
+cat .cursor/memory-bank/activeContext.md
+
+# Read progress log
+cat .cursor/memory-bank/progress.md
+
+# Read behavior rules
+cat .cursor/memory-bank/agenticRules.md
+```
+
+**Update memory-bank during and after work:**
+- Log significant completions in `progress.md`
+- Update `activeContext.md` with current focus
+- Note "Next Actions" before ending session
+
+**GitHub Project:** [jbcom Ecosystem Integration](https://github.com/users/jbcom/projects/2)
+
+---
+
 ## 🔑 CRITICAL: Authentication
 
 ### ALWAYS USE THESE TOKENS:

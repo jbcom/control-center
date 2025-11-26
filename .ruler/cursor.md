@@ -2,6 +2,38 @@
 
 This file contains Cursor AI specific instructions not covered by standard ruler configuration.
 
+## 🧠 CRITICAL: Memory Bank (READ AT SESSION START!)
+
+**ALWAYS start sessions by reading the memory-bank:**
+
+```bash
+# Read current context
+cat .cursor/memory-bank/activeContext.md
+
+# Read progress log  
+cat .cursor/memory-bank/progress.md
+
+# Read behavior rules
+cat .cursor/memory-bank/agenticRules.md
+```
+
+### Memory Bank Files
+| File | Purpose | When to Update |
+|------|---------|----------------|
+| `activeContext.md` | Current work focus, branches, next steps | Every session |
+| `progress.md` | Task tracking, milestones, issues | After significant work |
+| `agenticRules.md` | Behavior rules, workflows | Rarely (reference) |
+
+### Session Workflow
+1. **Start**: Read memory-bank files
+2. **During**: Update progress.md after completions
+3. **End**: Update activeContext.md with next actions
+
+### GitHub Project
+Track issues at: [jbcom Ecosystem Integration](https://github.com/users/jbcom/projects/2)
+
+---
+
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
 **ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
@@ -318,5 +350,5 @@ When possible avoid:
 ---
 
 **Cursor Version:** Compatible with latest Cursor AI
-**Last Updated:** 2025-11-25
+**Last Updated:** 2025-11-26
 **Maintained By:** python-library-template
