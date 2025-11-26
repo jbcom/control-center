@@ -1,0 +1,18 @@
+# Sync configuration for BetaHuhn/repo-file-sync-action
+# Source: jbcom-control-center → Target: public repos
+
+jbcom/extended-data-types:
+  - source: packages/extended-data-types/
+    dest: /
+
+jbcom/lifecyclelogging:
+  - source: packages/lifecyclelogging/
+    dest: /
+
+jbcom/directed-inputs-class:
+  - source: packages/directed-inputs-class/
+    dest: /
+
+jbcom/vendor-connectors:
+  - source: packages/vendor-connectors/
+    dest: /

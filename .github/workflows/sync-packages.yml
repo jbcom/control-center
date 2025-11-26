@@ -1,0 +1,30 @@
+name: Sync Packages to Public Repos
+
+concurrency:
+  group: sync-packages
+  cancel-in-progress: true
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.JBCOM_SYNC_TOKEN }}
+
+      - name: Sync to public repos
+        uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.JBCOM_SYNC_TOKEN }}
+          GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
+          GIT_USERNAME: 'jbcom-bot'
+          SKIP_PR: true  # Push directly, public repos will run their own CI
+          CONFIG_PATH: .github/sync.yml
+          COMMIT_PREFIX: '🔄 Sync from control-center'
