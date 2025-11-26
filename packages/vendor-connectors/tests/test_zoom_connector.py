@@ -3,6 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 
 from vendor_connectors.zoom import ZoomConnector
 
@@ -46,7 +47,6 @@ class TestZoomConnector:
     @patch("vendor_connectors.zoom.requests.post")
     def test_get_access_token_failure(self, mock_post, base_connector_kwargs):
         """Test failed access token retrieval."""
-        import requests
         mock_post.side_effect = requests.exceptions.RequestException("Connection error")
 
         connector = ZoomConnector(
@@ -117,8 +117,6 @@ class TestZoomConnector:
     @patch("vendor_connectors.zoom.requests.post")
     def test_create_zoom_user_failure_appends_to_errors(self, mock_post, base_connector_kwargs):
         """Test that creating a Zoom user failure appends to errors list."""
-        import requests
-
         mock_token_response = MagicMock()
         mock_token_response.json.return_value = {"access_token": "test-token"}
         mock_token_response.raise_for_status = MagicMock()
@@ -144,8 +142,6 @@ class TestZoomConnector:
     @patch("vendor_connectors.zoom.requests.post")
     def test_remove_zoom_user_failure_appends_to_errors(self, mock_post, mock_delete, base_connector_kwargs):
         """Test that removing a Zoom user failure appends to errors list."""
-        import requests
-
         mock_token_response = MagicMock()
         mock_token_response.json.return_value = {"access_token": "test-token"}
         mock_token_response.raise_for_status = MagicMock()
