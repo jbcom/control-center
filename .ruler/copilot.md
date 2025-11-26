@@ -162,17 +162,17 @@ if not config_file.exists():
 ```python
 def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
     """Process a list of items and return summary.
-    
+
     Args:
         items: List of dictionaries containing item data
         validate: Whether to validate items before processing
-        
+
     Returns:
         Dictionary with processing summary and statistics
-        
+
     Raises:
         ValueError: If items list is empty or validation fails
-        
+
     Example:
         >>> items = [{"id": 1, "name": "Item 1"}]
         >>> process_items(items)

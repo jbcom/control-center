@@ -40,7 +40,7 @@ This is a Python library template using CalVer auto-versioning and automated PyP
 
 ❌ Adding semantic-release or python-semantic-release
 ❌ Manual version management in files
-❌ Git tags for version tracking  
+❌ Git tags for version tracking
 ❌ GitHub releases automation
 ❌ Conditional release logic ("only release if...")
 ❌ Committing version changes back to git
@@ -91,7 +91,7 @@ This is a Python library template using CalVer auto-versioning and automated PyP
 # Run tests
 pytest
 
-# Type check  
+# Type check
 mypy src/
 
 # Lint
@@ -176,7 +176,7 @@ If `set_version.py` fails ruff checks, add to `pyproject.toml`:
 
 This template prioritizes:
 1. **Simplicity** over features
-2. **Reliability** over flexibility  
+2. **Reliability** over flexibility
 3. **Automation** over manual steps
 4. **Clarity** over cleverness
 

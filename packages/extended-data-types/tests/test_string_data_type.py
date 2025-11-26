@@ -60,7 +60,7 @@ from extended_data_types.string_data_type import (
 )
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_key() -> str:
     """Provides a sample key with invalid characters for testing.
 
@@ -70,7 +70,7 @@ def test_key() -> str:
     return "key-with*invalid_chars"
 
 
-@pytest.fixture()
+@pytest.fixture
 def sanitized_key() -> str:
     """Provides the expected sanitized key for testing.
 

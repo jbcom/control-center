@@ -39,7 +39,7 @@ jbcom-control-center/
 │   ├── directed-inputs-class/  ← Input processing (PyPI: directed-inputs-class)
 │   └── vendor-connectors/      ← Cloud connectors (PyPI: cloud-connectors)
 ├── packages/ECOSYSTEM.toml     ← Single source of truth
-├── .github/sync.yml            ← Sync configuration  
+├── .github/sync.yml            ← Sync configuration
 └── .github/workflows/sync-packages.yml
 ```
 
@@ -65,7 +65,7 @@ jbcom-control-center/
 ### packages/ECOSYSTEM.toml
 **THE source of truth.** Read this file to understand:
 - All packages and their PyPI names
-- Dependency relationships  
+- Dependency relationships
 - Release order
 - What each package provides
 
@@ -109,7 +109,7 @@ gh pr merge --squash --delete-branch --admin
 # See all dependencies at once
 grep -A 20 "dependencies" packages/*/pyproject.toml
 
-# Align a version across all packages  
+# Align a version across all packages
 sed -i 's/extended-data-types>=.*/extended-data-types>=2025.11.200/' \
   packages/*/pyproject.toml
 ```
@@ -233,7 +233,7 @@ gh pr merge <NUMBER> --repo jbcom/<repo> --squash --delete-branch --admin
 ### Before Adding Dependencies
 Always check `packages/extended-data-types/pyproject.toml` first. It provides:
 - Git operations (gitpython)
-- String manipulation (inflection)  
+- String manipulation (inflection)
 - JSON (orjson)
 - YAML (ruamel.yaml)
 - Parsing (lark, python-hcl2)

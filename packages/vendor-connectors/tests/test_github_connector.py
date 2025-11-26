@@ -2,13 +2,13 @@
 
 from unittest.mock import MagicMock, patch
 
-from cloud_connectors.github import GithubConnector
+from vendor_connectors.github import GithubConnector
 
 
 class TestGithubConnector:
     """Test suite for GithubConnector."""
 
-    @patch("cloud_connectors.github.Github")
+    @patch("vendor_connectors.github.Github")
     def test_init_with_repo(self, mock_github_class, base_connector_kwargs):
         """Test initialization with repository."""
         mock_github = MagicMock()
@@ -29,7 +29,7 @@ class TestGithubConnector:
         assert connector.repo is not None
         assert connector.GITHUB_BRANCH == "main"
 
-    @patch("cloud_connectors.github.Github")
+    @patch("vendor_connectors.github.Github")
     def test_init_without_repo(self, mock_github_class, base_connector_kwargs):
         """Test initialization without repository."""
         mock_github = MagicMock()
@@ -41,7 +41,7 @@ class TestGithubConnector:
 
         assert connector.repo is None
 
-    @patch("cloud_connectors.github.Github")
+    @patch("vendor_connectors.github.Github")
     def test_get_repository_branch(self, mock_github_class, base_connector_kwargs):
         """Test getting repository branch."""
         mock_github = MagicMock()
@@ -62,7 +62,7 @@ class TestGithubConnector:
         branch = connector.get_repository_branch("feature-branch")
         assert branch == mock_branch
 
-    @patch("cloud_connectors.github.Github")
+    @patch("vendor_connectors.github.Github")
     def test_get_repository_file(self, mock_github_class, base_connector_kwargs):
         """Test getting repository file."""
         mock_github = MagicMock()

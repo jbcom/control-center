@@ -1,29 +1,38 @@
+"""Github Connector using jbcom ecosystem packages."""
+
+from __future__ import annotations
+
+import os
 from typing import Any, Optional, Union
 
-from github import Auth, Github
-from github.GithubException import GithubException, UnknownObjectException
-from python_graphql_client import GraphqlClient
-
-from cloud_connectors.base import utils
-from cloud_connectors.base.utils import (
-    FilePath,
-    Utils,
+from directed_inputs_class import DirectedInputsClass
+from extended_data_types import (
+    decode_json,
+    decode_yaml,
     get_encoding_for_file_path,
     is_nothing,
     wrap_raw_data_for_export,
 )
+from github import Auth, Github
+from github.GithubException import GithubException, UnknownObjectException
+from lifecyclelogging import Logging
+from python_graphql_client import GraphqlClient
+
+FilePath = Union[str, bytes, os.PathLike[Any]]
 
 
-def get_github_api_error(exc):
+def get_github_api_error(exc: GithubException) -> Optional[str]:
+    """Extract error message from Github exception."""
     data = getattr(exc, "data", {})
-
     return data.get("message", None)
 
 
 DEFAULT_PER_PAGE = 100
 
 
-class GithubConnector(Utils):
+class GithubConnector(DirectedInputsClass):
+    """Github connector for repository operations."""
+
     def __init__(
         self,
         github_owner: str,
@@ -31,9 +40,12 @@ class GithubConnector(Utils):
         github_branch: Optional[str] = None,
         github_token: Optional[str] = None,
         per_page: int = DEFAULT_PER_PAGE,
+        logger: Optional[Logging] = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
+        self.logging = logger or Logging(logger_name="GithubConnector")
+        self.logger = self.logging.logger
 
         self.GITHUB_OWNER = github_owner
         self.GITHUB_REPO = github_repo
@@ -61,6 +73,7 @@ class GithubConnector(Utils):
         self.graphql_client = GraphqlClient(endpoint="https://api.github.com/graphql")
 
     def get_repository_branch(self, branch_name: str):
+        """Get a repository branch by name."""
         if self.repo is None:
             self.logger.warning(f"Repository not set for {self.GITHUB_OWNER}, cannot get branch {branch_name}")
             return None
@@ -72,12 +85,13 @@ class GithubConnector(Utils):
             return None
 
     def create_repository_branch(self, branch_name: str, parent_branch: Optional[str] = None):
+        """Create a new repository branch."""
         if self.repo is None:
             self.logger.warning(f"Repository not set for {self.GITHUB_OWNER}, cannot create branch {branch_name}")
             return None
 
         parent_branch_ref = self.get_repository_branch(parent_branch or self.repo.default_branch)
-        if utils.is_nothing(parent_branch_ref):
+        if is_nothing(parent_branch_ref):
             raise RuntimeError(
                 f"Cannot create Git branch {branch_name}, parent branch {parent_branch} does not yet exist"
             )
@@ -104,13 +118,13 @@ class GithubConnector(Utils):
         errors: Optional[str] = "strict",
         raise_on_not_found: bool = False,
     ):
+        """Get a file from the repository."""
         if self.repo is None:
             self.logger.warning(f"Repository not set for {self.GITHUB_OWNER}, cannot get file {file_path}")
             return None
 
         def state_negative_result(result: str):
             self.logger.warning(result)
-
             if raise_on_not_found:
                 raise FileNotFoundError(result)
 
@@ -118,24 +132,21 @@ class GithubConnector(Utils):
             retval = [d]
             if return_sha:
                 retval.append(s)
-
             if return_path:
                 retval.append(p)
-
             if len(retval) == 1:
                 return retval[0]
-
             return tuple(retval)
 
         file_data = {} if decode else ""
         file_sha = None
 
-        self.logged_statement(f"Getting repository file: {file_path}")
+        self.logger.debug(f"Getting repository file: {file_path}")
 
         try:
             raw_file_data = self.repo.get_contents(str(file_path), ref=self.GITHUB_BRANCH)
             file_sha = raw_file_data.sha
-            if utils.is_nothing(raw_file_data.content):
+            if is_nothing(raw_file_data.content):
                 self.logger.warning(f"{file_path} is empty of content: {self.GITHUB_BRANCH}")
             else:
                 file_data = raw_file_data.decoded_content.decode(charset, errors)
@@ -148,7 +159,21 @@ class GithubConnector(Utils):
         if not decode or is_nothing(file_data):
             return get_retval(file_data, file_sha, file_path)
 
-        return self.decode_file(file_data=file_data, file_path=file_path)
+        # Decode file content based on file type
+        encoding = get_encoding_for_file_path(file_path)
+        try:
+            if encoding == "json":
+                decoded_data = decode_json(file_data)
+            elif encoding == "yaml":
+                decoded_data = decode_yaml(file_data)
+            else:
+                # For raw or unknown types, return the string as-is
+                decoded_data = file_data
+        except Exception as exc:
+            self.logger.warning(f"Failed to decode {file_path} as {encoding}: {exc}")
+            decoded_data = file_data
+
+        return get_retval(decoded_data, file_sha, file_path)
 
     def update_repository_file(
         self,
@@ -160,6 +185,7 @@ class GithubConnector(Utils):
         allow_empty: bool = False,
         **format_opts: Any,
     ):
+        """Update a file in the repository."""
         if self.repo is None:
             self.logger.warning(f"Repository not set for {self.GITHUB_OWNER}, cannot update file {file_path}")
             return None
@@ -173,7 +199,6 @@ class GithubConnector(Utils):
 
         if allow_encoding is None:
             allow_encoding = get_encoding_for_file_path(file_path)
-            self.logger.debug(f"Detected encoding for {file_path}: {allow_encoding}")
 
         file_data = wrap_raw_data_for_export(file_data, allow_encoding=allow_encoding, **format_opts)
 
@@ -183,12 +208,13 @@ class GithubConnector(Utils):
         self.logger.info(f"Updating repository file: {file_path}")
 
         if file_sha is None:
-            _, file_sha = self.get_repository_file(file_path, return_sha=True)
+            result = self.get_repository_file(file_path, return_sha=True)
+            if isinstance(result, tuple):
+                _, file_sha = result
 
         if file_sha is None:
             if msg is None:
                 msg = f"Creating {file_path}"
-
             return self.repo.create_file(
                 path=str(file_path),
                 message=msg,
@@ -198,7 +224,6 @@ class GithubConnector(Utils):
         else:
             if msg is None:
                 msg = f"Updating {file_path}"
-
             return self.repo.update_file(
                 path=str(file_path),
                 message=msg,
@@ -207,18 +232,19 @@ class GithubConnector(Utils):
                 branch=self.GITHUB_BRANCH,
             )
 
-    def delete_repository_file(
-        self,
-        file_path: FilePath,
-        msg: Optional[str] = None,
-    ):
+    def delete_repository_file(self, file_path: FilePath, msg: Optional[str] = None):
+        """Delete a file from the repository."""
         if self.repo is None:
             self.logger.warning(f"Repository not set for {self.GITHUB_OWNER}, cannot delete file {file_path}")
             return None
 
         self.logger.info(f"Deleting repository file: {file_path}")
 
-        _, sha = self.get_repository_file(file_path=file_path, return_sha=True)
+        result = self.get_repository_file(file_path=file_path, return_sha=True)
+        sha = None
+        if isinstance(result, tuple):
+            _, sha = result
+
         if sha is None:
             return None
 

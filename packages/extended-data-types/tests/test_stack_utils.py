@@ -57,7 +57,7 @@ class DummyClass:
         """NOPARSE This method should not be included."""
 
 
-@pytest.fixture()
+@pytest.fixture
 def methods_list() -> list[str]:
     """Provides a list of method names for testing.
 
@@ -73,7 +73,7 @@ def methods_list() -> list[str]:
     ]
 
 
-@pytest.fixture()
+@pytest.fixture
 def dummy_instance() -> DummyClass:
     """Provides an instance of DummyClass for testing.
 
