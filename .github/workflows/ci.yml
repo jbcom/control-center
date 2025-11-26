@@ -1,9 +1,11 @@
-# Unified CI/CD workflow for jbcom control center
-# 
-# On PR:      Test → Lint → Build docs (verify)
-# On main:    Test → Lint → Build docs → Sync → Release → Deploy docs
+# Master CI/CD orchestration workflow
 #
-# Everything in one place, dependency-aware, efficient.
+# Uses reusable workflows with stacked matrices:
+# - Package × Python version for testing
+# - Package × Target repo for sync/release/docs
+#
+# On PR:   Test + Lint
+# On main: Test + Lint + Sync + Release + Docs + Enforce Standards
 
 name: CI
 
@@ -13,8 +15,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      force_release:
-        description: 'Force release even without changes'
+      enforce_standards:
+        description: 'Run standards enforcement'
         type: boolean
         default: false
 
@@ -22,285 +24,121 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-env:
-  PYTHON_VERSION: '3.13'
-  DOCS_REPO: 'jbcom/jbcom-docs'  # Where to push docs
-
 jobs:
   # ============================================
-  # DETECT CHANGES
+  # MATRIX DEFINITION
   # ============================================
-  changes:
+  matrix:
     runs-on: ubuntu-latest
     outputs:
-      packages: ${{ steps.detect.outputs.packages }}
-      any_changed: ${{ steps.detect.outputs.any_changed }}
-      docs_changed: ${{ steps.detect.outputs.docs_changed }}
+      packages: ${{ steps.set.outputs.packages }}
+      test-matrix: ${{ steps.set.outputs.test-matrix }}
+      deploy-matrix: ${{ steps.set.outputs.deploy-matrix }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Detect changes
-        id: detect
+      - id: set
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            # Manual trigger - run everything
-            echo 'packages=["extended-data-types","lifecyclelogging","directed-inputs-class","vendor-connectors"]' >> $GITHUB_OUTPUT
-            echo "any_changed=true" >> $GITHUB_OUTPUT
-            echo "docs_changed=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Package definitions with metadata
+          PACKAGES='[
+            {"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},
+            {"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},
+            {"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},
+            {"name":"vendor-connectors","pypi":"cloud-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}
+          ]'
           
-          if [ "${{ github.event_name }}" == "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-          else
-            BASE="${{ github.event.before }}"
-          fi
+          PYTHON_VERSIONS='["3.9","3.13"]'
           
-          # Check what changed
-          CHANGED_FILES=$(git diff --name-only $BASE HEAD 2>/dev/null || echo "")
+          # Test matrix: package × python
+          TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
           
-          PACKAGES=""
-          DOCS_CHANGED="false"
+          # Deploy matrix: just packages with their metadata
+          DEPLOY_MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
           
-          # Foundation changed = test everything
-          if echo "$CHANGED_FILES" | grep -q "^packages/extended-data-types/"; then
-            PACKAGES="extended-data-types lifecyclelogging directed-inputs-class vendor-connectors"
-          else
-            if echo "$CHANGED_FILES" | grep -q "^packages/lifecyclelogging/"; then
-              PACKAGES="$PACKAGES lifecyclelogging vendor-connectors"
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^packages/directed-inputs-class/"; then
-              PACKAGES="$PACKAGES directed-inputs-class"
-            fi
-            if echo "$CHANGED_FILES" | grep -q "^packages/vendor-connectors/"; then
-              PACKAGES="$PACKAGES vendor-connectors"
-            fi
-          fi
-          
-          # Check docs
-          if echo "$CHANGED_FILES" | grep -qE "docs/|\.rst$|\.md$|conf\.py$"; then
-            DOCS_CHANGED="true"
-          fi
-          
-          # Format output
-          if [ -n "$PACKAGES" ]; then
-            PACKAGES_JSON=$(echo $PACKAGES | tr ' ' '\n' | sort -u | grep -v '^$' | jq -R -s -c 'split("\n") | map(select(length > 0))')
-            echo "any_changed=true" >> $GITHUB_OUTPUT
-          else
-            PACKAGES_JSON='[]'
-            echo "any_changed=false" >> $GITHUB_OUTPUT
-          fi
-          
-          echo "packages=$PACKAGES_JSON" >> $GITHUB_OUTPUT
-          echo "docs_changed=$DOCS_CHANGED" >> $GITHUB_OUTPUT
+          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
+          echo "test-matrix=$TEST_MATRIX" >> $GITHUB_OUTPUT
+          echo "deploy-matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
 
   # ============================================
-  # TEST
+  # TEST (package × python matrix)
   # ============================================
   test:
-    needs: changes
-    if: needs.changes.outputs.any_changed == 'true'
-    runs-on: ubuntu-latest
+    needs: matrix
     strategy:
       fail-fast: false
-      matrix:
-        package: ${{ fromJson(needs.changes.outputs.packages) }}
-        python: ['3.9', '3.13']
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ matrix.python }}
-
-      - uses: astral-sh/setup-uv@v4
-
-      - name: Cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/uv
-          key: uv-${{ matrix.python }}-${{ hashFiles('uv.lock') }}
-
-      - name: Install & Test
-        run: |
-          cd packages/${{ matrix.package }}
-          
-          # Install deps based on package
-          case "${{ matrix.package }}" in
-            extended-data-types)
-              uv pip install -e ".[tests]" --system
-              ;;
-            lifecyclelogging)
-              uv pip install -e ../extended-data-types --system
-              uv pip install -e ".[tests]" --system
-              ;;
-            directed-inputs-class)
-              uv pip install -e ../extended-data-types --system
-              uv pip install -e ".[tests]" --system
-              ;;
-            vendor-connectors)
-              uv pip install -e ../extended-data-types --system
-              uv pip install -e ../lifecyclelogging --system
-              uv pip install -e ".[tests]" --system
-              ;;
-          esac
-          
-          pytest tests -v --tb=short
+      matrix: ${{ fromJson(needs.matrix.outputs.test-matrix) }}
+    uses: ./.github/workflows/reusable/test.yml
+    with:
+      package: ${{ matrix.package }}
+      python-version: ${{ matrix.python }}
 
   # ============================================
-  # LINT
+  # LINT (once)
   # ============================================
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v4
-      
-      - name: Lint
-        run: |
-          uv pip install ruff --system
-          ruff check packages/
-          ruff format --check packages/
-
-  # ============================================
-  # BUILD DOCS
-  # ============================================
-  docs:
-    needs: changes
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - uses: astral-sh/setup-uv@v4
-
-      - name: Build docs
-        run: |
-          uv pip install sphinx sphinx-rtd-theme myst-parser --system
-          
-          # Install all packages for API docs
-          uv pip install -e packages/extended-data-types --system
-          uv pip install -e packages/lifecyclelogging --system
-          
-          # Create combined docs site
-          mkdir -p docs/_build
-          
-          # Build each package's docs if they exist
-          for pkg in extended-data-types lifecyclelogging; do
-            if [ -d "packages/$pkg/docs" ]; then
-              echo "Building docs for $pkg"
-              cd packages/$pkg/docs
-              sphinx-build -b html . ../../_build/$pkg
-              cd ../../..
-            fi
-          done
-          
-          # Create index
-          cat > docs/_build/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html>
-          <head><title>jbcom Python Libraries</title></head>
-          <body>
-          <h1>jbcom Python Libraries</h1>
-          <ul>
-          <li><a href="extended-data-types/">extended-data-types</a></li>
-          <li><a href="lifecyclelogging/">lifecyclelogging</a></li>
-          </ul>
-          </body>
-          </html>
-          HTMLEOF
-
-      - name: Upload docs artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: docs
-          path: docs/_build/
+    uses: ./.github/workflows/reusable/lint.yml
 
   # ============================================
   # SYNC TO PUBLIC REPOS (main only)
   # ============================================
   sync:
-    needs: [test, lint]
+    needs: [matrix, test, lint]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Sync to public repos
-        uses: BetaHuhn/repo-file-sync-action@v1
-        with:
-          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
-          CONFIG_PATH: .github/sync.yml
-          SKIP_PR: true
-          COMMIT_PREFIX: '🚀 Sync:'
-
-  # ============================================
-  # RELEASE TO PYPI (main only)
-  # ============================================
-  release:
-    needs: [sync]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 1  # Release in order
-      matrix:
-        package:
-          - name: extended-data-types
-            path: packages/extended-data-types
-            pypi: extended-data-types
-          - name: lifecyclelogging
-            path: packages/lifecyclelogging
-            pypi: lifecyclelogging
-          - name: directed-inputs-class
-            path: packages/directed-inputs-class
-            pypi: directed-inputs-class
-          - name: vendor-connectors
-            path: packages/vendor-connectors
-            pypi: cloud-connectors
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: ${{ env.PYTHON_VERSION }}
-
-      - name: Build & Release
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: |
-          pip install build twine pycalver
-          
-          # Bump version at workspace level
-          pycalver bump --release final --no-commit --no-tag --no-push || true
-          
-          cd ${{ matrix.package.path }}
-          python -m build
-          twine upload dist/* --skip-existing
-          
-          echo "📦 Released ${{ matrix.package.pypi }}"
+      max-parallel: 1  # Sync in order
+      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
+    uses: ./.github/workflows/reusable/sync.yml
+    with:
+      package: ${{ matrix.name }}
+      target-repo: ${{ matrix.repo }}
+    secrets:
+      token: ${{ secrets.CI_GITHUB_TOKEN }}
 
   # ============================================
-  # TRIGGER PAGES BUILDS (main only)
+  # RELEASE TO PYPI (main only, after sync)
   # ============================================
-  pages:
-    needs: [sync]
+  release:
+    needs: [matrix, sync]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
     strategy:
-      matrix:
-        repo: [extended-data-types, lifecyclelogging, directed-inputs-class, vendor-connectors]
-    steps:
-      - name: Trigger Pages build
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          gh api repos/jbcom/${{ matrix.repo }}/pages/builds -X POST || echo "Pages not configured for ${{ matrix.repo }}"
+      fail-fast: false
+      max-parallel: 1  # Release in dependency order
+      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
+    uses: ./.github/workflows/reusable/release.yml
+    with:
+      package: ${{ matrix.name }}
+      pypi-name: ${{ matrix.pypi }}
+    secrets:
+      pypi-token: ${{ secrets.PYPI_TOKEN }}
+
+  # ============================================
+  # DEPLOY DOCS (main only, after release)
+  # ============================================
+  docs:
+    needs: [matrix, release]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
+    uses: ./.github/workflows/reusable/docs.yml
+    with:
+      package: ${{ matrix.name }}
+      target-repo: ${{ matrix.repo }}
+    secrets:
+      token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+  # ============================================
+  # ENFORCE STANDARDS (main or manual)
+  # ============================================
+  enforce:
+    needs: [matrix]
+    if: |
+      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
+      (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
+    uses: ./.github/workflows/reusable/enforce-standards.yml
+    with:
+      repo: ${{ matrix.repo }}
+    secrets:
+      token: ${{ secrets.CI_GITHUB_TOKEN }}

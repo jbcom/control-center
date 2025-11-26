@@ -1,0 +1,87 @@
+# Reusable workflow to enforce repo standards
+name: Enforce Standards
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enforce Pages config
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        run: |
+          REPO="${{ inputs.repo }}"
+          echo "=== Enforcing standards on $REPO ==="
+          
+          # 1. Ensure gh-pages branch exists
+          MAIN_SHA=$(gh api repos/$REPO/git/refs/heads/main --jq '.object.sha')
+          gh api repos/$REPO/git/refs \
+            -X POST \
+            -f ref=refs/heads/gh-pages \
+            -f sha=$MAIN_SHA 2>/dev/null || true
+          
+          # 2. Ensure Pages is enabled with branch mode
+          PAGES_EXISTS=$(gh api repos/$REPO/pages 2>&1 || echo "NOT_FOUND")
+          if echo "$PAGES_EXISTS" | grep -q "NOT_FOUND\|404"; then
+            gh api repos/$REPO/pages \
+              -X POST \
+              -f build_type=legacy \
+              -f source[branch]=gh-pages \
+              -f source[path]=/
+          else
+            gh api repos/$REPO/pages \
+              -X PUT \
+              -f build_type=legacy \
+              -f source[branch]=gh-pages \
+              -f source[path]=/
+          fi
+          
+          # 3. Verify
+          echo "Pages config:"
+          gh api repos/$REPO/pages --jq '{build_type, source, html_url}'
+
+      - name: Enforce branch protection
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        run: |
+          REPO="${{ inputs.repo }}"
+          
+          # Basic branch protection on main
+          gh api repos/$REPO/branches/main/protection \
+            -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -f required_status_checks=null \
+            -F enforce_admins=false \
+            -f required_pull_request_reviews=null \
+            -f restrictions=null \
+            -F allow_force_pushes=false \
+            -F allow_deletions=false 2>/dev/null || echo "Branch protection update skipped"
+
+      - name: Enforce repo settings
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+        run: |
+          REPO="${{ inputs.repo }}"
+          
+          # Standard repo settings
+          gh api repos/$REPO \
+            -X PATCH \
+            -F has_issues=true \
+            -F has_wiki=false \
+            -F has_projects=false \
+            -F allow_squash_merge=true \
+            -F allow_merge_commit=false \
+            -F allow_rebase_merge=false \
+            -F delete_branch_on_merge=true \
+            -F allow_auto_merge=true 2>/dev/null || true
+          
+          echo "✅ Standards enforced on $REPO"
