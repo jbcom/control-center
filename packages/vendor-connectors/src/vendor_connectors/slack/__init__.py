@@ -257,7 +257,7 @@ class SlackConnector(DirectedInputsClass):
                 if exc.response["error"] == "ratelimited":
                     delay = int(exc.response.headers["Retry-After"])
                     total_delay += delay
-                    if total_delay > MAX_PROC_RUN_TIME:
+                    if total_delay > MAX_RETRY_TIMEOUT_SECONDS:
                         raise TimeoutError(f"Slack WebClient {method} timed out after {total_delay} seconds")
                     self.logger.warning(f"Rate limited. Retrying in {delay} seconds")
                     sleep(delay)
