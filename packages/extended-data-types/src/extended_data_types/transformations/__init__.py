@@ -5,7 +5,7 @@ from .strings import inflection
 
 
 __all__ = [
+    "inflection",
     "notation",
     "words",
-    "inflection",
 ]

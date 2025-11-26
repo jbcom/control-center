@@ -88,7 +88,7 @@ extended-data-types (FOUNDATION)
 
 **Release Order:** Always release in this order:
 1. extended-data-types
-2. lifecyclelogging  
+2. lifecyclelogging
 3. directed-inputs-class
 4. vendor-connectors
 

@@ -279,9 +279,7 @@ class VendorConnectors(DirectedInputsClass):
         service_account_info = service_account_info or self.get_input("GOOGLE_SERVICE_ACCOUNT", required=True)
 
         # For caching, use a hash to avoid exposing sensitive data
-        cache_sa = (
-            hashlib.sha256(str(service_account_info).encode()).hexdigest()[:16] if service_account_info else None
-        )
+        cache_sa = hashlib.sha256(str(service_account_info).encode()).hexdigest()[:16] if service_account_info else None
 
         cached = self._get_cached_client(
             "google",

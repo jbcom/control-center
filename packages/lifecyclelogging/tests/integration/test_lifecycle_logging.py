@@ -9,7 +9,7 @@ import pytest
 from lifecyclelogging import Logging
 
 
-@pytest.fixture()
+@pytest.fixture
 def temp_logger(tmp_path: Path) -> Logging:
     """Create a logger instance with file output for integration testing.
 

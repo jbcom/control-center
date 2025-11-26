@@ -49,7 +49,7 @@ When creating a new library from this template:
 
 This design has been battle-tested across:
 - `extended-data-types` (foundational library, released 2025.11.164)
-- `lifecyclelogging` (logging library)  
+- `lifecyclelogging` (logging library)
 - `directed-inputs-class` (input processing)
 
 ### Key Design Decisions (DO NOT SUGGEST CHANGING THESE)
@@ -113,7 +113,7 @@ DONE
 
 ❌ **What We Don't Do:**
 - ❌ Create git tags
-- ❌ Create GitHub releases  
+- ❌ Create GitHub releases
 - ❌ Manage changelog files automatically
 - ❌ Commit version changes back to repo
 
@@ -594,17 +594,17 @@ if not config_file.exists():
 ```python
 def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
     """Process a list of items and return summary.
-    
+
     Args:
         items: List of dictionaries containing item data
         validate: Whether to validate items before processing
-        
+
     Returns:
         Dictionary with processing summary and statistics
-        
+
     Raises:
         ValueError: If items list is empty or validation fails
-        
+
     Example:
         >>> items = [{"id": 1, "name": "Item 1"}]
         >>> process_items(items)
@@ -998,7 +998,7 @@ extended-data-types (FOUNDATION)
 
 **Release Order:** Always release in this order:
 1. extended-data-types
-2. lifecyclelogging  
+2. lifecyclelogging
 3. directed-inputs-class
 4. vendor-connectors
 
@@ -1151,7 +1151,7 @@ Current files:
 Ruler generates these files (DO NOT edit directly):
 
 - **`.cursorrules`** - Cursor AI configuration
-- **`.claud`** - Claude Code configuration  
+- **`.claud`** - Claude Code configuration
 - **`.github/copilot-instructions.md`** - GitHub Copilot instructions
 - **`AGENTS.md`** (root) - For Aider and general AI agents
 

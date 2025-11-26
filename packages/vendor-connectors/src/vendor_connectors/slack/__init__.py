@@ -189,7 +189,11 @@ class SlackConnector(DirectedInputsClass):
             is_bot = user_data.get("is_bot", False) or user_data.get("is_workflow_bot", False)
             is_app_user = user_data.get("is_app_user", False)
 
-            if (deleted and not include_deleted) or (is_bot and not include_bots) or (is_app_user and not include_app_users):
+            if (
+                (deleted and not include_deleted)
+                or (is_bot and not include_bots)
+                or (is_app_user and not include_app_users)
+            ):
                 continue
             filtered[user_id] = user_data
 

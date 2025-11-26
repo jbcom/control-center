@@ -5,7 +5,7 @@ Universal vendor connectors for the jbcom ecosystem, providing standardized acce
 ## Features
 
 - **AWS Connector**: Boto3-based client with role assumption and retry logic
-- **Google Cloud Connector**: Workspace and Cloud Platform APIs with lazy credential loading  
+- **Google Cloud Connector**: Workspace and Cloud Platform APIs with lazy credential loading
 - **GitHub Connector**: Repository management, GraphQL queries, and file operations
 - **Slack Connector**: Bot and app integrations with rate limiting
 - **Vault Connector**: HashiCorp Vault with Token and AppRole auth
@@ -49,7 +49,7 @@ s3 = aws.get_aws_client("s3")
 # GitHub operations
 github = GithubConnector(
     github_owner="myorg",
-    github_repo="myrepo", 
+    github_repo="myrepo",
     github_token=os.getenv("GITHUB_TOKEN")
 )
 

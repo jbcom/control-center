@@ -25,7 +25,7 @@ import pytest
 from extended_data_types.list_data_type import filter_list, flatten_list
 
 
-@pytest.fixture()
+@pytest.fixture
 def nested_list() -> list[list[int]]:
     """Provides a nested list for testing.
 
@@ -35,7 +35,7 @@ def nested_list() -> list[list[int]]:
     return [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 
 
-@pytest.fixture()
+@pytest.fixture
 def flat_list() -> list[int]:
     """Provides the expected flat list for testing.
 
@@ -45,7 +45,7 @@ def flat_list() -> list[int]:
     return [1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 
-@pytest.fixture()
+@pytest.fixture
 def test_list() -> list[str]:
     """Provides a sample list of strings for testing.
 
@@ -55,7 +55,7 @@ def test_list() -> list[str]:
     return ["apple", "banana", "cherry", "date"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def allowlist() -> list[str]:
     """Provides a list of allowed items for filtering.
 
@@ -65,7 +65,7 @@ def allowlist() -> list[str]:
     return ["apple", "cherry"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def denylist() -> list[str]:
     """Provides a list of denied items for filtering.
 
@@ -75,7 +75,7 @@ def denylist() -> list[str]:
     return ["banana", "date"]
 
 
-@pytest.fixture()
+@pytest.fixture
 def allowlist_and_denylist() -> dict[str, list[str]]:
     """Provides both allowlist and denylist for combined filtering.
 

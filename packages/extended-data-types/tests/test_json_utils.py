@@ -18,7 +18,7 @@ import pytest
 from extended_data_types.json_utils import decode_json, encode_json
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_json() -> str:
     """Provides a sample JSON string for testing.
 
@@ -39,7 +39,7 @@ def simple_json() -> str:
 }"""
 
 
-@pytest.fixture()
+@pytest.fixture
 def simple_dict() -> dict:
     """Provides the expected dictionary representation of the sample JSON string.
 

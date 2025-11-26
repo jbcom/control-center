@@ -10,7 +10,7 @@ sync_workflow = ".github/workflows/sync-packages.yml"
 # Dependency order (ALWAYS release in this order)
 release_order = [
     "extended-data-types",
-    "lifecyclelogging", 
+    "lifecyclelogging",
     "directed-inputs-class",
     "vendor-connectors",
 ]
@@ -23,7 +23,7 @@ role = "foundation"
 description = "Core utilities, type conversions, serialization"
 provides = [
     "gitpython",
-    "inflection", 
+    "inflection",
     "lark",
     "orjson",
     "python-hcl2",

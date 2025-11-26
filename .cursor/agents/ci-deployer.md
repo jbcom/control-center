@@ -18,16 +18,16 @@ async function deployWorkflow(repo: string, type: string) {
     owner: "jbcom",
     repo: repo
   });
-  
+
   const detectedType = await detectRepoType(repo);
   const workflowType = type || detectedType;
-  
+
   // 2. Load appropriate template
   const templatePath = `/workspace/templates/${workflowType}/library-ci.yml`;
   const workflowContent = await mcp.filesystem.read_file({
     path: templatePath
   });
-  
+
   // 3. Create deployment branch
   const branchName = `hub-deploy/${Date.now()}`;
   await mcp.github.create_branch({
@@ -36,7 +36,7 @@ async function deployWorkflow(repo: string, type: string) {
     branch: branchName,
     from_branch: repoData.default_branch
   });
-  
+
   // 4. Push workflow
   await mcp.github.create_or_update_file({
     owner: "jbcom",
@@ -46,7 +46,7 @@ async function deployWorkflow(repo: string, type: string) {
     message: "🤖 Deploy CI/CD from control hub",
     branch: branchName
   });
-  
+
   // 5. Create PR
   const pr = await mcp.github.create_pull_request({
     owner: "jbcom",
@@ -56,7 +56,7 @@ async function deployWorkflow(repo: string, type: string) {
     head: branchName,
     base: repoData.default_branch
   });
-  
+
   return pr;
 }
 ```
@@ -72,11 +72,11 @@ async function validateWorkflow(repo: string) {
     repo: repo,
     path: ".github/workflows/ci.yml"
   });
-  
+
   // Parse YAML and validate structure
   // Check for required jobs, steps
   // Verify action versions
-  
+
   return validationResult;
 }
 ```
@@ -90,7 +90,7 @@ async function checkDeploymentStatus(deploymentId: string) {
   const prs = await mcp.github.search_issues({
     query: `org:jbcom ${deploymentId} is:pr`
   });
-  
+
   // Check CI status for each PR
   for (const pr of prs) {
     const checks = await mcp.github.get_check_runs({
@@ -98,7 +98,7 @@ async function checkDeploymentStatus(deploymentId: string) {
       repo: pr.repository,
       ref: pr.head.sha
     });
-    
+
     // Report status
   }
 }

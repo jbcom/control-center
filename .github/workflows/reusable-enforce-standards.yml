@@ -64,7 +64,7 @@ jobs:
           gh api repos/$REPO/git/refs -X POST \
             -f ref=refs/heads/gh-pages \
             -f sha=$MAIN_SHA 2>/dev/null || true
-          
+
           # Enable/configure Pages
           if gh api repos/$REPO/pages 2>/dev/null; then
             gh api repos/$REPO/pages -X PUT \
@@ -92,7 +92,7 @@ jobs:
             ["automated"]="6f42c1:Automated PR from control-center"
             ["security"]="ee0701:Security related"
           )
-          
+
           for name in "${!LABELS[@]}"; do
             IFS=':' read -r color desc <<< "${LABELS[$name]}"
             gh api repos/$REPO/labels -X POST \
@@ -112,7 +112,7 @@ jobs:
           echo "=== Topics ==="
           # Get package name from repo
           PKG_NAME=$(echo $REPO | cut -d'/' -f2)
-          
+
           gh api repos/$REPO/topics -X PUT \
             -H "Accept: application/vnd.github+json" \
             -f "names[]=python" \
@@ -128,7 +128,7 @@ jobs:
           echo "=== Security ==="
           # Enable vulnerability alerts
           gh api repos/$REPO/vulnerability-alerts -X PUT 2>/dev/null || true
-          
+
           # Enable automated security fixes
           gh api repos/$REPO/automated-security-fixes -X PUT 2>/dev/null || true
 
@@ -138,7 +138,7 @@ jobs:
           REPO: ${{ inputs.repo }}
         run: |
           echo "=== Cleanup Prohibited Files ==="
-          
+
           # Delete workflows (we don't want any in public repos)
           WORKFLOWS=$(gh api repos/$REPO/contents/.github/workflows --jq '.[].name' 2>/dev/null || echo "")
           for wf in $WORKFLOWS; do
@@ -148,7 +148,7 @@ jobs:
               -f sha="$SHA" 2>/dev/null || true
             echo "  Deleted .github/workflows/$wf"
           done
-          
+
           # Delete CODEOWNERS
           SHA=$(gh api repos/$REPO/contents/.github/CODEOWNERS --jq '.sha' 2>/dev/null)
           if [ -n "$SHA" ]; then
@@ -156,7 +156,7 @@ jobs:
               -f message="🧹 Remove CODEOWNERS (managed by control-center)" \
               -f sha="$SHA" 2>/dev/null || true
           fi
-          
+
           # Delete dependabot.yml (managed centrally)
           SHA=$(gh api repos/$REPO/contents/.github/dependabot.yml --jq '.sha' 2>/dev/null)
           if [ -n "$SHA" ]; then
