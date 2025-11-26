@@ -226,3 +226,19 @@ disable_error_code = ["misc", "name-defined", "type-arg"]
 [[tool.mypy.overrides]]
 module = "wrapt.*"
 ignore_missing_imports = true
+
+[pycalver]
+current_version = "202511.0001"
+version_pattern = "{pycalver}"
+commit = false
+tag = false
+push = false
+
+[pycalver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{pep440_version}"',
+]
+"src/extended_data_types/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+

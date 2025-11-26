@@ -122,3 +122,19 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[pycalver]
+current_version = "202511.0001"
+version_pattern = "{pycalver}"
+commit = false
+tag = false
+push = false
+
+[pycalver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{pep440_version}"',
+]
+"src/cloud_connectors/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+

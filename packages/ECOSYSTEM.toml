@@ -84,7 +84,8 @@ release_workflow = ".github/workflows/release.yml"
 
 # Standards
 [standards]
-versioning = "CalVer (YYYY.MM.BUILD)"
+versioning = "pycalver (YYYYMM.NNNN)"
+versioning_tool = "pycalver"
 python_versions = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 linting = "ruff"
 testing = "pytest"

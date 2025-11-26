@@ -122,3 +122,19 @@ no_incremental = true
 [[tool.mypy.overrides]]
 module = ["wrapt.*", "deepmerge.*"]
 ignore_missing_imports = true
+
+[pycalver]
+current_version = "202511.0001"
+version_pattern = "{pycalver}"
+commit = false
+tag = false
+push = false
+
+[pycalver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{pep440_version}"',
+]
+"src/directed_inputs_class/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+

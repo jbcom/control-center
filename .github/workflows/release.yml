@@ -71,14 +71,12 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         working-directory: ${{ matrix.package.path }}
         run: |
-          pip install build twine
+          pip install build twine pycalver
           
-          # PyCalVer format: YYYYMM.NNNN (e.g., 202511.0001)
-          VERSION="$(date +%Y%m).$(printf '%04d' ${{ github.run_number }})"
+          # Use pycalver to bump version
+          pycalver bump --release final --no-commit --no-tag --no-push
+          VERSION=$(pycalver show --pep440)
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          
-          # Update version in __init__.py
-          find src -name "__init__.py" -exec sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" {} \;
           
           # Build
           python -m build
