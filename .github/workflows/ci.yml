@@ -289,33 +289,18 @@ jobs:
           echo "📦 Released ${{ matrix.package.pypi }}"
 
   # ============================================
-  # DEPLOY DOCS (main only)
+  # TRIGGER PAGES BUILDS (main only)
   # ============================================
-  deploy-docs:
-    needs: [docs, release]
+  pages:
+    needs: [sync]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        repo: [extended-data-types, lifecyclelogging, directed-inputs-class, vendor-connectors]
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ env.DOCS_REPO }}
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          path: docs-repo
-
-      - name: Download docs
-        uses: actions/download-artifact@v4
-        with:
-          name: docs
-          path: new-docs
-
-      - name: Push to docs repo
+      - name: Trigger Pages build
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          cd docs-repo
-          rm -rf *
-          cp -r ../new-docs/* .
-          
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          git add -A
-          git diff --staged --quiet || git commit -m "📚 Update docs from control-center"
-          git push
+          gh api repos/jbcom/${{ matrix.repo }}/pages/builds -X POST || echo "Pages not configured for ${{ matrix.repo }}"
