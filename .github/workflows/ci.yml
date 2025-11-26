@@ -47,7 +47,7 @@ jobs:
 
           PYTHON_VERSIONS='["3.9","3.13"]'
 
-          # Test matrix: package × python
+          # Test matrix: package x python
           TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
 
           # Deploy matrix: just packages with their metadata
