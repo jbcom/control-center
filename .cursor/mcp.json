@@ -8,7 +8,8 @@
       ],
       "env": {
         "GITHUB_PERSONAL_ACCESS_TOKEN": "${GITHUB_JBCOM_TOKEN}"
-      }
+      },
+      "type": "stdio"
     },
     "filesystem": {
       "command": "npx",
@@ -16,7 +17,8 @@
         "-y",
         "@modelcontextprotocol/server-filesystem",
         "/workspace"
-      ]
+      ],
+      "type": "stdio"
     },
     "git": {
       "command": "npx",
@@ -25,7 +27,8 @@
         "@modelcontextprotocol/server-git",
         "--repository",
         "/workspace"
-      ]
+      ],
+      "type": "stdio"
     }
   }
 }
