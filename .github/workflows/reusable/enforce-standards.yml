@@ -1,0 +1,177 @@
+# Enforces ALL standards from repo-standards.yml on a target repo
+name: Enforce Standards
+
+on:
+  workflow_call:
+    inputs:
+      repo:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  enforce:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Enforce repo settings
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Repo Settings ==="
+          gh api repos/$REPO -X PATCH \
+            -F has_issues=true \
+            -F has_wiki=false \
+            -F has_projects=false \
+            -F has_discussions=false \
+            -F allow_squash_merge=true \
+            -F allow_merge_commit=false \
+            -F allow_rebase_merge=false \
+            -F delete_branch_on_merge=true \
+            -F allow_auto_merge=true \
+            -F allow_update_branch=true \
+            -f squash_merge_commit_title=PR_TITLE \
+            -f squash_merge_commit_message=PR_BODY
+
+      - name: Enforce branch protection
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Branch Protection ==="
+          gh api repos/$REPO/branches/main/protection -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -f required_status_checks=null \
+            -F enforce_admins=false \
+            -f required_pull_request_reviews=null \
+            -f restrictions=null \
+            -F required_linear_history=true \
+            -F allow_force_pushes=false \
+            -F allow_deletions=false 2>/dev/null || echo "Branch protection skipped"
+
+      - name: Enforce Pages
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Pages ==="
+          # Ensure gh-pages branch exists
+          MAIN_SHA=$(gh api repos/$REPO/git/refs/heads/main --jq '.object.sha')
+          gh api repos/$REPO/git/refs -X POST \
+            -f ref=refs/heads/gh-pages \
+            -f sha=$MAIN_SHA 2>/dev/null || true
+          
+          # Enable/configure Pages
+          if gh api repos/$REPO/pages 2>/dev/null; then
+            gh api repos/$REPO/pages -X PUT \
+              -f build_type=legacy \
+              -f source[branch]=gh-pages \
+              -f source[path]=/
+          else
+            gh api repos/$REPO/pages -X POST \
+              -f build_type=legacy \
+              -f source[branch]=gh-pages \
+              -f source[path]=/
+          fi
+
+      - name: Enforce labels
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Labels ==="
+          declare -A LABELS=(
+            ["bug"]="d73a4a:Something isn't working"
+            ["enhancement"]="a2eeef:New feature or request"
+            ["documentation"]="0075ca:Improvements or additions to documentation"
+            ["dependencies"]="0366d6:Pull requests that update a dependency file"
+            ["automated"]="6f42c1:Automated PR from control-center"
+            ["security"]="ee0701:Security related"
+          )
+          
+          for name in "${!LABELS[@]}"; do
+            IFS=':' read -r color desc <<< "${LABELS[$name]}"
+            gh api repos/$REPO/labels -X POST \
+              -f name="$name" \
+              -f color="$color" \
+              -f description="$desc" 2>/dev/null || \
+            gh api repos/$REPO/labels/$name -X PATCH \
+              -f color="$color" \
+              -f description="$desc" 2>/dev/null || true
+          done
+
+      - name: Enforce topics
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Topics ==="
+          # Get package name from repo
+          PKG_NAME=$(echo $REPO | cut -d'/' -f2)
+          
+          gh api repos/$REPO/topics -X PUT \
+            -H "Accept: application/vnd.github+json" \
+            -f "names[]=python" \
+            -f "names[]=jbcom" \
+            -f "names[]=library" \
+            -f "names[]=$PKG_NAME"
+
+      - name: Enforce security settings
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Security ==="
+          # Enable vulnerability alerts
+          gh api repos/$REPO/vulnerability-alerts -X PUT 2>/dev/null || true
+          
+          # Enable automated security fixes
+          gh api repos/$REPO/automated-security-fixes -X PUT 2>/dev/null || true
+
+      - name: Remove prohibited files
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo "=== Cleanup Prohibited Files ==="
+          
+          # Delete workflows (we don't want any in public repos)
+          WORKFLOWS=$(gh api repos/$REPO/contents/.github/workflows --jq '.[].name' 2>/dev/null || echo "")
+          for wf in $WORKFLOWS; do
+            SHA=$(gh api repos/$REPO/contents/.github/workflows/$wf --jq '.sha')
+            gh api repos/$REPO/contents/.github/workflows/$wf -X DELETE \
+              -f message="🧹 Remove workflow (managed by control-center)" \
+              -f sha="$SHA" 2>/dev/null || true
+            echo "  Deleted .github/workflows/$wf"
+          done
+          
+          # Delete CODEOWNERS
+          SHA=$(gh api repos/$REPO/contents/.github/CODEOWNERS --jq '.sha' 2>/dev/null)
+          if [ -n "$SHA" ]; then
+            gh api repos/$REPO/contents/.github/CODEOWNERS -X DELETE \
+              -f message="🧹 Remove CODEOWNERS (managed by control-center)" \
+              -f sha="$SHA" 2>/dev/null || true
+          fi
+          
+          # Delete dependabot.yml (managed centrally)
+          SHA=$(gh api repos/$REPO/contents/.github/dependabot.yml --jq '.sha' 2>/dev/null)
+          if [ -n "$SHA" ]; then
+            gh api repos/$REPO/contents/.github/dependabot.yml -X DELETE \
+              -f message="🧹 Remove dependabot.yml (managed by control-center)" \
+              -f sha="$SHA" 2>/dev/null || true
+          fi
+
+      - name: Summary
+        env:
+          GH_TOKEN: ${{ secrets.token }}
+          REPO: ${{ inputs.repo }}
+        run: |
+          echo ""
+          echo "✅ Standards enforced on $REPO"
+          echo ""
+          echo "Repo: https://github.com/$REPO"
+          echo "Pages: https://$(echo $REPO | cut -d'/' -f1).github.io/$(echo $REPO | cut -d'/' -f2)/"

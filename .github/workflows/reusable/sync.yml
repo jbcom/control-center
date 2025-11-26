@@ -1,0 +1,47 @@
+# Reusable sync workflow - pushes package to public repo
+name: Sync Package
+
+on:
+  workflow_call:
+    inputs:
+      package:
+        required: true
+        type: string
+      target-repo:
+        required: true
+        type: string
+    secrets:
+      token:
+        required: true
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.target-repo }}
+          token: ${{ secrets.token }}
+          path: target
+
+      - name: Sync files
+        run: |
+          # Clear target (except .git)
+          cd target
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cd ..
+          
+          # Copy package contents
+          cp -r source/packages/${{ inputs.package }}/* target/
+          
+          # Commit and push
+          cd target
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "🚀 Sync from control-center"
+          git push
