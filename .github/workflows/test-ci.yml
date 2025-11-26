@@ -7,4 +7,4 @@ on:
 
 jobs:
   call-test:
-    uses: jbcom/jbcom-control-center/.github/workflows/reusable/lint.yml@fix/ci-unicode-characters
+    uses: ./.github/workflows/lint-reusable.yml
