@@ -43,8 +43,8 @@ jobs:
 
       - name: Build package
         run: |
-          cd source/packages/${{ inputs.package }}
-          uv build
+          cd source
+          uv build --package ${{ inputs.package }}
           
           # Show what was built
           echo "=== Built artifacts ==="
@@ -54,7 +54,7 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.pypi-token }}
         run: |
-          cd source/packages/${{ inputs.package }}
+          cd source
           
           # uv publish with --skip-existing is not available, but we can handle errors
           uv publish || echo "Package may already exist on PyPI (this is OK)"
