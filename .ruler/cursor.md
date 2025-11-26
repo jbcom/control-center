@@ -2,6 +2,17 @@
 
 This file contains Cursor AI specific instructions not covered by standard ruler configuration.
 
+## 🔑 CRITICAL: Authentication (READ FIRST!)
+
+**ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
+```
+
+The default `GH_TOKEN` does NOT have jbcom access. NEVER use bare `gh` commands for jbcom repos.
+
 ## Background Agent Modes
 
 ### Code Review Mode
