@@ -41,7 +41,7 @@ dependencies = [
     # Additional utils not in extended-data-types
     "numpy>=1.26.0",
     "validators>=0.22.0",
-    "case-insensitive-dict>=0.1.0",
+    # CaseInsensitiveDict comes from requests (already a dependency)
     "deepmerge>=1.1.0",
     "filelock>=3.13.0",
     "more-itertools>=10.0.0",

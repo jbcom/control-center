@@ -27,7 +27,7 @@ import numpy as np
 import orjson
 import requests
 import validators
-from case_insensitive_dict import CaseInsensitiveDict
+from requests.structures import CaseInsensitiveDict
 from deepmerge import Merger
 from filelock import FileLock, Timeout
 from git import Repo, InvalidGitRepositoryError, NoSuchPathError, GitCommandError
