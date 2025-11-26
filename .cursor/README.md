@@ -1,6 +1,24 @@
+# Cursor Agent Configuration
+
+This directory contains agent memory, configuration, and MCP server setup.
+
+## 🧠 Memory Bank (READ FIRST!)
+
+**Agents MUST read memory-bank at session start:**
+
+```bash
+cat .cursor/memory-bank/activeContext.md  # Current focus
+cat .cursor/memory-bank/progress.md        # Task history
+cat .cursor/memory-bank/agenticRules.md    # Behavior rules
+```
+
+See `memory-bank/README.md` for full documentation.
+
+---
+
 # Model Context Protocol (MCP) Setup
 
-This directory contains MCP server configuration and Cursor agents that leverage MCP for powerful GitHub integration.
+This section covers MCP server configuration for GitHub integration.
 
 ## What is MCP?
 
