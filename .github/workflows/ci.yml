@@ -87,9 +87,6 @@ jobs:
 
       - uses: astral-sh/setup-uv@v4
 
-      - name: Sync workspace (installs pycalver as dev dependency)
-        run: uv sync --dev
-
       - name: Bump version with pycalver
         id: bump
         run: |
@@ -97,8 +94,8 @@ jobs:
           echo "Current version:"
           grep 'current_version' pyproject.toml | head -1
           
-          # Bump to new version (config has commit=false, tag=false, push=false)
-          uv run pycalver bump --release final
+          # Bump to new version using uvx (config has commit=false, tag=false, push=false)
+          uvx pycalver bump --release final
           
           # Extract new version
           NEW_VERSION=$(grep 'current_version' pyproject.toml | head -1 | sed 's/.*= *"\([^"]*\)".*/\1/')
