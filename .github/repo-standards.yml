@@ -1,0 +1,90 @@
+# Repository Standards Definition
+# This file defines ALL standards enforced across jbcom public repos
+# Enforcement happens via the enforce-standards workflow
+
+# Repository settings
+repo:
+  has_issues: true
+  has_wiki: false
+  has_projects: false
+  has_discussions: false
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+  delete_branch_on_merge: true
+  allow_auto_merge: true
+  allow_update_branch: true
+  squash_merge_commit_title: PR_TITLE
+  squash_merge_commit_message: PR_BODY
+
+# Branch protection for main
+branch_protection:
+  main:
+    enforce_admins: false
+    required_linear_history: true
+    allow_force_pushes: false
+    allow_deletions: false
+    required_status_checks: null  # Let each repo define if needed
+    required_pull_request_reviews: null  # No required reviews for bot PRs
+
+# GitHub Pages
+pages:
+  enabled: true
+  build_type: legacy  # Branch-based, not Actions
+  source:
+    branch: gh-pages
+    path: /
+
+# Labels (standard set)
+labels:
+  - name: bug
+    color: d73a4a
+    description: Something isn't working
+  - name: enhancement
+    color: a2eeef
+    description: New feature or request
+  - name: documentation
+    color: 0075ca
+    description: Improvements or additions to documentation
+  - name: dependencies
+    color: 0366d6
+    description: Pull requests that update a dependency file
+  - name: automated
+    color: 6f42c1
+    description: Automated PR from control-center
+  - name: security
+    color: ee0701
+    description: Security related
+
+# Topics
+topics:
+  - python
+  - jbcom
+  - library
+
+# Dependabot
+dependabot:
+  enabled: true
+  config:
+    version: 2
+    updates:
+      - package-ecosystem: pip
+        directory: /
+        schedule:
+          interval: weekly
+        labels:
+          - dependencies
+          - automated
+
+# Security
+security:
+  vulnerability_alerts: true
+  automated_security_fixes: true
+  secret_scanning: true
+  secret_scanning_push_protection: true
+
+# Files that should NOT exist in public repos (we manage from control-center)
+prohibited_files:
+  - .github/workflows/  # No workflows - we sync code only
+  - .github/dependabot.yml  # Managed centrally
+  - CODEOWNERS  # Not needed for mirrors
