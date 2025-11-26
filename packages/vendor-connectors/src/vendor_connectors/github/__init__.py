@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+from pathlib import Path
 from typing import Any, Optional, Union
 
 from directed_inputs_class import DirectedInputsClass
@@ -11,9 +13,7 @@ from github.GithubException import GithubException, UnknownObjectException
 from lifecyclelogging import Logging
 from python_graphql_client import GraphqlClient
 
-FilePath = Union[str, bytes, "os.PathLike[Any]"]
-import os
-from pathlib import Path
+FilePath = Union[str, bytes, os.PathLike[Any]]
 
 
 def get_encoding_for_file_path(file_path: FilePath) -> str:
