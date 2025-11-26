@@ -4,7 +4,7 @@
 repos:
   # Ruff - Fast Python linter and formatter
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.14.6
     hooks:
       # Run the linter
       - id: ruff
@@ -14,7 +14,7 @@ repos:
 
   # Mypy - Static type checker
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.14.0
+    rev: v1.18.2
     hooks:
       - id: mypy
         args: [--strict, --ignore-missing-imports]
@@ -23,7 +23,7 @@ repos:
 
   # Standard pre-commit hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -41,17 +41,23 @@ repos:
 
   # Markdown linting
   - repo: https://github.com/igorshubovych/markdownlint-cli
-    rev: v0.43.0
+    rev: v0.46.0
     hooks:
       - id: markdownlint
         args: [--fix, --disable, MD013, MD033, MD041]
 
   # YAML linting
   - repo: https://github.com/adrienverge/yamllint
-    rev: v1.35.1
+    rev: v1.37.1
     hooks:
       - id: yamllint
         args: [-c=.yamllint.yaml]
+
+  # GitHub Actions workflow linting - catches schema issues before push
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.9
+    hooks:
+      - id: actionlint
 
   # Custom validators for this management hub
   - repo: local
