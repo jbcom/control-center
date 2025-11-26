@@ -7,6 +7,24 @@
 
 **This is the DEFINITIVE Python library template** for the jbcom ecosystem. All configuration, workflows, and agent instructions here represent the consolidated best practices from multiple production deployments.
 
+## 🔑 CRITICAL: Authentication (READ FIRST!)
+
+**ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh workflow run "Release" --repo jbcom/jbcom-control-center
+```
+
+### Token Reference:
+- **GITHUB_JBCOM_TOKEN** - Use for ALL jbcom repo operations (PRs, merges, workflow triggers)
+- **CI_GITHUB_TOKEN** - Used by GitHub Actions workflows (in repo secrets)
+- **PYPI_TOKEN** - Used by release workflow for PyPI publishing (in repo secrets)
+
+### ⚠️ NEVER FORGET:
+The default `GH_TOKEN` does NOT have access to jbcom repos. You MUST prefix with `GH_TOKEN="$GITHUB_JBCOM_TOKEN"` for EVERY `gh` command targeting jbcom repos.
+
 ## 🎯 PURPOSE: Agentic Template Repository
 
 This template is designed for:
@@ -668,6 +686,17 @@ def load_file(filepath: str) -> str:
 # Cursor-Specific Agent Configuration
 
 This file contains Cursor AI specific instructions not covered by standard ruler configuration.
+
+## 🔑 CRITICAL: Authentication (READ FIRST!)
+
+**ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
+```
+
+The default `GH_TOKEN` does NOT have jbcom access. NEVER use bare `gh` commands for jbcom repos.
 
 ## Background Agent Modes
 
