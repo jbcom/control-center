@@ -59,7 +59,7 @@ typing = [
 ]
 
 docs = [
-    "sphinx>=7.2,<7.5",
+    "sphinx>=7.0",
     "sphinxawesome-theme>=5.2.0",
     "sphinx-autodoc2>=0.5.0",
     "myst-parser>=3.0.1",

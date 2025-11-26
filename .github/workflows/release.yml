@@ -26,8 +26,30 @@ on:
           - vendor-connectors
 
 jobs:
-  release:
+  # Bump version once at workspace level
+  version:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Bump version with pycalver
+        id: bump
+        run: |
+          pip install pycalver
+          pycalver bump --release final --no-commit --no-tag --no-push
+          VERSION=$(pycalver show --pep440)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "📦 Version: $VERSION"
+
+  release:
+    needs: version
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -65,25 +87,21 @@ jobs:
       - uses: actions/setup-python@v5
         if: steps.check.outputs.should_release == 'true'
         with:
-          python-version: '3.11'
+          python-version: '3.13'
 
       - name: Build ${{ matrix.package.name }}
         if: steps.check.outputs.should_release == 'true'
-        working-directory: ${{ matrix.package.path }}
         run: |
-          pip install build twine
+          pip install build twine pycalver
           
-          # PyCalVer format: YYYYMM.NNNN (e.g., 202511.0001)
-          VERSION="$(date +%Y%m).$(printf '%04d' ${{ github.run_number }})"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          # Bump version at workspace root (updates all __init__.py)
+          pycalver bump --release final --no-commit --no-tag --no-push
           
-          # Update version in __init__.py
-          find src -name "__init__.py" -exec sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" {} \;
-          
-          # Build
+          # Build the package
+          cd ${{ matrix.package.path }}
           python -m build
           
-          echo "📦 Built ${{ matrix.package.pypi }} v$VERSION"
+          echo "📦 Built ${{ matrix.package.pypi }} v${{ needs.version.outputs.version }}"
 
       - name: Publish ${{ matrix.package.name }} to PyPI
         if: steps.check.outputs.should_release == 'true'
@@ -93,4 +111,4 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
         run: |
           twine upload dist/* --skip-existing
-          echo "🚀 Published ${{ matrix.package.pypi }} v${{ env.VERSION }} to PyPI"
+          echo "🚀 Published ${{ matrix.package.pypi }} v${{ needs.version.outputs.version }} to PyPI"

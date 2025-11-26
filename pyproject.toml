@@ -2,10 +2,20 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+# UV Workspace - manages all packages in packages/
+[tool.uv.workspace]
+members = ["packages/*"]
+
+[tool.uv.sources]
+extended-data-types = { workspace = true }
+lifecyclelogging = { workspace = true }
+directed-inputs-class = { workspace = true }
+cloud-connectors = { workspace = true }
+
 [project]
-name = "python-library-template"
-version = "0.0.0"  # Auto-updated by CI
-description = "Production-ready Python library template with CalVer auto-versioning"
+name = "jbcom-control-center"
+version = "0.0.0"
+description = "Control center for jbcom Python ecosystem"
 authors = [
     { name = "Jon Bogaty", email = "jon@jonbogaty.com" }
 ]
@@ -51,13 +61,14 @@ typing = [
     "pyright>=1.1.350",
 ]
 docs = [
-    "sphinx>=7.2.0",
+    "sphinx>=7.0",
     "sphinx-rtd-theme>=2.0.0",
 ]
 dev = [
-    "python-library-template[tests,typing,docs]",
+    "jbcom-control-center[tests,typing,docs]",
     "pre-commit>=3.6.0",
     "ruff>=0.2.0",
+    "pycalver>=202010.0",
 ]
 
 [project.urls]
@@ -181,3 +192,28 @@ reportMissingTypeStubs = false
 reportUnknownMemberType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
+
+# PyCalVer - workspace-level versioning for all packages
+[pycalver]
+current_version = "202511.0001"
+version_pattern = "{pycalver}"
+commit = false
+tag = false
+push = false
+
+[pycalver.file_patterns]
+"pyproject.toml" = [
+    'current_version = "{pep440_version}"',
+]
+"packages/extended-data-types/src/extended_data_types/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+"packages/lifecyclelogging/src/lifecyclelogging/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+"packages/directed-inputs-class/src/directed_inputs_class/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
+"packages/vendor-connectors/src/cloud_connectors/__init__.py" = [
+    '__version__ = "{pep440_version}"',
+]
