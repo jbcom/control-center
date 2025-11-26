@@ -1,4 +1,4 @@
-# Reusable release workflow - publishes package to PyPI
+# Reusable release workflow - publishes versioned package to PyPI
 name: Release Package
 
 on:
@@ -10,6 +10,10 @@ on:
       pypi-name:
         required: true
         type: string
+      version:
+        required: true
+        type: string
+        description: "Unified version from pycalver"
     secrets:
       pypi-token:
         required: true
@@ -18,26 +22,45 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download versioned source
+        uses: actions/download-artifact@v4
+        with:
+          name: versioned-source
+          path: source
 
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
 
-      - name: Build & Publish
+      - name: Verify version
+        run: |
+          echo "=== Releasing ${{ inputs.package }} v${{ inputs.version }} ==="
+          
+          # Verify version in package
+          INIT_FILE=$(find source/packages/${{ inputs.package }}/src -name "__init__.py" -exec grep -l "__version__" {} \; | head -1)
+          if [ -n "$INIT_FILE" ]; then
+            echo "Version in $INIT_FILE:"
+            grep "__version__" "$INIT_FILE"
+          fi
+
+      - name: Build package
+        run: |
+          pip install build
+          cd source/packages/${{ inputs.package }}
+          python -m build
+          
+          # Show what was built
+          echo "=== Built artifacts ==="
+          ls -la dist/
+
+      - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.pypi-token }}
         run: |
-          pip install build twine pycalver
+          pip install twine
+          cd source/packages/${{ inputs.package }}
           
-          # Bump version
-          pycalver bump --release final --no-commit --no-tag --no-push || true
-          
-          # Build
-          cd packages/${{ inputs.package }}
-          python -m build
-          
-          # Publish
+          # Upload with skip-existing for idempotency
           twine upload dist/* --skip-existing
-          echo "📦 Released ${{ inputs.pypi-name }}"
+          echo "📦 Published ${{ inputs.pypi-name }} v${{ inputs.version }} to PyPI"
