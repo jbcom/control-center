@@ -37,6 +37,14 @@ jobs:
           GH_PAT: ${{ secrets.JBCOM_SYNC_TOKEN }}
           GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
           GIT_USERNAME: 'jbcom-bot'
-          SKIP_PR: true  # Push directly, public repos will run their own CI
+          SKIP_PR: true  # Push directly → triggers public repo CI → PyPI release
           CONFIG_PATH: .github/sync.yml
           COMMIT_PREFIX: '🔄 Sync from control-center'
+
+      # Public repos have their own ci.yml that:
+      # 1. Runs tests
+      # 2. Sets CalVer version
+      # 3. Builds package
+      # 4. Publishes to PyPI
+      #
+      # So this sync → push to main → triggers their CI → PyPI release
