@@ -11,7 +11,7 @@ resolution-markers = [
 
 [manifest]
 members = [
-    "cloud-connectors",
+    "vendor-connectors",
     "directed-inputs-class",
     "extended-data-types",
     "jbcom-control-center",
@@ -478,7 +478,7 @@ wheels = [
 ]
 
 [[package]]
-name = "cloud-connectors"
+name = "vendor-connectors"
 source = { editable = "packages/vendor-connectors" }
 dependencies = [
     { name = "boto3" },

@@ -11,7 +11,7 @@ packages/
 ├── extended-data-types/    → PyPI: extended-data-types
 ├── lifecyclelogging/       → PyPI: lifecyclelogging
 ├── directed-inputs-class/  → PyPI: directed-inputs-class
-└── vendor-connectors/      → PyPI: cloud-connectors
+└── vendor-connectors/      → PyPI: vendor-connectors
 ```
 
 ## How It Works
@@ -73,7 +73,7 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge ...
 | extended-data-types | [extended-data-types](https://pypi.org/project/extended-data-types/) | Foundation utilities |
 | lifecyclelogging | [lifecyclelogging](https://pypi.org/project/lifecyclelogging/) | Structured logging |
 | directed-inputs-class | [directed-inputs-class](https://pypi.org/project/directed-inputs-class/) | Input validation |
-| vendor-connectors | [cloud-connectors](https://pypi.org/project/cloud-connectors/) | Cloud integrations |
+| vendor-connectors | [vendor-connectors](https://pypi.org/project/vendor-connectors/) | Cloud integrations |
 
 ## Dependency Order
 

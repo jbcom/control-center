@@ -139,7 +139,7 @@ system_prompt: |
 
   ### TypeScript
   ```typescript
-  import { MeshyClient } from '@jbcom/cloud-connectors';
+  import { MeshyClient } from '@jbcom/vendor-connectors';
 
   const client = new MeshyClient({ apiKey: '...' });
   const result = await client.generate3dModel({ prompt: '...' });

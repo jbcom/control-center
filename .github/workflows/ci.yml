@@ -40,7 +40,7 @@ jobs:
       - id: set
         run: |
           # Package definitions - single line for GITHUB_OUTPUT compatibility
-          PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"cloud-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
+          PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"vendor-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
           
           PYTHON_VERSIONS='["3.9","3.13"]'
           
