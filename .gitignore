@@ -234,8 +234,14 @@ fabric.properties
 # START Ruler Generated Files
 /.aider.conf.yml
 /.aider.conf.yml.bak
+/.cursor/mcp.json
+/.cursor/mcp.json.bak
 /.github/copilot-instructions.md
 /.github/copilot-instructions.md.bak
+/.mcp.json
+/.mcp.json.bak
+/.vscode/mcp.json
+/.vscode/mcp.json.bak
 /AGENTS.md
 /AGENTS.md.bak
 /CLAUDE.md
