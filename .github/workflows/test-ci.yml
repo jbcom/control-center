@@ -6,8 +6,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: echo "Testing inline job"
+  call-test:
+    uses: jbcom/jbcom-control-center/.github/workflows/reusable/lint.yml@fix/ci-unicode-characters
