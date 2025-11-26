@@ -37,10 +37,10 @@ jobs:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
           GIT_USERNAME: 'jbcom-bot'
-          SKIP_PR: false  # Create PRs in public repos
+          SKIP_PR: false
           CONFIG_PATH: .github/sync.yml
-          COMMIT_PREFIX: '🔄 Release'
-          PR_TITLE: '🚀 Release from control-center'
+          COMMIT_PREFIX: '🚀 Release from control-center:'
+          COMMIT_AS_PR_TITLE: true
           PR_BODY: |
             Automated release sync from jbcom-control-center.
             
