@@ -1,0 +1,38 @@
+# RELEASE ONLY - No testing, no reviews
+# All validation happens in jbcom-control-center BEFORE sync
+# This repo is just a PyPI release container
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false  # Don't cancel releases
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write  # PyPI trusted publishing
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Build
+        run: |
+          pip install build
+          # Set CalVer version
+          VERSION="$(date +%Y).$(date +%-m).${{ github.run_number }}"
+          find src -name "__init__.py" -exec sed -i "s/__version__ = .*/__version__ = \"$VERSION\"/" {} \;
+          python -m build
+      
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
