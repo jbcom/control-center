@@ -114,9 +114,9 @@ class VaultConnector(DirectedInputsClass):
             if expire_time:
                 expire_time_clean = expire_time.replace("Z", "+00:00")
                 self._vault_token_expiration = datetime.fromisoformat(expire_time_clean)
-                # fromisoformat with '+00:00' produces a timezone-aware datetime
-                # No need to manually set tzinfo
-
+                # fromisoformat with '+00:00' produces a timezone-aware datetime (Python 3.7+ only)
+                # No need to manually set tzinfo if running on Python 3.7 or newer.
+                # If supporting Python <3.7, manual tzinfo assignment is required.
         except VaultError as e:
             self.logger.error(f"Failed to lookup Vault token expiration: {e}")
 
