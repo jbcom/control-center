@@ -137,6 +137,7 @@ jobs:
           GH_TOKEN: ${{ secrets.token }}
           REPO: ${{ inputs.repo }}
         run: |
+          set +e  # Don't exit on error - we handle errors explicitly
           echo "=== Cleanup Prohibited Files ==="
           
           # Helper function to safely delete a file from a repo
@@ -144,13 +145,13 @@ jobs:
             local FILE_PATH="$1"
             local MESSAGE="$2"
             
-            # Get file SHA, suppress all errors
-            SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha' 2>/dev/null) || true
+            # Get file SHA using subshell to fully suppress errors
+            SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha' 2>&1 | grep -v "Not Found" | grep -v "404" || echo "")
             
-            if [ -n "$SHA" ] && [ "$SHA" != "null" ]; then
+            if [ -n "$SHA" ] && [ "$SHA" != "null" ] && [ ${#SHA} -eq 40 ]; then
               if gh api "repos/$REPO/contents/$FILE_PATH" -X DELETE \
                 -f message="$MESSAGE" \
-                -f sha="$SHA" 2>/dev/null; then
+                -f sha="$SHA" >/dev/null 2>&1; then
                 echo "  ✓ Deleted $FILE_PATH"
               else
                 echo "  ⚠ Could not delete $FILE_PATH (may need manual removal)"
@@ -159,11 +160,12 @@ jobs:
           }
           
           # Delete workflows (we don't want any in public repos)
-          # Check if .github/workflows directory exists first
-          if gh api "repos/$REPO/contents/.github/workflows" --jq '.[].name' 2>/dev/null > /tmp/workflows.txt; then
-            while IFS= read -r wf; do
+          # Check if .github/workflows directory exists first (using subshell)
+          WORKFLOWS=$(gh api "repos/$REPO/contents/.github/workflows" --jq '.[].name' 2>&1 | grep -v "Not Found" | grep -v "404" || echo "")
+          if [ -n "$WORKFLOWS" ]; then
+            echo "$WORKFLOWS" | while IFS= read -r wf; do
               [ -n "$wf" ] && delete_file ".github/workflows/$wf" "Remove workflow (managed by control-center)"
-            done < /tmp/workflows.txt
+            done
           else
             echo "  No workflows directory found (OK)"
           fi
