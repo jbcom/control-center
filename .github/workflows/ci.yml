@@ -75,7 +75,7 @@ jobs:
   # SYNC TO PUBLIC REPOS (main only)
   # ============================================
   sync:
-    needs: [matrix, test, lint]
+    needs: [matrix, test, lint, enforce]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
