@@ -3,16 +3,16 @@
 
 jbcom/extended-data-types:
   - source: packages/extended-data-types/
-    dest: /
+    dest: .
 
 jbcom/lifecyclelogging:
   - source: packages/lifecyclelogging/
-    dest: /
+    dest: .
 
 jbcom/directed-inputs-class:
   - source: packages/directed-inputs-class/
-    dest: /
+    dest: .
 
 jbcom/vendor-connectors:
   - source: packages/vendor-connectors/
-    dest: /
+    dest: .
