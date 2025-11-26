@@ -29,13 +29,13 @@ jobs:
       - name: Build docs
         run: |
           uv pip install sphinx sphinx-rtd-theme myst-parser --system
-
+          
           # Install package for API docs
           uv pip install -e packages/extended-data-types --system
           if [ "${{ inputs.package }}" != "extended-data-types" ]; then
             uv pip install -e packages/${{ inputs.package }} --system
           fi
-
+          
           # Build if docs exist
           if [ -d "packages/${{ inputs.package }}/docs" ]; then
             cd packages/${{ inputs.package }}/docs
@@ -52,7 +52,7 @@ jobs:
           GH_TOKEN: ${{ secrets.token }}
         run: |
           cd packages/${{ inputs.package }}
-
+          
           # Clone gh-pages branch
           git clone --branch gh-pages --single-branch \
             https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git \
@@ -65,11 +65,11 @@ jobs:
               git remote add origin https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git
               cd ..
             }
-
+          
           # Copy built docs
           rm -rf gh-pages/*
           cp -r docs/_build/* gh-pages/ 2>/dev/null || cp -r docs/_build/index.html gh-pages/
-
+          
           # Push
           cd gh-pages
           git config user.name "jbcom-bot"

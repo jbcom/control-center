@@ -30,14 +30,14 @@ jobs:
           TWINE_PASSWORD: ${{ secrets.pypi-token }}
         run: |
           pip install build twine pycalver
-
+          
           # Bump version
           pycalver bump --release final --no-commit --no-tag --no-push || true
-
+          
           # Build
           cd packages/${{ inputs.package }}
           python -m build
-
+          
           # Publish
           twine upload dist/* --skip-existing
           echo "📦 Released ${{ inputs.pypi-name }}"

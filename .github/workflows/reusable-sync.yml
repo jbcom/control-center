@@ -34,10 +34,10 @@ jobs:
           cd target
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
-
+          
           # Copy package contents
           cp -r source/packages/${{ inputs.package }}/* target/
-
+          
           # Commit and push
           cd target
           git config user.name "jbcom-bot"
