@@ -37,20 +37,15 @@ jobs:
     steps:
       - id: set
         run: |
-          # Package definitions with metadata
-          PACKAGES='[
-            {"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},
-            {"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},
-            {"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},
-            {"name":"vendor-connectors","pypi":"cloud-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}
-          ]'
+          # Package definitions - single line for GITHUB_OUTPUT compatibility
+          PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"cloud-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
           
           PYTHON_VERSIONS='["3.9","3.13"]'
           
           # Test matrix: package x python
           TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
           
-          # Deploy matrix: just packages with their metadata
+          # Deploy matrix: packages with metadata
           DEPLOY_MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
           
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
