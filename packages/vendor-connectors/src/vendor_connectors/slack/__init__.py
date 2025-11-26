@@ -250,6 +250,38 @@ class SlackConnector(DirectedInputsClass):
 
         return {cid: cdata for cid, cdata in response.items() if cdata.get("is_channel")}
 
+    def list_usergroups(
+        self,
+        include_count: Optional[bool] = None,
+        include_disabled: Optional[bool] = None,
+        include_users: Optional[bool] = None,
+        expand_users: Optional[bool] = None,
+        team_id: Optional[str] = None,
+        **kwargs,
+    ):
+        """List Slack usergroups."""
+        if include_count is None:
+            include_count = self.get_input("include_count", required=False, is_bool=True)
+        if include_disabled is None:
+            include_disabled = self.get_input("include_disabled", required=False, default=False, is_bool=True)
+        if include_users is None:
+            include_users = self.get_input("include_users", required=False, default=False, is_bool=True)
+        if expand_users is None:
+            expand_users = self.get_input("expand_users", required=False, default=False, is_bool=True)
+        if team_id is None:
+            team_id = self.get_input("team_id", required=False)
+
+        self.logger.info("Retrieving usergroups from Slack")
+        return self._call_api(
+            "usergroups_list",
+            group_by="usergroups",
+            include_count=include_count,
+            include_disabled=include_disabled,
+            include_users=include_users,
+            team_id=team_id,
+            **kwargs,
+        )
+
     def _call_api(
         self,
         method: str,

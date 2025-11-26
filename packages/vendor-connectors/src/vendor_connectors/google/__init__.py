@@ -128,3 +128,39 @@ class GoogleConnector(DirectedInputsClass):
 
         self.logger.info(f"Retrieved {len(groups)} groups from Google Workspace")
         return groups
+
+    @classmethod
+    def impersonate_subject(
+        cls,
+        new_subject: str,
+        scopes: Optional[list[str]] = None,
+        original_subject: Optional[str] = None,
+        service_account_file: Optional[str | dict[str, Any]] = None,
+        service_account_info: Optional[str | dict[str, Any]] = None,
+        **kwargs,
+    ) -> "GoogleConnector":
+        """Create a new GoogleConnector impersonating a different subject.
+
+        This is a convenience method for creating a GoogleConnector instance
+        that impersonates a specific user (new_subject).
+
+        Args:
+            new_subject: The email address of the user to impersonate.
+            scopes: OAuth scopes for the connection.
+            original_subject: Ignored, kept for API compatibility.
+            service_account_file: Path to or contents of service account JSON.
+            service_account_info: Alternative name for service_account_file.
+            **kwargs: Additional arguments passed to GoogleConnector.
+
+        Returns:
+            A new GoogleConnector instance impersonating the specified user.
+        """
+        # Support both service_account_file and service_account_info for compatibility
+        sa_info = service_account_info or service_account_file
+
+        return cls(
+            service_account_info=sa_info,
+            scopes=scopes,
+            subject=new_subject,
+            **kwargs,
+        )
