@@ -144,24 +144,24 @@ jobs:
           for wf in $WORKFLOWS; do
             SHA=$(gh api repos/$REPO/contents/.github/workflows/$wf --jq '.sha')
             gh api repos/$REPO/contents/.github/workflows/$wf -X DELETE \
-              -f message="🧹 Remove workflow (managed by control-center)" \
+              -f message="Remove workflow (managed by control-center)" \
               -f sha="$SHA" 2>/dev/null || true
             echo "  Deleted .github/workflows/$wf"
           done
           
           # Delete CODEOWNERS
-          SHA=$(gh api repos/$REPO/contents/.github/CODEOWNERS --jq '.sha' 2>/dev/null)
+          SHA=$(gh api repos/$REPO/contents/.github/CODEOWNERS --jq '.sha' 2>/dev/null || echo "")
           if [ -n "$SHA" ]; then
             gh api repos/$REPO/contents/.github/CODEOWNERS -X DELETE \
-              -f message="🧹 Remove CODEOWNERS (managed by control-center)" \
+              -f message="Remove CODEOWNERS (managed by control-center)" \
               -f sha="$SHA" 2>/dev/null || true
           fi
           
           # Delete dependabot.yml (managed centrally)
-          SHA=$(gh api repos/$REPO/contents/.github/dependabot.yml --jq '.sha' 2>/dev/null)
+          SHA=$(gh api repos/$REPO/contents/.github/dependabot.yml --jq '.sha' 2>/dev/null || echo "")
           if [ -n "$SHA" ]; then
             gh api repos/$REPO/contents/.github/dependabot.yml -X DELETE \
-              -f message="🧹 Remove dependabot.yml (managed by control-center)" \
+              -f message="Remove dependabot.yml (managed by control-center)" \
               -f sha="$SHA" 2>/dev/null || true
           fi
 
