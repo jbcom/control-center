@@ -222,6 +222,6 @@ push = false
 "packages/directed-inputs-class/src/directed_inputs_class/__init__.py" = [
     '__version__ = "{pep440_version}"',
 ]
-"packages/vendor-connectors/src/cloud_connectors/__init__.py" = [
+"packages/vendor-connectors/src/vendor_connectors/__init__.py" = [
     '__version__ = "{pep440_version}"',
 ]

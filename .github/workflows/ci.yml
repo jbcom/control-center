@@ -5,7 +5,9 @@
 # - Package x Target repo for sync/release/docs
 #
 # On PR:   Test + Lint
-# On main: Test + Lint + Sync + Release + Docs + Enforce Standards
+# On main: Test + Lint + Version + Sync + Release + Docs + Enforce Standards
+#
+# VERSIONING: pycalver generates ONE version at start, ALL packages use it
 
 name: CI
 
@@ -72,10 +74,61 @@ jobs:
     uses: ./.github/workflows/reusable-lint.yml
 
   # ============================================
-  # SYNC TO PUBLIC REPOS (main only)
+  # VERSION - Generate ONE version for ALL packages (main only)
+  # ============================================
+  version:
+    needs: [test, lint]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.bump.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+
+      - name: Install pycalver
+        run: pip install pycalver
+
+      - name: Bump version with pycalver
+        id: bump
+        run: |
+          # Show current version
+          echo "Current version:"
+          grep 'current_version' pyproject.toml | head -1
+          
+          # Bump to new version (no commit, no tag, no push - we handle that)
+          pycalver bump --release final --no-commit --no-tag --no-push
+          
+          # Extract new version
+          NEW_VERSION=$(grep 'current_version' pyproject.toml | head -1 | sed 's/.*= *"\([^"]*\)".*/\1/')
+          echo "New version: $NEW_VERSION"
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          
+          # Show what was updated
+          echo "=== Updated files ==="
+          git diff --name-only
+          
+          # Verify all packages have the same version
+          echo "=== Package versions ==="
+          grep -r "__version__" packages/*/src/*/__init__.py || true
+
+      - name: Upload versioned source
+        uses: actions/upload-artifact@v4
+        with:
+          name: versioned-source
+          path: |
+            packages/
+            pyproject.toml
+          retention-days: 1
+
+  # ============================================
+  # SYNC TO PUBLIC REPOS (main only, after version)
   # ============================================
   sync:
-    needs: [matrix, test, lint]  # Don't wait for enforce - it runs in parallel
+    needs: [matrix, version]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
@@ -85,6 +138,7 @@ jobs:
     with:
       package: ${{ matrix.name }}
       target-repo: ${{ matrix.repo }}
+      version: ${{ needs.version.outputs.version }}
     secrets:
       token: ${{ secrets.CI_GITHUB_TOKEN }}
 
@@ -92,7 +146,7 @@ jobs:
   # RELEASE TO PYPI (main only, after sync)
   # ============================================
   release:
-    needs: [matrix, sync]
+    needs: [matrix, version, sync]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
@@ -102,6 +156,7 @@ jobs:
     with:
       package: ${{ matrix.name }}
       pypi-name: ${{ matrix.pypi }}
+      version: ${{ needs.version.outputs.version }}
     secrets:
       pypi-token: ${{ secrets.PYPI_TOKEN }}
 
@@ -109,7 +164,7 @@ jobs:
   # DEPLOY DOCS (main only, after release)
   # ============================================
   docs:
-    needs: [matrix, release]
+    needs: [matrix, version, release]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
@@ -118,6 +173,7 @@ jobs:
     with:
       package: ${{ matrix.name }}
       target-repo: ${{ matrix.repo }}
+      version: ${{ needs.version.outputs.version }}
     secrets:
       token: ${{ secrets.CI_GITHUB_TOKEN }}
 
@@ -125,7 +181,7 @@ jobs:
   # ENFORCE STANDARDS (main or manual, non-blocking)
   # ============================================
   enforce:
-    needs: [matrix, test, lint]  # Run after tests pass
+    needs: [matrix, test, lint]  # Run after tests pass, parallel to version/sync/release
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)

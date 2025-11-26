@@ -1,4 +1,4 @@
-# Reusable sync workflow - pushes package to public repo
+# Reusable sync workflow - pushes versioned package to public repo
 name: Sync Package
 
 on:
@@ -10,6 +10,10 @@ on:
       target-repo:
         required: true
         type: string
+      version:
+        required: true
+        type: string
+        description: "Unified version from pycalver"
     secrets:
       token:
         required: true
@@ -18,11 +22,14 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download versioned source
+        uses: actions/download-artifact@v4
         with:
+          name: versioned-source
           path: source
 
-      - uses: actions/checkout@v4
+      - name: Checkout target repo
+        uses: actions/checkout@v4
         with:
           repository: ${{ inputs.target-repo }}
           token: ${{ secrets.token }}
@@ -30,18 +37,30 @@ jobs:
 
       - name: Sync files
         run: |
+          echo "=== Syncing ${{ inputs.package }} v${{ inputs.version }} to ${{ inputs.target-repo }} ==="
+          
           # Clear target (except .git)
           cd target
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cd ..
           
-          # Copy package contents
+          # Copy package contents (already versioned by pycalver)
           cp -r source/packages/${{ inputs.package }}/* target/
+          
+          # Verify version in synced files
+          echo "=== Version check ==="
+          grep -r "__version__" target/src/*/__init__.py 2>/dev/null || echo "No __version__ found"
           
           # Commit and push
           cd target
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "🚀 Sync from control-center"
-          git push
+          
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "🚀 Release v${{ inputs.version }} from control-center"
+            git push
+            echo "✅ Synced ${{ inputs.package }} v${{ inputs.version }}"
+          fi
