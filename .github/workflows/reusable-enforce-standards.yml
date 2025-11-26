@@ -139,31 +139,41 @@ jobs:
         run: |
           echo "=== Cleanup Prohibited Files ==="
           
+          # Helper function to safely delete a file from a repo
+          delete_file() {
+            local FILE_PATH="$1"
+            local MESSAGE="$2"
+            
+            # Get file SHA, suppress all errors
+            SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha' 2>/dev/null) || true
+            
+            if [ -n "$SHA" ] && [ "$SHA" != "null" ]; then
+              if gh api "repos/$REPO/contents/$FILE_PATH" -X DELETE \
+                -f message="$MESSAGE" \
+                -f sha="$SHA" 2>/dev/null; then
+                echo "  ✓ Deleted $FILE_PATH"
+              else
+                echo "  ⚠ Could not delete $FILE_PATH (may need manual removal)"
+              fi
+            fi
+          }
+          
           # Delete workflows (we don't want any in public repos)
-          WORKFLOWS=$(gh api repos/$REPO/contents/.github/workflows --jq '.[].name' 2>/dev/null || echo "")
-          for wf in $WORKFLOWS; do
-            SHA=$(gh api repos/$REPO/contents/.github/workflows/$wf --jq '.sha')
-            gh api repos/$REPO/contents/.github/workflows/$wf -X DELETE \
-              -f message="Remove workflow (managed by control-center)" \
-              -f sha="$SHA" 2>/dev/null || true
-            echo "  Deleted .github/workflows/$wf"
-          done
-          
-          # Delete CODEOWNERS
-          SHA=$(gh api repos/$REPO/contents/.github/CODEOWNERS --jq '.sha' 2>/dev/null || echo "")
-          if [ -n "$SHA" ]; then
-            gh api repos/$REPO/contents/.github/CODEOWNERS -X DELETE \
-              -f message="Remove CODEOWNERS (managed by control-center)" \
-              -f sha="$SHA" 2>/dev/null || true
+          # Check if .github/workflows directory exists first
+          if gh api "repos/$REPO/contents/.github/workflows" --jq '.[].name' 2>/dev/null > /tmp/workflows.txt; then
+            while IFS= read -r wf; do
+              [ -n "$wf" ] && delete_file ".github/workflows/$wf" "Remove workflow (managed by control-center)"
+            done < /tmp/workflows.txt
+          else
+            echo "  No workflows directory found (OK)"
           fi
           
-          # Delete dependabot.yml (managed centrally)
-          SHA=$(gh api repos/$REPO/contents/.github/dependabot.yml --jq '.sha' 2>/dev/null || echo "")
-          if [ -n "$SHA" ]; then
-            gh api repos/$REPO/contents/.github/dependabot.yml -X DELETE \
-              -f message="Remove dependabot.yml (managed by control-center)" \
-              -f sha="$SHA" 2>/dev/null || true
-          fi
+          # Delete other prohibited files
+          delete_file ".github/CODEOWNERS" "Remove CODEOWNERS (managed by control-center)"
+          delete_file ".github/dependabot.yml" "Remove dependabot.yml (managed by control-center)"
+          delete_file ".github/repo-standards.yml" "Remove repo-standards.yml (managed by control-center)"
+          
+          echo "=== Cleanup Complete ==="
 
       - name: Summary
         env:

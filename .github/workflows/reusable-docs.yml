@@ -10,6 +10,10 @@ on:
       target-repo:
         required: true
         type: string
+      version:
+        required: true
+        type: string
+        description: "Unified version from pycalver"
     secrets:
       token:
         required: true
@@ -18,7 +22,11 @@ jobs:
   docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Download versioned source
+        uses: actions/download-artifact@v4
+        with:
+          name: versioned-source
+          path: source
 
       - uses: actions/setup-python@v5
         with:
@@ -28,52 +36,90 @@ jobs:
 
       - name: Build docs
         run: |
+          PKG_DIR="source/packages/${{ inputs.package }}"
+          
+          echo "=== Building docs for ${{ inputs.package }} v${{ inputs.version }} ==="
+          
+          # Install dependencies
           uv pip install sphinx sphinx-rtd-theme myst-parser --system
           
           # Install package for API docs
-          uv pip install -e packages/extended-data-types --system
+          uv pip install -e source/packages/extended-data-types --system
           if [ "${{ inputs.package }}" != "extended-data-types" ]; then
-            uv pip install -e packages/${{ inputs.package }} --system
+            uv pip install -e "$PKG_DIR" --system
           fi
           
-          # Build if docs exist
-          if [ -d "packages/${{ inputs.package }}/docs" ]; then
-            cd packages/${{ inputs.package }}/docs
-            sphinx-build -b html . _build
+          # Ensure docs/_build directory exists
+          mkdir -p "$PKG_DIR/docs/_build"
+          
+          # Build if docs source exists
+          if [ -d "$PKG_DIR/docs" ] && [ -f "$PKG_DIR/docs/conf.py" ]; then
+            echo "Building Sphinx docs..."
+            cd "$PKG_DIR/docs"
+            sphinx-build -b html . _build || echo "Sphinx build had warnings"
           else
-            # Generate basic docs from docstrings
-            mkdir -p packages/${{ inputs.package }}/docs/_build
-            echo "<html><body><h1>${{ inputs.package }}</h1><p>Documentation coming soon.</p></body></html>" \
-              > packages/${{ inputs.package }}/docs/_build/index.html
+            echo "No Sphinx docs found, generating placeholder..."
+            cat > "$PKG_DIR/docs/_build/index.html" << EOF
+          <!DOCTYPE html>
+          <html>
+          <head><meta charset="utf-8"><title>${{ inputs.package }} v${{ inputs.version }}</title></head>
+          <body>
+            <h1>${{ inputs.package }}</h1>
+            <p>Version: ${{ inputs.version }}</p>
+            <p>Documentation coming soon.</p>
+            <p><a href="https://pypi.org/project/${{ inputs.package }}/">PyPI</a></p>
+          </body>
+          </html>
+          EOF
           fi
 
       - name: Deploy to gh-pages
         env:
           GH_TOKEN: ${{ secrets.token }}
         run: |
-          cd packages/${{ inputs.package }}
+          PKG_DIR="source/packages/${{ inputs.package }}"
+          REPO="${{ inputs.target-repo }}"
           
-          # Clone gh-pages branch
-          git clone --branch gh-pages --single-branch \
-            https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git \
-            gh-pages 2>/dev/null || {
-              # Create gh-pages branch if doesn't exist
-              mkdir gh-pages
-              cd gh-pages
-              git init
-              git checkout -b gh-pages
-              git remote add origin https://x-access-token:${GH_TOKEN}@github.com/${{ inputs.target-repo }}.git
-              cd ..
-            }
+          # Clone gh-pages branch or create it
+          if git clone --branch gh-pages --single-branch --depth 1 \
+               "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+               gh-pages 2>/dev/null; then
+            echo "Cloned existing gh-pages branch"
+          else
+            echo "Creating new gh-pages branch"
+            mkdir gh-pages
+            cd gh-pages
+            git init
+            git checkout -b gh-pages
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+            cd ..
+          fi
           
-          # Copy built docs
-          rm -rf gh-pages/*
-          cp -r docs/_build/* gh-pages/ 2>/dev/null || cp -r docs/_build/index.html gh-pages/
+          # Clear and copy new docs
+          rm -rf gh-pages/* gh-pages/.* 2>/dev/null || true
+          
+          if [ -d "$PKG_DIR/docs/_build" ]; then
+            cp -r "$PKG_DIR/docs/_build/"* gh-pages/ 2>/dev/null || true
+          fi
+          
+          # Ensure there's at least an index.html
+          if [ ! -f "gh-pages/index.html" ]; then
+            echo "<html><body><h1>${{ inputs.package }} v${{ inputs.version }}</h1></body></html>" > gh-pages/index.html
+          fi
+          
+          # Add .nojekyll to prevent Jekyll processing
+          touch gh-pages/.nojekyll
           
           # Push
           cd gh-pages
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "📚 Update docs"
-          git push -u origin gh-pages --force
+          
+          if git diff --staged --quiet; then
+            echo "No changes to docs"
+          else
+            git commit -m "📚 Docs for ${{ inputs.package }} v${{ inputs.version }}"
+            git push -u origin gh-pages --force
+            echo "✅ Docs deployed"
+          fi
