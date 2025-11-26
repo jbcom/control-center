@@ -13,12 +13,12 @@ import sys
 import tempfile
 import uuid
 from collections import defaultdict
-from collections.abc import MutableMapping
+from collections.abc import Mapping, MutableMapping
 from copy import copy, deepcopy
 from inspect import getmembers, getsource, isfunction
 from pathlib import Path
 from shlex import split as shlex_split
-from typing import Any, Dict, List, Literal, Mapping, Optional, Union, Tuple, Type
+from typing import Any, Literal, Optional, Union
 
 import hcl2
 import inflection
@@ -27,11 +27,11 @@ import numpy as np
 import orjson
 import requests
 import validators
-from requests.structures import CaseInsensitiveDict
 from deepmerge import Merger
 from filelock import FileLock, Timeout
-from git import Repo, InvalidGitRepositoryError, NoSuchPathError, GitCommandError
+from git import GitCommandError, InvalidGitRepositoryError, NoSuchPathError, Repo
 from more_itertools import split_before
+from requests.structures import CaseInsensitiveDict
 from ruamel.yaml import YAML, StringIO, YAMLError, scalarstring
 from ruamel.yaml.comments import CommentedMap
 from ruamel.yaml.constructor import SafeConstructor
@@ -42,6 +42,8 @@ try:
 except ImportError:
     DopplerSDK = None
 
+from cloud_connectors.base.errors import FormattingError
+from cloud_connectors.base.logging import Logging
 from cloud_connectors.base.settings import (
     DEFAULT_LOG_LEVEL,
     DOPPLER_CONFIG,
@@ -49,11 +51,9 @@ from cloud_connectors.base.settings import (
     LOG_FILE_NAME,
     MAX_DESCRIPTION_LENGTH,
     MAX_FILE_LOCK_WAIT,
-    VERBOSITY,
     VERBOSE,
+    VERBOSITY,
 )
-from cloud_connectors.base.errors import FormattingError
-from cloud_connectors.base.logging import Logging
 
 FilePath = Union[str, bytes, os.PathLike]
 
@@ -78,7 +78,7 @@ def titleize_name(name: str):
     return "".join(proper_name)
 
 
-def zipmap(a: List[str], b: List[str]):
+def zipmap(a: list[str], b: list[str]):
     zipped = {}
 
     for idx, val in enumerate(a):
@@ -106,15 +106,15 @@ def filter_methods(methods):
 CLIENT_INPUTS = {
     "get_aws_resource": {
         "EXECUTION_ROLE_ARN": {"required": "false", "sensitive": "false"},
-        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"}
+        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"},
     },
     "get_aws_client": {
         "EXECUTION_ROLE_ARN": {"required": "false", "sensitive": "false"},
-        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"}
+        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"},
     },
     "get_aws_session": {
         "EXECUTION_ROLE_ARN": {"required": "false", "sensitive": "false"},
-        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"}
+        "ROLE_SESSION_NAME": {"required": "false", "sensitive": "false"},
     },
     "get_github_client": {
         "GITHUB_ACTIONS": {"required": "false", "sensitive": "false"},
@@ -123,20 +123,18 @@ CLIENT_INPUTS = {
         "GITHUB_OWNER": {"required": "false", "sensitive": "false"},
         "GITHUB_REPO": {"required": "false", "sensitive": "false"},
         "GITHUB_BRANCH": {"required": "false", "sensitive": "false"},
-        "GITHUB_TOKEN": {"required": "true", "sensitive": "true"}
+        "GITHUB_TOKEN": {"required": "true", "sensitive": "true"},
     },
     "get_git_repository": {
         "GITHUB_OWNER": {"required": "false", "sensitive": "false"},
         "GITHUB_REPO": {"required": "false", "sensitive": "false"},
         "GITHUB_BRANCH": {"required": "false", "sensitive": "false"},
-        "GITHUB_TOKEN": {"required": "true", "sensitive": "true"}
+        "GITHUB_TOKEN": {"required": "true", "sensitive": "true"},
     },
-    "get_google_client": {
-        "GOOGLE_SERVICE_ACCOUNT": {"required": "true", "sensitive": "true"}
-    },
+    "get_google_client": {"GOOGLE_SERVICE_ACCOUNT": {"required": "true", "sensitive": "true"}},
     "get_slack_client": {
         "SLACK_TOKEN": {"required": "true", "sensitive": "true"},
-        "SLACK_BOT_TOKEN": {"required": "true", "sensitive": "true"}
+        "SLACK_BOT_TOKEN": {"required": "true", "sensitive": "true"},
     },
     "get_vault_client": {
         "GITHUB_ACTIONS": {"required": "false", "sensitive": "false"},
@@ -149,12 +147,12 @@ CLIENT_INPUTS = {
     "get_zoom_client": {
         "ZOOM_CLIENT_ID": {"required": "true", "sensitive": "true"},
         "ZOOM_CLIENT_SECRET": {"required": "true", "sensitive": "true"},
-        "ZOOM_ACCOUNT_ID": {"required": "true", "sensitive": "true"}
-    }
+        "ZOOM_ACCOUNT_ID": {"required": "true", "sensitive": "true"},
+    },
 }
 
 
-def get_inputs_from_docstring(docstring: str) -> Dict[str, Dict[str, str]]:
+def get_inputs_from_docstring(docstring: str) -> dict[str, dict[str, str]]:
     """
     Extracts existing inputs from a method's docstring (case-insensitive).
     """
@@ -163,7 +161,7 @@ def get_inputs_from_docstring(docstring: str) -> Dict[str, Dict[str, str]]:
     return {name.lower(): {"required": required, "sensitive": sensitive} for name, required, sensitive in matches}
 
 
-def update_docstring(docstring: str, inputs: Dict[str, Dict[str, str]]) -> str:
+def update_docstring(docstring: str, inputs: dict[str, dict[str, str]]) -> str:
     """
     Updates a docstring with new inputs, ensuring idempotency.
     New inputs are added only if they are not already present (case-insensitive).
@@ -188,9 +186,9 @@ def get_available_methods(cls):
     for method_name, method_signature in methods:
         # Skip methods that are dunder, not from the same module, or marked with NOPARSE
         if (
-                "__" in method_name
-                or method_signature.__module__ != module_name
-                or (method_signature.__doc__ and "NOPARSE" in method_signature.__doc__)
+            "__" in method_name
+            or method_signature.__module__ != module_name
+            or (method_signature.__doc__ and "NOPARSE" in method_signature.__doc__)
         ):
             continue
 
@@ -267,7 +265,9 @@ def get_repository_name(repo: Repo) -> str | None:
         return None
 
 
-def clone_repository_to_temp(repo_owner: str, repo_name: str, github_token: str, branch: str | None = None) -> Tuple[Path, Repo]:
+def clone_repository_to_temp(
+    repo_owner: str, repo_name: str, github_token: str, branch: str | None = None
+) -> tuple[Path, Repo]:
     """
     Clones a Git repository to a temporary directory for file operations.
 
@@ -297,13 +297,13 @@ def clone_repository_to_temp(repo_owner: str, repo_name: str, github_token: str,
         return temp_dir, repo
 
     except GitCommandError as e:
-        raise EnvironmentError("Git command error occurred") from e
+        raise OSError("Git command error occurred") from e
     except InvalidGitRepositoryError as e:
-        raise EnvironmentError("The repository is invalid or corrupt.") from e
+        raise OSError("The repository is invalid or corrupt.") from e
     except NoSuchPathError as e:
-        raise EnvironmentError("The specified path does not exist.") from e
+        raise OSError("The specified path does not exist.") from e
     except PermissionError as e:
-        raise EnvironmentError("Permission denied: Check your GitHub token and repository access permissions.") from e
+        raise OSError("Permission denied: Check your GitHub token and repository access permissions.") from e
 
 
 def get_tld(file_path: FilePath | None = None, search_parent_directories: bool = True) -> Path | None:
@@ -336,12 +336,12 @@ def upper_first_char(inp: str):
 
 
 def get_cloud_call_params(
-        max_results: Optional[int] = 10,
-        no_max_results: bool = False,
-        reject_null: bool = True,
-        first_letter_to_lower: bool = False,
-        first_letter_to_upper: bool = False,
-        **kwargs,
+    max_results: Optional[int] = 10,
+    no_max_results: bool = False,
+    reject_null: bool = True,
+    first_letter_to_lower: bool = False,
+    first_letter_to_upper: bool = False,
+    **kwargs,
 ):
     params = {k: v for k, v in kwargs.items() if not is_nothing(v) or not reject_null}
 
@@ -361,9 +361,7 @@ def get_cloud_call_params(
 
 
 def get_aws_call_params(max_results: Optional[int] = 100, **kwargs):
-    return get_cloud_call_params(
-        max_results=max_results, first_letter_to_upper=True, **kwargs
-    )
+    return get_cloud_call_params(max_results=max_results, first_letter_to_upper=True, **kwargs)
 
 
 def get_google_call_params(max_results: Optional[int] = 200, no_max_results: bool = False, **kwargs):
@@ -382,7 +380,7 @@ def strtobool(val, raise_on_error=False):
     elif val in ("n", "no", "f", "false", "off", "0"):
         return False
     elif raise_on_error:
-        raise ValueError("invalid truth value %r" % (val,))
+        raise ValueError(f"invalid truth value {val!r}")
     else:
         return val
 
@@ -411,9 +409,7 @@ def is_nothing(v: Any):
     return False
 
 
-def is_partial_match(
-        a: Optional[str], b: Optional[str], check_prefix_only: bool = False
-):
+def is_partial_match(a: Optional[str], b: Optional[str], check_prefix_only: bool = False):
     if is_nothing(a) or is_nothing(b):
         return False
 
@@ -430,7 +426,7 @@ def is_non_empty_match(a: Any, b: Any):
     if is_nothing(a) or is_nothing(b):
         return False
 
-    if type(a) != type(b):
+    if type(a) is not type(b):
         return False
 
     if isinstance(a, str):
@@ -492,15 +488,9 @@ def first_non_empty_value_from_map(m: Mapping, *keys):
 
 def make_raw_data_export_safe(raw_data: Any, export_to_yaml: bool = False):
     if isinstance(raw_data, Mapping):
-        return {
-            k: make_raw_data_export_safe(v, export_to_yaml=export_to_yaml)
-            for k, v in raw_data.items()
-        }
+        return {k: make_raw_data_export_safe(v, export_to_yaml=export_to_yaml) for k, v in raw_data.items()}
     elif isinstance(raw_data, (set, list)):
-        return [
-            make_raw_data_export_safe(v, export_to_yaml=export_to_yaml)
-            for v in raw_data
-        ]
+        return [make_raw_data_export_safe(v, export_to_yaml=export_to_yaml) for v in raw_data]
 
     exported_data = copy(raw_data)
     if isinstance(exported_data, (datetime.date, datetime.datetime)):
@@ -512,11 +502,7 @@ def make_raw_data_export_safe(raw_data: Any, export_to_yaml: bool = False):
         return exported_data
 
     exported_data = exported_data.replace("${{ ", "${{").replace(" }}", "}}")
-    if (
-            len(exported_data.splitlines()) > 1
-            or "||" in exported_data
-            or "&&" in exported_data
-    ):
+    if len(exported_data.splitlines()) > 1 or "||" in exported_data or "&&" in exported_data:
         return scalarstring.LiteralScalarString(exported_data)
 
     return exported_data
@@ -583,15 +569,15 @@ def flatten_map(dictionary, parent_key=False, separator="."):
     return dict(items)
 
 
-def flatten_list(matrix: List[Any]):
+def flatten_list(matrix: list[Any]):
     array = np.array(matrix)
     return list(array.flatten())
 
 
 def match_file_extensions(
-        p: FilePath,
-        allowed_extensions: Optional[List[str]],
-        denied_extensions: Optional[List[str]] = None,
+    p: FilePath,
+    allowed_extensions: Optional[list[str]],
+    denied_extensions: Optional[list[str]] = None,
 ):
     if allowed_extensions is None:
         allowed_extensions = []
@@ -608,15 +594,13 @@ def match_file_extensions(
     else:
         suffix = p.suffix.removeprefix(".")
 
-    if (
-            len(allowed_extensions) > 0 and suffix not in allowed_extensions
-    ) or suffix in denied_extensions:
+    if (len(allowed_extensions) > 0 and suffix not in allowed_extensions) or suffix in denied_extensions:
         return False
 
     return True
 
 
-def export_raw_data_to_json(raw_data: Any, **format_opts: Dict[str, Any]) -> str:
+def export_raw_data_to_json(raw_data: Any, **format_opts: dict[str, Any]) -> str:
     format_opts["indent"] = format_opts.get("indent", 2)
     format_opts["sort_keys"] = format_opts.get("sort_keys", True)
 
@@ -651,12 +635,14 @@ def export_raw_data_to_yaml(raw_data: Any) -> str:
 
     def str_representer(dumper, data):
         # Represent plain strings without quotes
-        if '\n' in data or '||' in data or '&&' in data:
-            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='|')
-        if any(char in data for char in
-               [':', '{', '}', '[', ']', ',', '&', '*', '#', '?', '|', '-', '<', '>', '=', '!', '%', '@', '`']):
-            return dumper.represent_scalar('tag:yaml.org,2002:str', data, style='"')
-        return dumper.represent_scalar('tag:yaml.org,2002:str', data)
+        if "\n" in data or "||" in data or "&&" in data:
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        if any(
+            char in data
+            for char in [":", "{", "}", "[", "]", ",", "&", "*", "#", "?", "|", "-", "<", ">", "=", "!", "%", "@", "`"]
+        ):
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style='"')
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
     def dict_to_commented_map(data):
         if isinstance(data, dict):
@@ -696,9 +682,7 @@ def get_encoding_for_file_path(file_path: FilePath) -> str:
 
 
 def wrap_raw_data_for_export(
-        raw_data: Union[Mapping, Any],
-        allow_encoding: Union[bool, str] = True,
-        **format_opts: Any
+    raw_data: Union[Mapping, Any], allow_encoding: Union[bool, str] = True, **format_opts: Any
 ) -> str:
     raw_data = make_raw_data_export_safe(raw_data)
 
@@ -764,11 +748,7 @@ def find_logger(name: str):
     return None
 
 
-def get_default_dict(
-        use_sorted_dict: bool = False,
-        default_type: Type = dict,
-        levels: int = 2
-) -> defaultdict:
+def get_default_dict(use_sorted_dict: bool = False, default_type: type = dict, levels: int = 2) -> defaultdict:
     """
     Create a nested `defaultdict` with the specified number of levels.
 
@@ -815,13 +795,11 @@ def get_default_dict(
         raise ValueError("The number of levels must be greater than or equal to 1.")
 
     if levels == 1:
-        return defaultdict(SortedDict if use_sorted_dict and default_type == dict else default_type)
+        return defaultdict(SortedDict if use_sorted_dict and default_type is dict else default_type)
 
-    return defaultdict(lambda: get_default_dict(
-        use_sorted_dict=use_sorted_dict,
-        default_type=default_type,
-        levels=levels - 1
-    ))
+    return defaultdict(
+        lambda: get_default_dict(use_sorted_dict=use_sorted_dict, default_type=default_type, levels=levels - 1)
+    )
 
 
 def sanitize_asset(d: Any):
@@ -846,9 +824,7 @@ def sanitize_asset(d: Any):
                         filtered[k].append(vv)
             else:
                 if k == "description":
-                    filtered[k] = truncate(
-                        v, max_length=MAX_DESCRIPTION_LENGTH
-                    )
+                    filtered[k] = truncate(v, max_length=MAX_DESCRIPTION_LENGTH)
                     continue
 
                 filtered[k] = v
@@ -872,14 +848,14 @@ def file_path_rel_to_root(file_path: FilePath):
     depth = file_path_depth(file_path)
     path_rel_to_root = []
 
-    for i in range(depth):
+    for _i in range(depth):
         path_rel_to_root.append("..")
 
     return "/".join(path_rel_to_root)
 
 
 def sanitize_key(key: str, delim: str = "_"):
-    return "".join(map(lambda x: x if (x.isalnum() or x == delim) else delim, key))
+    return "".join(x if (x.isalnum() or x == delim) else delim for x in key)
 
 
 def unhump_map(m: Mapping[str, Any], drop_without_prefix: Optional[str] = None):
@@ -901,12 +877,12 @@ def unhump_map(m: Mapping[str, Any], drop_without_prefix: Optional[str] = None):
 
 
 def filter_list(
-        l: Optional[List[str]],
-        allowlist: List[str] = None,
-        denylist: List[str] = None,
+    items: Optional[list[str]],
+    allowlist: list[str] = None,
+    denylist: list[str] = None,
 ):
-    if l is None:
-        l = []
+    if items is None:
+        items = []
 
     if allowlist is None:
         allowlist = []
@@ -916,7 +892,7 @@ def filter_list(
 
     filtered = []
 
-    for elem in l:
+    for elem in items:
         if (len(allowlist) > 0 and elem not in allowlist) or elem in denylist:
             continue
 
@@ -932,20 +908,20 @@ def decode_hcl2(hcl2_data: str):
 
 class Utils:
     def __init__(
-            self,
-            inputs: Optional[Any] = None,
-            from_environment: bool = True,
-            from_stdin: bool = False,
-            to_console: bool = False,
-            to_file: bool = True,
-            logging: Optional[Logging] = None,
-            logger: Optional[logging.Logger] = None,
-            log_marker: Optional[str] = None,
-            logger_name: Optional[str] = None,
-            log_file_name: Optional[FilePath] = None,
-            logged_statements_allowlist: List[str] = None,
-            logged_statements_denylist: List[str] = None,
-            **kwargs,
+        self,
+        inputs: Optional[Any] = None,
+        from_environment: bool = True,
+        from_stdin: bool = False,
+        to_console: bool = False,
+        to_file: bool = True,
+        logging: Optional[Logging] = None,
+        logger: Optional[logging.Logger] = None,
+        log_marker: Optional[str] = None,
+        logger_name: Optional[str] = None,
+        log_file_name: Optional[FilePath] = None,
+        logged_statements_allowlist: list[str] = None,
+        logged_statements_denylist: list[str] = None,
+        **kwargs,
     ):
         self.logs = defaultdict(set)
 
@@ -969,26 +945,22 @@ class Utils:
                 try:
                     inputs = json.loads(inputs_from_stdin) | inputs
                 except json.JSONDecodeError as exc:
-                    raise RuntimeError(
-                        f"Failed to decode stdin:\n{inputs_from_stdin}"
-                    ) from exc
+                    raise RuntimeError(f"Failed to decode stdin:\n{inputs_from_stdin}") from exc
 
         self.from_stdin = from_stdin
         self.inputs = CaseInsensitiveDict(inputs)
 
-        doppler_token = os.getenv('DOPPLER_TOKEN')
+        doppler_token = os.getenv("DOPPLER_TOKEN")
         if doppler_token and DopplerSDK is not None:
             try:
                 doppler = DopplerSDK()
                 doppler.set_access_token(doppler_token)
                 secrets_response = doppler.secrets.list(
-                    project=DOPPLER_PROJECT,
-                    config=DOPPLER_CONFIG,
-                    accepts="application/json"
+                    project=DOPPLER_PROJECT, config=DOPPLER_CONFIG, accepts="application/json"
                 ).secrets
 
                 for name, secret_info in secrets_response.items():
-                    self.inputs[name.removeprefix("FLIPSIDE_")] = secret_info['computed']
+                    self.inputs[name.removeprefix("FLIPSIDE_")] = secret_info["computed"]
             except Exception as e:
                 self.errors.append(f"Failed to fetch Doppler secrets: {str(e)}")
 
@@ -1046,14 +1018,16 @@ class Utils:
         if log_file_name is None:
             log_file_name = self.get_input("log_file_name", required=False, default=f"{logger_name}.log")
 
-        self.logging = logging or Logging(to_console=to_console,
-                                          to_file=to_file,
-                                          logger=logger,
-                                          logger_name=logger_name,
-                                          log_file_name=log_file_name,
-                                          log_marker=log_marker,
-                                          logged_statements_allowlist=logged_statements_allowlist,
-                                          logged_statements_denylist=logged_statements_denylist)
+        self.logging = logging or Logging(
+            to_console=to_console,
+            to_file=to_file,
+            logger=logger,
+            logger_name=logger_name,
+            log_file_name=log_file_name,
+            log_marker=log_marker,
+            logged_statements_allowlist=logged_statements_allowlist,
+            logged_statements_denylist=logged_statements_denylist,
+        )
         self.logger = self.logging.logger
 
         # Initialize the shareable Terraform module parameters
@@ -1067,10 +1041,10 @@ class Utils:
         # Add additional attributes dynamically
         for name, value in kwargs.items():
             if (
-                    name not in self._shareable_terraform_module_params
-                    and isinstance(value, (bool, str, int))
-                    and "port" not in name
-                    and "api" not in name
+                name not in self._shareable_terraform_module_params
+                and isinstance(value, (bool, str, int))
+                and "port" not in name
+                and "api" not in name
             ):
                 self._shareable_terraform_module_params[name] = value
 
@@ -1087,22 +1061,12 @@ class Utils:
         if self.errors:
             self.exit_run(exit_on_completion=True)
 
-
     @property
     def decoders(self):
         return {
-            'json': {
-                'function': json.loads,
-                'exception': json.JSONDecodeError
-            },
-            'yaml': {
-                'function': self.decode_yaml,
-                'exception': YAMLError
-            },
-            'hcl2': {
-                'function': decode_hcl2,
-                'exception': lark.exceptions.ParseError
-            }
+            "json": {"function": json.loads, "exception": json.JSONDecodeError},
+            "yaml": {"function": self.decode_yaml, "exception": YAMLError},
+            "hcl2": {"function": decode_hcl2, "exception": lark.exceptions.ParseError},
         }
 
     def multi_merge(self, *maps):
@@ -1134,9 +1098,7 @@ class Utils:
         local_file_path = self.local_path(file_path)
 
         if not local_file_path.exists():
-            raise NotADirectoryError(
-                f"Directory {local_file_path} from {caller} does not exist locally"
-            )
+            raise NotADirectoryError(f"Directory {local_file_path} from {caller} does not exist locally")
 
         return local_file_path
 
@@ -1172,11 +1134,7 @@ class Utils:
         ]
 
         for name, default in self._shareable_terraform_module_params.items():
-            if (
-                    not isinstance(default, (bool, str, int))
-                    or "port" in name
-                    or "api" in name
-            ):
+            if not isinstance(default, (bool, str, int)) or "port" in name or "api" in name:
                 continue
 
             module_params.append(
@@ -1197,32 +1155,32 @@ class Utils:
         return self.logging.verbosity_exceeded(verbose, verbosity)
 
     def logged_statement(
-            self,
-            msg: str,
-            json_data: Optional[List[Mapping[str, Any]] | Mapping[str, Any]] = None,
-            labeled_json_data: Optional[Mapping[str, Mapping[str, Any]]] = None,
-            identifiers: Optional[List[str]] = None,
-            verbose: Optional[bool] = False,
-            verbosity: Optional[int] = 1,
-            active_marker: Optional[str] = None,
-            log_level: Literal[
-                "debug", "info", "warning", "error", "fatal", "critical"
-            ] = "debug",
-            log_marker: Optional[str] = None,
-            allowlist: Optional[List[str]] = None,
-            denylist: Optional[List[str]] = None,
+        self,
+        msg: str,
+        json_data: Optional[list[Mapping[str, Any]] | Mapping[str, Any]] = None,
+        labeled_json_data: Optional[Mapping[str, Mapping[str, Any]]] = None,
+        identifiers: Optional[list[str]] = None,
+        verbose: Optional[bool] = False,
+        verbosity: Optional[int] = 1,
+        active_marker: Optional[str] = None,
+        log_level: Literal["debug", "info", "warning", "error", "fatal", "critical"] = "debug",
+        log_marker: Optional[str] = None,
+        allowlist: Optional[list[str]] = None,
+        denylist: Optional[list[str]] = None,
     ):
-        return self.logging.logged_statement(msg=msg,
-                                             json_data=json_data,
-                                             labeled_json_data=labeled_json_data,
-                                             identifiers=identifiers,
-                                             verbose=verbose,
-                                             verbosity=verbosity,
-                                             active_marker=active_marker,
-                                             log_level=log_level,
-                                             log_marker=log_marker,
-                                             allowlist=allowlist,
-                                             denylist=denylist, )
+        return self.logging.logged_statement(
+            msg=msg,
+            json_data=json_data,
+            labeled_json_data=labeled_json_data,
+            identifiers=identifiers,
+            verbose=verbose,
+            verbosity=verbosity,
+            active_marker=active_marker,
+            log_level=log_level,
+            log_marker=log_marker,
+            allowlist=allowlist,
+            denylist=denylist,
+        )
 
     def get_unique_sub_path(self, dir_path: FilePath):
         local_dir_path = self.local_path(dir_path)
@@ -1249,13 +1207,13 @@ class Utils:
         return None
 
     def log_results(
-            self,
-            results,
-            log_file_name,
-            no_formatting=False,
-            ext=None,
-            verbose=False,
-            verbosity=0,
+        self,
+        results,
+        log_file_name,
+        no_formatting=False,
+        ext=None,
+        verbose=False,
+        verbosity=0,
     ):
         if self.verbosity_exceeded(verbose, verbosity):
             return
@@ -1293,10 +1251,10 @@ class Utils:
         return results
 
     def filter_map(
-            self,
-            m: Optional[Mapping[str, Any]],
-            allowlist: List[str] = None,
-            denylist: List[str] = None,
+        self,
+        m: Optional[Mapping[str, Any]],
+        allowlist: list[str] = None,
+        denylist: list[str] = None,
     ):
         if m is None:
             m = {}
@@ -1311,9 +1269,7 @@ class Utils:
         rm = {}
 
         for k, v in m.items():
-            self.logged_statement(
-                f"Checking if {k} is allowed", verbose=True, verbosity=2
-            )
+            self.logged_statement(f"Checking if {k} is allowed", verbose=True, verbosity=2)
             if (len(allowlist) > 0 and k not in allowlist) or k in denylist:
                 self.logged_statement(
                     f"Removing {k} from map: {list(m.keys())},"
@@ -1333,9 +1289,7 @@ class Utils:
 
         return fm, rm
 
-    def get_input(
-            self, k, default=None, required=False, is_bool=False, is_integer=False
-    ) -> Any:
+    def get_input(self, k, default=None, required=False, is_bool=False, is_integer=False) -> Any:
         inp = self.inputs.get(k)
 
         if is_nothing(inp):
@@ -1351,21 +1305,19 @@ class Utils:
                 raise RuntimeError(f"Input {k} not an integer: {inp}") from exc
 
         if is_nothing(inp) and required:
-            raise RuntimeError(
-                f"Required input {k} not passed from inputs:\n{self.inputs}"
-            )
+            raise RuntimeError(f"Required input {k} not passed from inputs:\n{self.inputs}")
 
         return inp
 
     def decode_input(
-            self,
-            k: str,
-            default: Optional[Any] = None,
-            required: bool = False,
-            decode_from_json: bool = True,
-            decode_from_yaml: bool = False,
-            decode_from_base64: bool = True,
-            allow_none: bool = True,
+        self,
+        k: str,
+        default: Optional[Any] = None,
+        required: bool = False,
+        decode_from_json: bool = True,
+        decode_from_yaml: bool = False,
+        decode_from_base64: bool = True,
+        allow_none: bool = True,
     ):
         conf = self.get_input(k, default=default, required=required)
 
@@ -1383,7 +1335,7 @@ class Utils:
                 raise RuntimeError(f"Failed to decode {conf} from base64") from exc
 
         if decode_from_json and decode_from_yaml:
-            raise AttributeError(f"decode_from_json and decode_from_yaml are mutually exclusive")
+            raise AttributeError("decode_from_json and decode_from_yaml are mutually exclusive")
 
         if decode_from_json:
             try:
@@ -1403,14 +1355,14 @@ class Utils:
         return conf
 
     def get_file(
-            self,
-            file_path: FilePath,
-            decode: Optional[bool] = True,
-            return_path: Optional[bool] = False,
-            charset: Optional[str] = "utf-8",
-            errors: Optional[str] = "strict",
-            headers: Optional[Mapping[str, str]] = None,
-            raise_on_not_found: bool = False,
+        self,
+        file_path: FilePath,
+        decode: Optional[bool] = True,
+        return_path: Optional[bool] = False,
+        charset: Optional[str] = "utf-8",
+        errors: Optional[str] = "strict",
+        headers: Optional[Mapping[str, str]] = None,
+        raise_on_not_found: bool = False,
     ):
         if headers is None:
             headers = {}
@@ -1431,8 +1383,7 @@ class Utils:
                     file_data = response.content.decode(charset, errors)
                 else:
                     state_negative_result(
-                        f"URL {file_path} could not be read:"
-                        f" [{response.status_code}] {response.reason}"
+                        f"URL {file_path} could not be read: [{response.status_code}] {response.reason}"
                     )
             else:
                 local_file = self.local_path(file_path)
@@ -1449,11 +1400,7 @@ class Utils:
 
         if decode:
             self.logged_statement(f"Decoding {file_path}")
-            file_data = (
-                {}
-                if is_nothing(file_data)
-                else self.decode_file(file_data=file_data, file_path=file_path)
-            )
+            file_data = {} if is_nothing(file_data) else self.decode_file(file_data=file_data, file_path=file_path)
 
         retval = [file_data]
 
@@ -1479,7 +1426,7 @@ class Utils:
             value = loader.construct_scalar(node)
             return Ref(value)
 
-        SafeConstructor.add_constructor('!Ref', ref_constructor)
+        SafeConstructor.add_constructor("!Ref", ref_constructor)
 
         yaml_data_stream = StringIO(yaml_data)
         return yaml.load(yaml_data_stream)
@@ -1487,17 +1434,17 @@ class Utils:
     def decode_data(self, data: str):
         for decoder in self.decoders.values():
             try:
-                return decoder['function'](data)
-            except decoder['exception']:
+                return decoder["function"](data)
+            except decoder["exception"]:
                 continue
 
         raise RuntimeError(f"Exhausted all known decode methods against raw data:\n{data}")
 
     def decode_file(
-            self,
-            file_data: str,
-            file_path: Optional[FilePath] = None,
-            suffix: Optional[str] = None,
+        self,
+        file_data: str,
+        file_path: Optional[FilePath] = None,
+        suffix: Optional[str] = None,
     ):
         if suffix is None:
             if file_path is not None:
@@ -1506,13 +1453,13 @@ class Utils:
 
         try:
             if suffix == "yml" or suffix == "yaml":
-                self.logger.info(f"Data is being loaded from YAML")
+                self.logger.info("Data is being loaded from YAML")
                 return self.decode_yaml(file_data)
             elif suffix == "json":
-                self.logger.info(f"Data is being loaded from JSON")
+                self.logger.info("Data is being loaded from JSON")
                 return json.loads(file_data)
             elif suffix == "tf":
-                self.logger.info(f"Data is being loaded from HCL2")
+                self.logger.info("Data is being loaded from HCL2")
                 return decode_hcl2(file_data)
             else:
                 return self.decode_data(file_data)
@@ -1520,12 +1467,12 @@ class Utils:
             raise RuntimeError(f"Failed to parse file {file_path}") from exc
 
     def update_file(
-            self,
-            file_path: FilePath,
-            file_data: Any,
-            allow_encoding: Optional[Union[bool, str]] = None,
-            allow_empty: Optional[bool] = False,
-            **format_opts: Any
+        self,
+        file_path: FilePath,
+        file_data: Any,
+        allow_encoding: Optional[Union[bool, str]] = None,
+        allow_empty: Optional[bool] = False,
+        **format_opts: Any,
     ):
         if is_nothing(file_data) and not allow_empty:
             self.logger.warning(f"Empty file data for {file_path} not allowed")
@@ -1535,9 +1482,7 @@ class Utils:
             allow_encoding = get_encoding_for_file_path(file_path)
             self.logger.debug(f"Detected encoding for {file_path}: {allow_encoding}")
 
-        file_data = wrap_raw_data_for_export(file_data,
-                                             allow_encoding=allow_encoding,
-                                             **format_opts)
+        file_data = wrap_raw_data_for_export(file_data, allow_encoding=allow_encoding, **format_opts)
 
         if not isinstance(file_data, str):
             file_data = str(file_data)
@@ -1556,8 +1501,7 @@ class Utils:
                 return local_file.write_text(file_data)
         except Timeout:
             raise RuntimeError(
-                f"Cannot update file path {file_path},"
-                f" another instance of this application currently holds the lock."
+                f"Cannot update file path {file_path}, another instance of this application currently holds the lock."
             )
         finally:
             lock.release()
@@ -1569,16 +1513,14 @@ class Utils:
         return local_file.unlink(missing_ok=True)
 
     def sanitize_map(
-            self,
-            m: Dict[str, Any],
-            delim: str = "_",
-            max_sanitize_depth: Optional[int] = None,
-            depth: int = 0,
+        self,
+        m: dict[str, Any],
+        delim: str = "_",
+        max_sanitize_depth: Optional[int] = None,
+        depth: int = 0,
     ):
         if depth >= max_sanitize_depth:
-            self.logged_statement(
-                f"Max sanitize depth of {max_sanitize_depth} exceeded for map, returning raw map"
-            )
+            self.logged_statement(f"Max sanitize depth of {max_sanitize_depth} exceeded for map, returning raw map")
             return m
 
         sanitized = {}
@@ -1587,7 +1529,7 @@ class Utils:
             new_k = sanitize_key(key=k, delim=delim)
             new_v = deepcopy(v)
 
-            if isinstance(v, Dict):
+            if isinstance(v, dict):
                 new_v = self.sanitize_map(
                     m=v,
                     delim=delim,
@@ -1595,11 +1537,7 @@ class Utils:
                     depth=depth + 1,
                 )
 
-            if (
-                    new_k in sanitized
-                    and isinstance(sanitized[new_k], Dict)
-                    and isinstance(new_v, Dict)
-            ):
+            if new_k in sanitized and isinstance(sanitized[new_k], dict) and isinstance(new_v, dict):
                 sanitized[new_k] = self.merger.merge(sanitized[new_k], new_v)
                 continue
 
@@ -1608,20 +1546,20 @@ class Utils:
         return sanitized
 
     def exit_run(
-            self,
-            results: Any = None,
-            unhump_results: bool = False,
-            prefix: Optional[str] = None,
-            prefix_allowlist: Optional[List[str]] = None,
-            prefix_denylist: Optional[List[str]] = None,
-            prefix_delimiter: Optional[str] = "_",
-            sort_by_field: Optional[str] = None,
-            format_results: bool = True,
-            encode_to_base64: bool = False,
-            encode_all_values_to_base64: bool = False,
-            key: Optional[str] = None,
-            exit_on_completion: bool = True,
-            **format_opts,
+        self,
+        results: Any = None,
+        unhump_results: bool = False,
+        prefix: Optional[str] = None,
+        prefix_allowlist: Optional[list[str]] = None,
+        prefix_denylist: Optional[list[str]] = None,
+        prefix_delimiter: Optional[str] = "_",
+        sort_by_field: Optional[str] = None,
+        format_results: bool = True,
+        encode_to_base64: bool = False,
+        encode_all_values_to_base64: bool = False,
+        key: Optional[str] = None,
+        exit_on_completion: bool = True,
+        **format_opts,
     ):
         try:
             self.log_results(results, "results")
@@ -1667,22 +1605,18 @@ class Utils:
                             unhumped_key = inflection.underscore(field_name)
 
                             if (
-                                    (
-                                            is_nothing(prefix_allowlist)
-                                            or field_name in prefix_allowlist
-                                            or unhumped_key in prefix_allowlist
-                                    )
-                                    and field_name not in prefix_denylist
-                                    and unhumped_key not in prefix_denylist
-                            ):
-                                unhumped_key = prefix_delimiter.join(
-                                    [prefix, unhumped_key]
+                                (
+                                    is_nothing(prefix_allowlist)
+                                    or field_name in prefix_allowlist
+                                    or unhumped_key in prefix_allowlist
                                 )
+                                and field_name not in prefix_denylist
+                                and unhumped_key not in prefix_denylist
+                            ):
+                                unhumped_key = prefix_delimiter.join([prefix, unhumped_key])
 
                             if isinstance(field_data, Mapping):
-                                unhumped_result[unhumped_key] = unhump_map(
-                                    field_data
-                                )
+                                unhumped_result[unhumped_key] = unhump_map(field_data)
                                 continue
 
                             unhumped_result[unhumped_key] = field_data
@@ -1699,9 +1633,7 @@ class Utils:
 
             def encode_result_with_base64(r: Any):
                 if format_results:
-                    self.logger.info(
-                        "Formatting results before encoding them with base64"
-                    )
+                    self.logger.info("Formatting results before encoding them with base64")
                     r = wrap_raw_data_for_export(r, **format_opts)
 
                 return base64.b64encode(r.encode("utf-8")).decode("utf-8")
@@ -1730,8 +1662,6 @@ class Utils:
             sys.stdout.write(results)
             sys.exit(0)
         except FormattingError as exc:
-            err_msg = (
-                f"Failed to dump results because of a formatting error:\n\n{results}"
-            )
+            err_msg = f"Failed to dump results because of a formatting error:\n\n{results}"
             self.logger.critical(err_msg, exc_info=True)
             raise RuntimeError(err_msg) from exc

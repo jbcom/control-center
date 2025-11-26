@@ -1,6 +1,8 @@
 """Pytest configuration and fixtures for cloud_connectors tests."""
-import pytest
+
 from unittest.mock import MagicMock
+
+import pytest
 
 
 @pytest.fixture

@@ -17,11 +17,7 @@ class TableAssetNotFoundError(RuntimeError):
 
 class StateFileNotFoundError(FileNotFoundError):
     def __init__(self, state_path: str, extra_info: Optional[str] = None):
-        super().__init__(
-            f"State path {state_path} not found" + f" {extra_info}"
-            if extra_info
-            else ""
-        )
+        super().__init__(f"State path {state_path} not found" + f" {extra_info}" if extra_info else "")
 
 
 class FailedResponseError(RuntimeError):
@@ -65,10 +61,10 @@ class FailedResponseError(RuntimeError):
 
 class RequestRateLimitedError(RuntimeError):
     def __init__(
-            self,
-            response: Response,
-            retry_after: Optional[int] = None,
-            additional_information: Optional[str] = None,
+        self,
+        response: Response,
+        retry_after: Optional[int] = None,
+        additional_information: Optional[str] = None,
     ):
         """
         Error for rate-limited API requests.

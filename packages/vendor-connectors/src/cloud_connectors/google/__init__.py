@@ -1,6 +1,6 @@
 import json
-from functools import lru_cache
-from typing import Any, Optional, Dict, List, Union
+from functools import cache, lru_cache
+from typing import Any, Dict, List, Optional, Union
 
 import googleapiclient.discovery
 from google.api_core import retry
@@ -11,12 +11,12 @@ from google.oauth2 import service_account
 from cloud_connectors.base.utils import Utils, get_default_dict
 
 CLOUD_CLIENTS = {
-    'billing': {
-        'v1': billing_v1.CloudBillingClient,
+    "billing": {
+        "v1": billing_v1.CloudBillingClient,
     },
-    'resourcemanager': {
-        'v3': resourcemanager_v3.ProjectsClient,
-    }
+    "resourcemanager": {
+        "v3": resourcemanager_v3.ProjectsClient,
+    },
 }
 
 
@@ -26,11 +26,11 @@ class GoogleConnector(Utils):
     """
 
     def __init__(
-            self,
-            scopes: List[str],
-            service_account_file: Union[str, Dict[str, Any]],
-            subject: Optional[str] = None,
-            **kwargs,
+        self,
+        scopes: list[str],
+        service_account_file: Union[str, dict[str, Any]],
+        subject: Optional[str] = None,
+        **kwargs,
     ):
         super().__init__(**kwargs)
         self.scopes = scopes
@@ -50,7 +50,7 @@ class GoogleConnector(Utils):
 
         self.logger.debug("Client initialized with lazy credential loading")
 
-    def _parse_service_account(self, service_account_file: Union[str, Dict[str, Any]]) -> None:
+    def _parse_service_account(self, service_account_file: Union[str, dict[str, Any]]) -> None:
         """Parse and validate service account file."""
         if isinstance(service_account_file, str):
             try:
@@ -115,34 +115,31 @@ class GoogleConnector(Utils):
 
         return self._cloud_credentials
 
-    @lru_cache(maxsize=None)
+    @cache
     def _is_cloud_service(self, service_name: str, version_name: str) -> bool:
         """Determine if a service is a Cloud Platform service."""
         return service_name in CLOUD_CLIENTS and version_name in CLOUD_CLIENTS[service_name]
 
-    def get_service(
-            self,
-            service_name: str,
-            version_name: str,
-            user_email: Optional[str] = None
-    ) -> Any:
+    def get_service(self, service_name: str, version_name: str, user_email: Optional[str] = None) -> Any:
         """
         Get a service client, creating it and its credentials only when first needed.
-        
+
         Args:
             service_name: Service name (e.g., 'admin', 'drive', 'billing')
             version_name: API version (e.g., 'v1', 'v3')
             user_email: Optional email to impersonate (for Workspace APIs)
-            
+
         Returns:
             Either a Workspace service client or Cloud Platform client
         """
         subject = user_email or self.subject
 
         # Check cache first
-        if (subject in self.services and
-                service_name in self.services[subject] and
-                version_name in self.services[subject][service_name]):
+        if (
+            subject in self.services
+            and service_name in self.services[subject]
+            and version_name in self.services[subject][service_name]
+        ):
             return self.services[subject][service_name][version_name]
 
         # Determine service type and get appropriate credentials

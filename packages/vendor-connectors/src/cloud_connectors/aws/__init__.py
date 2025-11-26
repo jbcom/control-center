@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional
 
 import boto3
 from boto3.resources.base import ServiceResource
@@ -13,7 +13,7 @@ class AWSConnector(Utils):
         super().__init__(**kwargs)
         self.execution_role_arn = execution_role_arn
         self.aws_sessions = {}
-        self.aws_clients: Dict[str, Dict[str, boto3.client]] = {}
+        self.aws_clients: dict[str, dict[str, boto3.client]] = {}
         self.default_aws_session = boto3.Session()
 
     def assume_role(self, execution_role_arn: str, role_session_name: str) -> boto3.Session:
@@ -29,10 +29,7 @@ class AWSConnector(Utils):
         sts_client = self.default_aws_session.client("sts")
 
         try:
-            response = sts_client.assume_role(
-                RoleArn=execution_role_arn,
-                RoleSessionName=role_session_name
-            )
+            response = sts_client.assume_role(RoleArn=execution_role_arn, RoleSessionName=role_session_name)
             credentials = response["Credentials"]
 
             self.logged_statement(
@@ -57,9 +54,9 @@ class AWSConnector(Utils):
             raise RuntimeError(f"Failed to assume role {execution_role_arn}") from e
 
     def get_aws_session(
-            self,
-            execution_role_arn: Optional[str] = None,
-            role_session_name: Optional[str] = None,
+        self,
+        execution_role_arn: Optional[str] = None,
+        role_session_name: Optional[str] = None,
     ) -> boto3.Session:
         """
         Get a boto3 Session for the specified role, or the default session if no role is provided.
@@ -96,28 +93,23 @@ class AWSConnector(Utils):
     def create_standard_retry_config(max_attempts: int = 5) -> Config:
         """
         Create a standard retry configuration with the specified maximum attempts.
-        
+
         Args:
             max_attempts (int): Maximum number of attempts (including the initial request)
                                 Default is 5 (initial request + 4 retries)
-        
+
         Returns:
             Config: Botocore Config object with standard retry configuration
         """
-        return Config(
-            retries={
-                'max_attempts': max_attempts,
-                'mode': 'standard'
-            }
-        )
+        return Config(retries={"max_attempts": max_attempts, "mode": "standard"})
 
     def get_aws_client(
-            self,
-            client_name: str,
-            execution_role_arn: Optional[str] = None,
-            role_session_name: Optional[str] = None,
-            config: Optional[Config] = None,
-            **client_args,
+        self,
+        client_name: str,
+        execution_role_arn: Optional[str] = None,
+        role_session_name: Optional[str] = None,
+        config: Optional[Config] = None,
+        **client_args,
     ) -> boto3.client:
         """
         Get a boto3 client for the specified service and role.
@@ -145,7 +137,7 @@ class AWSConnector(Utils):
             )
         else:
             # Log client creation with custom config details
-            retry_config = config.retries if hasattr(config, 'retries') else None
+            retry_config = config.retries if hasattr(config, "retries") else None
             self.logged_statement(
                 f"Creating {client_name} client with custom configuration",
                 labeled_json_data={
@@ -159,12 +151,12 @@ class AWSConnector(Utils):
         return session.client(client_name, config=config, **client_args)
 
     def get_aws_resource(
-            self,
-            service_name: str,
-            execution_role_arn: Optional[str] = None,
-            role_session_name: Optional[str] = None,
-            config: Optional[Config] = None,
-            **resource_args,
+        self,
+        service_name: str,
+        execution_role_arn: Optional[str] = None,
+        role_session_name: Optional[str] = None,
+        config: Optional[Config] = None,
+        **resource_args,
     ) -> ServiceResource:
         """
         Get a boto3 resource for the specified service and role.
@@ -196,7 +188,7 @@ class AWSConnector(Utils):
             "execution_role_arn": execution_role_arn,
             "role_session_name": role_session_name,
             "resource_args": resource_args,
-            "retry_config": config.retries if hasattr(config, 'retries') else None
+            "retry_config": config.retries if hasattr(config, "retries") else None,
         }
 
         self.logged_statement(
