@@ -29,28 +29,11 @@ jobs:
           path: ~/.cache/uv
           key: uv-${{ inputs.python-version }}-${{ inputs.package }}-${{ hashFiles('uv.lock') }}
 
-      - name: Install dependencies
+      - name: Install and test
         run: |
-          case "${{ inputs.package }}" in
-            extended-data-types)
-              uv pip install -e packages/extended-data-types[tests] --system
-              ;;
-            lifecyclelogging)
-              uv pip install -e packages/extended-data-types --system
-              uv pip install -e packages/lifecyclelogging[tests] --system
-              ;;
-            directed-inputs-class)
-              uv pip install -e packages/extended-data-types --system
-              uv pip install -e packages/directed-inputs-class[tests] --system
-              ;;
-            vendor-connectors)
-              uv pip install -e packages/extended-data-types --system
-              uv pip install -e packages/lifecyclelogging --system
-              uv pip install -e packages/vendor-connectors[tests] --system
-              ;;
-          esac
-
-      - name: Test
-        run: |
+          # Sync workspace with test dependencies for this package
+          uv sync --package ${{ inputs.package }} --extra tests
+          
+          # Run tests
           cd packages/${{ inputs.package }}
-          pytest tests -v --tb=short
+          uv run pytest tests -v --tb=short
