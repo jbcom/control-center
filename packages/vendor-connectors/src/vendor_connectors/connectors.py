@@ -6,7 +6,7 @@ import hashlib
 from typing import TYPE_CHECKING, Any, Optional
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import get_unique_signature
+from extended_data_types import get_default_dict, get_unique_signature
 from lifecyclelogging import Logging
 
 from vendor_connectors.aws import AWSConnector
@@ -21,15 +21,6 @@ if TYPE_CHECKING:
     import hvac
     from boto3.resources.base import ServiceResource
     from botocore.config import Config
-
-
-def _get_default_dict(levels: int = 2) -> dict:
-    """Create a nested dict for caching."""
-    from collections import defaultdict
-
-    if levels <= 1:
-        return defaultdict(dict)
-    return defaultdict(lambda: _get_default_dict(levels - 1))
 
 
 def _make_hashable(obj: Any) -> Any:
@@ -74,7 +65,7 @@ class VendorConnectors(DirectedInputsClass):
         self.logger = self.logging.logger
 
         # Client cache - nested dict for different client types and their params
-        self._client_cache: dict[str, dict[Any, Any]] = _get_default_dict(levels=2)
+        self._client_cache: dict[str, dict[Any, Any]] = get_default_dict(levels=2)
 
     def _get_cache_key(self, **kwargs) -> frozenset:
         """Generate a hashable cache key from kwargs."""
