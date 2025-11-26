@@ -94,7 +94,7 @@ infrastructure:
 
   control_center:
     - name: jbcom-control-center
-      url: https://github.com/jbcom/jbcom-conttol-center
+      url: https://github.com/jbcom/jbcom-control-center
       status: active
       visibility: private
       role: central-hub
@@ -130,11 +130,6 @@ games:
       url: https://github.com/jbcom/dragons-labyrinth
       status: active
       visibility: private
-      
-    - name: vintage-game-generator
-      url: https://github.com/jbcom/vintage-game-generator
-      status: dormant
-      visibility: private
 
   typescript:
     - name: otter-river-rush
@@ -163,27 +158,11 @@ games:
       url: https://github.com/jbcom/ebb-and-bloom
       status: active
       visibility: private
-      
-    - name: opposit
-      url: https://github.com/jbcom/opposit
-      status: dormant
-      visibility: private
-      
-    - name: cosmic-cults
-      url: https://github.com/jbcom/cosmic-cults
-      status: dormant
-      visibility: private
 
   godot:
     - name: realm-walker
       url: https://github.com/jbcom/realm-walker
       status: active
-      visibility: private
-      language: GDScript
-      
-    - name: rivers-day-out
-      url: https://github.com/jbcom/rivers-day-out
-      status: dormant
       visibility: private
       language: GDScript
 
@@ -210,6 +189,26 @@ archived:
   - name: chef-selenium-grid-extras
     url: https://github.com/jbcom/chef-selenium-grid-extras
     language: Ruby
+
+  - name: opposit
+    url: https://github.com/jbcom/opposit
+    language: TypeScript
+    note: Dormant game - archived 2025-11-25
+
+  - name: rivers-day-out
+    url: https://github.com/jbcom/rivers-day-out
+    language: GDScript
+    note: Dormant game - archived 2025-11-25
+
+  - name: cosmic-cults
+    url: https://github.com/jbcom/cosmic-cults
+    language: TypeScript
+    note: Dormant game - archived 2025-11-25
+
+  - name: vintage-game-generator
+    url: https://github.com/jbcom/vintage-game-generator
+    language: Python
+    note: Dormant tool - archived 2025-11-25
 
 # ============================================================================
 # STATISTICS

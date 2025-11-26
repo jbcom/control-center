@@ -15,6 +15,7 @@ Usage:
 
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
@@ -194,7 +195,6 @@ def cmd_check_ci(manifest: dict) -> None:
         )
         
         if result.returncode == 0:
-            import json
             runs = json.loads(result.stdout)
             if runs:
                 run = runs[0]
