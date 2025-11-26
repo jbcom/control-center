@@ -161,10 +161,7 @@ class GithubConnector(DirectedInputsClass):
             self.logger.warning(f"Reading {file_path} not supported: {exc}")
             decode = False
 
-        if not decode or is_nothing(file_data):
-            return get_retval(file_data, file_sha, file_path)
-
-        return file_data
+        return get_retval(file_data, file_sha, file_path)
 
     def update_repository_file(
         self,
