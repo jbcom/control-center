@@ -29,12 +29,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Sync to public repos (creates release PRs)
         uses: BetaHuhn/repo-file-sync-action@v1
         with:
-          GH_PAT: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
           GIT_USERNAME: 'jbcom-bot'
           SKIP_PR: false  # Create PRs in public repos
