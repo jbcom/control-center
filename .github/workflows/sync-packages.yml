@@ -31,20 +31,26 @@ jobs:
         with:
           token: ${{ secrets.JBCOM_SYNC_TOKEN }}
 
-      - name: Sync to public repos
+      - name: Sync to public repos (creates release PRs)
         uses: BetaHuhn/repo-file-sync-action@v1
         with:
           GH_PAT: ${{ secrets.JBCOM_SYNC_TOKEN }}
           GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
           GIT_USERNAME: 'jbcom-bot'
-          SKIP_PR: true  # Push directly → triggers public repo CI → PyPI release
+          SKIP_PR: false  # Create PRs in public repos
           CONFIG_PATH: .github/sync.yml
-          COMMIT_PREFIX: '🔄 Sync from control-center'
+          COMMIT_PREFIX: '🔄 Release'
+          PR_TITLE: '🚀 Release from control-center'
+          PR_BODY: |
+            Automated release sync from jbcom-control-center.
+            
+            **Source:** ${{ github.repository }}@${{ github.sha }}
+            **Trigger:** ${{ github.event_name }}
+            
+            Merging this PR will trigger CI and PyPI release.
 
-      # Public repos have their own ci.yml that:
-      # 1. Runs tests
-      # 2. Sets CalVer version
-      # 3. Builds package
-      # 4. Publishes to PyPI
-      #
-      # So this sync → push to main → triggers their CI → PyPI release
+      # Flow:
+      # 1. Change in control-center/packages/
+      # 2. This workflow creates PR in public repo
+      # 3. PR runs CI (tests pass)
+      # 4. Merge PR → triggers release workflow → PyPI
