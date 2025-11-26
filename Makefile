@@ -1,51 +1,102 @@
-# Inspired by: https://blog.mathieu-leplatre.info/tips-for-your-makefile-with-python.html
-
-PYMODULE := project_name
-TESTS := tests
-INSTALL_STAMP := .install.stamp
-POETRY := $(shell command -v poetry 2> /dev/null)
-MYPY := $(shell command -v mypy 2> /dev/null)
+# Makefile for jbcom control center monorepo
 
 .DEFAULT_GOAL := help
 
-.PHONY: all
-all: install lint test
+# Packages in dependency order
+PACKAGES := extended-data-types lifecyclelogging directed-inputs-class vendor-connectors
 
 .PHONY: help
 help:
-	@echo "Please use 'make <target>', where <target> is one of"
+	@echo "Usage: make <target>"
 	@echo ""
-	@echo "  install     install packages and prepare environment"
-	@echo "  lint        run the code linters"
-	@echo "  test        run all the tests"
-	@echo "  all         install, lint, and test the project"
-	@echo "  clean       remove all temporary files listed in .gitignore"
+	@echo "Setup:"
+	@echo "  install      Install all packages with uv"
+	@echo "  sync         Sync uv.lock"
 	@echo ""
-	@echo "Check the Makefile to know exactly what each target is doing."
-	@echo "Most actions are configured in 'pyproject.toml'."
+	@echo "Testing:"
+	@echo "  test         Run tests for all packages"
+	@echo "  test-PKG     Run tests for specific package (e.g., test-extended-data-types)"
+	@echo "  tox          Run tox for all Python versions"
+	@echo ""
+	@echo "Quality:"
+	@echo "  lint         Run ruff linter"
+	@echo "  format       Format code with ruff"
+	@echo "  typecheck    Run mypy"
+	@echo "  check        Run lint + typecheck"
+	@echo ""
+	@echo "Maintenance:"
+	@echo "  clean        Remove build artifacts"
+	@echo "  bump         Bump version with pycalver (dry run)"
 
-install: $(INSTALL_STAMP)
-$(INSTALL_STAMP): pyproject.toml
-	@if [ -z $(POETRY) ]; then echo "Poetry could not be found. See https://python-poetry.org/docs/"; exit 2; fi
-	$(POETRY) run pip install --upgrade pip setuptools
-	$(POETRY) install --with dev,tests,linters
-	touch $(INSTALL_STAMP)
+# Setup
+.PHONY: install
+install:
+	uv sync
 
-.PHONY: lint
-lint: $(INSTALL_STAMP)
-    # Configured in pyproject.toml
-    # Skips mypy if not installed
-    # 
-    # $(POETRY) run black --check $(TESTS) $(PYMODULE) --diff
-	@if [ -z $(MYPY) ]; then echo "Mypy not found, skipping..."; else echo "Running Mypy..."; $(POETRY) run mypy $(PYMODULE) $(TESTS); fi
-	@echo "Running Ruff..."; $(POETRY) run ruff . --fix
+.PHONY: sync
+sync:
+	uv sync
 
+# Testing - all packages
 .PHONY: test
-test: $(INSTALL_STAMP)
-    # Configured in pyproject.toml
-	$(POETRY) run pytest
+test:
+	@for pkg in $(PACKAGES); do \
+		echo "=== Testing $$pkg ==="; \
+		cd packages/$$pkg && uv run pytest tests && cd ../..; \
+	done
 
+# Testing - individual packages
+.PHONY: test-extended-data-types
+test-extended-data-types:
+	cd packages/extended-data-types && uv run pytest tests
+
+.PHONY: test-lifecyclelogging
+test-lifecyclelogging:
+	cd packages/lifecyclelogging && uv run pytest tests
+
+.PHONY: test-directed-inputs-class
+test-directed-inputs-class:
+	cd packages/directed-inputs-class && uv run pytest tests
+
+.PHONY: test-vendor-connectors
+test-vendor-connectors:
+	cd packages/vendor-connectors && uv run pytest tests
+
+# Tox
+.PHONY: tox
+tox:
+	uv run tox
+
+# Quality
+.PHONY: lint
+lint:
+	uv run ruff check packages/
+
+.PHONY: format
+format:
+	uv run ruff format packages/
+	uv run ruff check --fix packages/
+
+.PHONY: typecheck
+typecheck:
+	uv run mypy packages/extended-data-types/src
+	uv run mypy packages/lifecyclelogging/src
+
+.PHONY: check
+check: lint typecheck
+
+# Maintenance
 .PHONY: clean
 clean:
-    # Delete all files in .gitignore
-	git clean -Xdf
+	find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "*.egg-info" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "dist" -exec rm -rf {} + 2>/dev/null || true
+	find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
+	find . -type f -name "*.pyc" -delete 2>/dev/null || true
+
+.PHONY: bump
+bump:
+	pycalver bump --dry
