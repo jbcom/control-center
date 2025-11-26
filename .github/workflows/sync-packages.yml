@@ -1,0 +1,56 @@
+name: Sync Packages to Public Repos
+
+concurrency:
+  group: sync-packages
+  cancel-in-progress: true
+
+on:
+  # Sync on release (preferred - public repos match PyPI)
+  release:
+    types: [published]
+  
+  # Or sync on push to packages/
+  push:
+    branches: [main]
+    paths:
+      - 'packages/**'
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to sync (or "all")'
+        required: false
+        default: 'all'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.JBCOM_SYNC_TOKEN }}
+
+      - name: Sync to public repos (creates release PRs)
+        uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.JBCOM_SYNC_TOKEN }}
+          GIT_EMAIL: 'jbcom-bot@users.noreply.github.com'
+          GIT_USERNAME: 'jbcom-bot'
+          SKIP_PR: false  # Create PRs in public repos
+          CONFIG_PATH: .github/sync.yml
+          COMMIT_PREFIX: '🔄 Release'
+          PR_TITLE: '🚀 Release from control-center'
+          PR_BODY: |
+            Automated release sync from jbcom-control-center.
+            
+            **Source:** ${{ github.repository }}@${{ github.sha }}
+            **Trigger:** ${{ github.event_name }}
+            
+            Merging this PR will trigger CI and PyPI release.
+
+      # Flow:
+      # 1. Change in control-center/packages/
+      # 2. This workflow creates PR in public repo
+      # 3. PR runs CI (tests pass)
+      # 4. Merge PR → triggers release workflow → PyPI
