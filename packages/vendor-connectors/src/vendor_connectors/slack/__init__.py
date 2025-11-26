@@ -19,6 +19,7 @@ else:
         while batch := tuple(islice(it, n)):
             yield batch
 
+
 from directed_inputs_class import DirectedInputsClass
 from extended_data_types import is_nothing, wrap_raw_data_for_export
 from lifecyclelogging import Logging
