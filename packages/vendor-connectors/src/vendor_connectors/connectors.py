@@ -6,7 +6,7 @@ import hashlib
 from typing import TYPE_CHECKING, Any, Optional
 
 from directed_inputs_class import DirectedInputsClass
-from extended_data_types import get_unique_signature
+from extended_data_types import get_default_dict, get_unique_signature, make_hashable
 from lifecyclelogging import Logging
 
 from vendor_connectors.aws import AWSConnector
@@ -21,34 +21,6 @@ if TYPE_CHECKING:
     import hvac
     from boto3.resources.base import ServiceResource
     from botocore.config import Config
-
-
-def _get_default_dict(levels: int = 2) -> dict:
-    """Create a nested dict for caching."""
-    from collections import defaultdict
-
-    if levels <= 1:
-        return defaultdict(dict)
-    return defaultdict(lambda: _get_default_dict(levels - 1))
-
-
-def _make_hashable(obj: Any) -> Any:
-    """Convert an object to a hashable type for use in cache keys.
-
-    Args:
-        obj: The object to convert to a hashable type
-
-    Returns:
-        A hashable representation of the object
-    """
-    if isinstance(obj, (str, int, float, bool, type(None))):
-        return obj
-    if isinstance(obj, (list, tuple)):
-        return tuple(_make_hashable(item) for item in obj)
-    if isinstance(obj, dict):
-        return tuple(sorted((k, _make_hashable(v)) for k, v in obj.items()))
-    # For other types, convert to string
-    return str(obj)
 
 
 class VendorConnectors(DirectedInputsClass):
@@ -74,11 +46,11 @@ class VendorConnectors(DirectedInputsClass):
         self.logger = self.logging.logger
 
         # Client cache - nested dict for different client types and their params
-        self._client_cache: dict[str, dict[Any, Any]] = _get_default_dict(levels=2)
+        self._client_cache: dict[str, dict[Any, Any]] = get_default_dict(levels=2)
 
     def _get_cache_key(self, **kwargs) -> frozenset:
         """Generate a hashable cache key from kwargs."""
-        hashable_kwargs = {k: _make_hashable(v) for k, v in kwargs.items()}
+        hashable_kwargs = {k: make_hashable(v) for k, v in kwargs.items()}
         return frozenset(hashable_kwargs.items())
 
     def _get_cached_client(self, client_type: str, **kwargs) -> Optional[Any]:

@@ -468,3 +468,36 @@ def reconstruct_special_types(obj: Any, fail_silently: bool = False) -> Any:
     if isinstance(obj, set):
         return {reconstruct_special_types(v, fail_silently=fail_silently) for v in obj}
     return obj
+
+
+def make_hashable(obj: Any) -> Any:
+    """Convert an object to a hashable type for use in cache keys or sets.
+
+    This function recursively converts mutable types (dicts, lists) to their
+    immutable equivalents (frozensets of tuples, tuples) so they can be used
+    as dictionary keys or in sets.
+
+    Args:
+        obj: The object to convert to a hashable type.
+
+    Returns:
+        A hashable representation of the object:
+        - Primitives (str, int, float, bool, None) are returned as-is
+        - Lists and tuples are converted to tuples of hashable items
+        - Dicts are converted to frozensets of (key, value) tuples
+        - Other types are converted to their string representation
+
+    Examples:
+        >>> make_hashable({"a": 1, "b": [2, 3]})
+        frozenset({('a', 1), ('b', (2, 3))})
+        >>> make_hashable([1, 2, {"x": "y"}])
+        (1, 2, frozenset({('x', 'y')}))
+    """
+    if isinstance(obj, (str, int, float, bool, type(None))):
+        return obj
+    if isinstance(obj, (list, tuple)):
+        return tuple(make_hashable(item) for item in obj)
+    if isinstance(obj, dict):
+        return frozenset((k, make_hashable(v)) for k, v in sorted(obj.items()))
+    # For other types, convert to string
+    return str(obj)
