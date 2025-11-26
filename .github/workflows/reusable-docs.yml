@@ -36,11 +36,15 @@ jobs:
           
           echo "=== Building docs for ${{ inputs.package }} v${{ inputs.version }} ==="
           
-          # Sync workspace with docs dependencies
+          # Sync workspace - try with docs extra, fall back to base if not defined
           cd source
-          uv sync --package ${{ inputs.package }} --extra docs
+          if ! uv sync --package ${{ inputs.package }} --extra docs 2>/dev/null; then
+            echo "Note: docs extra not defined, using base dependencies"
+            uv sync --package ${{ inputs.package }}
+          fi
           
           # Ensure docs/_build directory exists
+          cd ..
           mkdir -p "$PKG_DIR/docs/_build"
           
           # Build if docs source exists
@@ -75,8 +79,8 @@ jobs:
             cd ..
           fi
           
-          # Clear and copy new docs
-          rm -rf gh-pages/* gh-pages/.* 2>/dev/null || true
+          # Clear old docs (preserve .git directory)
+          find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
           
           if [ -d "$PKG_DIR/docs/_build" ]; then
             cp -r "$PKG_DIR/docs/_build/"* gh-pages/ 2>/dev/null || true
