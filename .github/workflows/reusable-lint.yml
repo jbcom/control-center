@@ -13,6 +13,5 @@ jobs:
 
       - name: Lint
         run: |
-          uv pip install ruff --system
-          ruff check packages/
-          ruff format --check packages/
+          uvx ruff check packages/
+          uvx ruff format --check packages/

@@ -2,10 +2,22 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Mapping, Sequence
-from itertools import batched
 from time import sleep
-from typing import Any, Optional, Union
+from typing import Any, Iterator, Optional, Union
+
+# batched was added in Python 3.12
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    from itertools import islice
+
+    def batched(iterable, n: int) -> Iterator[tuple]:
+        """Batch an iterable into chunks of size n (Python 3.9+ compatible)."""
+        it = iter(iterable)
+        while batch := tuple(islice(it, n)):
+            yield batch
 
 from directed_inputs_class import DirectedInputsClass
 from extended_data_types import is_nothing, wrap_raw_data_for_export
