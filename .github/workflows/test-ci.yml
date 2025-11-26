@@ -6,19 +6,5 @@ on:
   workflow_dispatch:
 
 jobs:
-  matrix-job:
-    runs-on: ubuntu-latest
-    outputs:
-      test: ${{ steps.set.outputs.test }}
-    steps:
-      - id: set
-        run: echo "test=[\"a\",\"b\"]" >> $GITHUB_OUTPUT
-  
-  use-matrix:
-    needs: matrix-job
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        item: ${{ fromJson(needs.matrix-job.outputs.test) }}
-    steps:
-      - run: echo "Item ${{ matrix.item }}"
+  call-lint:
+    uses: ./.github/workflows/reusable/lint.yml
