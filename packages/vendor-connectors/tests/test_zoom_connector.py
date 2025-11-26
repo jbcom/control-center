@@ -22,6 +22,7 @@ class TestZoomConnector:
         assert connector.client_id == "test-client-id"
         assert connector.client_secret == "test-client-secret"
         assert connector.account_id == "test-account-id"
+        assert connector.errors == []
 
     @patch("vendor_connectors.zoom.requests.post")
     def test_get_access_token_success(self, mock_post, base_connector_kwargs):
@@ -45,7 +46,8 @@ class TestZoomConnector:
     @patch("vendor_connectors.zoom.requests.post")
     def test_get_access_token_failure(self, mock_post, base_connector_kwargs):
         """Test failed access token retrieval."""
-        mock_post.side_effect = Exception("Connection error")
+        import requests
+        mock_post.side_effect = requests.exceptions.RequestException("Connection error")
 
         connector = ZoomConnector(
             client_id="test-client-id",
@@ -111,3 +113,54 @@ class TestZoomConnector:
         result = connector.create_zoom_user("newuser@example.com", "New", "User")
         assert result is True
         assert mock_post.call_count == 2
+
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_create_zoom_user_failure_appends_to_errors(self, mock_post, base_connector_kwargs):
+        """Test that creating a Zoom user failure appends to errors list."""
+        import requests
+
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+
+        mock_create_response = MagicMock()
+        mock_create_response.raise_for_status.side_effect = requests.exceptions.RequestException("API Error")
+
+        mock_post.side_effect = [mock_token_response, mock_create_response]
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        result = connector.create_zoom_user("newuser@example.com", "New", "User")
+        assert result is False
+        assert len(connector.errors) == 1
+        assert "Failed to create Zoom user newuser@example.com" in connector.errors[0]
+
+    @patch("vendor_connectors.zoom.requests.delete")
+    @patch("vendor_connectors.zoom.requests.post")
+    def test_remove_zoom_user_failure_appends_to_errors(self, mock_post, mock_delete, base_connector_kwargs):
+        """Test that removing a Zoom user failure appends to errors list."""
+        import requests
+
+        mock_token_response = MagicMock()
+        mock_token_response.json.return_value = {"access_token": "test-token"}
+        mock_token_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_token_response
+
+        mock_delete.side_effect = requests.exceptions.RequestException("API Error")
+
+        connector = ZoomConnector(
+            client_id="test-client-id",
+            client_secret="test-client-secret",
+            account_id="test-account-id",
+            **base_connector_kwargs,
+        )
+
+        connector.remove_zoom_user("user@example.com")
+        assert len(connector.errors) == 1
+        assert "Failed to remove Zoom user user@example.com" in connector.errors[0]
+
