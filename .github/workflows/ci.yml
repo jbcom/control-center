@@ -75,7 +75,7 @@ jobs:
   # SYNC TO PUBLIC REPOS (main only)
   # ============================================
   sync:
-    needs: [matrix, test, lint, enforce]
+    needs: [matrix, test, lint]  # Don't wait for enforce - it runs in parallel
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
@@ -122,10 +122,10 @@ jobs:
       token: ${{ secrets.CI_GITHUB_TOKEN }}
 
   # ============================================
-  # ENFORCE STANDARDS (main or manual)
+  # ENFORCE STANDARDS (main or manual, non-blocking)
   # ============================================
   enforce:
-    needs: [matrix]
+    needs: [matrix, test, lint]  # Run after tests pass
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)

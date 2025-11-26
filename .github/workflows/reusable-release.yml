@@ -24,20 +24,55 @@ jobs:
         with:
           python-version: '3.13'
 
-      - name: Build & Publish
+      - name: Generate Version
+        id: version
+        run: |
+          # CalVer: YYYY.MM.BUILD_NUMBER
+          YEAR=$(date -u +%Y)
+          MONTH=$(date -u +%-m)  # No zero-padding
+          BUILD=${{ github.run_number }}
+          VERSION="${YEAR}.${MONTH}.${BUILD}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Generated version: $VERSION"
+
+      - name: Update Version in Package
+        run: |
+          PKG_DIR="packages/${{ inputs.package }}"
+          VERSION="${{ steps.version.outputs.version }}"
+          
+          # Find __init__.py with __version__
+          INIT_FILE=$(find "$PKG_DIR/src" -name "__init__.py" -exec grep -l "__version__" {} \; | head -1)
+          
+          if [ -z "$INIT_FILE" ]; then
+            echo "Error: No __init__.py with __version__ found in $PKG_DIR/src"
+            exit 1
+          fi
+          
+          echo "Updating version in: $INIT_FILE"
+          
+          # Update version using sed (works with various quote styles)
+          sed -i "s/__version__ = ['\"][^'\"]*['\"]/__version__ = \"$VERSION\"/" "$INIT_FILE"
+          
+          # Verify update
+          grep "__version__" "$INIT_FILE"
+
+      - name: Build Package
+        run: |
+          pip install build
+          cd packages/${{ inputs.package }}
+          python -m build
+          
+          # Show what was built
+          ls -la dist/
+
+      - name: Publish to PyPI
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.pypi-token }}
         run: |
-          pip install build twine pycalver
-          
-          # Bump version
-          pycalver bump --release final --no-commit --no-tag --no-push || true
-          
-          # Build
+          pip install twine
           cd packages/${{ inputs.package }}
-          python -m build
           
-          # Publish
+          # Upload with skip-existing for idempotency
           twine upload dist/* --skip-existing
-          echo "📦 Released ${{ inputs.pypi-name }}"
+          echo "📦 Released ${{ inputs.pypi-name }} v${{ steps.version.outputs.version }}"
