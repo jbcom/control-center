@@ -24,6 +24,14 @@
 - [x] GoogleConnector.impersonate_subject() - API compatibility method
 - [x] SlackConnector.list_usergroups() - Missing method added
 - [x] AWSConnector.load_vendors_from_asm() - Lambda vendor loading
+- [x] AWSConnector.get_secret() - Single secret with SecretString/Binary handling
+- [x] AWSConnector.list_secrets() - Paginated listing, value fetch, empty filtering
+- [x] AWSConnector.copy_secrets_to_s3() - Upload secrets dict to S3 as JSON
+- [x] VaultConnector.list_secrets() - Recursive KV v2 listing with depth control
+- [x] VaultConnector.get_secret() - Path handling with matchers support
+- [x] VaultConnector.read_secret() - Simple single secret read
+- [x] VaultConnector.write_secret() - Create/update secrets
+- [x] Both use is_nothing() from extended-data-types
 
 #### Memory Bank Infrastructure
 - [x] Created .cursor/memory-bank/ structure
@@ -32,8 +40,10 @@
 - [x] Created GitHub issues (#200, #201, #202)
 
 ### Pending
+- [ ] jbcom-control-center PR #168 - vendor-connectors secrets management
 - [ ] terraform-modules PR #203 CI verification
-- [ ] Add deepmerge to extended-data-types (issue #201)
+- [ ] Add deepmerge to extended-data-types (issue #201) - DONE, merged as PR #167
+- [ ] Remove secrets methods from terraform-modules (after PR #168 merges)
 - [ ] terraform-aws-secretsmanager refactoring
 - [ ] Create merging lambda using ecosystem packages
 
