@@ -108,3 +108,46 @@ class AWSConnector(DirectedInputsClass):
         except ClientError as e:
             self.logger.error(f"Failed to create resource for service: {service_name}", exc_info=True)
             raise RuntimeError(f"Failed to create resource for service {service_name}") from e
+
+    @staticmethod
+    def load_vendors_from_asm(prefix: str = "/vendors/") -> dict[str, str]:
+        """Load vendor secrets from AWS Secrets Manager.
+
+        This is used in Lambda environments where vendor credentials are stored
+        in ASM under a common prefix (e.g., /vendors/).
+
+        Args:
+            prefix: The prefix path for vendor secrets (default: /vendors/)
+
+        Returns:
+            Dictionary mapping secret keys (with prefix removed) to their values.
+        """
+        import os
+
+        vendors: dict[str, str] = {}
+        prefix = os.getenv("TM_VENDORS_PREFIX", prefix)
+
+        try:
+            session = boto3.Session()
+            secretsmanager = session.client("secretsmanager")
+
+            # List secrets with the prefix
+            paginator = secretsmanager.get_paginator("list_secrets")
+            for page in paginator.paginate(Filters=[{"Key": "name", "Values": [prefix]}]):
+                for secret in page.get("SecretList", []):
+                    secret_name = secret["Name"]
+                    if secret_name.startswith(prefix):
+                        try:
+                            response = secretsmanager.get_secret_value(SecretId=secret_name)
+                            secret_value = response.get("SecretString", "")
+                            # Remove prefix from key name
+                            key = secret_name.removeprefix(prefix).upper()
+                            vendors[key] = secret_value
+                        except ClientError:
+                            # Skip secrets we can't read
+                            pass
+        except ClientError:
+            # Return empty dict if we can't access Secrets Manager
+            pass
+
+        return vendors
