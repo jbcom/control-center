@@ -178,7 +178,7 @@ class GithubConnector(DirectedInputsClass):
             else:
                 # For 'raw' or unknown extensions, return as-is
                 decoded_data = file_data
-            
+
             return get_retval(decoded_data, file_sha, file_path)
         except Exception as exc:
             self.logger.warning(f"Failed to decode {file_path} as {encoding}: {exc}")
