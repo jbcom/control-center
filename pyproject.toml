@@ -10,7 +10,7 @@ members = ["packages/*"]
 extended-data-types = { workspace = true }
 lifecyclelogging = { workspace = true }
 directed-inputs-class = { workspace = true }
-cloud-connectors = { workspace = true }
+vendor-connectors = { workspace = true }
 
 [project]
 name = "jbcom-control-center"

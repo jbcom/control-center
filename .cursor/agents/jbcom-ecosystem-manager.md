@@ -37,7 +37,7 @@ jbcom-control-center/
 │   ├── extended-data-types/    ← Foundation library (PyPI: extended-data-types)
 │   ├── lifecyclelogging/       ← Logging library (PyPI: lifecyclelogging)
 │   ├── directed-inputs-class/  ← Input processing (PyPI: directed-inputs-class)
-│   └── vendor-connectors/      ← Cloud connectors (PyPI: cloud-connectors)
+│   └── vendor-connectors/      ← Cloud connectors (PyPI: vendor-connectors)
 ├── packages/ECOSYSTEM.toml     ← Single source of truth
 ├── .github/sync.yml            ← Sync configuration
 └── .github/workflows/sync-packages.yml
@@ -203,7 +203,7 @@ done
 pip index versions extended-data-types
 pip index versions lifecyclelogging
 pip index versions directed-inputs-class
-pip index versions cloud-connectors
+pip index versions vendor-connectors
 ```
 
 ---

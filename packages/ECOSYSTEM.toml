@@ -53,7 +53,7 @@ dependents = []
 
 [packages.vendor-connectors]
 path = "packages/vendor-connectors"
-pypi_name = "cloud-connectors"
+pypi_name = "vendor-connectors"
 public_repo = "jbcom/vendor-connectors"
 role = "integrations"
 description = "Unified cloud provider connectors"

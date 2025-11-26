@@ -978,7 +978,7 @@ Declarative input validation and processing.
 
 ### 4. vendor-connectors
 **Location:** `packages/vendor-connectors/`
-**PyPI:** `cloud-connectors`
+**PyPI:** `vendor-connectors`
 **Public Repo:** `jbcom/vendor-connectors`
 
 Unified cloud provider connectors (AWS, GCP, GitHub, Slack, Vault, Zoom).
@@ -1105,7 +1105,7 @@ done
 ```bash
 pip index versions extended-data-types
 pip index versions lifecyclelogging
-pip index versions cloud-connectors
+pip index versions vendor-connectors
 ```
 
 ### Trigger Manual Sync
