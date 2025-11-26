@@ -405,6 +405,7 @@ class VendorConnectors(DirectedInputsClass):
         cached = self._get_cached_client(
             "zoom",
             client_id=client_id,
+            client_secret=client_secret,
             account_id=account_id,
         )
         if cached:
@@ -421,6 +422,7 @@ class VendorConnectors(DirectedInputsClass):
             "zoom",
             connector,
             client_id=client_id,
+            client_secret=client_secret,
             account_id=account_id,
         )
         return connector
