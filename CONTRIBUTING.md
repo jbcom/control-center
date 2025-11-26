@@ -1,34 +1,47 @@
-# Contributing to the `project-name` project
+# Contributing
 
-## Filing a bug report
+## Development Setup
 
-To file a bug report, [open the Issues tab][Issues] and add a new issue,
-labeling it as a bug report. If you wish to try and fix it yourself, add
-yourself as a contributor to that issue. You are allowed to group similar
-bugs into one issue report, as long as you don't exceed the limit of three
-different bugs. Otherwise, make another issue.
+```bash
+# Clone
+git clone https://github.com/jbcom/jbcom-control-center
+cd jbcom-control-center
 
-## Suggesting a new feature
+# Install (uses uv workspace)
+uv sync
 
-To suggest a new feature:
+# Or with pip
+pip install -e ".[dev]"
+```
 
-- For small suggestions, [you can go directly to the Projects tab][Projects]
-  and write a suggestion to the Suggestions/Ideas column
-- For medium-to-large suggestions, write an issue, mark it as part of the
-  current project and label it as a suggestion
+## Making Changes
 
-You may NOT suggest features through email to the core developers.
+1. Create a branch: `git checkout -b fix/description`
+2. Make changes in `packages/`
+3. Run tests: `cd packages/<package> && pytest`
+4. Run lint: `ruff check packages/`
+5. Commit: `git commit -m "fix: description"`
+6. Push: `git push -u origin fix/description`
+7. Create PR: `GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create`
 
-## Setting up your development environment
+## Code Style
 
-Since `project-name` has very little to do beyond programming and testing,
-the following should be enough for 95% of all contributors:
+- **Linting**: ruff (configured in pyproject.toml)
+- **Type hints**: Required for public APIs
+- **Docstrings**: Google style
+- **Tests**: pytest, aim for good coverage
 
-1. A working Git or GitHub Desktop installation
-2. A text editor / Python IDE
-3. An installation of Python that supports Python version 3.10 or higher
-4. The following, non-standard PyPI modules (available through `pip`):
-    - `poetry`
+## Versioning
 
-[Issues]: https://github.com/Diapolo10/project-name/issues
-[Projects]: https://github.com/Diapolo10/project-name/projects
+We use pycalver (`YYYYMM.NNNN`). Version bumps happen automatically at release time - never edit `__version__` manually.
+
+## Pull Requests
+
+- Clear title describing the change
+- Brief description of what and why
+- Tests for new features
+- CI must pass before merge
+
+## Questions?
+
+Check `.cursor/agents/jbcom-ecosystem-manager.md` or `.ruler/AGENTS.md`.

@@ -1,91 +1,38 @@
+# Changelog
 
-# project-name Changelog
+All notable changes to the jbcom control center.
 
-All notable changes to this project will be documented in this file.
-
-The format is based on [CHANGELOG.md][CHANGELOG.md]
-and this project adheres to [Semantic Versioning][Semantic Versioning].
-
-<!-- 
-TEMPLATE
-
-## [major.minor.patch] - yyyy-mm-dd
-
-A message that notes the main changes in the update.
-
-### Added
+## 2025-11-26
 
 ### Changed
+- Converted to uv workspace with pycalver at root level
+- Added `GITHUB_JBCOM_TOKEN` auth instructions to all agent configs
+- Cleaned up obsolete files (ecosystem/, tools/, old workflows)
 
-### Deprecated
-
-### Fixed
+### Added
+- `uv.lock` for reproducible installs
+- pycalver config in root `pyproject.toml`
+- Workspace-level versioning (bumps all packages)
 
 ### Removed
+- `ecosystem/ECOSYSTEM_STATE.json` (replaced by `packages/ECOSYSTEM.toml`)
+- `tools/` folder (obsolete validators/monitors)
+- Old status markdown files (COMPLETE.md, MISSION_COMPLETE.md, etc.)
+- Obsolete workflows (health-check.yml, hub-validation.yml, etc.)
 
-### Security
-
-_______________________________________________________________________________
- 
- -->
-
-<!--
-EXAMPLE
-
-## [0.2.0] - 2021-06-02
-
-Lorem Ipsum dolor sit amet.
+## 2025-11-25
 
 ### Added
-
-- Cat pictures hidden in the library
-- Added beeswax to the gears
+- Monorepo architecture with `packages/`
+- `sync-packages.yml` workflow
+- `release.yml` workflow for PyPI publishing
+- `claude-review.yml` for pre-sync review
 
 ### Changed
+- Public repos are now pure code mirrors
+- All CI/review happens in control center
+- Releases use `PYPI_TOKEN` directly
 
-- Updated localisation files
+---
 
--->
-
-<!--
-_______________________________________________________________________________
-
-## [0.1.1] - YYYY-MM-DD
-
-In-progress update goes here.
-
-### Added
-
-- Stuff
-
-### Changed
-
-- Updated localisation files
-
--->
-
-_______________________________________________________________________________
-
-## [0.1.0] - YYYY-MM-DD
-
-This is the initial version of the project.
-
-### Added
-
-- The base project
-
-[CHANGELOG.md]: https://keepachangelog.com/en/1.1.0/
-[Semantic Versioning]: http://semver.org/
-
-<!-- markdownlint-configure-file {
-    "MD022": false,
-    "MD024": false,
-    "MD030": false,
-    "MD032": false
-} -->
-<!--
-    MD022: Blanks around headings
-    MD024: No duplicate headings
-    MD030: Spaces after list markers
-    MD032: Blanks around lists
--->
+Format: [Keep a Changelog](https://keepachangelog.com/)
