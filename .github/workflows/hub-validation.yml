@@ -296,8 +296,18 @@ jobs:
           python3 <<'EOF'
           import json
           state = json.load(open('ecosystem/ECOSYSTEM_STATE.json'))
-          assert 'repositories' in state
-          assert 'standards' in state
-          assert len(state['repositories']) >= 4
-          print('✅ ECOSYSTEM_STATE.json structure valid')
+          
+          # Support both v1 (repositories) and v2 (active_repositories) schemas
+          repos_key = 'active_repositories' if 'active_repositories' in state else 'repositories'
+          assert repos_key in state, f"Missing {repos_key} in ECOSYSTEM_STATE.json"
+          
+          repos = state[repos_key]
+          assert len(repos) >= 4, f"Expected at least 4 repositories, found {len(repos)}"
+          
+          # Validate each repo has required fields
+          for repo in repos:
+              assert 'name' in repo, f"Repository missing 'name' field: {repo}"
+              assert 'status' in repo, f"Repository {repo.get('name', 'unknown')} missing 'status' field"
+          
+          print(f'✅ ECOSYSTEM_STATE.json structure valid ({len(repos)} repositories)')
           EOF

@@ -1,98 +1,320 @@
 {
-  "version": "1.0.0",
-  "last_updated": "2025-11-25T22:30:00Z",
-  "management_hub": {
-    "repository": "jbcom/python-library-template",
-    "purpose": "Central management hub for jbcom Python library ecosystem",
-    "role": "Deploys standards, coordinates releases, maintains consistency"
+  "version": "2.0.0",
+  "last_updated": "2025-11-25T23:45:00Z",
+  "cleanup_performed": "2025-11-25",
+  "cleanup_stats": {
+    "before": {
+      "total_repos": 89,
+      "forks": 52,
+      "owned": 37
+    },
+    "after": {
+      "total_repos": 27,
+      "active": 20,
+      "archived": 7
+    },
+    "deleted": {
+      "forks": 52,
+      "dead_owned": 27
+    }
   },
-  "repositories": [
+  "management_hub": {
+    "repository": "jbcom/jbcom-control-center",
+    "purpose": "Central management hub for jbcom ecosystem",
+    "role": "Deploys standards, coordinates releases, maintains consistency",
+    "tracks": "ecosystem/ECOSYSTEM_MANIFEST.yaml"
+  },
+  "languages": {
+    "python": 8,
+    "typescript": 5,
+    "go": 1,
+    "hcl": 2,
+    "gdscript": 1,
+    "rust": 1
+  },
+  "active_repositories": [
     {
       "name": "extended-data-types",
       "url": "https://github.com/jbcom/extended-data-types",
       "status": "production",
+      "language": "python",
       "role": "foundation",
-      "latest_release": "2025.11.164",
-      "ci_workflow_version": "1.0.0",
-      "docs_sync_status": "synced",
-      "last_workflow_deployment": "2025-11-20",
-      "dependencies": [],
-      "dependents": ["lifecyclelogging", "directed-inputs-class", "vendor-connectors"]
+      "visibility": "public"
     },
     {
       "name": "lifecyclelogging",
       "url": "https://github.com/jbcom/lifecyclelogging",
       "status": "production",
-      "role": "production-library",
-      "latest_release": "2025.11.82",
-      "ci_workflow_version": "1.0.0",
-      "docs_sync_status": "synced",
-      "last_workflow_deployment": "2025-11-20",
-      "dependencies": ["extended-data-types"],
-      "dependents": ["vendor-connectors"]
+      "language": "python",
+      "role": "logging-library",
+      "visibility": "public"
     },
     {
       "name": "directed-inputs-class",
       "url": "https://github.com/jbcom/directed-inputs-class",
       "status": "development",
-      "role": "development-library",
-      "latest_release": null,
-      "ci_workflow_version": "0.9.0",
-      "docs_sync_status": "needs_update",
-      "last_workflow_deployment": "2025-11-15",
-      "dependencies": ["extended-data-types"],
-      "dependents": ["vendor-connectors"]
+      "language": "python",
+      "role": "input-validation",
+      "visibility": "public"
     },
     {
       "name": "vendor-connectors",
       "url": "https://github.com/jbcom/vendor-connectors",
-      "status": "planning",
+      "status": "development",
+      "language": "python",
       "role": "integration-library",
-      "latest_release": null,
-      "ci_workflow_version": null,
-      "docs_sync_status": "not_deployed",
-      "last_workflow_deployment": null,
-      "dependencies": ["extended-data-types", "lifecyclelogging"],
-      "dependents": []
+      "visibility": "public",
+      "multi_language_target": [
+        "python",
+        "typescript"
+      ],
+      "connectors": {
+        "python": [
+          "aws",
+          "google",
+          "github",
+          "slack",
+          "vault",
+          "zoom"
+        ],
+        "typescript": [],
+        "planned": [
+          "meshy",
+          "anthropic",
+          "openai",
+          "freesound",
+          "google_fonts"
+        ]
+      }
+    },
+    {
+      "name": "port-api",
+      "url": "https://github.com/jbcom/port-api",
+      "status": "production",
+      "language": "go",
+      "role": "api-client",
+      "visibility": "public"
+    },
+    {
+      "name": "terraform-github-markdown",
+      "url": "https://github.com/jbcom/terraform-github-markdown",
+      "status": "production",
+      "language": "hcl",
+      "role": "terraform-module",
+      "visibility": "public"
+    },
+    {
+      "name": "terraform-repository-automation",
+      "url": "https://github.com/jbcom/terraform-repository-automation",
+      "status": "production",
+      "language": "hcl",
+      "role": "terraform-module",
+      "visibility": "public"
+    },
+    {
+      "name": "jbcom-control-center",
+      "url": "https://github.com/jbcom/jbcom-control-center",
+      "status": "active",
+      "language": "python",
+      "role": "control-center",
+      "visibility": "private"
+    },
+    {
+      "name": "ai_game_dev",
+      "url": "https://github.com/jbcom/ai_game_dev",
+      "status": "active",
+      "language": "python",
+      "role": "game",
+      "visibility": "public",
+      "has_integrations": [
+        "freesound",
+        "google_fonts"
+      ]
+    },
+    {
+      "name": "otterfall",
+      "url": "https://github.com/jbcom/otterfall",
+      "status": "active",
+      "language": "python",
+      "role": "game",
+      "visibility": "public",
+      "has_integrations": [
+        "meshy"
+      ]
+    },
+    {
+      "name": "rivers-of-reckoning",
+      "url": "https://github.com/jbcom/rivers-of-reckoning",
+      "status": "active",
+      "language": "python",
+      "role": "game",
+      "visibility": "public"
+    },
+    {
+      "name": "otter-river-rush",
+      "url": "https://github.com/jbcom/otter-river-rush",
+      "status": "active",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "public"
+    },
+    {
+      "name": "pixels-pygame-palace",
+      "url": "https://github.com/jbcom/pixels-pygame-palace",
+      "status": "active",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "public"
+    },
+    {
+      "name": "echoes-of-beastlight",
+      "url": "https://github.com/jbcom/echoes-of-beastlight",
+      "status": "active",
+      "language": "rust",
+      "role": "game",
+      "visibility": "private",
+      "has_integrations": [
+        "openai"
+      ]
+    },
+    {
+      "name": "realm-walker-story",
+      "url": "https://github.com/jbcom/realm-walker-story",
+      "status": "active",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "private",
+      "has_integrations": [
+        "meshy",
+        "anthropic",
+        "openai"
+      ]
+    },
+    {
+      "name": "ser-plonk",
+      "url": "https://github.com/jbcom/ser-plonk",
+      "status": "active",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "private",
+      "has_integrations": [
+        "meshy"
+      ]
+    },
+    {
+      "name": "ebb-and-bloom",
+      "url": "https://github.com/jbcom/ebb-and-bloom",
+      "status": "active",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "private"
+    },
+    {
+      "name": "realm-walker",
+      "url": "https://github.com/jbcom/realm-walker",
+      "status": "active",
+      "language": "gdscript",
+      "role": "game",
+      "visibility": "private"
+    },
+    {
+      "name": "professor-pixels-arcade-academy",
+      "url": "https://github.com/jbcom/professor-pixels-arcade-academy",
+      "status": "active",
+      "language": "python",
+      "role": "game",
+      "visibility": "private"
+    },
+    {
+      "name": "dragons-labyrinth",
+      "url": "https://github.com/jbcom/dragons-labyrinth",
+      "status": "active",
+      "language": "python",
+      "role": "game",
+      "visibility": "private"
     }
   ],
-  "standards": {
-    "ci_workflow": {
-      "current_version": "1.0.0",
-      "file": "workflows/standard-ci.yml",
-      "deployed_to": ["extended-data-types", "lifecyclelogging"]
-    },
-    "documentation": {
-      "system": "ruler",
-      "version": "1.0.0",
-      "source": ".ruler/",
-      "deployed_to": ["extended-data-types", "lifecyclelogging"]
-    },
-    "python_versions": ["3.10", "3.11", "3.12", "3.13"],
-    "versioning": "calver",
-    "linter": "ruff",
-    "type_checker": "pyright",
-    "test_framework": "pytest"
-  },
-  "pending_actions": [
+  "archived_repositories": [
     {
-      "action": "deploy_workflow",
-      "target": "directed-inputs-class",
-      "item": "standard-ci.yml",
-      "priority": "high",
-      "reason": "Outdated CI workflow"
+      "name": "openapi-31-to-30-converter",
+      "language": "go"
     },
     {
-      "action": "sync_docs",
-      "target": "directed-inputs-class",
-      "priority": "medium",
-      "reason": "Documentation needs update"
+      "name": "hamachi-vpn",
+      "language": "dockerfile",
+      "note": "Has 12 stars"
     },
     {
-      "action": "initial_setup",
-      "target": "vendor-connectors",
-      "priority": "low",
-      "reason": "Repository in planning phase"
+      "name": "chef-selenium-grid-extras",
+      "language": "ruby"
+    },
+    {
+      "name": "opposit",
+      "url": "https://github.com/jbcom/opposit",
+      "status": "dormant",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "private",
+      "note": "Archived 2025-11-25 - dormant"
+    },
+    {
+      "name": "cosmic-cults",
+      "url": "https://github.com/jbcom/cosmic-cults",
+      "status": "dormant",
+      "language": "typescript",
+      "role": "game",
+      "visibility": "private",
+      "note": "Archived 2025-11-25 - dormant"
+    },
+    {
+      "name": "rivers-day-out",
+      "url": "https://github.com/jbcom/rivers-day-out",
+      "status": "dormant",
+      "language": "gdscript",
+      "role": "game",
+      "visibility": "private",
+      "note": "Archived 2025-11-25 - dormant"
+    },
+    {
+      "name": "vintage-game-generator",
+      "url": "https://github.com/jbcom/vintage-game-generator",
+      "status": "dormant",
+      "language": "python",
+      "role": "game-tool",
+      "visibility": "private",
+      "note": "Archived 2025-11-25 - dormant"
     }
-  ]
+  ],
+  "consolidation_opportunities": {
+    "vendor_connectors_multilang": {
+      "description": "Consolidate scattered integration code into vendor-connectors",
+      "sources": [
+        {
+          "repo": "ser-plonk",
+          "path": "asset_manager/meshy/",
+          "target": "node/src/meshy/"
+        },
+        {
+          "repo": "realm-walker-story",
+          "path": "src/ai/MeshyClient.ts",
+          "target": "node/src/meshy/"
+        },
+        {
+          "repo": "realm-walker-story",
+          "path": "src/ai/AnthropicClient.ts",
+          "target": "node/src/anthropic/"
+        },
+        {
+          "repo": "ai_game_dev",
+          "path": "src/ai_game_dev/audio/freesound_client.py",
+          "target": "python/src/cloud_connectors/freesound/"
+        },
+        {
+          "repo": "ai_game_dev",
+          "path": "src/ai_game_dev/fonts/google_fonts.py",
+          "target": "python/src/cloud_connectors/google_fonts/"
+        }
+      ]
+    }
+  }
 }
