@@ -16,6 +16,13 @@ Key points:
 - **Collaborate, don't escalate** - Resolve AI-to-AI conflicts yourself
 - **Merge when ready** - Execute merge after all feedback addressed
 
+**🔬 VERIFICATION REQUIREMENT (NEW):**
+- **All version claims MUST be verified** against official sources (https://go.dev/dl/, https://releases.rs/, etc.)
+- **Never rely on training data** for version numbers or tool specifications
+- **Official installation methods** (like rustup.rs curl-to-shell) are NOT security vulnerabilities
+- **Document your verification** sources in responses
+
+See `.cursor/rules/15-pr-review-verification.mdc` (Cursor) or full details below (other agents).
 See `.cursor/rules/REFERENCE-pr-ownership-details.md` for detailed examples and templates.
 
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
