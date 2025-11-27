@@ -1,0 +1,208 @@
+---
+alwaysApply: true
+description: PR Review Verification Requirements
+globs: ["**/*"]
+priority: 2
+---
+
+# PR Review Verification Protocol
+
+**CRITICAL: All AI agents performing PR reviews MUST follow this verification protocol**
+
+## Core Principle
+
+**Never rely solely on training data for version numbers, tool recommendations, or technical specifications.**
+
+All technical claims in PR reviews must be verified against current, authoritative sources before making recommendations.
+
+## Verification Requirements
+
+### Before Suggesting Version Updates
+
+**ALWAYS verify current versions from official sources:**
+
+1. **Check official release pages** (not documentation, not blog posts)
+2. **Use authoritative URLs** listed below
+3. **Document verification** in your response
+4. **Admit uncertainty** if you cannot verify
+
+### Official Version Sources
+
+**Programming Languages:**
+- **Rust**: https://rust-lang.github.io/rustup-components-history/ OR `rustup check`
+  - Note: `rustup.rs` curl-to-shell IS the official installation method
+- **Go**: https://go.dev/dl/ (check "Stable versions" section)
+- **Python**: https://www.python.org/downloads/
+- **Node.js**: https://nodejs.org/en/download/
+
+**Tools & Frameworks:**
+- **Playwright**: https://playwright.dev/docs/release-notes OR `npm view playwright version`
+- **pnpm**: https://github.com/pnpm/pnpm/releases
+- **uv**: https://github.com/astral-sh/uv/releases
+- **process-compose**: https://github.com/F1bonacc1/process-compose/releases
+
+**Verification Commands:**
+```bash
+# Check current Go version
+curl -sL https://go.dev/VERSION?m=text
+
+# Check Node.js LTS
+curl -sL https://nodejs.org/dist/index.json | jq '.[0].version'
+
+# Check Rust stable
+rustup check  # if installed
+
+# Check npm package version
+npm view <package-name> version
+```
+
+## Common Verification Mistakes
+
+### ❌ DON'T: Hallucinate versions
+```markdown
+"Go 1.23.6 is the latest stable version as of November 2025"
+```
+Without actually checking https://go.dev/dl/
+
+### ❌ DON'T: Use training data cutoff
+```markdown
+"Rust 1.83.0 was released..."
+```
+Without verifying current stable release
+
+### ❌ DON'T: Assume tool installation patterns
+```markdown
+"curl-to-shell is always a security vulnerability"
+```
+rustup.rs IS the official Rust installation method!
+
+### ✅ DO: Verify then recommend
+```markdown
+"I've verified on https://go.dev/dl/ that Go 1.23.4 is the current stable release.
+The Dockerfile uses this version correctly."
+```
+
+### ✅ DO: Admit when you can't verify
+```markdown
+"I cannot verify the current version without web access.
+The user should check https://go.dev/dl/ to confirm Go 1.23.4 is still current."
+```
+
+### ✅ DO: Understand official patterns
+```markdown
+"The rustup.rs curl-to-shell pattern is the official Rust installation method
+recommended at https://www.rust-lang.org/tools/install"
+```
+
+## Security Vulnerability Assessment
+
+### Real Security Issues ✅
+- **Unversioned downloads**: `curl https://example.com/latest.sh | sh`
+- **Unofficial sources**: Using third-party mirrors without verification
+- **No integrity checks**: Missing SHA256/GPG verification where available
+- **Hardcoded credentials**: API keys, passwords in Dockerfiles
+
+### NOT Security Issues ❌
+- **Official installation scripts**: rustup.rs, nvm, sdkman (when from official domains)
+- **Using stable channels**: `rustup default stable` (official recommendation)
+- **Dynamic architecture**: `$(dpkg --print-architecture)` (correct cross-platform approach)
+
+## PR Review Checklist
+
+Before submitting PR feedback:
+
+- [ ] Have you verified version numbers against official sources?
+- [ ] Have you checked if the "security issue" is actually the official method?
+- [ ] Have you documented your verification sources?
+- [ ] Have you admitted uncertainty where applicable?
+- [ ] Have you checked for actual CVEs if claiming security vulnerability?
+
+## Response Templates
+
+### Version Verification Template
+```markdown
+I've verified the following versions:
+- Go: Checked https://go.dev/dl/ - Current stable is 1.23.4 ✅
+- Rust: Official installation via rustup.rs (stable channel) ✅
+- Playwright: Checked npm - Latest is 1.49.0 ✅
+
+Current Dockerfile versions are correct.
+```
+
+### Cannot Verify Template
+```markdown
+I cannot verify current versions without web access. 
+Please check:
+- Go: https://go.dev/dl/
+- Rust: https://rust-lang.github.io/rustup-components-history/
+
+If versions have updated, consider:
+[specific recommendations with caveats]
+```
+
+### Correction Template
+```markdown
+**Correction to my previous review:**
+
+I incorrectly stated that [incorrect claim]. After verification at [source],
+the correct information is [corrected claim].
+
+I apologize for the confusion and have updated my review accordingly.
+```
+
+## Examples from This PR
+
+### ❌ Amazon Q's Incorrect Review
+Claimed:
+- "Rust 1.82.0 latest stable" (no verification)
+- "Go 1.23.6 latest stable" (no verification)
+- "curl-to-shell security vulnerability" (misunderstanding official method)
+
+### ✅ Correct Approach
+After verification:
+- Go 1.23.4 is current (verified at https://go.dev/dl/)
+- Rust stable via rustup IS official (https://www.rust-lang.org/tools/install)
+- rustup.rs curl-to-shell is NOT a vulnerability (official installation)
+
+## Integration with AI Agent Rules
+
+This verification protocol applies to:
+- GitHub Copilot reviews
+- Gemini Code Assist reviews
+- Amazon Q Developer reviews
+- Cursor Agent reviews
+- Any AI agent performing code review
+
+**Non-compliance** with verification requirements results in:
+- User frustration (requires manual correction)
+- Loss of trust in AI reviews
+- Wasted developer time fact-checking
+
+**Compliance** with verification requirements results in:
+- Accurate, trustworthy recommendations
+- User confidence in AI reviews
+- Faster PR merge cycles
+
+## Enforcement
+
+**User should call out unverified claims:**
+```markdown
+@agent Please verify this version against [official source] before suggesting changes.
+```
+
+**Agents should acknowledge and correct:**
+```markdown
+You're correct. I'll verify against [source]... [corrected information]
+```
+
+## Further Reading
+
+- CWE-494: Download of Code Without Integrity Check
+- NIST Guidelines on Software Supply Chain Security
+- Official installation documentation for each tool/language
+
+---
+
+**Last Updated**: 2025-11-27
+**Priority**: 2 (Critical for PR reviews)
+**Applies to**: All AI agents performing code review
