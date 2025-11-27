@@ -215,7 +215,7 @@ export_conport_to_markdown:
 # Import from markdown (restore from backup)
 import_markdown_to_conport:
   workspace_id: "${CONPORT_WORKSPACE_ID}"
-  input_path: "./conport_export/2024-01-15_14-30/"
+  input_path: "./conport_export/YYYY-MM-DD_HH-MM/"
 ```
 
 ## Error Handling
