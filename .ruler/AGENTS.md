@@ -2,6 +2,18 @@
 
 **This is the DEFINITIVE Python library template** for the jbcom ecosystem. All configuration, workflows, and agent instructions here represent the consolidated best practices from multiple production deployments.
 
+## 🎯 CRITICAL: PR Ownership Rule (READ WHEN WORKING WITH PRs!)
+
+**If you are working on a Pull Request, STOP and read `pr-ownership.md` FIRST.**
+
+Key points:
+- **First agent on PR = PR Owner** - You own ALL feedback, issues, and collaboration
+- **Engage with AI agents directly** - Respond to @gemini-code-assist, @copilot, etc.
+- **Free the user** - Handle everything that doesn't need human judgment
+- **Collaborate, don't escalate** - Resolve AI-to-AI conflicts yourself
+
+See `.ruler/pr-ownership.md` for complete protocol.
+
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
 **ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**

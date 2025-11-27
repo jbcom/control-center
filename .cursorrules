@@ -1,5 +1,33 @@
 # Cursor AI Rules for Python Library Template
 
+## 🎯 CRITICAL: PR Ownership Rule (READ WHEN WORKING WITH PRs!)
+
+**If you are working on a Pull Request, you are the PR OWNER.**
+
+Key responsibilities:
+- **Own ALL feedback** - Address every comment from humans AND other AI agents (@gemini-code-assist, @copilot, etc.)
+- **Engage directly with AI agents** - Respond to their feedback, ask clarifications, resolve conflicts
+- **Free the user** - Handle everything that doesn't need human judgment
+- **Collaborate actively** - Tag agents when fixing their concerns, explain decisions
+- **Merge when ready** - Execute merge after all feedback addressed and CI passes
+
+See full protocol in `.ruler/pr-ownership.md`
+
+When another AI agent comments on your PR, respond directly:
+- ✅ Security/HIGH priority → Fix immediately, tag agent in commit
+- ⚠️ Medium priority → Evaluate, implement if valid, explain if declining
+- 💬 Nitpicks → Acknowledge, batch with other changes
+- ❌ Conflicts with rules → Politely decline, reference `.ruler/AGENTS.md`
+
+**AI-to-AI response template:**
+```
+@agent-name Thank you for the feedback on <issue>.
+
+I've addressed it by <action>. Changes in <commit-hash>.
+
+Please verify this resolves your concern.
+```
+
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
 **ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
