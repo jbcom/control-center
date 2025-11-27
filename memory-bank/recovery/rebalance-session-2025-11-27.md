@@ -184,3 +184,40 @@ Final state of "jbcom Ecosystem Integration" project:
 https://github.com/jbcom/jbcom-control-center/pull/182
 
 **Status**: Keep open until all follow-up work is reviewed/delegated
+
+---
+
+## Agent Recovery Analysis (Past 48 Hours)
+
+### Recovered Sessions
+| Agent ID | Messages | Status | Recovery Status |
+|----------|----------|--------|-----------------|
+| bc-c1254c3f-ea3a-43a9-a958-13e921226f5d | 287 | FINISHED | ✅ Fully recovered |
+
+### Previous Holding Sessions
+| Branch | PR | Status | Notes |
+|--------|-----|--------|-------|
+| agent/holding-ci-stabilization-20251126-183158 | #156 | CLOSED | Completed |
+| agent/rebalance-github-projects-issues-20251127-224414 | #182 | OPEN | Current session |
+
+### Key Agent Branches (Active)
+- `fix/vendor-connectors-pypi-name` - 44 commits ahead of main (monorepo work)
+- `feat/cursor-background-agent-environment` - Dockerfile setup
+- `feat/pycalver-integration` - Version management
+
+### Copilot Sub-Agent Branches (Historical)
+Multiple `copilot/sub-pr-140-*` branches exist from PR #140 work - can be cleaned up.
+
+---
+
+## Recovery Tooling Used
+
+1. **agent-swarm-orchestrator** - Created tasks from conversation analysis
+2. **replay_agent_session.py** - Generated memory-bank replay artifacts
+3. **Manual synthesis** - Created consolidated recovery report
+
+### Files Generated This Session
+- `.cursor/recovery/bc-c1254c3f-ea3a-43a9-a958-13e921226f5d/CONSOLIDATED_RECOVERY_REPORT.md`
+- `memory-bank/recovery/bc-c1254c3f-recovered-full-replay.md`
+- `memory-bank/recovery/bc-c1254c3f-recovered-full-delegation.md`
+- `memory-bank/recovery/rebalance-session-2025-11-27.md` (this file)
