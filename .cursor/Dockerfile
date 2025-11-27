@@ -63,6 +63,16 @@ RUN corepack enable && \
     pnpm --version
 
 # =============================================================================
+# NODE.JS GLOBAL TOOLS
+# =============================================================================
+# Install Node.js tools globally that agents will need
+RUN pnpm install -g \
+    # Ruler - Agent instruction management (https://ai.intellectronica.net/ruler)
+    @intellectronica/ruler \
+    # Verify installation
+    && ruler --version
+
+# =============================================================================
 # RUST TOOLING (for modern CLI tools)
 # =============================================================================
 # Many modern development tools are written in Rust
