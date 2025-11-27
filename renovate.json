@@ -66,7 +66,7 @@
       "description": "Update mise tool versions in .mise.toml",
       "fileMatch": ["^\\.mise\\.toml$"],
       "matchStrings": [
-        "(?<depName>just)\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "just\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
       "datasourceTemplate": "github-releases",
       "depNameTemplate": "casey/just",
@@ -78,9 +78,9 @@
       "matchStrings": [
         "python\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "python",
-      "versioningTemplate": "docker"
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "python/cpython",
+      "versioningTemplate": "semver"
     },
     {
       "description": "Update Node version in .mise.toml",
@@ -88,19 +88,19 @@
       "matchStrings": [
         "node\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "node",
-      "versioningTemplate": "docker"
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "nodejs/node",
+      "versioningTemplate": "node"
     },
     {
       "description": "Update Go version in .mise.toml",
       "fileMatch": ["^\\.mise\\.toml$"],
       "matchStrings": [
-        "^go\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+        "go\\s*=\\s*\"(?<currentValue>[^\"]+)\""
       ],
-      "datasourceTemplate": "docker",
-      "depNameTemplate": "golang",
-      "versioningTemplate": "docker"
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "golang/go",
+      "extractVersionTemplate": "^go(?<version>.*)$"
     }
   ]
 }
