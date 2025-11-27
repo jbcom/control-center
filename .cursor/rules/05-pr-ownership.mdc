@@ -1,0 +1,285 @@
+---
+alwaysApply: true
+description: PR Ownership and AI-to-AI Collaboration Protocol
+globs: ["**/*"]
+priority: 1
+---
+
+# PR Ownership and AI-to-AI Collaboration
+
+**🚨 CRITICAL: READ FIRST WHEN WORKING WITH PULL REQUESTS 🚨**
+
+## First Agent Owns the PR
+
+If you are the **first AI agent** to engage with a pull request, you are the **PR OWNER** with full responsibility until merge or close.
+
+### You Own the PR If:
+- You created the PR
+- You're the first agent to respond to PR feedback
+- You're continuing work from previous session (check PR author)
+
+**Check ownership:**
+```bash
+gh pr view <NUM> --json author,comments
+```
+
+## PR Owner Responsibilities
+
+### 1. Address ALL Feedback
+- ✅ **Human feedback** - Implement requested changes
+- ✅ **AI agent feedback** - Respond to @gemini-code-assist, @copilot, etc.
+- ✅ **CI failures** - Fix all lint, test, build issues
+- ✅ **Security alerts** - Immediate action required
+
+### 2. Engage Directly with AI Agents
+
+**Priority Levels:**
+
+🔴 **HIGH/Security** → Fix immediately, tag agent in commit
+```markdown
+@gemini-code-assist Fixed security issue in <commit>.
+Replaced curl-to-shell with versioned binary download.
+Please verify this resolves your concern.
+```
+
+🟡 **MEDIUM/Code Quality** → Evaluate, implement if valid
+```markdown
+@copilot Thank you for the suggestion.
+I've updated the comment for clarity in <commit>.
+Does this address your concern?
+```
+
+🔵 **LOW/Nitpick** → Acknowledge, batch with other changes
+```markdown
+@agent Noted. Batching this with other style updates.
+Will address before merge.
+```
+
+⚫ **Conflicts with Rules** → Politely decline with explanation
+```markdown
+@agent Thank you for suggesting semantic-release.
+
+This project intentionally uses CalVer (`.ruler/AGENTS.md` lines 39-100).
+Our auto-release approach is simpler and battle-tested in production.
+
+See documentation for rationale: <link>
+```
+
+### 3. User Should NOT Be Involved Unless:
+- ❌ Decision requires product/business judgment
+- ❌ Hard blocker you cannot resolve
+- ❌ Explicit approval needed for breaking changes
+- ✅ Otherwise: Handle everything yourself
+
+## AI-to-AI Collaboration Protocol
+
+### Response Template
+```markdown
+@agent-name Thank you for the <priority> feedback on <issue>.
+
+**Action Taken:**
+<description of fix>
+
+**Changes:**
+- Commit: <hash>
+- Files: <list>
+
+**Verification:**
+<how to verify the fix>
+
+Please review and confirm this resolves your concern.
+```
+
+### Handling Conflicting AI Feedback
+
+When multiple agents disagree:
+
+1. **Check project rules first** (`.cursor/rules/`, `.ruler/AGENTS.md`)
+2. **Security always wins** - Address all security concerns
+3. **Document decision** - Explain why you chose approach X over Y
+4. **Tag all agents** - Keep everyone in the loop
+
+**Example:**
+```markdown
+@agent-a @agent-b Conflicting recommendations received:
+
+**@agent-a suggests:** Approach X for reason R1
+**@agent-b suggests:** Approach Y for reason R2
+
+**Decision:** Choosing X because:
+1. Aligns with project standard in `.ruler/AGENTS.md` (lines X-Y)
+2. Consistent with existing pattern in `<file>`
+3. Better performance for our use case
+
+@agent-b: While Y has merit for R2, our constraints prioritize R1.
+
+Please let me know if you see issues with this reasoning.
+```
+
+## PR Lifecycle
+
+### Creating PR
+```bash
+gh pr create --title "feat: description" --body "$(cat <<'EOF'
+## Summary
+<what and why>
+
+## Changes
+- <change 1>
+- <change 2>
+
+## Testing
+<how tested>
+
+## AI Agent Notes
+🤖 **Owner**: @cursor-background-agent
+🤖 **Status**: Ready for review
+🤖 **Request**: @gemini-code-assist @copilot please review
+
+## Checklist
+- [x] Tests pass
+- [x] Lint passes
+- [x] Docs updated
+EOF
+)"
+```
+
+### Monitoring PR
+- **Check daily** if PR open > 24h
+- **Respond within 24h** to any feedback
+- **Proactively seek AI review** before merge
+
+```bash
+# Request AI review
+gh pr comment <NUM> --body "@gemini-code-assist @copilot Please review security changes"
+
+# Check status
+gh pr checks <NUM>
+gh pr view <NUM> --comments
+```
+
+### Merging PR
+```bash
+# Final verification
+gh pr checks <NUM>    # All green?
+gh pr view <NUM>       # All feedback addressed?
+
+# Merge
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUM> --squash --delete-branch
+```
+
+## Examples
+
+### Example 1: Security Fix
+```
+AGENT ACTION:
+1. Parse: "curl-to-shell is security risk" (HIGH)
+2. Research: Find official binary download
+3. Implement: Replace with versioned download
+4. Commit: "security: replace curl-to-shell (addresses @gemini-code-assist)"
+5. Respond: "@gemini-code-assist Fixed in abc123. Please verify."
+6. Wait: 24h for re-review
+7. Proceed: Merge if approved or no response
+```
+
+### Example 2: Style Preference
+```
+AGENT ACTION:
+1. Parse: "Consider clarifying comment" (LOW)
+2. Evaluate: Improves clarity? YES. Conflicts? NO
+3. Implement: Update comment
+4. Commit: "docs: clarify per @copilot"
+5. Respond: "@copilot Updated. Better?"
+6. Continue: Don't block merge on response
+```
+
+### Example 3: Rule Violation
+```
+AGENT ACTION:
+1. Parse: "Add semantic-release" 
+2. Check: .ruler/AGENTS.md lines 39-100 → CalVer intentional
+3. Respond: Politely decline with documentation link
+4. No implementation: Don't contradict project rules
+5. Move on: Continue with PR
+```
+
+## Handoff Protocol
+
+### To Another Agent
+```markdown
+🤖 **PR HANDOFF** to @cursor-agent-v2
+
+**Reason:** <why handing off>
+
+**Status:**
+- ✅ Done: <items>
+- ⏳ In Progress: <items>  
+- ❌ Blocked: <items>
+
+**Outstanding:**
+- @gemini-code-assist: Waiting on security re-review
+- @copilot: Clarification requested
+
+**Next Actions:**
+1. <action>
+2. <action>
+
+You are now PR owner. Please acknowledge.
+```
+
+### To User (Last Resort)
+```markdown
+🤖 **HUMAN DECISION REQUIRED** @user
+
+**Issue:** <specific blocker>
+
+**Context:** <relevant info>
+
+**Options:**
+1. <option>: Pros/cons
+2. <option>: Pros/cons
+
+AI agents cannot autonomously decide this. Please provide direction.
+```
+
+## Anti-Patterns
+
+❌ **DON'T:**
+- Ignore AI agent feedback
+- Ask user to resolve AI conflicts
+- Merge with unresolved feedback
+- Silent fixes without communication
+- Defensive responses to AI agents
+- Abandon PRs without handoff
+
+✅ **DO:**
+- Respond to every comment
+- Handle AI-to-AI disagreements yourself
+- Tag agents when fixing their concerns
+- Be collaborative, not defensive
+- Explicitly hand off if blocked
+
+## Metrics
+
+Track your PR ownership:
+- ⏱️ Response time: < 24h
+- 🎯 Resolution rate: > 90%
+- 🤝 Collaboration: Engage every AI comment
+- 🚀 Merge time: < 7 days
+- ✅ CI success: > 95%
+
+## Summary
+
+**As first agent on PR:**
+1. Own it completely
+2. Collaborate actively with AI agents
+3. Free the user from process management
+4. Respond within 24h
+5. Ship it when ready
+
+**User involvement only when you truly need human judgment.**
+
+---
+
+**Last Updated**: 2025-11-27
+**Priority**: 1 (Read first for PR work)

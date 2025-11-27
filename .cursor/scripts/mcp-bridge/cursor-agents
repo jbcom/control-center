@@ -1,0 +1,194 @@
+#!/bin/bash
+# CLI wrapper for Cursor Background Agent Manager via mcp-proxy
+# Usage: cursor-agents <action> [options]
+# Examples:
+#   cursor-agents list
+#   cursor-agents create --task "Review PR #123"
+#   cursor-agents status <agent-id>
+
+set -e
+
+MCP_PROXY_URL="${MCP_PROXY_CURSOR_AGENTS_URL:-http://localhost:3011}"
+CURSOR_API_KEY="${CURSOR_API_KEY}"
+
+if [ -z "$CURSOR_API_KEY" ]; then
+  echo "❌ Error: CURSOR_API_KEY not set"
+  exit 1
+fi
+
+# Check if cursor-agent-manager service is running
+if ! curl -sf "${MCP_PROXY_URL}/mcp" > /dev/null 2>&1; then
+  echo "⚠️  Warning: cursor-agent-manager MCP proxy not responding"
+  echo "   Start with: process-compose up -d cursor-agent-manager"
+  echo "   Or check: process-compose logs cursor-agent-manager"
+fi
+
+ACTION="$1"
+shift || true
+
+case "$ACTION" in
+  list)
+    echo "=== Active Cursor Background Agents ==="
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listAgents","arguments":{}}}' 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
+    ;;
+  
+  create)
+    TASK="$*"
+    if [ -z "$TASK" ]; then
+      echo "Usage: cursor-agents create '<task description>'"
+      echo "Example: cursor-agents create 'Review security implications in PR #169'"
+      exit 1
+    fi
+    
+    echo "=== Creating New Background Agent ==="
+    echo "Task: $TASK"
+    echo ""
+    echo "⚠️  Note: launchAgent requires repository URL and ref"
+    echo "Example call structure:"
+    echo '  {"prompt": {"text": "'"$TASK"'"}, "source": {"repository": "https://github.com/jbcom/jbcom-control-center", "ref": "main"}}'
+    ;;
+  
+  repos|repositories)
+    echo "=== Available Repositories ==="
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listRepositories","arguments":{}}}' 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq -r '.result.content[0].text' | jq '.repositories[] | "\(.owner)/\(.name)"' | head -50
+    echo ""
+    echo "(Showing first 50 repositories)"
+    ;;
+  
+  models)
+    echo "=== Available AI Models ==="
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listModels","arguments":{}}}' 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
+    ;;
+  
+  status)
+    AGENT_ID="$1"
+    if [ -z "$AGENT_ID" ]; then
+      echo "Usage: cursor-agents status <agent-id>"
+      exit 1
+    fi
+    echo "=== Agent Status: $AGENT_ID ==="
+    
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"getAgentStatus\",\"arguments\":{\"agentId\":\"$AGENT_ID\"}}}" 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
+    ;;
+  
+  conversation)
+    AGENT_ID="$1"
+    if [ -z "$AGENT_ID" ]; then
+      echo "Usage: cursor-agents conversation <agent-id>"
+      exit 1
+    fi
+    echo "=== Agent Conversation: $AGENT_ID ==="
+    
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"getAgentConversation\",\"arguments\":{\"agentId\":\"$AGENT_ID\"}}}" 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
+    ;;
+  
+  followup)
+    AGENT_ID="$1"
+    shift
+    MESSAGE="$*"
+    if [ -z "$AGENT_ID" ] || [ -z "$MESSAGE" ]; then
+      echo "Usage: cursor-agents followup <agent-id> '<message>'"
+      exit 1
+    fi
+    
+    echo "=== Sending Followup to Agent: $AGENT_ID ==="
+    echo "Message: $MESSAGE"
+    
+    ARGS=$(jq -n --arg id "$AGENT_ID" --arg msg "$MESSAGE" \
+      '{agentId: $id, prompt: {text: $msg}}')
+    
+    RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
+      -H "Content-Type: application/json" \
+      -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"addFollowup\",\"arguments\":$ARGS}}" 2>&1)
+    
+    if [ $? -ne 0 ]; then
+      echo "❌ Error calling MCP proxy: ${RESPONSE}"
+      exit 1
+    fi
+    
+    echo "$RESPONSE" | jq
+    ;;
+  
+  help|--help|-h|"")
+    echo "Cursor Background Agent Manager (via MCP Proxy)"
+    echo ""
+    echo "Usage: cursor-agents <action> [options]"
+    echo ""
+    echo "Actions:"
+    echo "  list                      List all active background agents"
+    echo "  repos                     List all accessible repositories"
+    echo "  models                    List available AI models"
+    echo "  create '<task>'           Create a new background agent (interactive)"
+    echo "  status <agent-id>         Get status of specific agent"
+    echo "  conversation <agent-id>   View agent conversation history"
+    echo "  followup <agent-id> '<msg>' Send followup message to agent"
+    echo "  help                      Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  cursor-agents list"
+    echo "  cursor-agents repos | head -20"
+    echo "  cursor-agents models"
+    echo "  cursor-agents status bc-6886f54c-f4d9-4391-a0b9-83d112ca204a"
+    echo "  cursor-agents conversation bc-6886f54c-f4d9-4391-a0b9-83d112ca204a"
+    echo "  cursor-agents followup bc-abc123 'Please also update the tests'"
+    echo ""
+    echo "Environment:"
+    echo "  CURSOR_API_KEY           - Required for authentication (auto-set in Cursor)"
+    echo "  MCP_PROXY_CURSOR_AGENTS_URL - Override proxy URL (default: http://localhost:3011)"
+    echo ""
+    echo "Service:"
+    echo "  MCP Proxy: ${MCP_PROXY_URL}"
+    echo "  Backend: cursor-background-agent-mcp-server (stdio → HTTP)"
+    ;;
+  
+  *)
+    echo "❌ Unknown action: $ACTION"
+    echo "Run 'cursor-agents help' for usage information"
+    exit 1
+    ;;
+esac

@@ -1,0 +1,413 @@
+#!/bin/bash
+# Agent Swarm Orchestrator - Forensic Recovery via Parallel Sub-Agents
+# This script coordinates multiple specialized agents for comprehensive recovery
+
+set -e
+
+FAILED_AGENT_ID="${1:-bc-c1254c3f-ea3a-43a9-a958-13e921226f5d}"
+RECOVERY_DIR="/workspace/.cursor/recovery/${FAILED_AGENT_ID}"
+TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+
+export PATH="/root/.local/bin:$PATH"
+
+echo "=============================================="
+echo "🚀 AGENT SWARM ORCHESTRATOR"
+echo "=============================================="
+echo "Failed Agent: $FAILED_AGENT_ID"
+echo "Recovery Dir: $RECOVERY_DIR"
+echo "Timestamp: $TIMESTAMP"
+echo ""
+
+# Create recovery workspace
+mkdir -p "$RECOVERY_DIR"/{reports,logs}
+
+# ============================================
+# PHASE 1: CHRONOLOGICAL REPLAY & EXTRACTION
+# ============================================
+
+echo "📥 Phase 1: Retrieving failed agent conversation..."
+
+if [ -f "$RECOVERY_DIR/conversation.json" ]; then
+  echo "   ✅ Using existing conversation file"
+else
+  cursor-agents conversation "$FAILED_AGENT_ID" > "$RECOVERY_DIR/conversation.json" 2>/dev/null || {
+    echo "❌ Failed to retrieve conversation"
+    exit 1
+  }
+fi
+
+MSG_COUNT=$(jq '.messages | length' "$RECOVERY_DIR/conversation.json")
+echo "   Messages: $MSG_COUNT"
+
+if [ "$MSG_COUNT" -lt 5 ]; then
+  echo "⚠️  Too few messages for meaningful recovery"
+  exit 0
+fi
+
+echo ""
+echo "🔍 Phase 1: Extracting targets from conversation..."
+
+# Extract PRs mentioned
+jq -r '.messages[].text' "$RECOVERY_DIR/conversation.json" | \
+  grep -oE '#[0-9]+' | \
+  sort -u | \
+  sed 's/#//' > "$RECOVERY_DIR/prs.txt" || touch "$RECOVERY_DIR/prs.txt"
+
+# Extract repositories mentioned
+jq -r '.messages[].text' "$RECOVERY_DIR/conversation.json" | \
+  grep -oE 'github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+' | \
+  sed 's/github\.com\///' | \
+  sort -u > "$RECOVERY_DIR/repos.txt" || touch "$RECOVERY_DIR/repos.txt"
+
+# Extract branches mentioned
+jq -r '.messages[].text' "$RECOVERY_DIR/conversation.json" | \
+  grep -oE '(feat|fix|docs|refactor|chore)/[a-z0-9-]+' | \
+  sort -u > "$RECOVERY_DIR/branches.txt" || touch "$RECOVERY_DIR/branches.txt"
+
+# Extract files mentioned
+jq -r '.messages[].text' "$RECOVERY_DIR/conversation.json" | \
+  grep -oE '\S+\.(py|ts|tsx|js|jsx|md|yml|yaml|toml|json|sh)' | \
+  sort -u > "$RECOVERY_DIR/files.txt" || touch "$RECOVERY_DIR/files.txt"
+
+PR_COUNT=$(wc -l < "$RECOVERY_DIR/prs.txt")
+REPO_COUNT=$(wc -l < "$RECOVERY_DIR/repos.txt")
+BRANCH_COUNT=$(wc -l < "$RECOVERY_DIR/branches.txt")
+FILE_COUNT=$(wc -l < "$RECOVERY_DIR/files.txt")
+
+echo "   PRs: $PR_COUNT"
+echo "   Repos: $REPO_COUNT"
+echo "   Branches: $BRANCH_COUNT"
+echo "   Files: $FILE_COUNT"
+
+# ============================================
+# PHASE 2: SPAWN SPECIALIZED SUB-AGENTS
+# ============================================
+
+echo ""
+echo "🤖 Phase 2: Spawning specialized sub-agents..."
+echo ""
+
+SPAWNED_AGENTS=()
+
+# Sub-agent for each PR
+if [ "$PR_COUNT" -gt 0 ]; then
+  echo "📋 Spawning PR Recovery Agents..."
+  
+  while read pr_num; do
+    [ -z "$pr_num" ] && continue
+    
+    echo "   Analyzing PR #$pr_num..."
+    
+    # Get PR details
+    PR_INFO=$(GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr view "$pr_num" \
+      --repo jbcom/jbcom-control-center \
+      --json number,title,state,headRefName,repository 2>/dev/null || echo "{}")
+    
+    if [ "$PR_INFO" = "{}" ]; then
+      echo "   ⚠️  PR #$pr_num not found, skipping"
+      continue
+    fi
+    
+    PR_TITLE=$(echo "$PR_INFO" | jq -r '.title // "Unknown"')
+    PR_STATE=$(echo "$PR_INFO" | jq -r '.state // "UNKNOWN"')
+    PR_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName // "unknown"')
+    REPO=$(echo "$PR_INFO" | jq -r '.repository.nameWithOwner // "jbcom/jbcom-control-center"')
+    
+    echo "   📌 PR #$pr_num: $PR_TITLE ($PR_STATE)"
+    echo "   📁 Repository: $REPO"
+    echo "   🌿 Branch: $PR_BRANCH"
+    
+    # Create detailed sub-agent task
+    AGENT_TASK="🔍 Forensic Recovery: PR #${pr_num}
+
+## Context
+Agent **${FAILED_AGENT_ID}** mentioned this PR in their conversation before ${STATUS}.
+
+## Your Mission
+You are a specialized forensic recovery agent for **PR #${pr_num}**.
+
+### 1. Read Failed Agent's Conversation
+\`\`\`bash
+# Available at: ${RECOVERY_DIR}/conversation.json
+jq '.messages[] | select(.text | contains(\"#${pr_num}\"))' ${RECOVERY_DIR}/conversation.json
+\`\`\`
+
+### 2. Analyze PR State
+- PR: https://github.com/${REPO}/pull/${pr_num}
+- Title: ${PR_TITLE}
+- State: ${PR_STATE}
+- Branch: ${PR_BRANCH}
+
+### 3. Compare SAID vs ACTUAL
+What did the failed agent say they'd do on this PR?
+What actually exists in the PR now?
+What's missing or incomplete?
+
+### 4. Your Deliverables
+1. **Complete any unfinished work** if possible
+2. **Comment on PR** with your findings:
+   - ✅ What was completed
+   - ⚠️ What's partial
+   - ❌ What's missing
+3. **Create report**: ${RECOVERY_DIR}/reports/PR_${pr_num}_recovery.md
+4. **Update GitHub issues** if relevant
+
+### 5. Tools at Your Disposal
+- \`gh pr\` - GitHub CLI for PR operations
+- \`git\` - Repository access
+- \`aider\` - AI pair programming
+- \`jq\` - JSON parsing
+
+### Success Criteria
+- [ ] Analyzed failed agent's mentions of this PR
+- [ ] Compared claims vs reality
+- [ ] Completed OR documented missing work
+- [ ] Commented on PR #${pr_num}
+- [ ] Created recovery report
+- [ ] Updated relevant issues (if any)
+
+---
+
+**Repository**: ${REPO}
+**Branch**: ${PR_BRANCH}
+**Your Focus**: PR #${pr_num} ONLY
+
+**DO NOT** work on other PRs. Stay focused on THIS target."
+
+    # Save task for manual launch (cursor-agents create needs proper MCP setup)
+    echo "$AGENT_TASK" > "$RECOVERY_DIR/tasks/PR_${pr_num}_task.md"
+    
+    echo "   ✅ Task created: $RECOVERY_DIR/tasks/PR_${pr_num}_task.md"
+    echo ""
+    
+  done < "$RECOVERY_DIR/prs.txt"
+fi
+
+# Sub-agent for repository/branch combinations
+if [ "$BRANCH_COUNT" -gt 0 ]; then
+  echo "🌿 Spawning Branch Recovery Agents..."
+  
+  while read branch; do
+    [ -z "$branch" ] && continue
+    
+    echo "   Analyzing branch: $branch"
+    
+    # Check if branch exists
+    if git ls-remote --heads origin "$branch" 2>/dev/null | grep -q "$branch"; then
+      BRANCH_EXISTS="yes"
+      echo "   ✅ Branch exists"
+    else
+      BRANCH_EXISTS="no"
+      echo "   ❌ Branch does not exist"
+    fi
+    
+    AGENT_TASK="🔍 Forensic Recovery: Branch ${branch}
+
+## Context
+Agent **${FAILED_AGENT_ID}** mentioned branch \`${branch}\` in their work.
+
+## Your Mission
+Investigate what happened to branch \`${branch}\`.
+
+### 1. Branch Status
+- Exists: ${BRANCH_EXISTS}
+- If exists: Check commits, files, PRs
+- If missing: Determine if it was deleted or never created
+
+### 2. Failed Agent's Intent
+\`\`\`bash
+jq '.messages[] | select(.text | contains(\"${branch}\"))' ${RECOVERY_DIR}/conversation.json
+\`\`\`
+
+What were they trying to do on this branch?
+
+### 3. Your Deliverables
+1. Document branch history (if exists)
+2. Identify any lost work
+3. Create recovery report: ${RECOVERY_DIR}/reports/BRANCH_${branch//\//_}_recovery.md
+
+### 4. Actions
+- If branch exists: Verify it matches failed agent's intent
+- If branch missing: Document what was supposed to be there
+- Check for related PRs
+
+---
+
+**Branch**: ${branch}
+**Status**: ${BRANCH_EXISTS}"
+
+    echo "$AGENT_TASK" > "$RECOVERY_DIR/tasks/BRANCH_${branch//\//_}_task.md"
+    echo "   ✅ Task created"
+    echo ""
+    
+  done < "$RECOVERY_DIR/branches.txt"
+fi
+
+# Synthesis agent - consolidates all findings
+echo "📊 Creating Synthesis Agent Task..."
+
+SYNTHESIS_TASK="📊 Forensic Recovery: Synthesis & Consolidation
+
+## Context
+You are the synthesis agent for recovery of failed agent **${FAILED_AGENT_ID}**.
+
+Multiple specialized sub-agents have analyzed different aspects:
+- PR recovery agents
+- Branch recovery agents
+
+## Your Mission
+Wait for all sub-agents to complete, then synthesize their findings.
+
+### 1. Monitor Sub-Agent Progress
+\`\`\`bash
+# Check for completed reports
+ls -la ${RECOVERY_DIR}/reports/
+
+# Read each report
+for report in ${RECOVERY_DIR}/reports/*.md; do
+  echo \"=== \$report ===\"
+  cat \"\$report\"
+  echo \"\"
+done
+\`\`\`
+
+### 2. Consolidate Findings
+Create: \`${RECOVERY_DIR}/CONSOLIDATED_RECOVERY_REPORT.md\`
+
+Structure:
+\`\`\`markdown
+# Forensic Recovery Report: Agent ${FAILED_AGENT_ID}
+
+**Timestamp**: $(date)
+**Failed Agent**: ${FAILED_AGENT_ID}
+**Status**: ${STATUS:-UNKNOWN}
+**Sub-Agents Deployed**: ${PR_COUNT} PR agents + ${BRANCH_COUNT} branch agents
+
+## Executive Summary
+[High-level findings]
+
+## PR Recovery Results
+[Consolidate all PR_*_recovery.md files]
+
+## Branch Recovery Results
+[Consolidate all BRANCH_*_recovery.md files]
+
+## Overall Assessment
+- ✅ Work Completed: X items
+- ⚠️ Work Partial: Y items
+- ❌ Work Lost: Z items
+
+## Recommendations
+1. [Action item]
+2. [Action item]
+
+## GitHub Updates Needed
+- [ ] Update issue #X
+- [ ] Comment on PR #Y
+- [ ] Close issue #Z
+
+## Next Steps for Primary Agent
+[Clear actions to take]
+\`\`\`
+
+### 3. Update GitHub
+- Create summary issue
+- Update project board
+- Link all related PRs/issues
+
+---
+
+**Wait for**: All sub-agent reports to be generated
+**Output**: Consolidated recovery report + GitHub updates"
+
+echo "$SYNTHESIS_TASK" > "$RECOVERY_DIR/tasks/SYNTHESIS_task.md"
+echo "   ✅ Synthesis task created"
+echo ""
+
+# ============================================
+# PHASE 3: EXECUTION SUMMARY
+# ============================================
+
+echo "=============================================="
+echo "✅ AGENT SWARM ORCHESTRATION PREPARED"
+echo "=============================================="
+echo ""
+echo "📁 Recovery workspace: $RECOVERY_DIR"
+echo ""
+echo "📋 Tasks created:"
+ls -1 "$RECOVERY_DIR"/tasks/*.md 2>/dev/null | wc -l | xargs echo "   Total tasks:"
+echo ""
+echo "🔍 Next Steps:"
+echo ""
+echo "1. Review tasks: ls $RECOVERY_DIR/tasks/"
+echo ""
+echo "2. Launch sub-agents manually (until cursor-agent-manager is running):"
+echo "   for task in $RECOVERY_DIR/tasks/*.md; do"
+echo "     echo \"Creating agent for: \$task\""
+echo "     # Copy task content and create new background agent in Cursor"
+echo "   done"
+echo ""
+echo "3. Monitor progress:"
+echo "   cursor-agents list | grep -i 'forensic'"
+echo ""
+echo "4. Check reports as they complete:"
+echo "   watch -n 30 'ls -lh $RECOVERY_DIR/reports/'"
+echo ""
+echo "5. Run synthesis when all complete:"
+echo "   cat $RECOVERY_DIR/tasks/SYNTHESIS_task.md"
+echo ""
+echo "=============================================="
+echo ""
+
+# Generate a summary file
+cat > "$RECOVERY_DIR/ORCHESTRATION_SUMMARY.md" << EOF
+# Agent Swarm Orchestration Summary
+
+**Failed Agent**: $FAILED_AGENT_ID
+**Started**: $TIMESTAMP
+**Message Count**: $MSG_COUNT
+
+## Targets Extracted
+- **PRs**: $PR_COUNT
+- **Repositories**: $REPO_COUNT  
+- **Branches**: $BRANCH_COUNT
+- **Files**: $FILE_COUNT
+
+## Tasks Created
+$(ls -1 "$RECOVERY_DIR"/tasks/*.md 2>/dev/null | sed 's|.*/||; s|\.md$||' | sed 's/^/- /')
+
+## Execution Plan
+
+### Phase 1: Deploy Sub-Agents ✅
+Specialized agents for each PR and branch mentioned.
+
+### Phase 2: Monitor Progress (IN PROGRESS)
+\`\`\`bash
+cursor-agents list | grep "Forensic Recovery"
+\`\`\`
+
+### Phase 3: Consolidate Reports (PENDING)
+Wait for all sub-agents to complete their reports.
+
+### Phase 4: GitHub Updates (PENDING)
+Update projects, issues, PRs based on findings.
+
+## Files Generated
+- Conversation: $RECOVERY_DIR/conversation.json
+- PRs: $RECOVERY_DIR/prs.txt
+- Repos: $RECOVERY_DIR/repos.txt
+- Branches: $RECOVERY_DIR/branches.txt
+- Files: $RECOVERY_DIR/files.txt
+
+## Task Definitions
+See: $RECOVERY_DIR/tasks/
+
+## Reports (Generated by Sub-Agents)
+Will appear in: $RECOVERY_DIR/reports/
+EOF
+
+echo "📄 Orchestration summary: $RECOVERY_DIR/ORCHESTRATION_SUMMARY.md"
+echo ""
+
+# Display the summary
+cat "$RECOVERY_DIR/ORCHESTRATION_SUMMARY.md"
