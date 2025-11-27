@@ -235,6 +235,37 @@ RUN pip install --no-cache-dir \
 docker build --no-cache -f .cursor/Dockerfile -t jbcom-control-center:dev .
 ```
 
+## Automated Dependency Management
+
+This repository uses multiple tools to keep dependencies up to date:
+
+### Dependabot
+Configured in `.github/dependabot.yml` to automatically:
+- Update GitHub Actions (daily)
+- Update Python packages (daily)
+- Update Docker base images (weekly)
+
+### Renovate
+Configured in `renovate.json` to automatically:
+- Update Docker base image (`jdxcode/mise:latest`)
+- Update Go tool versions in Dockerfile
+- Update mise tool versions in `.mise.toml`
+- Update language runtime versions
+
+### Pre-commit Hooks
+Configured in `.pre-commit-config.yaml` to validate:
+- **hadolint**: Dockerfile linting and best practices
+- **yamllint**: YAML syntax and style
+- **ruff**: Python linting and formatting
+- **mypy**: Python type checking
+- **actionlint**: GitHub Actions workflow validation
+- **markdownlint**: Markdown formatting
+
+Run pre-commit hooks manually:
+```bash
+pre-commit run --all-files
+```
+
 ## Integration with Agent Rules
 
 This environment is designed to work with the agent rules in `.cursor/rules/`:
