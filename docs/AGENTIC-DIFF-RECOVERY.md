@@ -70,7 +70,62 @@ cursor-agents list | jq '.agents[] |
 
 **Scenarios:**
 - ✅ **Handoff PR exists** → Clean handoff, follow normal process
-- ⚠️ **No handoff, recent ERROR/EXPIRED** → Recovery needed
+- ⚠️ **No handoff, recent ERROR/EXPIRED** → **DELEGATE to forensic recovery sub-agent**
+
+### Phase 1.5: Sub-Agent Delegation (PREFERRED METHOD)
+
+**Instead of running aider yourself**, delegate forensic recovery to a specialized sub-agent:
+
+```bash
+# Launch a sub-agent for forensic recovery
+FAILED_AGENT_ID="bc-2f734412-e52c-4c56-b34d-03cf35ad67f0"
+
+# Get their conversation first
+cursor-agents conversation $FAILED_AGENT_ID > /tmp/failed_agent.json
+MSG_COUNT=$(jq '.messages | length' /tmp/failed_agent.json)
+
+# Create comprehensive recovery task
+RECOVERY_TASK="Forensic Recovery: Agent $FAILED_AGENT_ID
+
+SITUATION:
+- Agent $FAILED_AGENT_ID ended in ERROR/EXPIRED state
+- They had $MSG_COUNT messages of conversation
+- Their conversation is saved at /tmp/failed_agent.json
+
+YOUR TASK:
+1. Read their full conversation from /tmp/failed_agent.json
+2. Extract all files, branches, and PRs they mentioned
+3. Use aider with claude-opus-4 to compare what they SAID vs what EXISTS
+4. Check git history: git log --all --oneline
+5. Check branches: git branch -a
+6. Check PRs: gh pr list --limit 50
+7. Generate a structured recovery report:
+   ✅ COMPLETED - Work that was finished
+   ⚠️ PARTIAL - Work started but incomplete  
+   ❌ LOST - Work claimed but not found
+   🔧 RECOVERY PLAN - Specific steps to restore
+
+OUTPUT:
+Create a file: /workspace/RECOVERY_REPORT_${FAILED_AGENT_ID}.md
+
+Use aider extensively for the forensic analysis."
+
+# Launch recovery sub-agent (returns immediately, agent runs in background)
+cursor-agents create "$RECOVERY_TASK"
+
+# Monitor the sub-agent
+cursor-agents list | grep -i "forensic"
+
+# When complete, retrieve their findings
+ls -la /workspace/RECOVERY_REPORT_*.md
+```
+
+**Why Sub-Agent Delegation is Superior:**
+- ✅ **Specialized focus** - Recovery agent only does recovery
+- ✅ **Parallel execution** - You continue your work while they investigate
+- ✅ **Clean separation** - Their aider usage doesn't interfere with yours
+- ✅ **Persistent results** - They create files you can read
+- ✅ **Fault tolerance** - If they fail, you can try different approach
 
 ### Phase 2: Retrieve Agent Conversation
 
@@ -366,17 +421,19 @@ export AIDER_NO_AUTO_COMMITS="true"
 
 ## CLI Wrapper: `agent-recover`
 
-Create a convenience wrapper:
+### Version 1: Direct Analysis (Quick)
+
+For immediate analysis without launching sub-agent:
 
 ```bash
 #!/bin/bash
-# /workspace/.cursor/scripts/agent-recover
-# Automated recovery from failed agent session
+# /workspace/.cursor/scripts/agent-recover-quick
+# Quick forensic analysis without sub-agent delegation
 
 FAILED_AGENT_ID="$1"
 
 if [ -z "$FAILED_AGENT_ID" ]; then
-  echo "Usage: agent-recover <failed-agent-id>"
+  echo "Usage: agent-recover-quick <failed-agent-id>"
   exit 1
 fi
 
@@ -491,23 +548,150 @@ conport log_custom_data \
 
 ---
 
-## Future Enhancements
+## Sub-Agent Delegation Patterns
 
-### Automated Recovery
+### Pattern 1: Forensic Recovery Sub-Agent
 ```bash
-# Future: AI agent that auto-recovers from previous agent
-cursor-agents create "Recover work from agent $FAILED_AGENT_ID using aider"
+# Delegate recovery to specialized agent
+agent-recover-delegate bc-2f734412-e52c-4c56-b34d-03cf35ad67f0
+
+# Monitor their progress
+cursor-agents list | grep -i "forensic"
+
+# Retrieve their report when done
+cat RECOVERY_REPORT_bc-2f734412.md
 ```
 
-### Recovery Templates
-- Standard recovery prompts for aider
-- Common failure patterns
-- Auto-detection of crash causes
+### Pattern 2: Validation Sub-Agent
+```bash
+# Before creating handoff, delegate self-validation
+cursor-agents create "Validate Agent bc-6886f54c Work
 
-### Integration with CI
-- Auto-trigger recovery on agent ERROR
-- Notify user only if recovery fails
-- Seamless continuation without human intervention
+Review my conversation and verify:
+1. Every file I modified is committed
+2. Every PR I claimed to create exists
+3. All tests pass
+4. Documentation is complete
+5. No uncommitted work remains
+
+Generate: VALIDATION_REPORT_bc-6886f54c.md"
+```
+
+### Pattern 3: Parallel Testing Sub-Agent
+```bash
+# Delegate testing while you continue main work
+cursor-agents create "Test PR #169 Comprehensively
+
+1. Checkout PR #169
+2. Run all tests: pytest, mypy, ruff
+3. Build Docker image
+4. Test MCP proxy services
+5. Verify all CLI wrappers work
+
+Generate: TEST_REPORT_PR169.md"
+```
+
+### Pattern 4: Documentation Sub-Agent
+```bash
+# Delegate doc updates while you code
+cursor-agents create "Update Documentation for PR #169
+
+Review changes in PR #169 and:
+1. Update relevant docs/ files
+2. Add examples for new features
+3. Update CHANGELOG.md
+4. Check for broken links
+5. Ensure consistency
+
+Commit changes to PR #169 branch."
+```
+
+### Pattern 5: Cross-Repo Sync Sub-Agent
+```bash
+# Delegate ecosystem coordination
+cursor-agents create "Sync Package Changes Across Ecosystem
+
+PR #169 added new MCP tooling to control-center.
+
+Your task:
+1. Identify which packages need updates
+2. Create PRs in each package
+3. Update dependencies
+4. Test integration
+5. Report back with PR links
+
+Repositories:
+- extended-data-types
+- lifecyclelogging
+- vendor-connectors"
+```
+
+## Benefits of Sub-Agent Delegation
+
+### For Primary Agent (You)
+- ✅ **Stay focused** on main task
+- ✅ **Parallel execution** of sub-tasks
+- ✅ **Delegate expertise** (recovery, testing, docs)
+- ✅ **Fault isolation** - Their failures don't affect you
+
+### For Sub-Agents
+- ✅ **Clear scope** - Single responsibility
+- ✅ **Specialized tools** - Use what they need (aider, etc.)
+- ✅ **Time-boxed** - Finish and exit
+- ✅ **Persistent output** - Create files for primary agent
+
+### For User
+- ✅ **No coordination needed** - Agents self-organize
+- ✅ **Faster completion** - Parallel work
+- ✅ **Better quality** - Specialized agents do better work
+- ✅ **Less interruption** - Only intervene on blockers
+
+## Future Enhancements
+
+### Automated Sub-Agent Spawning
+```bash
+# Auto-detect need for recovery and spawn sub-agent
+if [ "$NO_HANDOFF" = true ] && [ "$PREV_AGENT_ERROR" = true ]; then
+  agent-recover-delegate $PREV_AGENT_ID --auto
+fi
+```
+
+### Sub-Agent Orchestration
+```yaml
+# .cursor/agent-orchestra.yml
+on_new_session:
+  - check_for_handoff
+  - if_no_handoff:
+      spawn:
+        - forensic_recovery_agent
+        - validation_agent
+  - await_reports:
+      timeout: 5min
+  - synthesize_findings
+  - continue_primary_work
+
+on_pre_merge:
+  spawn:
+    - validation_agent
+    - test_agent
+    - documentation_agent
+  - await_all
+  - if_all_pass:
+      create_handoff_pr
+```
+
+### Agent Communication Protocol
+```bash
+# Primary agent → Sub-agent
+cursor-agents followup $SUB_AGENT_ID "Check branch feat/xyz too"
+
+# Sub-agent → Primary agent (via file)
+echo "Recovery complete. 3 files lost, recovery plan in report." > \
+  /workspace/.cursor/agent_messages/to_primary_$(date +%s).txt
+
+# Primary agent reads messages
+ls -t /workspace/.cursor/agent_messages/to_primary_*.txt | head -1 | xargs cat
+```
 
 ---
 
