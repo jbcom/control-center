@@ -43,7 +43,7 @@ RUN corepack enable && \
 # Using official installation script
 ENV PC_VERSION="v1.27.0"
 RUN ARCH=$(dpkg --print-architecture) && \
-    curl -sSL "" \
+    curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PC_VERSION}/process-compose_${PC_VERSION}_linux_${ARCH}.tar.gz" \
     -o /tmp/process-compose.tar.gz && \
     tar -xzf /tmp/process-compose.tar.gz -C /usr/local/bin process-compose && \
     chmod +x /usr/local/bin/process-compose && \
