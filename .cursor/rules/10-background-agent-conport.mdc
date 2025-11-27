@@ -225,7 +225,7 @@ On any ConPort tool failure:
    ```yaml
    log_custom_data:
      category: "ErrorLogs"
-     key: "2024-01-15T14:30:00_conport_error"
+     key: "YYYY-MM-DDTHH:MM:SS_conport_error"
      value:
        error: "Connection failed"
        context: "Attempting to log decision"

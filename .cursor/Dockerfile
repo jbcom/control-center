@@ -54,8 +54,8 @@ RUN git lfs install --system --skip-smudge
 # =============================================================================
 # NODE.JS PACKAGE MANAGER (pnpm)
 # =============================================================================
-# pnpm version (line below) MUST match package.json "packageManager" field exactly.
-# PNPM_HOME path configuration is independent and does not need to match package.json.
+# pnpm version (line 63) MUST match package.json "packageManager" field exactly.
+# PNPM_HOME path configuration (line 59) is independent and does not need to match package.json.
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && \
@@ -100,36 +100,27 @@ RUN cargo install --locked \
     && rm -rf $CARGO_HOME/registry
 
 # =============================================================================
-# PYTHON TOOLING (beyond base image's uv)
+# PYTHON TOOLING (using uv from base image)
 # =============================================================================
-# Install Python development tools globally
-# The base image includes uv, but we need additional tooling
-RUN pip install --no-cache-dir \
-    # Testing frameworks
-    pytest>=8.0.0 \
-    pytest-cov>=4.1.0 \
-    pytest-xdist>=3.5.0 \
-    pytest-asyncio>=0.23.0 \
-    # Type checking
-    mypy>=1.8.0 \
-    pyright>=1.1.350 \
-    # Linting and formatting
-    ruff>=0.2.0 \
-    # Pre-commit framework
-    pre-commit>=3.6.0 \
-    # CalVer versioning
-    pycalver>=202010.0 \
-    # Poetry (some projects may use it)
-    poetry>=1.7.0 \
-    # Task automation
-    nox>=2023.4.22 \
-    # ConPort for memory management (MCP server)
-    context-portal-mcp>=0.3.0 \
-    # CrewAI for agent workflows
-    crewai>=1.0.0 \
-    crewai-tools>=1.0.0 \
-    # Ruler for agent instruction management
-    ruler>=2.0.0
+# Base image includes uv - use it for proper dependency management
+# Install global CLI tools with uv tool install
+RUN uv tool install ruff && \
+    uv tool install mypy && \
+    uv tool install pre-commit && \
+    uv tool install nox && \
+    uv tool install pycalver
+
+# Verify uv and tools are available
+RUN uv --version && \
+    ruff --version && \
+    mypy --version && \
+    pre-commit --version
+
+# Note: Package-specific dependencies (pytest, pyright, crewai, etc.) 
+# should be defined in packages/*/pyproject.toml and installed with:
+#   cd packages/<package> && uv sync
+# Agent-specific tools (context-portal-mcp, crewai-tools) belong in 
+# their respective package dependencies, not globally
 
 # =============================================================================
 # DEVELOPER TOOLS - process-compose
@@ -162,7 +153,8 @@ RUN pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium && \
 # Some tools we might want in the future are Go-based
 # Install Go for potential future tooling needs
 ENV GO_VERSION="1.23.4"
-RUN curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz && \
+RUN GOARCH=$(dpkg --print-architecture | sed 's/armhf/arm/' | sed 's/i386/386/') && \
+    curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tar.gz && \
     tar -C /usr/local -xzf /tmp/go.tar.gz && \
     rm /tmp/go.tar.gz
 ENV PATH="/usr/local/go/bin:$PATH"
@@ -215,7 +207,8 @@ RUN echo "=== VERIFICATION ===" && \
     process-compose version && \
     cargo --version && \
     go version && \
-    pytest --version && \
-    mypy --version && \
     ruff --version && \
+    mypy --version && \
+    pre-commit --version && \
+    ruler --version && \
     echo "=== ALL TOOLS VERIFIED ==="
