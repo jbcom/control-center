@@ -41,7 +41,13 @@ RUN corepack enable && \
 # =============================================================================
 # Process-compose - Multi-process orchestration (required for CrewAI workflows)
 # Using official installation script
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -b /usr/local/bin && \
+ENV PC_VERSION="v1.27.0"
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "" \
+    -o /tmp/process-compose.tar.gz && \
+    tar -xzf /tmp/process-compose.tar.gz -C /usr/local/bin process-compose && \
+    chmod +x /usr/local/bin/process-compose && \
+    rm /tmp/process-compose.tar.gz && \
     process-compose version
 
 # =============================================================================
