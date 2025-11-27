@@ -33,4 +33,3 @@ TERM = "xterm-256color"
 COLORTERM = "truecolor"
 EDITOR = "vim"
 PAGER = "less"
-
