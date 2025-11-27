@@ -1,0 +1,235 @@
+#!/bin/bash
+# Automated Agent Triage Pipeline
+# End-to-end automation for processing agent recovery sessions
+#
+# This script orchestrates the full triage workflow:
+# 1. Scan for unprocessed recovery sessions
+# 2. Run analysis on each session
+# 3. Decompose into repository-specific tasks
+# 4. Execute with aider (if API key available)
+# 5. Update memory bank
+# 6. Generate delegation prompts
+
+set -euo pipefail
+
+# Secure PATH - only add if directory exists and is not already in PATH
+if [[ -d "/root/.local/bin" ]] && [[ ":$PATH:" != *":/root/.local/bin:"* ]]; then
+    export PATH="/root/.local/bin:$PATH"
+fi
+
+RECOVERY_BASE="${RECOVERY_BASE:-/workspace/.cursor/recovery}"
+MEMORY_BANK="${MEMORY_BANK:-/workspace/memory-bank}"
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+echo "=============================================="
+echo "🚀 AUTOMATED AGENT TRIAGE PIPELINE"
+echo "=============================================="
+echo "Recovery Base: $RECOVERY_BASE"
+echo "Memory Bank: $MEMORY_BANK"
+echo "Timestamp: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+echo ""
+
+# ============================================
+# PHASE 1: SCAN FOR SESSIONS
+# ============================================
+
+echo "📁 Phase 1: Scanning for recovery sessions..."
+
+if [ ! -d "$RECOVERY_BASE" ]; then
+    echo "⚠️  Recovery directory not found: $RECOVERY_BASE"
+    echo "   No sessions to process."
+    exit 0
+fi
+
+SESSIONS=()
+PROCESSED=0
+UNPROCESSED=0
+
+for session_dir in "$RECOVERY_BASE"/*/; do
+    [ ! -d "$session_dir" ] && continue
+    
+    SESSION_ID=$(basename "$session_dir")
+    CONVERSATION="$session_dir/conversation.json"
+    CONSOLIDATED="$session_dir/CONSOLIDATED_RECOVERY_REPORT.md"
+    
+    if [ ! -f "$CONVERSATION" ]; then
+        echo "   ⏭️  $SESSION_ID - No conversation.json (skipping)"
+        continue
+    fi
+    
+    if [ -f "$CONSOLIDATED" ]; then
+        echo "   ✅ $SESSION_ID - Already processed"
+        ((PROCESSED++))
+    else
+        echo "   📋 $SESSION_ID - Needs processing"
+        SESSIONS+=("$SESSION_ID")
+        ((UNPROCESSED++))
+    fi
+done
+
+echo ""
+echo "   Processed: $PROCESSED"
+echo "   Unprocessed: $UNPROCESSED"
+echo ""
+
+if [ ${#SESSIONS[@]} -eq 0 ]; then
+    echo "✅ All sessions already processed!"
+    exit 0
+fi
+
+# ============================================
+# PHASE 2: PROCESS EACH SESSION
+# ============================================
+
+echo "🔄 Phase 2: Processing unprocessed sessions..."
+echo ""
+
+for SESSION_ID in "${SESSIONS[@]}"; do
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Processing: $SESSION_ID"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Run local triage
+    "$SCRIPTS_DIR/agent-triage-local" "$SESSION_ID" analyze || {
+        echo "⚠️  Analysis failed for $SESSION_ID"
+        continue
+    }
+    
+    "$SCRIPTS_DIR/agent-triage-local" "$SESSION_ID" decompose || {
+        echo "⚠️  Decomposition failed for $SESSION_ID"
+        continue
+    }
+    
+    echo ""
+done
+
+# ============================================
+# PHASE 3: UPDATE MEMORY BANK
+# ============================================
+
+echo "📝 Phase 3: Updating memory bank..."
+
+for SESSION_ID in "${SESSIONS[@]}"; do
+    SESSION_DIR="$RECOVERY_BASE/$SESSION_ID"
+    CONVERSATION="$SESSION_DIR/conversation.json"
+    TASKS_DIR="$SESSION_DIR/tasks"
+    
+    [ ! -f "$CONVERSATION" ] && continue
+    
+    # Use replay script if available
+    if [ -f "/workspace/scripts/replay_agent_session.py" ]; then
+        echo "   Replaying $SESSION_ID to memory bank..."
+        
+        python /workspace/scripts/replay_agent_session.py \
+            --conversation "$CONVERSATION" \
+            --tasks-dir "$TASKS_DIR" \
+            --session-label "${SESSION_ID}-pipeline" \
+            --timeline-limit 50 2>/dev/null || {
+                echo "   ⚠️  Replay failed for $SESSION_ID"
+            }
+    fi
+done
+
+echo ""
+
+# ============================================
+# PHASE 4: GENERATE DELEGATION SUMMARY
+# ============================================
+
+echo "📊 Phase 4: Generating delegation summary..."
+
+SUMMARY_FILE="$MEMORY_BANK/recovery/PIPELINE_DELEGATION_SUMMARY.md"
+mkdir -p "$(dirname "$SUMMARY_FILE")"
+
+cat > "$SUMMARY_FILE" << EOF
+# Triage Pipeline Delegation Summary
+
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+**Sessions Processed**: ${#SESSIONS[@]}
+
+## Sessions Requiring Follow-up
+
+EOF
+
+for SESSION_ID in "${SESSIONS[@]}"; do
+    SESSION_DIR="$RECOVERY_BASE/$SESSION_ID"
+    
+    cat >> "$SUMMARY_FILE" << EOF
+### $SESSION_ID
+
+**Analysis**: \`$SESSION_DIR/ANALYSIS_SUMMARY.md\`
+
+**Repository Tasks**:
+EOF
+    
+    if [ -d "$SESSION_DIR/by-repo" ]; then
+        for repo_dir in "$SESSION_DIR/by-repo"/*/; do
+            [ ! -d "$repo_dir" ] && continue
+            REPO_NAME=$(basename "$repo_dir")
+            echo "- \`$repo_dir/TASK.md\` ($REPO_NAME)" >> "$SUMMARY_FILE"
+        done
+    else
+        echo "- (no repository decomposition)" >> "$SUMMARY_FILE"
+    fi
+    
+    echo "" >> "$SUMMARY_FILE"
+done
+
+cat >> "$SUMMARY_FILE" << EOF
+
+## Execution Commands
+
+### With Aider (Requires API Key)
+\`\`\`bash
+export ANTHROPIC_API_KEY="your-key"
+for session in ${SESSIONS[@]}; do
+    .cursor/scripts/agent-triage-local "\$session" execute
+done
+\`\`\`
+
+### Manual Review
+\`\`\`bash
+# List all tasks
+find $RECOVERY_BASE -name "TASK.md" -type f
+
+# View specific task
+cat $RECOVERY_BASE/<session-id>/by-repo/<repo>/TASK.md
+\`\`\`
+
+### Create Background Agents (When MCP Available)
+\`\`\`bash
+# Start MCP services
+process-compose up -d cursor-agent-manager
+
+# Launch agents for each task
+for task in $RECOVERY_BASE/*/by-repo/*/TASK.md; do
+    cursor-agents create "\$(cat \$task)"
+done
+\`\`\`
+EOF
+
+echo "   ✅ Summary: $SUMMARY_FILE"
+
+# ============================================
+# PHASE 5: FINAL REPORT
+# ============================================
+
+echo ""
+echo "=============================================="
+echo "✅ TRIAGE PIPELINE COMPLETE"
+echo "=============================================="
+echo ""
+echo "Processed ${#SESSIONS[@]} session(s):"
+for SESSION_ID in "${SESSIONS[@]}"; do
+    echo "  - $SESSION_ID"
+done
+echo ""
+echo "Next Steps:"
+echo "1. Review: $SUMMARY_FILE"
+echo "2. Execute tasks with aider (if API key available)"
+echo "3. Or create background agents when MCP available"
+echo ""
+echo "Quick Start:"
+echo "  export ANTHROPIC_API_KEY='your-key'"
+echo "  .cursor/scripts/agent-triage-local <session-id> execute"
+echo ""
