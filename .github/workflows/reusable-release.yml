@@ -28,7 +28,7 @@ jobs:
           name: versioned-source
           path: source
 
-      - uses: astral-sh/setup-uv@v4
+      - uses: astral-sh/setup-uv@v7
 
       - name: Verify version
         run: |
