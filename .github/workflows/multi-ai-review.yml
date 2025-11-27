@@ -80,7 +80,7 @@ jobs:
       
       - name: Trigger Amazon Q Review
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           gh pr comment ${{ github.event.pull_request.number }} \
             --body "/q review
@@ -166,7 +166,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
       
       - name: Setup git identity
         run: |
@@ -264,7 +264,7 @@ jobs:
         with:
           ref: ${{ github.event.workflow_run.head_branch }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
       
       - name: Get CI failure details
         id: failure_details
