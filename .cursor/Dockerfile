@@ -56,7 +56,7 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # Pre-install Playwright dependencies and Chromium browser
 # Playwright bundles its own Chromium (not using system package)
 # This is required for CrewAI agents using @modelcontextprotocol/server-playwright
-RUN pnpm dlx playwright install-deps chromium && \
-    pnpm dlx playwright install chromium
+RUN pnpm dlx playwright@1.49.0 install-deps chromium && \
+    pnpm dlx playwright@1.49.0 install chromium
 
 WORKDIR /workspace
