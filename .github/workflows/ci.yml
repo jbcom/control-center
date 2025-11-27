@@ -92,7 +92,7 @@ jobs:
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - uses: astral-sh/setup-uv@v7
 
@@ -121,7 +121,7 @@ jobs:
           grep -r "__version__" packages/*/src/*/__init__.py || true
 
       - name: Upload versioned source
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: versioned-source
           path: |
