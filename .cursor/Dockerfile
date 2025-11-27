@@ -101,6 +101,8 @@ RUN mise x -- pnpm install -g \
 # Install additional Rust-based tools useful for background agents
 # The --locked flag ensures Cargo uses Cargo.lock for dependency resolution,
 # guaranteeing reproducible builds of these tools.
+# The --locked flag ensures Cargo uses Cargo.lock for dependency resolution,
+# guaranteeing reproducible builds of these tools.
 RUN mise x -- cargo install --locked \
     # Modern ls replacement with icons
     exa \
