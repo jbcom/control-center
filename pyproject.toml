@@ -67,8 +67,9 @@ docs = [
 dev = [
     "jbcom-control-center[tests,typing,docs]",
     "pre-commit>=3.6.0",
-    "ruff>=0.2.0",
+    "ruff>=0.8.0",
     "pycalver>=202010.0",
+    "nox>=2024.4.15",
 ]
 
 [project.urls]
