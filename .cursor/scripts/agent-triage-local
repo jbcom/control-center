@@ -5,12 +5,15 @@
 # This script provides a fallback when cursor-agent-manager MCP is unavailable.
 # It processes conversation exports directly and runs aider for forensic analysis.
 
-set -e
+set -euo pipefail
 
-export PATH="/root/.local/bin:$PATH"
+# Secure PATH - only add if directory exists and is not already in PATH
+if [[ -d "/root/.local/bin" ]] && [[ ":$PATH:" != *":/root/.local/bin:"* ]]; then
+    export PATH="/root/.local/bin:$PATH"
+fi
 
 RECOVERY_BASE="${RECOVERY_BASE:-/workspace/.cursor/recovery}"
-AGENT_ID="$1"
+AGENT_ID="${1:-}"
 MODE="${2:-analyze}"  # analyze, decompose, execute
 
 usage() {
@@ -34,8 +37,26 @@ usage() {
     exit 1
 }
 
+# Validate agent ID format (alphanumeric with hyphens, typical UUID format)
+validate_agent_id() {
+    local id="$1"
+    if [[ ! "$id" =~ ^[a-zA-Z0-9-]+$ ]]; then
+        echo "❌ Invalid agent ID format: $id"
+        echo "   Agent IDs should contain only alphanumeric characters and hyphens"
+        exit 1
+    fi
+    if [[ ${#id} -lt 8 ]]; then
+        echo "❌ Agent ID too short: $id"
+        exit 1
+    fi
+}
+
 [ -z "$AGENT_ID" ] && usage
 
+# Validate inputs
+validate_agent_id "$AGENT_ID"
+
+# Construct paths safely (no command injection possible with validated ID)
 RECOVERY_DIR="$RECOVERY_BASE/$AGENT_ID"
 CONVERSATION="$RECOVERY_DIR/conversation.json"
 

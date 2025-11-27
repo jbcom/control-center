@@ -10,13 +10,16 @@
 # 5. Update memory bank
 # 6. Generate delegation prompts
 
-set -e
+set -euo pipefail
 
-export PATH="/root/.local/bin:$PATH"
+# Secure PATH - only add if directory exists and is not already in PATH
+if [[ -d "/root/.local/bin" ]] && [[ ":$PATH:" != *":/root/.local/bin:"* ]]; then
+    export PATH="/root/.local/bin:$PATH"
+fi
 
 RECOVERY_BASE="${RECOVERY_BASE:-/workspace/.cursor/recovery}"
 MEMORY_BANK="${MEMORY_BANK:-/workspace/memory-bank}"
-SCRIPTS_DIR="$(dirname "$0")"
+SCRIPTS_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo "=============================================="
 echo "🚀 AUTOMATED AGENT TRIAGE PIPELINE"
