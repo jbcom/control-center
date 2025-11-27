@@ -233,9 +233,34 @@ When you identify a missing tool:
 
 1. **Add it to Dockerfile** immediately (this PR or next commit)
 2. **Update documentation** (TOOLS_REFERENCE.md)
-3. **Note in commit message**: "Adds <tool> to environment (discovered missing during <task>)"
-4. **Verify addition** in verification step
-5. **Test locally if possible** or note that rebuild required
+3. **Apply agent config changes** with ruler (see below)
+4. **Note in commit message**: "Adds <tool> to environment (discovered missing during <task>)"
+5. **Verify addition** in verification step
+6. **Test locally if possible** or note that rebuild required
+
+### Applying Agent Configuration Changes
+
+**CRITICAL: Cursor reads from `.cursor/rules/*.mdc` files, NOT `.cursorrules`**
+
+When you update agent rules in `.ruler/*.md`:
+
+```bash
+# Apply ruler to regenerate all agent configs
+ruler apply
+
+# This updates:
+# - .cursorrules (for legacy Cursor)
+# - .github/copilot-instructions.md (for Copilot)  
+# - AGENTS.md (for Aider)
+# - .claud (for Claude)
+```
+
+**For Cursor background agent, edit these directly:**
+- `.cursor/rules/00-loader.mdc` - Project structure and workflow
+- `.cursor/rules/05-pr-ownership.mdc` - PR collaboration protocol
+- `.cursor/rules/10-background-agent-conport.mdc` - Memory management
+
+**Cursor loads `.mdc` files automatically - no regeneration needed!**
 
 ### Example Commit Message
 ```

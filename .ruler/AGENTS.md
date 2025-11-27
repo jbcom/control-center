@@ -4,15 +4,19 @@
 
 ## 🎯 CRITICAL: PR Ownership Rule (READ WHEN WORKING WITH PRs!)
 
-**If you are working on a Pull Request, STOP and read `pr-ownership.md` FIRST.**
+**If you are working on a Pull Request, this rule applies.**
+
+**For Cursor background agents:** See `.cursor/rules/05-pr-ownership.mdc` for complete protocol.
+**For other agents:** See summary below.
 
 Key points:
 - **First agent on PR = PR Owner** - You own ALL feedback, issues, and collaboration
 - **Engage with AI agents directly** - Respond to @gemini-code-assist, @copilot, etc.
 - **Free the user** - Handle everything that doesn't need human judgment
 - **Collaborate, don't escalate** - Resolve AI-to-AI conflicts yourself
+- **Merge when ready** - Execute merge after all feedback addressed
 
-See `.ruler/pr-ownership.md` for complete protocol.
+See `.cursor/rules/REFERENCE-pr-ownership-details.md` for detailed examples and templates.
 
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
