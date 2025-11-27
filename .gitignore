@@ -250,6 +250,8 @@ fabric.properties
 /.kilocode/rules/ruler_kilocode_instructions.md.bak
 /.mcp.json
 /.mcp.json.bak
+/.roo/mcp.json
+/.roo/mcp.json.bak
 /.vscode/mcp.json
 /.vscode/mcp.json.bak
 /.windsurf/mcp_config.json

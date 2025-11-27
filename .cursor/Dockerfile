@@ -285,6 +285,9 @@ LOG_ROOT="${LOG_ROOT:-$WORKSPACE_ROOT/logs}"
 CURSOR_ROOT="${CURSOR_ROOT:-$WORKSPACE_ROOT/.cursor}"
 MEMORY_BANK_ROOT="${MEMORY_BANK_ROOT:-$WORKSPACE_ROOT/memory-bank}"
 
+# Ensure .cursor directory exists before attempting any operations within it
+mkdir -p "$CURSOR_ROOT"
+
 if [ -d "$LOG_ROOT" ]; then
   echo "ℹ️  Logs directory present at $LOG_ROOT"
 else
@@ -296,7 +299,10 @@ if [ -d "$MEMORY_BANK_ROOT" ]; then
     if [ -e "$CURSOR_ROOT/memory-bank" ]; then
       echo "ℹ️  Existing .cursor/memory-bank found; leaving in place (not a symlink)"
     else
-      ln -s "$MEMORY_BANK_ROOT" "$CURSOR_ROOT/memory-bank"
+      # Use atomic operation to prevent race conditions
+      ln -s "$MEMORY_BANK_ROOT" "$CURSOR_ROOT/memory-bank.tmp" && \
+      mv "$CURSOR_ROOT/memory-bank.tmp" "$CURSOR_ROOT/memory-bank"
+      echo "✅ Linked .cursor/memory-bank -> $MEMORY_BANK_ROOT"
     fi
   fi
 else
@@ -306,7 +312,9 @@ fi
 SETUP_SCRIPT="$CURSOR_ROOT/scripts/mcp-bridge/setup.sh"
 if [ -x "$SETUP_SCRIPT" ]; then
   echo "🔗 Linking MCP bridge wrappers via $SETUP_SCRIPT --global"
-  "$SETUP_SCRIPT" --global || true
+  if ! "$SETUP_SCRIPT" --global; then
+    echo "⚠️  MCP bridge setup failed, but continuing (this may be expected if MCP bridge is not configured)"
+  fi
 else
   echo "ℹ️  Skipping MCP bridge linking; $SETUP_SCRIPT not present in workspace"
 fi

@@ -8,8 +8,8 @@ This utility ingests a Cursor conversation export (the JSON stored in
 - A refreshed `memory-bank/activeContext.md` reflecting the replayed focus
 - An optional delegation plan that can be piped into MCP-friendly CLIs
 
-The script intentionally keeps the `.cursor/memory-bank` copy in sync with
-`memory-bank` to avoid fragile symlink-based setups.
+The global `memory-bank/` directory is the single source of truth for all agents.
+Subdirectory memory-banks (e.g., `.cursor/memory-bank/`) have been eliminated.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from typing import Any, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MEMORY_BANK_ROOT = REPO_ROOT / "memory-bank"
-CURSOR_MEMORY_BANK_ROOT = REPO_ROOT / ".cursor" / "memory-bank"
+# CURSOR_MEMORY_BANK_ROOT removed - all memory now lives in global memory-bank/
 
 DEFAULT_TIMELINE_LIMIT = 50
 
@@ -140,7 +140,7 @@ def _refresh_active_context(summary: str, tasks: list[str], session_label: str) 
 ## Next Actions
 - Run `python scripts/replay_agent_session.py --conversation <path/to/conversation.json>` for each new recovery export.
 - Pipe `memory-bank/recovery/{session_label}-delegation.md` into MCP-aware CLIs (Codex, Claude code aider) to launch sub-agents.
-- Keep `memory-bank/` and `.cursor/memory-bank/` synchronized after each replay using this script's mirroring step.
+- All agents read from and write to the global `memory-bank/` directory (no subdirectory copies).
 
 ## Session Highlight
 {summary}
@@ -194,14 +194,7 @@ Ensure your MCP proxy is running via `process-compose up -d` so filesystem and G
     return plan_path
 
 
-def _mirror_to_cursor_memory_bank() -> None:
-    CURSOR_MEMORY_BANK_ROOT.mkdir(parents=True, exist_ok=True)
-    for filename in ["activeContext.md", "progress.md", "agenticRules.md", "README.md"]:
-        source = MEMORY_BANK_ROOT / filename
-        if not source.is_file():
-            continue
-        target = CURSOR_MEMORY_BANK_ROOT / filename
-        target.write_text(source.read_text())
+# _mirror_to_cursor_memory_bank() removed - all memory now lives in global memory-bank/
 
 
 def _maybe_run_ai_summary(ai_command: str | None, timeline_path: Path) -> str | None:
@@ -271,7 +264,7 @@ def main() -> None:
 
     _append_progress_entry(summary, timeline_path, tasks, session_label)
     _refresh_active_context(summary, tasks, session_label)
-    _mirror_to_cursor_memory_bank()
+    # Mirroring to .cursor/memory-bank removed - global memory-bank/ is the single source of truth
 
     print("=== Replay complete ===")
     print(f"Session label: {session_label}")
