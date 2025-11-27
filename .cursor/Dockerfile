@@ -179,8 +179,9 @@ RUN go install github.com/mikefarah/yq/v4@latest && \
 # Tools for managing cloud infrastructure and secrets
 # VERIFIED: 2025-11-27 from GitHub releases and official sources
 
-# Terraform - specific version required by organization
-ENV TERRAFORM_VERSION="1.13.1"
+# Terraform - using latest stable version
+# VERIFIED: 2025-11-27 from https://github.com/hashicorp/terraform/releases
+ENV TERRAFORM_VERSION="1.14.0"
 RUN ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip" \
     -o /tmp/terraform.zip && \
