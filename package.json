@@ -17,8 +17,8 @@
   },
   "devDependencies": {
     "@intellectronica/ruler": "^0.6.7",
-    "mcp-proxy": "^0.1.1",
-    "cursor-background-agent-mcp-server": "^0.1.0",
+    "mcp-proxy": "^5.11.2",
+    "cursor-background-agent-mcp-server": "^1.0.3",
     "playwright": "^1.49.0"
   },
   "keywords": [
