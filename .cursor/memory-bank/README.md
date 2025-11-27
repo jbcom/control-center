@@ -1,68 +1,33 @@
-# Agent Memory Bank
+# Global Memory Bank
 
-Persistent memory for AI agents working on this repository.
+This directory is the single source of truth for agent memory across jbcom-control-center. All agents (interactive and background) should read from and write to these files to maintain a coherent chronology.
 
-## Purpose
+Background agents are responsible for creating the directory structure if it is missing during handoff; the Docker image and runtime bootstrap no longer pre-create any of these paths.
 
-This directory enables session continuity for AI agents (Cursor, Copilot, Claude, etc.) by providing:
-- **Context preservation** across sessions
-- **Progress tracking** for multi-step work
-- **Decision documentation** for complex changes
-- **Rule enforcement** for consistent behavior
+- `activeContext.md` — current focus and next actions
+- `progress.md` — chronological log of completed and pending work
+- `agenticRules.md` — stable behavioral expectations for every agent
+- `recovery/` — transcripts and diagnostics recovered from failed or background agents
 
-## Files
+## Merged memory-bank locations
 
-| File | Purpose | Persistence |
-|------|---------|-------------|
-| `activeContext.md` | Current work focus, active PRs/branches | Update every session |
-| `progress.md` | Task tracking, session logs, milestones | Append after completions |
-| `agenticRules.md` | Behavior rules, authentication, workflows | Stable reference |
+The historical `.cursor/memory-bank` content is merged here to avoid symlinks and split states. Compatibility copies are kept under `.cursor/memory-bank/` by running `python scripts/replay_agent_session.py`, which mirrors updates after each replay.
 
-## Usage Pattern
+## Automated session replay
 
-### Session Start
-```
-1. Read activeContext.md - understand current focus
-2. Read progress.md - see what's been done
-3. Check GitHub issues/PRs for context
-4. Continue from "Next Actions"
+Use `scripts/replay_agent_session.py` to ingest recovered Cursor background-agent transcripts and populate the memory bank:
+
+```bash
+python scripts/replay_agent_session.py \
+  --conversation .cursor/recovery/<agent-id>/conversation.json \
+  --tasks-dir .cursor/recovery/<agent-id>/tasks
 ```
 
-### During Work
-```
-1. Update progress.md after significant completions
-2. Create GitHub issues for multi-step work
-3. Link commits/PRs to issues
-```
+The script will:
+- Archive a condensed transcript to `memory-bank/recovery/<agent-id>-replay.md`
+- Append a replay entry to `progress.md`
+- Refresh `activeContext.md` with the current focus and next actions
+- Generate a delegation prompt for MCP-aware CLIs (Codex, Claude code aider, etc.)
+- Mirror the updated files into `.cursor/memory-bank/` for backward compatibility
 
-### Session End
-```
-1. Update activeContext.md with current state
-2. Update "Next Actions" list
-3. Commit memory-bank changes
-```
-
-## GitHub Integration
-
-Memory-bank works alongside GitHub for tracking:
-
-- **Issues**: Work items, bugs, features
-- **Projects**: Roadmaps, milestones  
-- **PRs**: Code changes linked to issues
-
-**Active Project**: [jbcom Ecosystem Integration](https://github.com/users/jbcom/projects/2)
-
-## Cross-Branch Persistence
-
-This memory-bank is on `main` branch to ensure availability across all feature branches.
-When working on feature branches, memory-bank updates should be:
-1. Made on the feature branch
-2. Included in the PR
-3. Merged to main with the PR
-
-## External Repositories
-
-When working on external repos (terraform-modules, terraform-aws-secretsmanager):
-- Check for their own memory-bank: `<repo>/memory-bank/`
-- Keep notes synchronized
-- Document cross-repo work in both places
+If you want AI-authored summaries, pass `--ai-command "codex summarize --stdin"` (or another CLI that reads from stdin and writes the summary to stdout).
