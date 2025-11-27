@@ -183,3 +183,30 @@ Shall I trigger a test run of this workflow?
 ### Pending
 - [ ] Wire `--ai-command` to Codex/Claude CLI with MCP to auto-summarize replays and spawn sub-agents.
 - [ ] Trigger session replay automatically from process-compose once background agents finish runs.
+
+## Session: Nov 27, 2025 (Evening - Rebalance)
+
+### Completed
+- [x] Opened holding PR #182 for rebalance session
+- [x] Reviewed all memory-bank recovery docs
+- [x] Audited GitHub project "jbcom Ecosystem Integration"
+- [x] Closed stale issues: terraform-modules #201 (deepmerge done), #184 (superseded)
+- [x] Closed stale PRs: terraform-modules #183, #185 (superseded by vendor-connectors approach)
+- [x] Created new tracking issues in control-center: #183 (enterprise secrets), #184 (CI fixes)
+- [x] Added new issues to GitHub project
+- [x] Verified PR #203 CI is green and ready to merge
+- [x] Documented CI failures in vendor-connectors (PyPI publish) and lifecyclelogging (CodeQL actions)
+
+### GitHub Project State
+| Status | Issue | Repository | Description |
+|--------|-------|------------|-------------|
+| In Progress | #200 | terraform-modules | vendor-connectors integration |
+| Done | #201 | terraform-modules | deepmerge in extended-data-types |
+| Todo | #202 | terraform-modules | Remove terraform secret wrappers |
+| Todo | #183 | control-center | Enterprise SOPS secrets sync |
+| Todo | #184 | control-center | Fix vendor-connectors/lifecyclelogging CI |
+
+### Next Priority Actions
+1. Merge terraform-modules PR #203 (CI green)
+2. Fix vendor-connectors PyPI publish issue
+3. Complete enterprise secrets sync (#183)

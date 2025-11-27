@@ -1,8 +1,9 @@
 # Active Context
 
 ## Current Focus
-- Merge Cursor and repository memory banks into the root-level `memory-bank/` without symlinks.
-- Automate replay of background agent sessions into the shared memory bank and delegation prompts.
+- Complete vendor-connectors integration in terraform-modules (PR #203 ready to merge)
+- Fix CI issues in vendor-connectors and lifecyclelogging public repos
+- Implement SOPS-based enterprise secrets sync
 
 ## Active Work
 
