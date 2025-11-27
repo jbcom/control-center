@@ -16,7 +16,7 @@ go = "1.23.4"             # For Go-based tools (yq, lazygit, glow)
 # go modules come with go
 
 # Development tools available via mise plugins
-just = "latest"           # Task automation
+just = "1.43.1"           # Task automation (verified Nov 2025)
 
 [env]
 # Python optimizations

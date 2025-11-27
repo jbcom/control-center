@@ -99,6 +99,8 @@ RUN mise x -- pnpm install -g \
 # =============================================================================
 # Rust toolchain is installed via mise (.mise.toml)
 # Install additional Rust-based tools useful for background agents
+# The --locked flag ensures Cargo uses Cargo.lock for dependency resolution,
+# guaranteeing reproducible builds of these tools.
 RUN mise x -- cargo install --locked \
     # Modern ls replacement with icons
     exa \
@@ -165,10 +167,10 @@ RUN mise x -- pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium &&
 # GO-BASED DEVELOPER TOOLS
 # =============================================================================
 # Go toolchain is installed via mise (.mise.toml)
-# Install useful Go-based tools
-RUN mise x -- go install github.com/mikefarah/yq/v4@latest && \
-    mise x -- go install github.com/jesseduffield/lazygit@latest && \
-    mise x -- go install github.com/charmbracelet/glow@latest
+# Install useful Go-based tools with pinned versions (verified Nov 2025)
+RUN mise x -- go install github.com/mikefarah/yq/v4@v4.49.2 && \
+    mise x -- go install github.com/jesseduffield/lazygit@v0.56.0 && \
+    mise x -- go install github.com/charmbracelet/glow@v2.1.1
 
 # =============================================================================
 # INFRASTRUCTURE & CLOUD TOOLS
