@@ -285,30 +285,24 @@ LOG_ROOT="${LOG_ROOT:-$WORKSPACE_ROOT/logs}"
 CURSOR_ROOT="${CURSOR_ROOT:-$WORKSPACE_ROOT/.cursor}"
 MEMORY_BANK_ROOT="${MEMORY_BANK_ROOT:-$WORKSPACE_ROOT/memory-bank}"
 
-# Ensure .cursor directory exists before attempting any operations within it
+# Ensure .cursor directory exists for MCP bridge operations
 mkdir -p "$CURSOR_ROOT"
 
+# Check log directory status (agents create on first write)
 if [ -d "$LOG_ROOT" ]; then
   echo "ℹ️  Logs directory present at $LOG_ROOT"
 else
   echo "ℹ️  Logs directory missing; background agents will create it when they start writing"
 fi
 
+# Check global memory bank status (agents create during handoff if needed)
 if [ -d "$MEMORY_BANK_ROOT" ]; then
-  if [ ! -L "$CURSOR_ROOT/memory-bank" ]; then
-    if [ -e "$CURSOR_ROOT/memory-bank" ]; then
-      echo "ℹ️  Existing .cursor/memory-bank found; leaving in place (not a symlink)"
-    else
-      # Use atomic operation to prevent race conditions
-      ln -s "$MEMORY_BANK_ROOT" "$CURSOR_ROOT/memory-bank.tmp" && \
-      mv "$CURSOR_ROOT/memory-bank.tmp" "$CURSOR_ROOT/memory-bank"
-      echo "✅ Linked .cursor/memory-bank -> $MEMORY_BANK_ROOT"
-    fi
-  fi
+  echo "✅ Global memory bank found at $MEMORY_BANK_ROOT"
 else
   echo "ℹ️  Global memory bank not found at $MEMORY_BANK_ROOT; agents should create it during handoff if needed"
 fi
 
+# Link MCP bridge wrappers if available
 SETUP_SCRIPT="$CURSOR_ROOT/scripts/mcp-bridge/setup.sh"
 if [ -x "$SETUP_SCRIPT" ]; then
   echo "🔗 Linking MCP bridge wrappers via $SETUP_SCRIPT --global"
