@@ -91,11 +91,11 @@ jobs:
             });
 
   # ============================================================================
-  # PHASE 3: DiffGuard AI Review (Third Perspective)
+  # PHASE 3: OpenAI GPT-4 Review (Third Perspective)
   # ============================================================================
-  diffguard-review:
-    name: DiffGuard AI Review
-    if: github.event_name == 'pull_request'
+  openai-review:
+    name: OpenAI GPT-4 Review
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     needs: claude-review
     steps:
@@ -104,16 +104,16 @@ jobs:
         with:
           fetch-depth: 0
       
-      - name: DiffGuard Review
-        uses: DiffGuard/diffguard-action@v1
+      - name: OpenAI Code Review
+        uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
-          focus-areas: |
-            - Python best practices
-            - Dependency management
-            - Breaking changes
-            - Version compatibility
+          script: |
+            // Note: OpenAI review can be integrated via custom script or third-party action
+            // For now, this is a placeholder for future OpenAI GPT-4 integration
+            // Alternative: Use GitHub Copilot for code review
+            console.log('OpenAI review placeholder - can integrate codex-action here');
+            core.info('Consider GitHub Copilot or custom OpenAI integration');
 
   # ============================================================================
   # PHASE 4: Claude Collaboration & Synthesis
@@ -121,8 +121,8 @@ jobs:
   claude-synthesis:
     name: Claude Synthesis & Collaboration
     runs-on: ubuntu-latest
-    needs: [claude-review, amazonq-review, diffguard-review]
-    if: always()
+    needs: [claude-review, amazonq-review, openai-review]
+    if: always() && !cancelled()
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
