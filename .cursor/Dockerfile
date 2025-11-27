@@ -66,5 +66,5 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 # aider requires Python 3.12 (not 3.13) - use uv's managed Python
 # See: https://github.com/Aider-AI/aider/issues/3037
 ENV PATH="/root/.local/bin:$PATH"
-RUN uv tool install --python python3.12 aider-chat@latest && \
+RUN uv tool install --python python3.12 aider-chat==0.86.1 && \
     aider --version
