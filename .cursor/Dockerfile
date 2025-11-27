@@ -40,7 +40,7 @@ RUN corepack enable && \
 # DEVELOPER TOOLS
 # =============================================================================
 # Process-compose - Multi-process orchestration (required for CrewAI workflows)
-# Using official installation script
+# Using versioned binary for reproducibility and security
 ENV PC_VERSION="v1.27.0"
 RUN ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PC_VERSION}/process-compose_${PC_VERSION}_linux_${ARCH}.tar.gz" \
