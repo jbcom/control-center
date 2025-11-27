@@ -1,0 +1,245 @@
+---
+alwaysApply: true
+description: Background Agent ConPort Memory Strategy
+globs: ["**/*"]
+---
+
+# Background Agent - ConPort Memory Strategy
+
+## Status Prefix (MANDATORY)
+
+Begin EVERY response with either:
+- `[CONPORT_ACTIVE]` - ConPort database exists and is usable
+- `[CONPORT_INACTIVE]` - ConPort not available or initialization failed
+
+## Initialization Sequence
+
+At the **start of every background agent session**, execute this sequence:
+
+### Step 1: Determine Workspace ID
+```bash
+export CONPORT_WORKSPACE_ID="$(pwd)"
+```
+
+### Step 2: Check for Existing Database
+```bash
+# Check if context_portal/context.db exists
+ls -la ./context_portal/context.db 2>/dev/null
+```
+
+### Step 3: Branch Based on Database State
+
+**If context.db EXISTS** → Execute `load_existing_context`:
+1. Load product context (overall project goals)
+2. Load active context (current sprint focus)
+3. Load recent decisions (limit: 5)
+4. Load recent progress (limit: 5)
+5. Load system patterns
+6. Load critical_settings custom data
+7. Load ProjectGlossary custom data
+
+**If context.db DOES NOT EXIST** → Execute `initialize_conport`:
+1. Inform that no ConPort database found
+2. Check for `projectBrief.md` in workspace root
+3. If found, import to Product Context
+4. Set status to [CONPORT_ACTIVE]
+
+## ConPort MCP Tool Usage
+
+ConPort is configured as an MCP server in `.ruler/ruler.toml`. Use these tools:
+
+### Core Context Tools
+```yaml
+# Get overall project context
+get_product_context:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+
+# Get current sprint/focus context
+get_active_context:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+
+# Update product context (use patch_content for partial updates)
+update_product_context:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  patch_content:
+    key_to_update: "new_value"
+    key_to_remove: "__DELETE__"
+
+# Update active context
+update_active_context:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  patch_content:
+    current_focus: "new focus"
+    mode: "ACT"  # or "PLAN"
+```
+
+### Decision Logging
+```yaml
+# Log architectural/implementation decisions
+log_decision:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  summary: "Brief summary of decision"
+  rationale: "Why this decision was made"
+  implementation_details: "How it's implemented"
+  tags: ["architecture", "ecs", "performance"]
+
+# Search decisions
+search_decisions_fts:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  query_term: "ECS component"
+  limit: 10
+```
+
+### Progress Tracking
+```yaml
+# Log task progress
+log_progress:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  status: "IN_PROGRESS"  # or "TODO", "DONE", "BLOCKED"
+  description: "Implementing GameBuilderCrew"
+  linked_item_type: "decision"
+  linked_item_id: "42"
+
+# Update existing progress
+update_progress:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  progress_id: 123
+  status: "DONE"
+  description: "GameBuilderCrew implementation complete"
+```
+
+### Custom Data (Flexible Storage)
+```yaml
+# Store custom data
+log_custom_data:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  category: "artifacts"  # or "ProjectGlossary", "critical_settings", "sprint_docs"
+  key: "ecs_components_spec"
+  value:
+    type: "document"
+    content: "..."
+    tags: ["ecs", "architecture"]
+
+# Search custom data
+search_custom_data_value_fts:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  query_term: "value_text:\"artifact_kind:doc\""
+  category_filter: "artifacts"
+  limit: 10
+```
+
+### Knowledge Graph Links
+```yaml
+# Link related items
+link_conport_items:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  source_item_type: "decision"
+  source_item_id: "42"
+  target_item_type: "progress_entry"
+  target_item_id: "123"
+  relationship_type: "IMPLEMENTS"
+  description: "This progress implements the decision"
+
+# Get linked items
+get_linked_items:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  item_type: "decision"
+  item_id: "42"
+  relationship_type_filter: "IMPLEMENTS"
+```
+
+## Proactive Logging Rules
+
+### When to Log Decisions
+- Architectural choices (e.g., "Use Miniplex ECS over alternatives")
+- Technology selections (e.g., "OpenRouter for LLM API")
+- Pattern adoptions (e.g., "@CrewBase decorator pattern")
+- Breaking changes or deprecations
+
+### When to Log Progress
+- Task started (status: "IN_PROGRESS")
+- Task blocked (status: "BLOCKED", include blocker details)
+- Task completed (status: "DONE")
+- Sub-task creation (use parent_id)
+
+### When to Update Active Context
+- Sprint focus changes
+- Mode switches (PLAN ↔ ACT)
+- Open issues arise
+- Current focus shifts
+
+## Sync Routine
+
+Trigger: User says "Sync ConPort" or "ConPort Sync"
+
+1. Send `[CONPORT_SYNCING]`
+2. Review entire chat history
+3. Extract:
+   - New decisions → `log_decision`
+   - Progress updates → `log_progress` / `update_progress`
+   - Context changes → `update_active_context` / `update_product_context`
+   - New patterns → `log_system_pattern`
+   - Related items → `link_conport_items`
+4. Confirm sync complete
+
+## Process-Compose Integration
+
+ConPort runs as a background process via `process-compose.yaml`:
+
+```yaml
+processes:
+  conport:
+    command: "uvx --from context-portal-mcp conport-mcp --mode stdio --workspace_id ${PWD} --log-file ./logs/conport.log --log-level INFO"
+    availability:
+      restart: "always"
+```
+
+Start all processes:
+```bash
+process-compose up -d
+```
+
+Check ConPort status:
+```bash
+process-compose logs conport
+```
+
+## Export/Import for Review
+
+```yaml
+# Export to markdown (for human review)
+export_conport_to_markdown:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  output_path: "./conport_export/$(date +%Y-%m-%d_%H-%M)/"
+
+# Import from markdown (restore from backup)
+import_markdown_to_conport:
+  workspace_id: "${CONPORT_WORKSPACE_ID}"
+  input_path: "./conport_export/YYYY-MM-DD_HH-MM/"
+```
+
+## Error Handling
+
+On any ConPort tool failure:
+1. Log error to custom data:
+   ```yaml
+   log_custom_data:
+     category: "ErrorLogs"
+     key: "YYYY-MM-DDTHH:MM:SS_conport_error"
+     value:
+       error: "Connection failed"
+       context: "Attempting to log decision"
+   ```
+2. Set status to `[CONPORT_INACTIVE]`
+3. Continue work without ConPort dependency
+4. Retry initialization on next turn
+
+## Best Practices
+
+1. **Always include workspace_id** in every ConPort call
+2. **Use patch_content** for partial updates (not full overwrites)
+3. **Link related items** to build the knowledge graph
+4. **Tag consistently** for searchability
+5. **Keep summaries concise** - ConPort is for retrieval, not prose
+6. **Export before major changes** for backup
+7. **Semantic search** when keywords are insufficient

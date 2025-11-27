@@ -1,0 +1,248 @@
+#!/bin/bash
+# Delegate forensic recovery to a specialized sub-agent
+# This is the PREFERRED method for recovery
+
+set -e
+
+FAILED_AGENT_ID="$1"
+REPO="${2:-jbcom/jbcom-control-center}"
+CURRENT_BRANCH=$(git branch --show-current)
+
+if [ -z "$FAILED_AGENT_ID" ]; then
+  echo "Usage: agent-recover-delegate <failed-agent-id> [repo]"
+  echo ""
+  echo "Example:"
+  echo "  agent-recover-delegate bc-2f734412-e52c-4c56-b34d-03cf35ad67f0"
+  echo "  agent-recover-delegate bc-abc123 jbcom/other-repo"
+  exit 1
+fi
+
+echo "=============================================="
+echo "🚀 DELEGATING FORENSIC RECOVERY TO SUB-AGENT"
+echo "=============================================="
+echo "Failed Agent: $FAILED_AGENT_ID"
+echo "Repository: $REPO"
+echo ""
+
+# 1. Pre-flight: Get failed agent's basic info
+echo "📥 Retrieving failed agent info..."
+cursor-agents status $FAILED_AGENT_ID > /tmp/failed_status.json 2>/dev/null || {
+  echo "❌ Could not retrieve agent status"
+  exit 1
+}
+
+cursor-agents conversation $FAILED_AGENT_ID > /tmp/failed_conversation_${FAILED_AGENT_ID}.json 2>/dev/null || {
+  echo "❌ Could not retrieve conversation"
+  exit 1
+}
+
+MSG_COUNT=$(jq '.messages | length' /tmp/failed_conversation_${FAILED_AGENT_ID}.json)
+STATUS=$(jq -r '.status' /tmp/failed_status.json)
+BRANCH=$(jq -r '.target.branchName // "unknown"' /tmp/failed_status.json)
+
+echo "   Status: $STATUS"
+echo "   Messages: $MSG_COUNT"
+echo "   Branch: $BRANCH"
+
+if [ "$MSG_COUNT" -lt 3 ]; then
+  echo ""
+  echo "⚠️  Agent had < 3 messages (immediate crash)"
+  echo "   No significant work to recover"
+  exit 0
+fi
+
+# 2. Copy conversation to workspace for sub-agent access
+cp /tmp/failed_conversation_${FAILED_AGENT_ID}.json \
+   /workspace/.cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json
+
+echo ""
+echo "✅ Conversation saved to workspace"
+
+# 3. Create comprehensive recovery task for sub-agent
+RECOVERY_TASK="🔍 Forensic Recovery: Agent ${FAILED_AGENT_ID}
+
+## SITUATION
+- Agent ${FAILED_AGENT_ID} ended in **${STATUS}** state
+- Conversation: ${MSG_COUNT} messages
+- Target branch: ${BRANCH}
+- Repository: ${REPO}
+
+## YOUR MISSION
+You are a specialized forensic recovery agent. Your job is to determine what the failed agent accomplished vs. what was lost.
+
+## DATA SOURCES
+1. **Failed agent conversation**: \`.cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json\`
+2. **Git repository**: Current state of all branches
+3. **GitHub state**: PRs, issues, commits
+
+## ANALYSIS STEPS
+
+### Step 1: Read Conversation
+\`\`\`bash
+jq '.messages[] | {type, text: .text[0:200]}' \\
+  .cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json | less
+\`\`\`
+
+### Step 2: Extract Artifacts
+\`\`\`bash
+# Files they mentioned
+jq -r '.messages[].text' .cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json | \\
+  grep -oE '\\S+\\.(py|ts|md|yml|toml|json|sh)' | sort -u > /tmp/mentioned_files.txt
+
+# Branches they mentioned
+jq -r '.messages[].text' .cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json | \\
+  grep -oE '(feat|fix|docs|refactor)/[a-z0-9-]+' | sort -u > /tmp/mentioned_branches.txt
+
+# PRs they mentioned
+jq -r '.messages[].text' .cursor/failed_agent_${FAILED_AGENT_ID}_conversation.json | \\
+  grep -oE '#[0-9]+' | sort -u > /tmp/mentioned_prs.txt
+\`\`\`
+
+### Step 3: Use Aider for Forensic Analysis
+\`\`\`bash
+aider --model claude-opus-4-20250514 --message \"
+FORENSIC ANALYSIS
+
+Compare the conversation artifacts with actual repository state:
+
+FILES: \$(cat /tmp/mentioned_files.txt | tr '\\n' ', ')
+BRANCHES: \$(cat /tmp/mentioned_branches.txt | tr '\\n' ', ')
+PRS: \$(cat /tmp/mentioned_prs.txt | tr '\\n' ', ')
+
+For EACH artifact:
+1. Check if it exists
+2. Check git history
+3. Compare to agent's claims in conversation
+4. Identify discrepancies
+
+Generate recovery report.
+\" --no-auto-commits --yes
+\`\`\`
+
+### Step 4: Check Repository State
+\`\`\`bash
+# All recent commits
+git log --all --oneline --since='24 hours ago' > /tmp/recent_commits.txt
+
+# All branches
+git branch -a > /tmp/all_branches.txt
+
+# All PRs
+gh pr list --limit 50 --json number,title,state,headRefName > /tmp/all_prs.json
+\`\`\`
+
+### Step 5: Cross-Reference
+For each file/branch/PR the agent mentioned:
+- ✅ If exists and matches their description → COMPLETED
+- ⚠️ If exists but differs from their description → PARTIAL
+- ❌ If doesn't exist → LOST
+
+## OUTPUT REQUIRED
+
+Create: \`RECOVERY_REPORT_${FAILED_AGENT_ID}.md\`
+
+Use this structure:
+
+\`\`\`markdown
+# Forensic Recovery Report
+
+**Failed Agent**: ${FAILED_AGENT_ID}
+**Status**: ${STATUS}
+**Analyzed**: \$(date)
+**Analyzer**: [Your agent ID]
+
+## Summary
+[One paragraph summary]
+
+## Work Completed ✅
+- [List items that exist and match]
+
+## Work Partial ⚠️
+- [List items that exist but incomplete]
+
+## Work Lost ❌
+- [List items mentioned but not found]
+
+## Git State
+\`\`\`
+[Recent commits relevant to this agent]
+\`\`\`
+
+## Recovery Plan 🔧
+1. [Specific action]
+2. [Specific action]
+3. [Specific action]
+
+## Conversation Excerpts
+[Key messages showing intent vs reality]
+
+## Aider Analysis
+[Full aider output]
+\`\`\`
+
+## TOOLS AT YOUR DISPOSAL
+- \`aider\` - AI pair programming for analysis
+- \`jq\` - JSON parsing
+- \`git\` - Repository history
+- \`gh\` - GitHub API
+- Your own coding skills
+
+## SUCCESS CRITERIA
+- Recovery report exists: \`RECOVERY_REPORT_${FAILED_AGENT_ID}.md\`
+- All artifacts analyzed
+- Clear recovery plan provided
+- Next agent can act on your findings
+
+**IMPORTANT**: You are NOT fixing the issues, just documenting what happened.
+Let the next primary agent handle recovery based on your report."
+
+echo "📝 Recovery task prepared"
+echo ""
+
+# 4. Show the task to user/logs
+echo "=============================================="
+echo "TASK BEING DELEGATED:"
+echo "=============================================="
+echo "$RECOVERY_TASK" | head -30
+echo "... (truncated, full task sent to sub-agent)"
+echo ""
+
+# 5. Launch sub-agent
+echo "🚀 Launching forensic recovery sub-agent..."
+echo ""
+
+# Note: In actual implementation, this would use cursor-agents create
+# But for now, we'll document the pattern
+
+cat > /tmp/sub_agent_launch_command.sh << EOF
+# To actually launch the sub-agent, run:
+# (This requires cursor-agent-manager to be properly configured)
+
+cursor-agents create "$RECOVERY_TASK"
+
+# Monitor:
+cursor-agents list | grep -i forensic
+
+# Check their progress:
+watch -n 30 'cursor-agents list | grep -i forensic'
+
+# When done, retrieve report:
+cat RECOVERY_REPORT_${FAILED_AGENT_ID}.md
+EOF
+
+chmod +x /tmp/sub_agent_launch_command.sh
+
+echo "⚠️  Sub-agent delegation prepared but not launched"
+echo "   (cursor-agent-manager needs to be running via mcp-proxy)"
+echo ""
+echo "To launch manually:"
+echo "   cat /tmp/sub_agent_launch_command.sh"
+echo ""
+echo "For now, you can:"
+echo "1. Copy the recovery task from above"
+echo "2. Create a new background agent manually in Cursor"
+echo "3. Paste the task as the initial prompt"
+echo ""
+echo "=============================================="
+echo "✅ Forensic recovery task ready for delegation"
+echo "=============================================="

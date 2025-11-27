@@ -1,0 +1,32 @@
+#!/bin/bash
+# CLI wrapper for AWS IAC MCP server via mcp-proxy
+# Usage: aws-iac <tool_name> [arguments_json]
+# Example: aws-iac list_terraform_modules '{"directory": "/workspace"}'
+
+set -e
+
+MCP_PROXY_URL="${MCP_PROXY_AWS_IAC_URL:-http://localhost:3001}"
+TOOL_NAME="$1"
+ARGS_JSON="${2:-{}}"
+
+if [ -z "$TOOL_NAME" ]; then
+  echo "Usage: aws-iac <tool_name> [arguments_json]"
+  echo ""
+  echo "Available tools:"
+  curl -s "${MCP_PROXY_URL}/list-tools" | jq -r '.tools[] | "  - \(.name): \(.description)"'
+  exit 1
+fi
+
+# Call the MCP tool via proxy
+RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/call-tool" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"${TOOL_NAME}\", \"arguments\": ${ARGS_JSON}}" 2>&1)
+
+# Check for errors
+if [ $? -ne 0 ]; then
+  echo "❌ Error calling MCP proxy: ${RESPONSE}" >&2
+  exit 1
+fi
+
+# Pretty print the response
+echo "$RESPONSE" | jq -r '.content[0].text // .error // .'

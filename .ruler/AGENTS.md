@@ -2,6 +2,29 @@
 
 **This is the DEFINITIVE Python library template** for the jbcom ecosystem. All configuration, workflows, and agent instructions here represent the consolidated best practices from multiple production deployments.
 
+## 🎯 CRITICAL: PR Ownership Rule (READ WHEN WORKING WITH PRs!)
+
+**If you are working on a Pull Request, this rule applies.**
+
+**For Cursor background agents:** See `.cursor/rules/05-pr-ownership.mdc` for complete protocol.
+**For other agents:** See summary below.
+
+Key points:
+- **First agent on PR = PR Owner** - You own ALL feedback, issues, and collaboration
+- **Engage with AI agents directly** - Respond to @gemini-code-assist, @copilot, etc.
+- **Free the user** - Handle everything that doesn't need human judgment
+- **Collaborate, don't escalate** - Resolve AI-to-AI conflicts yourself
+- **Merge when ready** - Execute merge after all feedback addressed
+
+**🔬 VERIFICATION REQUIREMENT (NEW):**
+- **All version claims MUST be verified** against official sources (https://go.dev/dl/, https://releases.rs/, etc.)
+- **Never rely on training data** for version numbers or tool specifications
+- **Official installation methods** (like rustup.rs curl-to-shell) are NOT security vulnerabilities
+- **Document your verification** sources in responses
+
+See `.cursor/rules/15-pr-review-verification.mdc` (Cursor) or full details below (other agents).
+See `.cursor/rules/REFERENCE-pr-ownership-details.md` for detailed examples and templates.
+
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
 **ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**

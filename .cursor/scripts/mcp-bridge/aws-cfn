@@ -1,0 +1,29 @@
+#!/bin/bash
+# CLI wrapper for AWS CloudFormation MCP server via mcp-proxy
+# Usage: aws-cfn <tool_name> [arguments_json]
+# Example: aws-cfn list_stacks '{"region": "us-east-1"}'
+
+set -e
+
+MCP_PROXY_URL="${MCP_PROXY_AWS_CFN_URL:-http://localhost:3005}"
+TOOL_NAME="$1"
+ARGS_JSON="${2:-{}}"
+
+if [ -z "$TOOL_NAME" ]; then
+  echo "Usage: aws-cfn <tool_name> [arguments_json]"
+  echo ""
+  echo "Available tools:"
+  curl -s "${MCP_PROXY_URL}/list-tools" | jq -r '.tools[] | "  - \(.name): \(.description)"'
+  exit 1
+fi
+
+RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/call-tool" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"${TOOL_NAME}\", \"arguments\": ${ARGS_JSON}}" 2>&1)
+
+if [ $? -ne 0 ]; then
+  echo "❌ Error calling MCP proxy: ${RESPONSE}" >&2
+  exit 1
+fi
+
+echo "$RESPONSE" | jq -r '.content[0].text // .error // .'
