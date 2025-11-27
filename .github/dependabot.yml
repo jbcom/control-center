@@ -73,8 +73,6 @@ updates:
       include: "scope"
     reviewers:
       - "jbcom"
-    # Insecure registries - none, all registries should use HTTPS
-    insecure-external-code-execution: "deny"
 
   # Node.js dependencies (if package.json exists in root or .cursor)
   - package-ecosystem: "npm"
