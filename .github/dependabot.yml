@@ -1,25 +1,109 @@
-# Set update schedule for GitHub Actions
+# Dependabot configuration for automated dependency updates
+# See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 
 version: 2
 updates:
-
+  # GitHub Actions - daily updates for security and features
   - package-ecosystem: "github-actions"
     directory: "/"
-    open-pull-requests-limit: 10
     schedule:
       interval: "daily"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "jbcom"
+    # Group minor and patch updates together to reduce PR noise
+    groups:
+      github-actions-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
+  # Python dependencies - daily updates
   - package-ecosystem: "pip"
     directory: "/"
-    open-pull-requests-limit: 10
     schedule:
       interval: "daily"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "python"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "jbcom"
+    # Allow both direct and indirect dependency updates
+    allow:
+      - dependency-type: "all"
+    # Group minor and patch updates to reduce noise
+    groups:
+      python-minor-patch:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
 
+  # Docker base image - weekly updates (more stable cadence)
   - package-ecosystem: "docker"
     directory: "/.cursor"
-    open-pull-requests-limit: 5
     schedule:
       interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "docker"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "jbcom"
+
+  # Node.js dependencies (if package.json exists in root or .cursor)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "04:00"
+      timezone: "America/New_York"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "javascript"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    reviewers:
+      - "jbcom"
+    # Group development dependencies separately from production
+    groups:
+      npm-production:
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      npm-development:
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    # Ignore specific packages that should be managed manually
+    ignore:
+      # Playwright version is managed in Dockerfile
+      - dependency-name: "playwright"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
