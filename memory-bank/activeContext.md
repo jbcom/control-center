@@ -1,19 +1,26 @@
 # Active Context
 
 ## Current Focus
-- Merge Cursor and repository memory banks into the root-level `memory-bank/` without symlinks.
-- Automate replay of background agent sessions into the shared memory bank and delegation prompts.
+- Complete PR triage and review workflow
+- Run aider forensic analysis on recovered session `bc-c1254c3f-ea3a-43a9-a958-13e921226f5d`
+- Build complete chronological history from recovered logs
 
 ## Active Work
 
-### Session Replay Automation
-- Replayed session `bc-c1254c3f-recovered-full` into the recovery archive and appended its summary to the progress log.
-- Captured delegation inputs for MCP-aware CLIs to spawn focused sub-agents.
+### PR Triage (COMPLETED)
+- ✅ PR #185: aider CLI - Merged after addressing version pinning feedback
+- ✅ PR #186: Agent triage pipeline - Merged after addressing security feedback
+- ✅ Main branch CI: All tests passing, all packages released to PyPI
+
+### Agent Recovery (IN PROGRESS)
+- Session `bc-c1254c3f-ea3a-43a9-a958-13e921226f5d`: 287 messages recovered
+- Artifacts extracted: 22 PRs, 11 repos, 1 branch, 83 files
+- Per-repo task decomposition complete (23 repositories)
 
 ## Next Actions
-- Run `python scripts/replay_agent_session.py --conversation <path/to/conversation.json>` for each new recovery export.
-- Pipe `memory-bank/recovery/bc-c1254c3f-recovered-full-delegation.md` into MCP-aware CLIs (Codex, Claude code aider) to launch sub-agents.
-- All agents read from and write to the global `memory-bank/` directory (no subdirectory copies).
+1. Run aider forensic analysis on recovered conversation
+2. Fill chronological gaps in history
+3. Close holding PR #182 when all work complete
 
 ## Session Highlight
 Now let me provide a summary of the proper solution:
