@@ -1,20 +1,19 @@
 # Active Context
 
 ## Current Focus
-- Complete vendor-connectors integration in terraform-modules (PR #203 ready to merge)
-- Fix CI issues in vendor-connectors and lifecyclelogging public repos
-- Implement SOPS-based enterprise secrets sync
+- Merge Cursor and repository memory banks into the root-level `memory-bank/` without symlinks.
+- Automate replay of background agent sessions into the shared memory bank and delegation prompts.
 
 ## Active Work
 
 ### Session Replay Automation
-- Replayed recent background agent session into the recovery archive and appended its summary to the progress log.
+- Replayed session `bc-c1254c3f-recovered-full` into the recovery archive and appended its summary to the progress log.
 - Captured delegation inputs for MCP-aware CLIs to spawn focused sub-agents.
 
 ## Next Actions
 - Run `python scripts/replay_agent_session.py --conversation <path/to/conversation.json>` for each new recovery export.
-- Check `memory-bank/recovery/` for delegation prompts to pipe into MCP-aware CLIs (Codex, Claude code aider).
-- Keep `memory-bank/` and `.cursor/memory-bank/` synchronized after each replay using this script's mirroring step.
+- Pipe `memory-bank/recovery/bc-c1254c3f-recovered-full-delegation.md` into MCP-aware CLIs (Codex, Claude code aider) to launch sub-agents.
+- All agents read from and write to the global `memory-bank/` directory (no subdirectory copies).
 
 ## Session Highlight
 Now let me provide a summary of the proper solution:
