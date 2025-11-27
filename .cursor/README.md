@@ -8,11 +8,12 @@ This directory contains the Docker-based development environment configuration f
 The main environment definition with all tools and languages needed for autonomous agent operation.
 
 **Key features:**
-- Python 3.13 + Node.js 24 base
+- **mise-based tool management** for unified language runtime management
+- Python 3.13 + Node.js 24 + Rust stable + Go 1.23.4
 - Full Python dev stack (pytest, mypy, ruff, etc.)
 - Agent frameworks (ConPort, CrewAI)
 - Modern CLI tools (ripgrep, fd, bat, etc.)
-- Rust + Go toolchains
+- All language versions defined in `.mise.toml`
 - Versioned, reproducible builds
 
 **Build:** See "Building the Environment" below.
@@ -118,38 +119,44 @@ If Cursor doesn't auto-detect:
 
 ## Version Pinning Strategy
 
+### Language Runtimes (via mise + .mise.toml)
+- Python: 3.13
+- Node.js: 24
+- Rust: stable
+- Go: 1.23.4
+- just: latest
+
 ### Strictly Pinned (for reproducibility)
 - pnpm: 9.15.0 (must match package.json)
 - Playwright: 1.49.0
 - process-compose: v1.27.0
-- Go: 1.23.4
 
 ### Loosely Pinned (major version)
 - Python packages: `>=X.Y.0` (pip resolves)
-- Rust: stable channel
 - Cargo tools: `--locked` (uses Cargo.lock)
 
 ### No Pin (always latest)
-- Base image: python3.13-nodejs24
 - System packages: Latest from apt repos
+- mise base image: jdxcode/mise:latest
 
 ## Security Considerations
 
 ### What We Did Right
-✅ **No curl-to-shell**: All tools downloaded as versioned binaries or from package managers
+✅ **mise-based tool management**: Reproducible, version-controlled language runtimes
+✅ **No manual downloads**: Languages installed via mise from official sources
 ✅ **HTTPS only**: All downloads use HTTPS
-✅ **Reproducible**: Pinned versions for critical tools
+✅ **Reproducible**: Pinned versions in `.mise.toml` for language runtimes
 ✅ **Verified**: Final verification step checks all tools work
 ✅ **Minimal attack surface**: Only install what's needed
 
 ### What to Watch
-⚠️ **Base image trust**: We trust `nikolaik/python-nodejs` (well-maintained, popular)
-⚠️ **Rust toolchain**: Installed via rustup.rs (official, but curl-to-sh)
-⚠️ **Go toolchain**: Installed from official go.dev (trusted source)
+⚠️ **Base image trust**: We trust `jdxcode/mise:latest` (official mise Docker image)
+⚠️ **mise downloads**: mise installs tools from official sources (Python, Node.js, Rust, Go)
+⚠️ **System packages**: Installed from Debian apt repositories
 
 ### Regular Updates
-- **Monthly**: Check for base image updates
-- **Quarterly**: Update Go/Rust toolchains
+- **Monthly**: Check for `.mise.toml` version updates and base image updates
+- **Quarterly**: Review and update tool versions
 - **On CVE**: Update affected tools immediately
 
 ## Troubleshooting
@@ -182,17 +189,38 @@ Current image: ~2.5GB
 ## Maintenance
 
 ### Update Base Image
+The environment now uses mise for language runtime management:
+```toml
+# Edit .mise.toml to update language versions
+[tools]
+python = "3.13"
+node = "24"
+rust = "stable"
+go = "1.23.4"
+just = "latest"
+```
+
+For the base Docker image:
 ```dockerfile
-FROM nikolaik/python-nodejs:python3.13-nodejs24
-# Check for newer versions at https://hub.docker.com/r/nikolaik/python-nodejs
+FROM jdxcode/mise:latest
+# mise provides unified tool management
+# See https://mise.jdx.dev/ for documentation
 ```
 
 ### Update Pinned Versions
-Edit environment variables in Dockerfile:
+Edit `.mise.toml` for language versions:
+```toml
+[tools]
+python = "3.13"      # Update this
+node = "24"          # Update this
+go = "1.23.4"        # Update this
+rust = "stable"      # Or pin to specific version
+```
+
+Edit Dockerfile environment variables for other tools:
 ```dockerfile
-ENV PC_VERSION="v1.27.0"      # Update this
+ENV PC_VERSION="v1.27.0"         # Update this
 ENV PLAYWRIGHT_VERSION="1.49.0"  # Update this
-ENV GO_VERSION="1.23.4"       # Update this
 ```
 
 ### Update Python Packages
@@ -205,6 +233,37 @@ RUN pip install --no-cache-dir \
 ### Rebuild After Changes
 ```bash
 docker build --no-cache -f .cursor/Dockerfile -t jbcom-control-center:dev .
+```
+
+## Automated Dependency Management
+
+This repository uses multiple tools to keep dependencies up to date:
+
+### Dependabot
+Configured in `.github/dependabot.yml` to automatically:
+- Update GitHub Actions (daily)
+- Update Python packages (daily)
+- Update Docker base images (weekly)
+
+### Renovate
+Configured in `renovate.json` to automatically:
+- Update Docker base image (`jdxcode/mise:latest`)
+- Update Go tool versions in Dockerfile
+- Update mise tool versions in `.mise.toml`
+- Update language runtime versions
+
+### Pre-commit Hooks
+Configured in `.pre-commit-config.yaml` to validate:
+- **hadolint**: Dockerfile linting and best practices
+- **yamllint**: YAML syntax and style
+- **ruff**: Python linting and formatting
+- **mypy**: Python type checking
+- **actionlint**: GitHub Actions workflow validation
+- **markdownlint**: Markdown formatting
+
+Run pre-commit hooks manually:
+```bash
+pre-commit run --all-files
 ```
 
 ## Integration with Agent Rules
@@ -233,13 +292,26 @@ This environment is designed to work with the agent rules in `.cursor/rules/`:
 ### Custom Tools
 Add your own tools by editing Dockerfile:
 ```dockerfile
-RUN cargo install your-rust-tool
-RUN go install github.com/user/tool@latest
-RUN pip install your-python-package
+RUN mise x -- cargo install your-rust-tool
+RUN mise x -- go install github.com/user/tool@latest
+RUN mise x -- pip install your-python-package
+```
+
+Or add tools to `.mise.toml`:
+```toml
+[tools]
+# Add tools available as mise plugins
+your-tool = "latest"
 ```
 
 ### Environment Variables
-Add custom env vars:
+Add custom env vars in `.mise.toml`:
+```toml
+[env]
+YOUR_VAR = "value"
+```
+
+Or in Dockerfile:
 ```dockerfile
 ENV YOUR_VAR=value
 ```
@@ -262,9 +334,9 @@ COPY --from=builder /usr/local/bin/tool /usr/local/bin/
 
 ## Resources
 
+- **mise documentation**: https://mise.jdx.dev/
 - **Dockerfile best practices**: https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
 - **Python in Docker**: https://pythonspeed.com/docker/
-- **nikolaik base image**: https://github.com/nikolaik/docker-python-nodejs
 - **ConPort**: https://github.com/cyanheads/context-portal-mcp
 - **CrewAI**: https://github.com/joaomdmoura/crewAI
 - **Ruler**: https://github.com/intellectronica/ruler

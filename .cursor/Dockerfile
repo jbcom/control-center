@@ -1,6 +1,23 @@
-# Pre-built image with Python 3.13 + Node.js 24 + uv
-# https://github.com/nikolaik/docker-python-nodejs
-FROM nikolaik/python-nodejs:python3.13-nodejs24
+# Use mise for unified language runtime management
+# https://mise.jdx.dev/
+FROM jdxcode/mise:latest
+
+# =============================================================================
+# MISE CONFIGURATION & LANGUAGE RUNTIMES
+# =============================================================================
+# Set working directory first (mise looks for .mise.toml in working directory)
+WORKDIR /workspace
+
+# Copy mise configuration from repository root
+COPY .mise.toml /workspace/.mise.toml
+
+# Trust the mise config and install all language runtimes
+# This handles: Python 3.13, Node.js 24, Rust stable, Go 1.23.4, just
+RUN mise trust && mise install && mise reshim
+
+# Enable mise in shell environment (mise shims are automatically in PATH)
+# But we need to ensure the PATH is set correctly
+ENV PATH="/root/.local/share/mise/shims:$PATH"
 
 # =============================================================================
 # SYSTEM DEPENDENCIES
@@ -14,8 +31,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git-lfs \
     # GitHub CLI (Debian native package)
     gh \
-    # Task automation (Debian native package)
-    just \
     # Database tools (for ConPort SQLite database)
     sqlite3 \
     # Modern shell utilities (faster alternatives to find/grep)
@@ -54,19 +69,20 @@ RUN git lfs install --system --skip-smudge
 # =============================================================================
 # NODE.JS PACKAGE MANAGER (pnpm)
 # =============================================================================
-# pnpm version (line 63) MUST match package.json "packageManager" field exactly.
-# PNPM_HOME path configuration (line 59) is independent and does not need to match package.json.
+# pnpm version (line 78) MUST match package.json "packageManager" field exactly.
+# PNPM_HOME path configuration (line 74) is independent and does not need to match package.json.
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && \
-    corepack prepare pnpm@9.15.0 --activate && \
-    pnpm --version
+# Enable corepack (comes with mise's Node.js) and install pnpm
+RUN mise x -- corepack enable && \
+    mise x -- corepack prepare pnpm@9.15.0 --activate && \
+    mise x -- pnpm --version
 
 # =============================================================================
 # NODE.JS GLOBAL TOOLS
 # =============================================================================
 # Install Node.js tools globally that agents will need
-RUN pnpm install -g \
+RUN mise x -- pnpm install -g \
     # Ruler - Agent instruction management (https://ai.intellectronica.net/ruler)
     @intellectronica/ruler \
     # MCP Proxy - Bridge stdio MCP servers to HTTP/SSE for background agents
@@ -74,25 +90,20 @@ RUN pnpm install -g \
     # Cursor Background Agent MCP Server - Manage other Cursor background agents
     cursor-background-agent-mcp-server \
     # Verify installation
-    && ruler --version && \
-    mcp-proxy --version && \
-    cursor-background-agent-mcp-server --version
+    && mise x -- ruler --version && \
+    mise x -- mcp-proxy --version && \
+    mise x -- cursor-background-agent-mcp-server --version
 
 # =============================================================================
-# RUST TOOLING (for modern CLI tools)
+# RUST-BASED CLI TOOLS
 # =============================================================================
-# Many modern development tools are written in Rust
-# Installing via rustup for latest stable versions
-ENV RUSTUP_HOME=/usr/local/rustup
-ENV CARGO_HOME=/usr/local/cargo
-ENV PATH="/usr/local/cargo/bin:$PATH"
-
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal && \
-    chmod -R a+w $RUSTUP_HOME $CARGO_HOME && \
-    rustc --version && cargo --version
-
+# Rust toolchain is installed via mise (.mise.toml)
 # Install additional Rust-based tools useful for background agents
-RUN cargo install --locked \
+# The --locked flag ensures Cargo uses Cargo.lock for dependency resolution,
+# guaranteeing reproducible builds of these tools.
+# The --locked flag ensures Cargo uses Cargo.lock for dependency resolution,
+# guaranteeing reproducible builds of these tools.
+RUN mise x -- cargo install --locked \
     # Modern ls replacement with icons
     exa \
     # Interactive process viewer
@@ -103,24 +114,25 @@ RUN cargo install --locked \
     bat \
     # Git utilities
     git-delta \
-    && rm -rf $CARGO_HOME/registry
+    && rm -rf /root/.cargo/registry
 
 # =============================================================================
-# PYTHON TOOLING (using uv from base image)
+# PYTHON TOOLING (using uv)
 # =============================================================================
-# Base image includes uv - use it for proper dependency management
-# Install global CLI tools with uv tool install
-RUN uv tool install ruff && \
-    uv tool install mypy && \
-    uv tool install pre-commit && \
-    uv tool install nox && \
-    uv tool install pycalver
+# Python is installed via mise (.mise.toml)
+# Install uv for proper dependency management and global CLI tools
+RUN mise x -- pip install --no-cache-dir uv && \
+    mise x -- uv tool install ruff && \
+    mise x -- uv tool install mypy && \
+    mise x -- uv tool install pre-commit && \
+    mise x -- uv tool install nox && \
+    mise x -- uv tool install pycalver
 
 # Verify uv and tools are available
-RUN uv --version && \
-    ruff --version && \
-    mypy --version && \
-    pre-commit --version
+RUN mise x -- uv --version && \
+    mise x -- ruff --version && \
+    mise x -- mypy --version && \
+    mise x -- pre-commit --version
 
 # Note: Package-specific dependencies (pytest, pyright, crewai, etc.) 
 # should be defined in packages/*/pyproject.toml and installed with:
@@ -150,28 +162,17 @@ RUN ARCH=$(dpkg --print-architecture) && \
 # This is required for CrewAI agents using @modelcontextprotocol/server-playwright
 # Pin specific version for reproducibility
 ENV PLAYWRIGHT_VERSION="1.49.0"
-RUN pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium && \
-    pnpm dlx playwright@${PLAYWRIGHT_VERSION} install chromium
+RUN mise x -- pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium && \
+    mise x -- pnpm dlx playwright@${PLAYWRIGHT_VERSION} install chromium
 
 # =============================================================================
-# GO TOOLING (for additional developer tools)
+# GO-BASED DEVELOPER TOOLS
 # =============================================================================
-# Some tools we might want in the future are Go-based
-# Install Go for potential future tooling needs
-# VERIFIED: https://go.dev/dl/ on 2025-11-27
-ENV GO_VERSION="1.25.4"
-RUN GOARCH=$(dpkg --print-architecture | sed 's/armhf/arm/' | sed 's/i386/386/') && \
-    curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tar.gz && \
-    tar -C /usr/local -xzf /tmp/go.tar.gz && \
-    rm /tmp/go.tar.gz
-ENV PATH="/usr/local/go/bin:$PATH"
-ENV GOPATH="/go"
-ENV PATH="$GOPATH/bin:$PATH"
-
-# Install useful Go-based tools
-RUN go install github.com/mikefarah/yq/v4@latest && \
-    go install github.com/jesseduffield/lazygit@latest && \
-    go install github.com/charmbracelet/glow@latest
+# Go toolchain is installed via mise (.mise.toml)
+# Install useful Go-based tools with pinned versions (verified Nov 2025)
+RUN mise x -- go install github.com/mikefarah/yq/v4@v4.49.2 && \
+    mise x -- go install github.com/jesseduffield/lazygit@v0.56.0 && \
+    mise x -- go install github.com/charmbracelet/glow@v2.1.1
 
 # =============================================================================
 # INFRASTRUCTURE & CLOUD TOOLS
@@ -252,6 +253,7 @@ RUN curl -sSL "https://github.com/GAM-team/GAM/releases/download/v${GAM_VERSION}
 # ENVIRONMENT SETUP
 # =============================================================================
 # Set up environment variables for optimal background agent operation
+# Note: These are also defined in .mise.toml for consistency
 ENV TERM=xterm-256color
 ENV COLORTERM=truecolor
 ENV EDITOR=vim
@@ -267,8 +269,8 @@ ENV DO_NOT_TRACK=1
 ENV DISABLE_TELEMETRY=1
 ENV POWERSHELL_TELEMETRY_OPTOUT=1
 
-# Set working directory (files copied by Cursor, not in image build)
-WORKDIR /workspace
+# Working directory already set at top of Dockerfile for mise configuration
+# Files will be copied by Cursor when container starts
 
 # =============================================================================
 # MCP BRIDGE SETUP
@@ -320,30 +322,32 @@ RUN chmod +x /usr/local/bin/bootstrap-cursor-runtime.sh
 # =============================================================================
 # Verify all critical tools are installed and working
 RUN echo "=== VERIFICATION ===" && \
+    echo "Mise:" && \
+    mise --version && \
     echo "Languages:" && \
-    python --version && \
-    node --version && \
-    go version && \
-    rustc --version && \
+    mise x -- python --version && \
+    mise x -- node --version && \
+    mise x -- go version && \
+    mise x -- rustc --version && \
     echo "Package Managers:" && \
-    pnpm --version && \
-    uv --version && \
-    cargo --version && \
+    mise x -- pnpm --version && \
+    mise x -- uv --version && \
+    mise x -- cargo --version && \
     echo "Version Control:" && \
     git --version && \
     gh --version && \
     echo "Development Tools:" && \
-    just --version && \
+    mise x -- just --version && \
     sqlite3 --version && \
     rg --version && \
     fd --version && \
     jq --version && \
-    ruff --version && \
-    mypy --version && \
-    pre-commit --version && \
+    mise x -- ruff --version && \
+    mise x -- mypy --version && \
+    mise x -- pre-commit --version && \
     echo "Process & Browser:" && \
     process-compose version && \
-    ruler --version && \
+    mise x -- ruler --version && \
     echo "Infrastructure & Cloud:" && \
     terraform version && \
     terragrunt --version && \

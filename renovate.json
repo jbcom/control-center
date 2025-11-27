@@ -1,0 +1,106 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "timezone": "America/New_York",
+  "schedule": [
+    "before 5am on Monday"
+  ],
+  "labels": [
+    "dependencies"
+  ],
+  "packageRules": [
+    {
+      "description": "Docker base images - weekly updates",
+      "matchDatasources": ["docker"],
+      "matchUpdateTypes": ["major", "minor", "patch"],
+      "schedule": ["before 5am on Monday"],
+      "automerge": false,
+      "labels": ["dependencies", "docker"]
+    },
+    {
+      "description": "Python packages - daily updates",
+      "matchManagers": ["pip_requirements", "pip_setup", "pipenv", "poetry"],
+      "schedule": ["before 5am every weekday"],
+      "automerge": false
+    },
+    {
+      "description": "GitHub Actions - daily updates",
+      "matchManagers": ["github-actions"],
+      "schedule": ["before 5am every weekday"],
+      "automerge": false
+    },
+    {
+      "description": "Go modules in Dockerfile",
+      "matchManagers": ["dockerfile"],
+      "matchPackagePatterns": ["^github.com/"],
+      "schedule": ["before 5am on Monday"],
+      "automerge": false,
+      "labels": ["dependencies", "go", "docker"]
+    }
+  ],
+  "docker": {
+    "enabled": true,
+    "major": {
+      "enabled": true
+    },
+    "minor": {
+      "enabled": true
+    },
+    "patch": {
+      "enabled": true
+    }
+  },
+  "regexManagers": [
+    {
+      "description": "Update Go tool versions in Dockerfile",
+      "fileMatch": ["\\.cursor/Dockerfile$"],
+      "matchStrings": [
+        "go install (?<depName>github\\.com/[^@]+)@(?<currentValue>v?[0-9]+\\.[0-9]+\\.[0-9]+)"
+      ],
+      "datasourceTemplate": "go",
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "Update mise tool versions in .mise.toml",
+      "fileMatch": ["^\\.mise\\.toml$"],
+      "matchStrings": [
+        "just\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "casey/just",
+      "extractVersionTemplate": "^(?<version>.*)$"
+    },
+    {
+      "description": "Update Python version in .mise.toml",
+      "fileMatch": ["^\\.mise\\.toml$"],
+      "matchStrings": [
+        "python\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "python/cpython",
+      "versioningTemplate": "semver"
+    },
+    {
+      "description": "Update Node version in .mise.toml",
+      "fileMatch": ["^\\.mise\\.toml$"],
+      "matchStrings": [
+        "node\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "nodejs/node",
+      "versioningTemplate": "node"
+    },
+    {
+      "description": "Update Go version in .mise.toml",
+      "fileMatch": ["^\\.mise\\.toml$"],
+      "matchStrings": [
+        "go\\s*=\\s*\"(?<currentValue>[^\"]+)\""
+      ],
+      "datasourceTemplate": "github-releases",
+      "depNameTemplate": "golang/go",
+      "extractVersionTemplate": "^go(?<version>.*)$"
+    }
+  ]
+}
