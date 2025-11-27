@@ -1,9 +1,15 @@
 # Dependabot configuration for automated dependency updates
 # See: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
+#
+# PHILOSOPHY:
+# - Auto-merge everything except major production dependency updates
+# - Group minor/patch updates to reduce PR noise
+# - Only tag @jbcom for major updates that need review
+# - Dependabot reviewer workflow handles auto-approval and merging
 
 version: 2
 updates:
-  # GitHub Actions - daily updates for security and features
+  # GitHub Actions - daily updates, auto-merge all
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
@@ -14,17 +20,18 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
+      - "automerge"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "jbcom"
-    # Group minor and patch updates together to reduce PR noise
+    # NO reviewers - auto-merge via workflow
+    # Group ALL updates together (major, minor, patch)
     groups:
-      github-actions-minor-patch:
+      github-actions-all:
         patterns:
           - "*"
         update-types:
+          - "major"
           - "minor"
           - "patch"
 
@@ -42,12 +49,10 @@ updates:
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "jbcom"
     # Allow both direct and indirect dependency updates
     allow:
       - dependency-type: "all"
-    # Group minor and patch updates to reduce noise
+    # Group minor/patch updates - auto-merge
     groups:
       python-minor-patch:
         patterns:
@@ -55,8 +60,9 @@ updates:
         update-types:
           - "minor"
           - "patch"
+    # Major updates: separate PRs, require manual review (reviewers added by workflow)
 
-  # Docker base image - weekly updates (more stable cadence)
+  # Docker base image - weekly updates
   - package-ecosystem: "docker"
     directory: "/.cursor"
     schedule:
@@ -68,42 +74,34 @@ updates:
     labels:
       - "dependencies"
       - "docker"
+      - "automerge"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "jbcom"
+    # NO reviewers - Docker updates are low risk
 
-  # Node.js dependencies (if package.json exists in root or .cursor)
+  # Node.js workspace dependencies - weekly updates
+  # Manages dev tools: ruler, mcp-proxy, playwright, etc.
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "monday"
       time: "04:00"
       timezone: "America/New_York"
-    open-pull-requests-limit: 10
+    open-pull-requests-limit: 5
     labels:
       - "dependencies"
       - "javascript"
+      - "nodejs-tooling"
     commit-message:
       prefix: "chore(deps)"
       include: "scope"
-    reviewers:
-      - "jbcom"
-    # Group development dependencies separately from production
+    # Group ALL dev dependency updates together - auto-merge
     groups:
-      npm-production:
-        dependency-type: "production"
-        update-types:
-          - "minor"
-          - "patch"
-      npm-development:
+      nodejs-dev-tools-all:
         dependency-type: "development"
         update-types:
+          - "major"
           - "minor"
           - "patch"
-    # Ignore specific packages that should be managed manually
-    ignore:
-      # Playwright version is managed in Dockerfile
-      - dependency-name: "playwright"
-        update-types: ["version-update:semver-major", "version-update:semver-minor"]

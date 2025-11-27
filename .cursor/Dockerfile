@@ -60,22 +60,6 @@ RUN corepack enable && \
     pnpm --version
 
 # =============================================================================
-# NODE.JS GLOBAL TOOLS
-# =============================================================================
-# Install Node.js tools globally that agents will need
-RUN pnpm install -g \
-    # Ruler - Agent instruction management (https://ai.intellectronica.net/ruler)
-    @intellectronica/ruler \
-    # MCP Proxy - Bridge stdio MCP servers to HTTP/SSE for background agents
-    mcp-proxy \
-    # Cursor Background Agent MCP Server - Manage other Cursor background agents
-    cursor-background-agent-mcp-server \
-    # Verify installation
-    && ruler --version && \
-    mcp-proxy --version && \
-    cursor-background-agent-mcp-server --version
-
-# =============================================================================
 # PYTHON TOOLING (using uv)
 # =============================================================================
 # Note: uv is already installed in the base image (nikolaik/python-nodejs)
@@ -88,10 +72,10 @@ ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONIOENCODING=utf-8
 
 # =============================================================================
-# DEVELOPER TOOLS
+# DEVELOPER TOOLS - BINARIES
 # =============================================================================
-# Process-compose - Multi-process orchestration (required for CrewAI workflows)
-# Using versioned binary for reproducibility and security
+# Process-compose - Multi-process orchestration tool (standalone binary)
+# This is NOT a Python/Node package - it's a compiled Go binary
 ENV PC_VERSION="v1.27.0"
 RUN ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PC_VERSION}/process-compose_${PC_VERSION}_linux_${ARCH}.tar.gz" \
@@ -102,13 +86,27 @@ RUN ARCH=$(dpkg --print-architecture) && \
     process-compose version
 
 # =============================================================================
-# PLAYWRIGHT BROWSER CACHE
+# PLAYWRIGHT SYSTEM DEPENDENCIES
 # =============================================================================
-# Pre-install Playwright dependencies and Chromium browser
-# Playwright bundles its own Chromium (not using system package)
-# This is required for CrewAI agents using @modelcontextprotocol/server-playwright
-RUN pnpm dlx playwright@1.49.0 install-deps chromium && \
-    pnpm dlx playwright@1.49.0 install chromium
+# System libraries required for Chromium/Playwright browser automation
+# Agents install Playwright itself via: pnpm dlx playwright@latest install chromium
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Core browser dependencies
+    libnss3 \
+    libnspr4 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
 # ENVIRONMENT SETUP
@@ -158,7 +156,11 @@ RUN echo "=== VERIFICATION ===" && \
     rg --version && \
     fd --version && \
     jq --version && \
-    echo "Process & Browser:" && \
     process-compose version && \
-    ruler --version && \
-    echo "=== ALL TOOLS VERIFIED ==="
+    echo "=== ALL TOOLS VERIFIED ===" && \
+    echo "" && \
+    echo "🎯 Workspace ready! Agents can install packages with:" && \
+    echo "  - Python: uv sync --extra dev" && \
+    echo "  - Node.js: pnpm install" && \
+    echo "  - Playwright: pnpm dlx playwright@latest install chromium" && \
+    echo "  - Or use direnv with .envrc for auto-setup"
