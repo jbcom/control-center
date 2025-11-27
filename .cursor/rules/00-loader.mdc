@@ -1,0 +1,83 @@
+---
+alwaysApply: true
+---
+
+## Configuration Hierarchy
+
+**MUST READ FIRST**: Always read `.ruler/AGENTS.md` and component-specific rules in each directory's `.ruler/` folder.
+
+## Documentation-Driven Development
+
+### Documentation Authority
+- **docs/** folder is the SINGLE SOURCE OF TRUTH for all project decisions
+- **shared/contracts/** defines TypeScript interfaces that ALL code must conform to
+- When making plans or decisions, ALWAYS reference and update relevant docs
+- Only halt autonomous work when docs are missing, conflicting, or clarification needed
+
+### Key Documentation
+- **Brand Identity**: Game theme, visual style (docs/)
+- **Architecture**: ECS patterns, system design (docs/architecture/)
+- **Contracts**: TypeScript interfaces (shared/contracts/)
+- **Asset Pipeline**: Meshy integration (docs/asset_generation/)
+
+## Project Structure
+
+### Frontend (client/)
+- React Three Fiber + Miniplex ECS
+- Mobile-first, 60fps target
+- See `client/.ruler/AGENTS.md`
+
+### Python Tooling (python/)
+- CrewAI agents with OpenRouter
+- uv package manager
+- See `python/.ruler/AGENTS.md`
+
+### Shared (shared/)
+- TypeScript contracts
+- ECS component definitions
+- Backend systems
+
+## Continuous Operation Mode
+
+### Execution Pattern
+- **Default mode**: ACT immediately, implement real functionality
+- **Large, cohesive changes** preferred over small atomic steps
+- Make independent decisions on refactors, dependency changes, deletions
+- Stop only for true hard blockers
+
+### Change Management
+- **Deletions**: Checkpoint first, then delete unused code directly
+- **Refactors**: Update all affected files in same change
+- **Dependencies**: Add/remove and update code in one operation
+
+### Code Quality Standards
+- Zero TypeScript errors (strict mode)
+- No `any` types
+- All exports must include types
+- Follow patterns in `.ruler/` files
+
+## CrewAI Agent Guidelines
+
+When working with CrewAI crews:
+
+1. **Use OpenRouter**: All LLMs via `openrouter/auto` or specific models
+2. **Follow @CrewBase pattern**: Decorators for `@agent`, `@task`, `@crew`
+3. **State Management**: Use Pydantic BaseModel for Flow state
+4. **QA Gates**: Every crew output passes through QAValidationCrew
+
+### Running Crews
+```bash
+cd python/crew_agents
+uv run crew_agents design      # Game design flow
+uv run crew_agents implement   # Implementation flow
+uv run crew_agents assets      # Asset generation
+uv run crew_agents full        # Complete pipeline
+```
+
+## Override Behaviors
+
+- "Plan" means execute unless exactly "Plan only" is specified
+- Show progress through code, not explanations
+- Never generate placeholders - implement real functionality
+- Bias toward action over discussion
+- Always defer to `.ruler/` rules when making decisions
