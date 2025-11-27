@@ -1,4 +1,4 @@
-# Pre-built image with Python 3.13 + Node.js 24 + uv
+# Pre-built image with Python 3.13 + Node.js 24
 # https://github.com/nikolaik/docker-python-nodejs
 FROM nikolaik/python-nodejs:python3.13-nodejs24
 
@@ -16,7 +16,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     # Task automation (Debian native package)
     just \
+    # Database tools (for ConPort SQLite database)
+    sqlite3 \
+    # Modern shell utilities (faster alternatives to find/grep)
+    ripgrep \
+    fd-find \
+    # JSON/YAML processing
+    jq \
+    # Text editors for quick edits
+    vim \
+    nano \
+    # Network tools
+    curl \
+    wget \
+    ca-certificates \
+    # Process management
+    procps \
+    htop \
+    # Compression tools
+    unzip \
+    zip \
     && rm -rf /var/lib/apt/lists/*
+
+# Symlink fd-find to fd (Debian packages it as fdfind)
+RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
 # =============================================================================
 # GIT LFS CONFIGURATION
@@ -35,6 +58,34 @@ ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && \
     corepack prepare pnpm@9.15.0 --activate && \
     pnpm --version
+
+# =============================================================================
+# NODE.JS GLOBAL TOOLS
+# =============================================================================
+# Install Node.js tools globally that agents will need
+RUN pnpm install -g \
+    # Ruler - Agent instruction management (https://ai.intellectronica.net/ruler)
+    @intellectronica/ruler \
+    # MCP Proxy - Bridge stdio MCP servers to HTTP/SSE for background agents
+    mcp-proxy \
+    # Cursor Background Agent MCP Server - Manage other Cursor background agents
+    cursor-background-agent-mcp-server \
+    # Verify installation
+    && ruler --version && \
+    mcp-proxy --version && \
+    cursor-background-agent-mcp-server --version
+
+# =============================================================================
+# PYTHON TOOLING (using uv)
+# =============================================================================
+# Note: uv is already installed in the base image (nikolaik/python-nodejs)
+# Verify it's available
+RUN uv --version
+
+# Python optimizations
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONIOENCODING=utf-8
 
 # =============================================================================
 # DEVELOPER TOOLS
@@ -59,4 +110,55 @@ RUN ARCH=$(dpkg --print-architecture) && \
 RUN pnpm dlx playwright@1.49.0 install-deps chromium && \
     pnpm dlx playwright@1.49.0 install chromium
 
+# =============================================================================
+# ENVIRONMENT SETUP
+# =============================================================================
+# Set up environment variables for optimal background agent operation
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+ENV EDITOR=vim
+ENV PAGER=less
+
+# Disable telemetry for various tools
+ENV DO_NOT_TRACK=1
+ENV DISABLE_TELEMETRY=1
+ENV POWERSHELL_TELEMETRY_OPTOUT=1
+
 WORKDIR /workspace
+
+# =============================================================================
+# WORKSPACE PYTHON DEV TOOLS
+# =============================================================================
+# Note: Python dev tools (ruff, mypy, pre-commit, nox, pytest, pyright, pycalver)
+# are defined in the root pyproject.toml [project.optional-dependencies.dev]
+# 
+# When the workspace is mounted, run:
+#   uv sync --extra dev
+# 
+# This installs all dev tools from the UV workspace configuration.
+# The tools will be available in the virtual environment at .venv/
+
+# =============================================================================
+# FINAL VERIFICATION
+# =============================================================================
+# Verify all critical tools are installed and working
+RUN echo "=== VERIFICATION ===" && \
+    echo "Languages:" && \
+    python --version && \
+    node --version && \
+    echo "Package Managers:" && \
+    pnpm --version && \
+    uv --version && \
+    echo "Version Control:" && \
+    git --version && \
+    gh --version && \
+    echo "Development Tools:" && \
+    just --version && \
+    sqlite3 --version && \
+    rg --version && \
+    fd --version && \
+    jq --version && \
+    echo "Process & Browser:" && \
+    process-compose version && \
+    ruler --version && \
+    echo "=== ALL TOOLS VERIFIED ==="
