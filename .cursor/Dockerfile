@@ -36,6 +36,21 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Compression tools
     unzip \
     zip \
+    # Playwright/Chromium browser dependencies
+    libnss3 \
+    libnspr4 \
+    libdbus-1-3 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
 # Symlink fd-find to fd (Debian packages it as fdfind)
@@ -84,29 +99,6 @@ RUN ARCH=$(dpkg --print-architecture) && \
     chmod +x /usr/local/bin/process-compose && \
     rm /tmp/process-compose.tar.gz && \
     process-compose version
-
-# =============================================================================
-# PLAYWRIGHT SYSTEM DEPENDENCIES
-# =============================================================================
-# System libraries required for Chromium/Playwright browser automation
-# Agents install Playwright itself via: pnpm dlx playwright@latest install chromium
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Core browser dependencies
-    libnss3 \
-    libnspr4 \
-    libdbus-1-3 \
-    libatk1.0-0 \
-    libatk-bridge2.0-0 \
-    libcups2 \
-    libdrm2 \
-    libxkbcommon0 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxfixes3 \
-    libxrandr2 \
-    libgbm1 \
-    libasound2 \
-    && rm -rf /var/lib/apt/lists/*
 
 # =============================================================================
 # ENVIRONMENT SETUP
