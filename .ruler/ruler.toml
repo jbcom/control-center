@@ -65,6 +65,23 @@ args = [
 [mcp_servers.conport.env]
 CONPORT_FILES = "projectBrief.md"
 
+# Cursor Background Agent Manager - manage other Cursor agents
+[mcp_servers.cursor_agents]
+command = "cursor-background-agent-mcp-server"
+
+[mcp_servers.cursor_agents.env]
+CURSOR_API_KEY = "${CURSOR_API_KEY}"
+CURSOR_WORKSPACE_ID = "${CURSOR_WORKSPACE_ID:-${PWD}}"
+
+# Aider - AI pair programming for forensics and validation
+[mcp_servers.aider]
+command = "aider"
+args = ["--mcp"]
+
+[mcp_servers.aider.env]
+ANTHROPIC_API_KEY = "${ANTHROPIC_API_KEY}"
+OPENAI_API_KEY = "${OPENAI_API_KEY}"
+
 # -----------------------------------------------------------------------------
 # AWS Infrastructure MCP Servers
 # -----------------------------------------------------------------------------
