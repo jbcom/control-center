@@ -1,0 +1,392 @@
+#!/bin/bash
+# Local Agent Triage - Works without MCP proxy dependency
+# Uses local conversation.json files from .cursor/recovery/
+#
+# This script provides a fallback when cursor-agent-manager MCP is unavailable.
+# It processes conversation exports directly and runs aider for forensic analysis.
+
+set -euo pipefail
+
+# Secure PATH - only add if directory exists and is not already in PATH
+if [[ -d "/root/.local/bin" ]] && [[ ":$PATH:" != *":/root/.local/bin:"* ]]; then
+    export PATH="/root/.local/bin:$PATH"
+fi
+
+RECOVERY_BASE="${RECOVERY_BASE:-/workspace/.cursor/recovery}"
+AGENT_ID="${1:-}"
+MODE="${2:-analyze}"  # analyze, decompose, execute
+
+usage() {
+    echo "Usage: agent-triage-local <agent-id> [mode]"
+    echo ""
+    echo "Modes:"
+    echo "  analyze    - Analyze conversation and generate report (default)"
+    echo "  decompose  - Decompose into repository-specific tasks"
+    echo "  execute    - Execute tasks with aider"
+    echo "  full       - Run all modes in sequence"
+    echo ""
+    echo "Examples:"
+    echo "  agent-triage-local bc-c1254c3f-ea3a-43a9-a958-13e921226f5d"
+    echo "  agent-triage-local bc-c1254c3f-ea3a-43a9-a958-13e921226f5d decompose"
+    echo "  agent-triage-local bc-c1254c3f-ea3a-43a9-a958-13e921226f5d full"
+    echo ""
+    echo "Environment:"
+    echo "  RECOVERY_BASE   - Base directory for recovery data (default: .cursor/recovery)"
+    echo "  ANTHROPIC_API_KEY - Required for aider analysis"
+    echo "  OPENAI_API_KEY    - Alternative for aider analysis"
+    exit 1
+}
+
+# Validate agent ID format (alphanumeric with hyphens, typical UUID format)
+validate_agent_id() {
+    local id="$1"
+    if [[ ! "$id" =~ ^[a-zA-Z0-9-]+$ ]]; then
+        echo "❌ Invalid agent ID format: $id"
+        echo "   Agent IDs should contain only alphanumeric characters and hyphens"
+        exit 1
+    fi
+    if [[ ${#id} -lt 8 ]]; then
+        echo "❌ Agent ID too short: $id"
+        exit 1
+    fi
+}
+
+[ -z "$AGENT_ID" ] && usage
+
+# Validate inputs
+validate_agent_id "$AGENT_ID"
+
+# Construct paths safely (no command injection possible with validated ID)
+RECOVERY_DIR="$RECOVERY_BASE/$AGENT_ID"
+CONVERSATION="$RECOVERY_DIR/conversation.json"
+
+if [ ! -f "$CONVERSATION" ]; then
+    echo "❌ Conversation file not found: $CONVERSATION"
+    echo ""
+    echo "Available recovery sessions:"
+    ls -1 "$RECOVERY_BASE" 2>/dev/null || echo "  (none)"
+    exit 1
+fi
+
+echo "=============================================="
+echo "🔍 LOCAL AGENT TRIAGE"
+echo "=============================================="
+echo "Agent ID: $AGENT_ID"
+echo "Mode: $MODE"
+echo "Recovery Dir: $RECOVERY_DIR"
+echo ""
+
+# ============================================
+# PHASE 1: EXTRACT & ANALYZE
+# ============================================
+
+analyze_conversation() {
+    echo "📊 Phase 1: Analyzing conversation..."
+    
+    MSG_COUNT=$(jq '.messages | length' "$CONVERSATION" 2>/dev/null || echo "0")
+    echo "   Messages: $MSG_COUNT"
+    
+    if [ "$MSG_COUNT" -lt 3 ]; then
+        echo "⚠️  Too few messages for meaningful analysis"
+        return 1
+    fi
+    
+    # Extract artifacts
+    mkdir -p "$RECOVERY_DIR"/{tasks,reports,by-repo}
+    
+    # Extract repositories mentioned (GitHub URLs)
+    jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
+        grep -oE 'github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+' | \
+        sed 's|github\.com/||' | \
+        sort -u > "$RECOVERY_DIR/repos.txt" 2>/dev/null || touch "$RECOVERY_DIR/repos.txt"
+    
+    # Also extract repo references like "jbcom/extended-data-types"
+    # Filter to valid GitHub org/repo patterns (must have lowercase org name typical of GitHub)
+    jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
+        grep -oE '[a-zA-Z][a-zA-Z0-9_-]*/[a-zA-Z][a-zA-Z0-9_-]+' | \
+        grep -vE '^(feat|fix|docs|chore|refactor|agent|copilot|cursor|AWS|CI|PR|Create|Vault|Issues|admin|bootstrap|branch|actions/toolkit|SecretString)/' | \
+        grep -E '^(jbcom||fsc-|github)' | \
+        sort -u >> "$RECOVERY_DIR/repos.txt" 2>/dev/null
+    sort -u -o "$RECOVERY_DIR/repos.txt" "$RECOVERY_DIR/repos.txt"
+    
+    # Deduplicate and clean repos.txt
+    grep -E '^[a-zA-Z][a-zA-Z0-9_-]*/[a-zA-Z][a-zA-Z0-9_-]+$' "$RECOVERY_DIR/repos.txt" | \
+        grep -vE '(actions/toolkit|actions/tutorials)' | \
+        sort -u > "$RECOVERY_DIR/repos_clean.txt" 2>/dev/null
+    mv "$RECOVERY_DIR/repos_clean.txt" "$RECOVERY_DIR/repos.txt" 2>/dev/null || true
+    
+    # Extract PRs mentioned
+    jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
+        grep -oE '(PR |#)[0-9]+' | \
+        grep -oE '[0-9]+' | \
+        sort -un > "$RECOVERY_DIR/prs.txt" 2>/dev/null || touch "$RECOVERY_DIR/prs.txt"
+    
+    # Extract branches
+    jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
+        grep -oE '(feat|fix|docs|refactor|chore|agent|copilot|cursor)/[a-z0-9_-]+' | \
+        sort -u > "$RECOVERY_DIR/branches.txt" 2>/dev/null || touch "$RECOVERY_DIR/branches.txt"
+    
+    # Extract files
+    jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
+        grep -oE '[a-zA-Z0-9_/.-]+\.(py|ts|tsx|js|jsx|md|yml|yaml|toml|json|sh)' | \
+        sort -u > "$RECOVERY_DIR/files.txt" 2>/dev/null || touch "$RECOVERY_DIR/files.txt"
+    
+    REPO_COUNT=$(wc -l < "$RECOVERY_DIR/repos.txt" 2>/dev/null || echo "0")
+    PR_COUNT=$(wc -l < "$RECOVERY_DIR/prs.txt" 2>/dev/null || echo "0")
+    BRANCH_COUNT=$(wc -l < "$RECOVERY_DIR/branches.txt" 2>/dev/null || echo "0")
+    FILE_COUNT=$(wc -l < "$RECOVERY_DIR/files.txt" 2>/dev/null || echo "0")
+    
+    echo "   Repositories: $REPO_COUNT"
+    echo "   PRs: $PR_COUNT"
+    echo "   Branches: $BRANCH_COUNT"
+    echo "   Files: $FILE_COUNT"
+    echo ""
+    
+    # Generate summary
+    cat > "$RECOVERY_DIR/ANALYSIS_SUMMARY.md" << EOF
+# Agent Triage Analysis: $AGENT_ID
+
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+**Messages**: $MSG_COUNT
+
+## Extracted Artifacts
+
+### Repositories ($REPO_COUNT)
+$(cat "$RECOVERY_DIR/repos.txt" | sed 's/^/- /' || echo "- (none)")
+
+### PRs ($PR_COUNT)
+$(cat "$RECOVERY_DIR/prs.txt" | sed 's/^/- #/' || echo "- (none)")
+
+### Branches ($BRANCH_COUNT)
+$(cat "$RECOVERY_DIR/branches.txt" | sed 's/^/- /' || echo "- (none)")
+
+### Files ($FILE_COUNT)
+$(cat "$RECOVERY_DIR/files.txt" | head -20 | sed 's/^/- /' || echo "- (none)")
+$([ "$FILE_COUNT" -gt 20 ] && echo "- ... and $((FILE_COUNT - 20)) more")
+
+## Last 5 Messages
+$(jq -r '.messages[-5:] | .[] | "[\(.type // "unknown")] \(.text[0:200] // "(empty)")..."' "$CONVERSATION" 2>/dev/null || echo "(could not extract)")
+EOF
+    
+    echo "✅ Analysis complete: $RECOVERY_DIR/ANALYSIS_SUMMARY.md"
+}
+
+# ============================================
+# PHASE 2: DECOMPOSE BY REPOSITORY
+# ============================================
+
+decompose_by_repo() {
+    echo ""
+    echo "📂 Phase 2: Decomposing tasks by repository..."
+    
+    if [ ! -f "$RECOVERY_DIR/repos.txt" ]; then
+        echo "⚠️  No repos.txt found. Run analyze first."
+        return 1
+    fi
+    
+    mkdir -p "$RECOVERY_DIR/by-repo"
+    
+    while read -r repo; do
+        [ -z "$repo" ] && continue
+        
+        # Sanitize repo name for filename
+        REPO_SAFE=$(echo "$repo" | tr '/' '_')
+        REPO_DIR="$RECOVERY_DIR/by-repo/$REPO_SAFE"
+        mkdir -p "$REPO_DIR"
+        
+        echo "   Processing: $repo"
+        
+        # Extract messages mentioning this repo
+        jq --arg repo "$repo" '
+            .messages | map(select(.text | contains($repo)))
+        ' "$CONVERSATION" > "$REPO_DIR/relevant_messages.json" 2>/dev/null
+        
+        REPO_MSG_COUNT=$(jq 'length' "$REPO_DIR/relevant_messages.json" 2>/dev/null || echo "0")
+        
+        # Extract files for this repo
+        jq -r '.[].text // empty' "$REPO_DIR/relevant_messages.json" 2>/dev/null | \
+            grep -oE '[a-zA-Z0-9_/.-]+\.(py|ts|md|yml|toml|json)' | \
+            sort -u > "$REPO_DIR/files.txt" 2>/dev/null || touch "$REPO_DIR/files.txt"
+        
+        # Extract PRs for this repo
+        jq -r '.[].text // empty' "$REPO_DIR/relevant_messages.json" 2>/dev/null | \
+            grep -oE '#[0-9]+' | \
+            sort -u > "$REPO_DIR/prs.txt" 2>/dev/null || touch "$REPO_DIR/prs.txt"
+        
+        # Generate repo-specific task
+        cat > "$REPO_DIR/TASK.md" << EOF
+# Repository Task: $repo
+
+**Agent**: $AGENT_ID
+**Relevant Messages**: $REPO_MSG_COUNT
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+## Context
+This task was extracted from agent $AGENT_ID's conversation.
+The agent mentioned this repository $REPO_MSG_COUNT times.
+
+## Files Mentioned
+$(cat "$REPO_DIR/files.txt" | sed 's/^/- /' || echo "- (none)")
+
+## PRs Mentioned
+$(cat "$REPO_DIR/prs.txt" | sed 's/^/- /' || echo "- (none)")
+
+## Your Mission
+1. Clone or access $repo
+2. Review the files and PRs mentioned above
+3. Determine what work was completed vs incomplete
+4. Generate a recovery report
+
+## Verification Steps
+\`\`\`bash
+# Check repo state
+gh repo view $repo --json name,description
+
+# Check mentioned PRs
+$(cat "$REPO_DIR/prs.txt" | sed 's/#//' | while read pr; do echo "gh pr view $pr --repo $repo --json state,title"; done || echo "# No PRs to check")
+
+# Check files exist
+$(cat "$REPO_DIR/files.txt" | head -5 | while read f; do echo "ls -la $f 2>/dev/null || echo 'Missing: $f'"; done || echo "# No files to check")
+\`\`\`
+
+## Output
+Create: \`$REPO_DIR/RECOVERY_REPORT.md\`
+EOF
+        
+        echo "      ✅ Task created: $REPO_DIR/TASK.md ($REPO_MSG_COUNT messages)"
+        
+    done < "$RECOVERY_DIR/repos.txt"
+    
+    echo ""
+    echo "✅ Decomposition complete. Tasks in: $RECOVERY_DIR/by-repo/"
+}
+
+# ============================================
+# PHASE 3: EXECUTE WITH AIDER
+# ============================================
+
+execute_with_aider() {
+    echo ""
+    echo "🤖 Phase 3: Executing tasks with aider..."
+    
+    # Check for API key
+    if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
+        echo "⚠️  No AI API key found"
+        echo "   Set ANTHROPIC_API_KEY or OPENAI_API_KEY"
+        echo "   Generating prompt files for manual execution instead..."
+        
+        generate_aider_prompts
+        return 0
+    fi
+    
+    # Check aider is available
+    if ! command -v aider &> /dev/null; then
+        echo "❌ aider not found in PATH"
+        echo "   Install with: uv tool install --python python3.12 aider-chat@latest"
+        return 1
+    fi
+    
+    # Execute main analysis
+    AIDER_PROMPT="FORENSIC RECOVERY ANALYSIS
+
+Agent ID: $AGENT_ID
+Recovery Dir: $RECOVERY_DIR
+
+## Your Task
+Analyze the conversation from a failed/completed Cursor background agent and determine:
+1. What work was completed
+2. What work was partial or incomplete
+3. What work was lost or never started
+
+## Data Sources
+- Conversation: $CONVERSATION
+- Analysis Summary: $RECOVERY_DIR/ANALYSIS_SUMMARY.md
+- Repository Tasks: $RECOVERY_DIR/by-repo/*/TASK.md
+
+## Instructions
+1. Read the ANALYSIS_SUMMARY.md for context
+2. For each repository in by-repo/, review the TASK.md
+3. Use git and gh CLI to verify actual state
+4. Generate a consolidated report
+
+## Output
+Create: $RECOVERY_DIR/AIDER_RECOVERY_REPORT.md
+
+Use this structure:
+- Executive Summary
+- Work Completed ✅
+- Work Partial ⚠️
+- Work Lost ❌
+- Recommended Next Steps"
+
+    echo "$AIDER_PROMPT" > "$RECOVERY_DIR/aider_prompt.txt"
+    
+    echo "   Running aider analysis..."
+    cd /workspace
+    
+    aider \
+        --model claude-sonnet-4-20250514 \
+        --no-auto-commits \
+        --yes \
+        --message "$AIDER_PROMPT" \
+        2>&1 | tee "$RECOVERY_DIR/aider_output.log"
+    
+    echo ""
+    echo "✅ Aider analysis complete"
+    echo "   Log: $RECOVERY_DIR/aider_output.log"
+}
+
+generate_aider_prompts() {
+    echo "   Generating aider prompt files..."
+    
+    # Main recovery prompt
+    cat > "$RECOVERY_DIR/RUN_WITH_AIDER.md" << EOF
+# Run This With Aider
+
+Execute this file with aider to perform forensic recovery:
+
+\`\`\`bash
+export ANTHROPIC_API_KEY="your-key"
+cd /workspace
+aider --model claude-sonnet-4-20250514 --no-auto-commits --yes --message "\$(cat $RECOVERY_DIR/aider_prompt.txt)"
+\`\`\`
+
+## Aider Prompt
+
+$(cat "$RECOVERY_DIR/aider_prompt.txt" 2>/dev/null || echo "Run 'analyze' mode first to generate prompt")
+EOF
+    
+    echo "   ✅ Prompt file: $RECOVERY_DIR/RUN_WITH_AIDER.md"
+}
+
+# ============================================
+# MAIN EXECUTION
+# ============================================
+
+case "$MODE" in
+    analyze)
+        analyze_conversation
+        ;;
+    decompose)
+        decompose_by_repo
+        ;;
+    execute)
+        execute_with_aider
+        ;;
+    full)
+        analyze_conversation
+        decompose_by_repo
+        execute_with_aider
+        ;;
+    *)
+        echo "❌ Unknown mode: $MODE"
+        usage
+        ;;
+esac
+
+echo ""
+echo "=============================================="
+echo "✅ Agent triage complete"
+echo "=============================================="
+echo "Recovery Dir: $RECOVERY_DIR"
+echo ""
