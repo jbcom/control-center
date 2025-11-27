@@ -8,13 +8,14 @@ Stable reference for AI agent behavior in this repository.
 
 ### Session Start
 ```bash
-cat .cursor/memory-bank/activeContext.md
-cat .cursor/memory-bank/progress.md
+cat memory-bank/activeContext.md
+cat memory-bank/progress.md
 ```
 
 ### Session End
 - Update activeContext.md with current state
 - Update progress.md with completions
+- Run `python scripts/replay_agent_session.py` to ingest any recovered Cursor transcripts
 - Commit memory-bank changes with your work
 
 ---
