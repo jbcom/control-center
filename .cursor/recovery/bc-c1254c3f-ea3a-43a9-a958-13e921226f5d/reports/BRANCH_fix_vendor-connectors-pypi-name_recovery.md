@@ -3,7 +3,7 @@
 ## Branch Status
 - **Location:** `origin/fix/vendor-connectors-pypi-name` (no local tracking branch)
 - **Latest commit:** `412e407` (2025-11-26) – *Add load_vendors_from_asm() to AWSConnector* (verified)
-- **Divergence:** 44 commits ahead of `main` (`git rev-list --count main..origin/fix/vendor-connectors-pypi-name`)
+- **Divergence:** 44 commits ahead, 0 behind `main` (`git rev-list --left-right --count main...origin/fix/vendor-connectors-pypi-name`)
 - **Open PRs:** none. Historical PR #165 (*Fix: Use vendor-connectors as PyPI name*) was merged *into* this branch on 2025-11-26; the branch continued accumulating additional commits afterwards.
 
 ## Commit History Highlights
