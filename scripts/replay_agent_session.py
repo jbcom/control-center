@@ -116,7 +116,12 @@ def _append_progress_entry(summary: str, timeline_path: Path, tasks: list[str], 
         f"### Delegation Inputs\n{task_lines}\n"
     )
 
-    progress_path.write_text(progress_path.read_text().rstrip() + entry + "\n")
+    # Handle case where progress.md doesn't exist yet
+    if progress_path.is_file():
+        existing_content = progress_path.read_text().rstrip()
+        progress_path.write_text(existing_content + entry + "\n")
+    else:
+        progress_path.write_text("# Progress Log\n" + entry + "\n")
 
 
 def _refresh_active_context(summary: str, tasks: list[str], session_label: str) -> None:
@@ -159,7 +164,9 @@ def _collect_task_summaries(tasks_dir: Path | None) -> list[str]:
 
     summaries: list[str] = []
     for task_file in sorted(tasks_dir.glob("*.md")):
-        first_line = task_file.read_text().splitlines()[0].strip()
+        lines = task_file.read_text().splitlines()
+        # Handle empty files gracefully
+        first_line = lines[0].strip() if lines else "[Empty task file]"
         summaries.append(f"{task_file.name}: {first_line}")
     return summaries
 

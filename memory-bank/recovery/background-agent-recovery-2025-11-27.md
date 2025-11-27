@@ -1,7 +1,7 @@
 # Background Agent Recovery Log
 
-Recovered the final 15 messages from failed agent bc-c1254c3f-ea3a-43a9-a958-13e921226f5d to reconstruct the last 24 hours of activity.
-Conversation source: .cursor/recovery/bc-c1254c3f-ea3a-43a9-a958-13e921226f5d/conversation.json
+Recovered the final 15 messages from failed background agent session to reconstruct the last 24 hours of activity.
+Conversation source: .cursor/recovery/[REDACTED-AGENT-ID]/conversation.json
 
 ## Recent Messages
 273. [assistant_message] Now let me update the fsc-org-admin generator to use the new option:

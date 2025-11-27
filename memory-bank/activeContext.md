@@ -7,12 +7,12 @@
 ## Active Work
 
 ### Session Replay Automation
-- Replayed session `bc-c1254c3f-ea3a-43a9-a958-13e921226f5d` into the recovery archive and appended its summary to the progress log.
+- Replayed recent background agent session into the recovery archive and appended its summary to the progress log.
 - Captured delegation inputs for MCP-aware CLIs to spawn focused sub-agents.
 
 ## Next Actions
 - Run `python scripts/replay_agent_session.py --conversation <path/to/conversation.json>` for each new recovery export.
-- Pipe `memory-bank/recovery/bc-c1254c3f-ea3a-43a9-a958-13e921226f5d-delegation.md` into MCP-aware CLIs (Codex, Claude code aider) to launch sub-agents.
+- Check `memory-bank/recovery/` for delegation prompts to pipe into MCP-aware CLIs (Codex, Claude code aider).
 - Keep `memory-bank/` and `.cursor/memory-bank/` synchronized after each replay using this script's mirroring step.
 
 ## Session Highlight

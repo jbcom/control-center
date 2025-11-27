@@ -85,7 +85,7 @@ Pending work in terraform-aws-secretsmanager.
 - [ ] Restart cursor-agent-manager and MCP proxies, then confirm new background agents can launch cleanly.
 - [ ] Resume enterprise secrets sync work based on recovered agent notes once services are stable.
 
-## Session Replay: bc-c1254c3f-ea3a-43a9-a958-13e921226f5d (Nov 27, 2025 08:26 UTC)
+## Session Replay: [Agent Session Nov 27] (Nov 27, 2025 08:26 UTC)
 
 ### Summary
 Now let me provide a summary of the proper solution:
@@ -165,7 +165,7 @@ gh workflow run sync-enterprise-secrets \
 Shall I trigger a test run of this workflow?
 
 ### Transcript
-- Stored at `memory-bank/recovery/bc-c1254c3f-ea3a-43a9-a958-13e921226f5d-replay.md`
+- Stored at `memory-bank/recovery/` (see directory for agent session replays)
 
 ### Delegation Inputs
 - BRANCH_fix_vendor-connectors-pypi-name_task.md: 🔍 Forensic Recovery: Branch fix/vendor-connectors-pypi-name
