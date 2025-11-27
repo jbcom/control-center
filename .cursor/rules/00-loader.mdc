@@ -76,7 +76,7 @@ uv run crew_agents full        # Complete pipeline
 
 ## Override Behaviors
 
-- "Plan" means execute unless exactly "Plan only" is specified
+- "Plan" means execute unless the instruction is exactly the string "Plan only" (case-sensitive, no punctuation, no extra whitespace)
 - Show progress through code, not explanations
 - Never generate placeholders - implement real functionality
 - Bias toward action over discussion
