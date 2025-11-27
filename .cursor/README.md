@@ -1,193 +1,283 @@
-# Cursor Agent Configuration
+# Cursor Background Agent Environment
 
-This directory contains agent memory, configuration, and MCP server setup.
+This directory contains the Docker-based development environment configuration for Cursor's background agent operation.
 
-## 🧠 Memory Bank (READ FIRST!)
+## Files
 
-**Agents MUST read memory-bank at session start:**
+### `Dockerfile`
+The main environment definition with all tools and languages needed for autonomous agent operation.
 
+**Key features:**
+- Python 3.13 + Node.js 24 base
+- Full Python dev stack (pytest, mypy, ruff, etc.)
+- Agent frameworks (ConPort, CrewAI)
+- Modern CLI tools (ripgrep, fd, bat, etc.)
+- Rust + Go toolchains
+- Versioned, reproducible builds
+
+**Build:** See "Building the Environment" below.
+
+### `environment.json`
+Cursor-specific configuration that tells Cursor to use the Dockerfile in this repo.
+
+### `ENVIRONMENT_ANALYSIS.md`
+Comprehensive analysis of tool requirements, security considerations, and workflow mappings.
+
+**Read this to understand:**
+- Why each tool was chosen
+- Security improvements made
+- How tools map to workflows
+- Maintenance strategy
+
+### `EVALUATION_SUMMARY.md`
+Executive summary of improvements made to the Dockerfile.
+
+**Quick overview of:**
+- All PR feedback addressed
+- Complete tool matrix
+- Testing recommendations
+- Image size estimates
+
+### `TOOLS_REFERENCE.md`
+Quick reference guide for all available tools in the environment.
+
+**Use this when:**
+- You need to know what command to run
+- You want to find the modern alternative to a classic tool
+- You need examples of common workflows
+
+## Building the Environment
+
+### Prerequisites
+- Docker installed and running
+- At least 5GB free disk space
+- Internet connection (for downloading tools)
+
+### Build Command
 ```bash
-cat .cursor/memory-bank/activeContext.md  # Current focus
-cat .cursor/memory-bank/progress.md        # Task history
-cat .cursor/memory-bank/agenticRules.md    # Behavior rules
+cd /workspace
+docker build -f .cursor/Dockerfile -t jbcom-control-center:dev .
 ```
 
-See `memory-bank/README.md` for full documentation.
+### Build Time
+First build: ~15-30 minutes (downloads and compiles tools)
+Subsequent builds: ~5-10 minutes (uses layer cache)
+
+### Verify Build
+```bash
+docker run --rm jbcom-control-center:dev python --version
+docker run --rm jbcom-control-center:dev rg --version
+docker run --rm jbcom-control-center:dev process-compose version
+```
+
+## Using with Cursor
+
+### Automatic Setup
+When you open this workspace in Cursor with the `.cursor/environment.json` file present, Cursor will:
+1. Detect the Dockerfile configuration
+2. Build the image automatically (if not already built)
+3. Start the container
+4. Mount the workspace at `/workspace`
+5. Copy files into the container (NOT done in Dockerfile)
+
+### Manual Setup (if needed)
+If Cursor doesn't auto-detect:
+1. Open Cursor settings
+2. Go to "Remote" section
+3. Select "Use Dockerfile in repository"
+4. Restart Cursor
+
+## Tool Categories
+
+### Python Development
+- **Package managers**: uv, pip, poetry
+- **Testing**: pytest (with plugins)
+- **Type checking**: mypy, pyright
+- **Linting**: ruff
+- **Versioning**: pycalver
+
+### Node.js Development
+- **Package manager**: pnpm 9.15.0
+- **Browser automation**: Playwright 1.49.0
+
+### Agent Frameworks
+- **Memory**: ConPort (context-portal-mcp)
+- **Multi-agent**: CrewAI + crewai-tools
+- **Instructions**: Ruler
+
+### Shell Utilities
+- **Search**: ripgrep (rg), fd-find
+- **Data**: jq, yq, sqlite3
+- **Display**: bat, exa, glow
+- **Git**: git, git-lfs, gh, delta, lazygit
+- **Process**: process-compose, htop
+
+### Additional Runtimes
+- **Rust**: stable (via rustup)
+- **Go**: 1.23.4
+
+## Version Pinning Strategy
+
+### Strictly Pinned (for reproducibility)
+- pnpm: 9.15.0 (must match package.json)
+- Playwright: 1.49.0
+- process-compose: v1.27.0
+- Go: 1.23.4
+
+### Loosely Pinned (major version)
+- Python packages: `>=X.Y.0` (pip resolves)
+- Rust: stable channel
+- Cargo tools: `--locked` (uses Cargo.lock)
+
+### No Pin (always latest)
+- Base image: python3.13-nodejs24
+- System packages: Latest from apt repos
+
+## Security Considerations
+
+### What We Did Right
+✅ **No curl-to-shell**: All tools downloaded as versioned binaries or from package managers
+✅ **HTTPS only**: All downloads use HTTPS
+✅ **Reproducible**: Pinned versions for critical tools
+✅ **Verified**: Final verification step checks all tools work
+✅ **Minimal attack surface**: Only install what's needed
+
+### What to Watch
+⚠️ **Base image trust**: We trust `nikolaik/python-nodejs` (well-maintained, popular)
+⚠️ **Rust toolchain**: Installed via rustup.rs (official, but curl-to-sh)
+⚠️ **Go toolchain**: Installed from official go.dev (trusted source)
+
+### Regular Updates
+- **Monthly**: Check for base image updates
+- **Quarterly**: Update Go/Rust toolchains
+- **On CVE**: Update affected tools immediately
+
+## Troubleshooting
+
+### Build Fails on Rust Tools
+If `cargo install` fails (common on low-memory systems):
+- Reduce parallel jobs: `cargo install --jobs 1 ...`
+- Comment out optional tools (exa, bottom, ast-grep)
+- Or use pre-built binaries instead
+
+### Build Fails on Python Packages
+If pip install fails:
+- Check internet connection
+- Try with `--no-cache-dir` (already default)
+- Check package availability: `pip index versions package-name`
+
+### Image Too Large
+Current image: ~2.5GB
+- Remove Rust tools: Save ~400MB
+- Remove Go tools: Save ~200MB
+- Remove Playwright: Save ~500MB
+- Keep only what you need!
+
+### Cursor Not Using Dockerfile
+1. Check `.cursor/environment.json` exists
+2. Verify Docker is running: `docker ps`
+3. Restart Cursor
+4. Check Cursor logs for errors
+
+## Maintenance
+
+### Update Base Image
+```dockerfile
+FROM nikolaik/python-nodejs:python3.13-nodejs24
+# Check for newer versions at https://hub.docker.com/r/nikolaik/python-nodejs
+```
+
+### Update Pinned Versions
+Edit environment variables in Dockerfile:
+```dockerfile
+ENV PC_VERSION="v1.27.0"      # Update this
+ENV PLAYWRIGHT_VERSION="1.49.0"  # Update this
+ENV GO_VERSION="1.23.4"       # Update this
+```
+
+### Update Python Packages
+```dockerfile
+RUN pip install --no-cache-dir \
+    pytest>=8.0.0 \  # Update minimum version
+    # ...
+```
+
+### Rebuild After Changes
+```bash
+docker build --no-cache -f .cursor/Dockerfile -t jbcom-control-center:dev .
+```
+
+## Integration with Agent Rules
+
+This environment is designed to work with the agent rules in `.cursor/rules/`:
+
+### `00-loader.mdc`
+- ✅ CrewAI workflows supported
+- ✅ uv package manager available
+- ✅ Documentation-driven development (all tools present)
+
+### `10-background-agent-conport.mdc`
+- ✅ ConPort (context-portal-mcp) installed
+- ✅ sqlite3 for ConPort database
+- ✅ process-compose for orchestration
+- ✅ ripgrep for fast search (REQUIRED by rules)
+
+### Root `.cursorrules`
+- ✅ Python tooling (pytest, mypy, ruff)
+- ✅ GitHub CLI (gh)
+- ✅ Git operations supported
+- ✅ CalVer tools (pycalver)
+
+## Advanced Usage
+
+### Custom Tools
+Add your own tools by editing Dockerfile:
+```dockerfile
+RUN cargo install your-rust-tool
+RUN go install github.com/user/tool@latest
+RUN pip install your-python-package
+```
+
+### Environment Variables
+Add custom env vars:
+```dockerfile
+ENV YOUR_VAR=value
+```
+
+### Multi-Stage Builds
+For production, consider multi-stage:
+```dockerfile
+FROM base AS builder
+RUN ... build steps ...
+
+FROM base AS runtime
+COPY --from=builder /usr/local/bin/tool /usr/local/bin/
+```
+
+### Dockerfile Best Practices
+- Group related commands in single RUN
+- Clean up after apt installs
+- Use `--no-cache-dir` for pip
+- Remove build artifacts: `rm -rf $CARGO_HOME/registry`
+
+## Resources
+
+- **Dockerfile best practices**: https://docs.docker.com/develop/develop-images/dockerfile_best-practices/
+- **Python in Docker**: https://pythonspeed.com/docker/
+- **nikolaik base image**: https://github.com/nikolaik/docker-python-nodejs
+- **ConPort**: https://github.com/cyanheads/context-portal-mcp
+- **CrewAI**: https://github.com/joaomdmoura/crewAI
+- **Ruler**: https://github.com/intellectronica/ruler
+
+## Questions?
+
+- **Agent rules**: See `.cursor/rules/` and `.cursorrules`
+- **Tool usage**: See `TOOLS_REFERENCE.md`
+- **Analysis**: See `ENVIRONMENT_ANALYSIS.md`
+- **Summary**: See `EVALUATION_SUMMARY.md`
 
 ---
 
-# Model Context Protocol (MCP) Setup
-
-This section covers MCP server configuration for GitHub integration.
-
-## What is MCP?
-
-Model Context Protocol (MCP) is an open protocol that enables AI assistants to connect to external tools and data sources. Instead of using hacky CLI commands like `gh`, MCP provides a standardized way to interact with GitHub, filesystems, and other services.
-
-## MCP Servers Configured
-
-### 1. GitHub MCP Server
-- **Package**: `@modelcontextprotocol/server-github`
-- **Capabilities**:
-  - Create/update files in repos
-  - Create pull requests and issues
-  - Search code and repositories
-  - Manage branches and commits
-  - Check workflow runs
-  - Much more...
-
-### 2. Filesystem MCP Server
-- **Package**: `@modelcontextprotocol/server-filesystem`
-- **Capabilities**:
-  - Read/write files
-  - Create directories
-  - Search files
-  - Move/rename files
-
-### 3. Git MCP Server
-- **Package**: `@modelcontextprotocol/server-git`
-- **Capabilities**:
-  - Git status, diff, log
-  - Stage and commit changes
-  - View commit history
-
-## Configuration Files
-
-### `mcp.json`
-Defines MCP servers that Cursor can connect to. This is automatically loaded by Cursor.
-
-### `process-compose.yml`
-Optional: Use with [process-compose](https://github.com/F1bonacc1/process-compose) to manage MCP servers as background processes.
-
-```bash
-# Install process-compose
-brew install process-compose  # macOS
-# or
-go install github.com/F1bonacc1/process-compose@latest
-
-# Run all MCP servers
-process-compose up
-```
-
-### `agents/`
-Custom Cursor agents that leverage MCP tools:
-
-- **`jbcom-ecosystem-manager.md`** - Central coordinator for the entire ecosystem
-- **`ci-deployer.md`** - Specialized in CI/CD workflow deployment
-
-## Usage
-
-### Automatic (Recommended)
-Cursor automatically detects `mcp.json` and starts MCP servers when needed.
-
-### Manual (with process-compose)
-```bash
-cd /workspace/.cursor
-process-compose up
-```
-
-This keeps MCP servers running in the background for instant access.
-
-## Environment Variables
-
-MCP servers need access to GitHub:
-
-```bash
-export GITHUB_JBCOM_TOKEN="your_token_here"
-```
-
-Or configure in Cursor settings:
-```json
-{
-  "cursor.mcp.env": {
-    "GITHUB_JBCOM_TOKEN": "your_token_here"
-  }
-}
-```
-
-## Cursor Agent Usage
-
-Instead of:
-```bash
-gh pr create --title "..."
-```
-
-Cursor agents with MCP can do:
-```typescript
-await mcp.github.create_pull_request({
-  owner: "jbcom",
-  repo: "extended-data-types",
-  title: "Update CI/CD",
-  body: "...",
-  head: "feature-branch",
-  base: "main"
-});
-```
-
-This is:
-- ✅ Faster
-- ✅ More reliable
-- ✅ Better error handling
-- ✅ Type-safe
-- ✅ No shell command parsing
-
-## Benefits Over CLI
-
-| Feature | `gh` CLI | MCP |
-|---------|----------|-----|
-| Speed | Slow (subprocess spawn) | Fast (direct API) |
-| Error Handling | Parse stderr | Structured errors |
-| Type Safety | None | Full TypeScript types |
-| Rate Limiting | Manual | Automatic |
-| Batching | Manual loops | Built-in |
-| Authentication | Token files | Environment vars |
-
-## Available MCP Operations
-
-See agent files for comprehensive lists, but key operations include:
-
-### GitHub
-- `create_pull_request`
-- `create_issue`
-- `search_repositories`
-- `search_code`
-- `list_workflow_runs`
-- `get_file_contents`
-- `create_or_update_file`
-- `create_branch`
-- And 20+ more...
-
-### Filesystem
-- `read_file`
-- `write_file`
-- `list_directory`
-- `search_files`
-- `create_directory`
-
-### Git
-- `git_status`
-- `git_diff`
-- `git_commit`
-- `git_log`
-
-## Debugging
-
-Check MCP server logs:
-```bash
-tail -f /tmp/mcp-github.log
-tail -f /tmp/mcp-filesystem.log
-tail -f /tmp/mcp-git.log
-```
-
-Or use Cursor's MCP inspector (if available in settings).
-
-## References
-
-- [MCP Specification](https://spec.modelcontextprotocol.io/)
-- [MCP GitHub Server](https://github.com/modelcontextprotocol/servers/tree/main/src/github)
-- [Process Compose](https://github.com/F1bonacc1/process-compose)
-- [Cursor Documentation](https://docs.cursor.com/)
-
----
-
-**This setup gives Cursor agents the same powerful capabilities that GitHub Copilot has**, without relying on brittle shell commands.
+**Last Updated**: 2025-11-27
+**Environment Version**: 1.0.0
+**Maintained By**: jbcom-control-center

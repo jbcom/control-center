@@ -7,7 +7,7 @@ FROM nikolaik/python-nodejs:python3.13-nodejs24
 # =============================================================================
 # Single consolidated layer for all apt packages to minimize image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build essentials (required for native Node modules: better-sqlite3, esbuild, etc.)
+    # Build essentials (required for native modules: better-sqlite3, esbuild, etc.)
     build-essential \
     pkg-config \
     # Version control
@@ -16,20 +16,46 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gh \
     # Task automation (Debian native package)
     just \
+    # Database tools (for ConPort SQLite database)
+    sqlite3 \
+    # Modern shell utilities (faster alternatives to find/grep)
+    ripgrep \
+    fd-find \
+    # JSON/YAML processing
+    jq \
+    # Text editors for quick edits
+    vim \
+    nano \
+    # Network tools
+    curl \
+    wget \
+    ca-certificates \
+    # Process management
+    procps \
+    htop \
+    # Compression tools
+    unzip \
+    zip \
     && rm -rf /var/lib/apt/lists/*
+
+# Symlink fd-find to fd (Debian packages it as fdfind)
+RUN ln -sf /usr/bin/fdfind /usr/local/bin/fd
 
 # =============================================================================
 # GIT LFS CONFIGURATION
 # =============================================================================
 # CRITICAL: --skip-smudge prevents workspace crashes with large LFS repos
-# LFS files appear as pointers (fine for Cursor/AI analysis)
-# Actual LFS operations (checkout, pull) handled by GitHub Actions
+# AI tools (like Cursor) need file structure for code analysis, but not actual LFS content.
+# This improves performance and reduces storage requirements in the dev environment.
+# LFS files appear as pointers (text representation of metadata)
+# Actual LFS operations (checkout, pull) handled by GitHub Actions or manual `git lfs pull`
 RUN git lfs install --system --skip-smudge
 
 # =============================================================================
 # NODE.JS PACKAGE MANAGER (pnpm)
 # =============================================================================
-# MUST match package.json "packageManager" field exactly
+# pnpm version (line below) MUST match package.json "packageManager" field exactly.
+# PNPM_HOME path configuration is independent and does not need to match package.json.
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable && \
@@ -37,11 +63,76 @@ RUN corepack enable && \
     pnpm --version
 
 # =============================================================================
-# DEVELOPER TOOLS
+# RUST TOOLING (for modern CLI tools)
+# =============================================================================
+# Many modern development tools are written in Rust
+# Installing via rustup for latest stable versions
+ENV RUSTUP_HOME=/usr/local/rustup
+ENV CARGO_HOME=/usr/local/cargo
+ENV PATH="/usr/local/cargo/bin:$PATH"
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal && \
+    chmod -R a+w $RUSTUP_HOME $CARGO_HOME && \
+    rustc --version && cargo --version
+
+# Install additional Rust-based tools useful for background agents
+RUN cargo install --locked \
+    # Modern ls replacement with icons
+    exa \
+    # Interactive process viewer
+    bottom \
+    # Fast code search
+    ast-grep \
+    # Modern cat replacement with syntax highlighting
+    bat \
+    # Git utilities
+    git-delta \
+    && rm -rf $CARGO_HOME/registry
+
+# =============================================================================
+# PYTHON TOOLING (beyond base image's uv)
+# =============================================================================
+# Install Python development tools globally
+# The base image includes uv, but we need additional tooling
+RUN pip install --no-cache-dir \
+    # Testing frameworks
+    pytest>=8.0.0 \
+    pytest-cov>=4.1.0 \
+    pytest-xdist>=3.5.0 \
+    pytest-asyncio>=0.23.0 \
+    # Type checking
+    mypy>=1.8.0 \
+    pyright>=1.1.350 \
+    # Linting and formatting
+    ruff>=0.2.0 \
+    # Pre-commit framework
+    pre-commit>=3.6.0 \
+    # CalVer versioning
+    pycalver>=202010.0 \
+    # Poetry (some projects may use it)
+    poetry>=1.7.0 \
+    # Task automation
+    nox>=2023.4.22 \
+    # ConPort for memory management (MCP server)
+    context-portal-mcp>=0.3.0 \
+    # CrewAI for agent workflows
+    crewai>=1.0.0 \
+    crewai-tools>=1.0.0 \
+    # Ruler for agent instruction management
+    ruler>=2.0.0
+
+# =============================================================================
+# DEVELOPER TOOLS - process-compose
 # =============================================================================
 # Process-compose - Multi-process orchestration (required for CrewAI workflows)
-# Using official installation script
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -b /usr/local/bin && \
+# Using versioned binary for reproducibility and security
+ENV PC_VERSION="v1.27.0"
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PC_VERSION}/process-compose_${PC_VERSION}_linux_${ARCH}.tar.gz" \
+    -o /tmp/process-compose.tar.gz && \
+    tar -xzf /tmp/process-compose.tar.gz -C /usr/local/bin process-compose && \
+    chmod +x /usr/local/bin/process-compose && \
+    rm /tmp/process-compose.tar.gz && \
     process-compose version
 
 # =============================================================================
@@ -50,7 +141,71 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 # Pre-install Playwright dependencies and Chromium browser
 # Playwright bundles its own Chromium (not using system package)
 # This is required for CrewAI agents using @modelcontextprotocol/server-playwright
-RUN pnpm dlx playwright install-deps chromium && \
-    pnpm dlx playwright install chromium
+# Pin specific version for reproducibility
+ENV PLAYWRIGHT_VERSION="1.49.0"
+RUN pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium && \
+    pnpm dlx playwright@${PLAYWRIGHT_VERSION} install chromium
 
+# =============================================================================
+# GO TOOLING (for additional developer tools)
+# =============================================================================
+# Some tools we might want in the future are Go-based
+# Install Go for potential future tooling needs
+ENV GO_VERSION="1.23.4"
+RUN curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz" -o /tmp/go.tar.gz && \
+    tar -C /usr/local -xzf /tmp/go.tar.gz && \
+    rm /tmp/go.tar.gz
+ENV PATH="/usr/local/go/bin:$PATH"
+ENV GOPATH="/go"
+ENV PATH="$GOPATH/bin:$PATH"
+
+# Install useful Go-based tools
+RUN go install github.com/mikefarah/yq/v4@latest && \
+    go install github.com/jesseduffield/lazygit@latest && \
+    go install github.com/charmbracelet/glow@latest
+
+# =============================================================================
+# ENVIRONMENT SETUP
+# =============================================================================
+# Set up environment variables for optimal background agent operation
+ENV TERM=xterm-256color
+ENV COLORTERM=truecolor
+ENV EDITOR=vim
+ENV PAGER=less
+
+# Python optimizations
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONIOENCODING=utf-8
+
+# Disable telemetry for various tools
+ENV DO_NOT_TRACK=1
+ENV DISABLE_TELEMETRY=1
+ENV POWERSHELL_TELEMETRY_OPTOUT=1
+
+# Set working directory (files copied by Cursor, not in image build)
 WORKDIR /workspace
+
+# =============================================================================
+# FINAL VERIFICATION
+# =============================================================================
+# Verify all critical tools are installed and working
+RUN echo "=== VERIFICATION ===" && \
+    python --version && \
+    node --version && \
+    pnpm --version && \
+    uv --version && \
+    git --version && \
+    gh --version && \
+    just --version && \
+    sqlite3 --version && \
+    rg --version && \
+    fd --version && \
+    jq --version && \
+    process-compose version && \
+    cargo --version && \
+    go version && \
+    pytest --version && \
+    mypy --version && \
+    ruff --version && \
+    echo "=== ALL TOOLS VERIFIED ==="
