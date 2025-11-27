@@ -30,8 +30,9 @@ processes:
       restart: "always"
       backoff_seconds: 5
     environment:
-      - "AWS_PROFILE=${AWS_PROFILE:-default}"
+      # Auto-use Cursor IAM role if available, fallback to profile
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
       - "FASTMCP_LOG_LEVEL=ERROR"
     readiness_probe:
       http_get:
@@ -47,8 +48,8 @@ processes:
       restart: "always"
       backoff_seconds: 5
     environment:
-      - "AWS_PROFILE=${AWS_PROFILE:-default}"
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
       - "FASTMCP_LOG_LEVEL=ERROR"
     readiness_probe:
       http_get:
@@ -64,8 +65,8 @@ processes:
       restart: "always"
       backoff_seconds: 5
     environment:
-      - "AWS_PROFILE=${AWS_PROFILE:-default}"
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
       - "FASTMCP_LOG_LEVEL=ERROR"
     readiness_probe:
       http_get:
