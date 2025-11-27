@@ -24,6 +24,7 @@
 | Tool | Current Version | Latest Version | Source | Status |
 |------|----------------|----------------|---------|--------|
 | Go | 1.25.4 | 1.25.4 | https://go.dev/dl/ | ✅ Current |
+| Terraform | 1.13.1 | 1.14.0 | GitHub Releases | ✅ Intentionally pinned for enterprise compatibility |
 | Terragrunt | 0.93.11 | v0.93.11 | GitHub Releases | ✅ Current |
 | SOPS | 3.11.0 | v3.11.0 | GitHub Releases | ✅ Current |
 | GAM | 7.29.01 | v7.29.01 | GitHub Releases | ✅ Current |
@@ -33,11 +34,7 @@
 
 ### ⚠️ Outdated (Should Update)
 
-| Tool | Current Version | Latest Version | Impact | Priority |
-|------|----------------|----------------|--------|----------|
-| Terraform | 1.13.1 | 1.14.0 | Low (still works) | Medium |
-
-**Recommendation:** Update Terraform to 1.14.0 in next maintenance cycle.
+None - all tools are either current or intentionally pinned.
 
 ### ℹ️ Cannot Auto-Verify (Version Not in Dockerfile)
 
@@ -144,20 +141,21 @@ COPY --from=builder /usr/local/cargo/bin/* /usr/local/bin/
 
 ## Known Issues
 
-### Issue 1: Terraform Version Outdated
+### Issue 1: Terraform Version Intentionally Pinned
 
-**Severity:** Low
+**Severity:** N/A (Intentional)
 **Current:** 1.13.1
 **Latest:** 1.14.0
-**Impact:** Missing new features, potential security fixes
+**Reason:** Pinned to match enterprise infrastructure version
 
-**Fix:**
+**Note in Dockerfile:**
 ```dockerfile
--ENV TERRAFORM_VERSION="1.13.1"
-+ENV TERRAFORM_VERSION="1.14.0"
+# Terraform - version intentionally held at 1.13.1
+# NOTE: Pinned to match enterprise infrastructure version
+# DO NOT UPDATE until enterprise upgrades (check with infrastructure team)
 ```
 
-**Status:** Can be fixed in next update
+**Action:** Contact infrastructure team before upgrading
 
 ### Issue 2: No SHA Verification for Downloads
 
@@ -255,8 +253,8 @@ RUN ... && /tmp/aws/install && ...
 None - Dockerfile is in good shape
 
 ### Medium Priority
-1. ✅ **Update Terraform** to 1.14.0
-2. ℹ️ **Document** why specific versions are chosen (already done for some)
+1. ℹ️ **Terraform version** - Pinned at 1.13.1 for enterprise compatibility (intentional)
+2. ℹ️ **Document** why specific versions are chosen (✅ done for Terraform)
 
 ### Low Priority
 1. Add SHA verification for Terraform, AWS CLI, Google Cloud CLI
@@ -272,12 +270,13 @@ None - Dockerfile is in good shape
 
 The `.cursor/Dockerfile` is **well-constructed and production-ready**. It follows Docker best practices, has good documentation, and properly manages dependencies.
 
-**Grade:** A- (would be A with Terraform update and SHA verification)
+**Grade:** A (Terraform version intentionally pinned; all other tools current)
 
 **Action Items:**
-1. ✅ Update Terraform to 1.14.0
-2. ✅ Add verification note about Go 1.25.4 being correct
-3. ✅ Document this analysis
+1. ✅ Terraform intentionally pinned at 1.13.1 for enterprise compatibility
+2. ✅ Added verification note about Go 1.25.4 being correct
+3. ✅ Documented this analysis
+4. ℹ️ Check with infrastructure team before upgrading Terraform
 
 ---
 
