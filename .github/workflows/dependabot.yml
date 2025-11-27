@@ -1,4 +1,5 @@
 # This workflow enables Dependabot to automatically merge dependency updates
+# PHILOSOPHY: Auto-merge everything except major production dependencies
 
 name: Dependabot reviewer
 on: pull_request
@@ -17,31 +18,38 @@ jobs:
         id: dependabot-metadata
         uses: dependabot/fetch-metadata@v2.4.0
 
-      - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --merge "$PR_URL"
+      - name: Enable auto-merge for ALL Dependabot PRs
+        run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Approve patch and minor updates
+      - name: Auto-approve minor and patch updates
         if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-patch' || steps.dependabot-metadata.outputs.update-type == 'version-update:semver-minor' }}
-        run: gh pr review $PR_URL --approve -b "I'm **approving** this pull request because **it includes a patch or minor update**"
+        run: gh pr review $PR_URL --approve -b "I'm **auto-approving** this pull request because **it includes a patch or minor update**"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Approve major updates of development dependencies
+      - name: Auto-approve major updates of development dependencies
         if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major' && steps.dependabot-metadata.outputs.dependency-type == 'direct:development' }}
-        run: gh pr review $PR_URL --approve -b "I'm **approving** this pull request because **it includes a major update of a dependency used only in development**"
+        run: gh pr review $PR_URL --approve -b "I'm **auto-approving** this pull request because **it includes a major update of a development dependency**"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Comment on major updates of non-development dependencies
+      - name: Auto-approve GitHub Actions and Docker updates (always safe)
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'github-actions') || contains(github.event.pull_request.labels.*.name, 'docker') }}
+        run: gh pr review $PR_URL --approve -b "I'm **auto-approving** this pull request because **GitHub Actions and Docker updates are always safe to merge**"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Request review for major production dependency updates
         if: ${{ steps.dependabot-metadata.outputs.update-type == 'version-update:semver-major' && steps.dependabot-metadata.outputs.dependency-type == 'direct:production' }}
         run: |
-          gh pr comment $PR_URL --body "I'm **not approving** this PR because **it includes a major update of a dependency used in production**"
-          gh pr edit $PR_URL --add-label "requires-manual-qa"
+          gh pr comment $PR_URL --body "⚠️ **Major production dependency update** - requires manual review @jbcom"
+          gh pr edit $PR_URL --add-label "requires-manual-qa" --add-reviewer "jbcom"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

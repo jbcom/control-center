@@ -1,0 +1,9 @@
+# pnpm workspace configuration
+# Similar to UV's pyproject.toml workspace management for Python
+# See: https://pnpm.io/workspaces
+
+packages:
+  # Future Node.js packages would go here
+  # - 'packages/*'
+  # - 'tools/*'
+  # - '!**/test/**'

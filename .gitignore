@@ -264,3 +264,40 @@ fabric.properties
 /CLAUDE.md.bak
 # END Ruler Generated Files
 external/
+
+# ============================================
+# Node.js / pnpm workspace
+# ============================================
+# Dependencies
+node_modules/
+
+# pnpm specific
+.pnpm-store/
+.pnpm-debug.log*
+
+# Lock file - COMMIT THIS (like uv.lock for Python)
+# pnpm-lock.yaml is committed for reproducibility
+
+# Build outputs
+*.tsbuildinfo
+
+# Environment files
+.env.local
+.env.*.local
+
+# Testing
+coverage/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ============================================
+# direnv
+# ============================================
+# .envrc is COMMITTED for workspace auto-setup
+# Only ignore direnv cache
+.direnv/
+
