@@ -1,6 +1,7 @@
 #!/bin/bash
 # CLI wrapper for AWS Serverless MCP server via mcp-proxy
 # Usage: aws-serverless <tool_name> [arguments_json]
+# Example: aws-serverless list_lambda_functions '{"region": "us-east-1"}'
 
 set -e
 
@@ -9,21 +10,20 @@ TOOL_NAME="$1"
 ARGS_JSON="${2:-{}}"
 
 if [ -z "$TOOL_NAME" ]; then
-    echo "❌ Usage: aws-serverless <tool_name> [args_json]"
-    echo ""
-    echo "Available tools:"
-    curl -s "$MCP_PROXY_URL/tools" 2>/dev/null | jq -r '.tools[]? | "  - \(.name): \(.description)"' || echo "  ⚠️  MCP proxy not running. Start with: process-compose up -d"
-    exit 1
+  echo "Usage: aws-serverless <tool_name> [arguments_json]"
+  echo ""
+  echo "Available tools:"
+  curl -s "${MCP_PROXY_URL}/list-tools" | jq -r '.tools[] | "  - \(.name): \(.description)"'
+  exit 1
 fi
 
-RESPONSE=$(curl -s -X POST "$MCP_PROXY_URL/call-tool" \
-    -H "Content-Type: application/json" \
-    -d "{\"name\": \"$TOOL_NAME\", \"arguments\": $ARGS_JSON}" 2>/dev/null)
+RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/call-tool" \
+  -H "Content-Type: application/json" \
+  -d "{\"name\": \"${TOOL_NAME}\", \"arguments\": ${ARGS_JSON}}" 2>&1)
 
-if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
-    echo "❌ Error:" >&2
-    echo "$RESPONSE" | jq -r '.error.message' >&2
-    exit 1
+if [ $? -ne 0 ]; then
+  echo "❌ Error calling MCP proxy: ${RESPONSE}" >&2
+  exit 1
 fi
 
-echo "$RESPONSE" | jq -r '.content[]?.text // .'
+echo "$RESPONSE" | jq -r '.content[0].text // .error // .'

@@ -19,18 +19,17 @@ processes:
     log_location: ./logs/conport.log
 
   # =============================================================================
-  # MCP PROXY BRIDGES (stdio → HTTP/SSE for background agents)
+  # AWS MCP SERVERS (via mcp-proxy for background agent CLI access)
   # =============================================================================
-  # These proxies allow background agents to call MCP servers via HTTP
-  # instead of requiring persistent stdio connections
+  # Each AWS MCP server runs on its own port, accessible via CLI wrappers
 
   mcp-proxy-aws-iac:
-    command: "mcp-proxy --server 'uvx awslabs.aws-iac-mcp-server@latest' --port 3001 --log-level error"
+    command: "mcp-proxy --port 3001 -- uvx awslabs.aws-iac-mcp-server@latest"
     availability:
       restart: "always"
       backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-iac.log
     environment:
-      # Auto-use Cursor IAM role if available, fallback to profile
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
       - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
       - "FASTMCP_LOG_LEVEL=ERROR"
@@ -38,15 +37,16 @@ processes:
       http_get:
         host: localhost
         port: 3001
-        path: /health
-      initial_delay_seconds: 5
+        path: /mcp
+      initial_delay_seconds: 8
       period_seconds: 10
 
   mcp-proxy-aws-serverless:
-    command: "mcp-proxy --server 'uvx awslabs.aws-serverless-mcp-server@latest' --port 3002 --log-level error"
+    command: "mcp-proxy --port 3002 -- uvx awslabs.aws-serverless-mcp-server@latest"
     availability:
       restart: "always"
       backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-serverless.log
     environment:
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
       - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
@@ -55,15 +55,16 @@ processes:
       http_get:
         host: localhost
         port: 3002
-        path: /health
-      initial_delay_seconds: 5
+        path: /mcp
+      initial_delay_seconds: 8
       period_seconds: 10
 
   mcp-proxy-aws-api:
-    command: "mcp-proxy --server 'uvx awslabs.aws-api-mcp-server@latest' --port 3003 --log-level error"
+    command: "mcp-proxy --port 3003 -- uvx awslabs.aws-api-mcp-server@latest"
     availability:
       restart: "always"
       backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-api.log
     environment:
       - "AWS_REGION=${AWS_REGION:-us-east-1}"
       - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
@@ -72,34 +73,158 @@ processes:
       http_get:
         host: localhost
         port: 3003
-        path: /health
-      initial_delay_seconds: 5
+        path: /mcp
+      initial_delay_seconds: 8
       period_seconds: 10
 
-  mcp-proxy-github:
-    command: "mcp-proxy --server 'npx -y @modelcontextprotocol/server-github' --port 3010 --log-level error"
+  mcp-proxy-aws-cdk:
+    command: "mcp-proxy --port 3004 -- uvx awslabs.aws-cdk-mcp-server@latest"
     availability:
       restart: "always"
       backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-cdk.log
+    environment:
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3004
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  mcp-proxy-aws-cfn:
+    command: "mcp-proxy --port 3005 -- uvx awslabs.aws-cfn-mcp-server@latest"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-cfn.log
+    environment:
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3005
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  mcp-proxy-aws-support:
+    command: "mcp-proxy --port 3006 -- uvx awslabs.aws-support-mcp-server@latest"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-support.log
+    environment:
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3006
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  mcp-proxy-aws-pricing:
+    command: "mcp-proxy --port 3007 -- uvx awslabs.aws-pricing-mcp-server@latest"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-pricing.log
+    environment:
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3007
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  mcp-proxy-billing-cost:
+    command: "mcp-proxy --port 3008 -- uvx awslabs.billing-cost-management-mcp-server@latest"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-billing-cost.log
+    environment:
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "CURSOR_AWS_ASSUME_IAM_ROLE_ARN=${CURSOR_AWS_ASSUME_IAM_ROLE_ARN}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3008
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  mcp-proxy-aws-docs:
+    command: "mcp-proxy --port 3009 -- uvx awslabs.aws-documentation-mcp-server@latest"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-aws-docs.log
+    environment:
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3009
+        path: /mcp
+      initial_delay_seconds: 8
+      period_seconds: 10
+
+  # =============================================================================
+  # GITHUB MCP SERVER (via mcp-proxy)
+  # =============================================================================
+
+  mcp-proxy-github:
+    command: "mcp-proxy --port 3010 -- npx -y @modelcontextprotocol/server-github"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    log_location: ./logs/mcp-proxy-github.log
     environment:
       - "GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_JBCOM_TOKEN}"
     readiness_probe:
       http_get:
         host: localhost
         port: 3010
-        path: /health
-      initial_delay_seconds: 5
+        path: /mcp
+      initial_delay_seconds: 8
       period_seconds: 10
 
   # =============================================================================
-  # HELPER SERVICES
+  # HEALTH MONITORING
   # =============================================================================
 
-  # Health check aggregator
   health-checker:
-    command: "bash -c 'while true; do curl -s http://localhost:3001/health > /dev/null && echo \"✅ All MCP proxies healthy\"; sleep 60; done'"
+    command: |
+      bash -c 'while true; do
+        all_healthy=true
+        for port in 3001 3002 3003 3004 3005 3006 3007 3008 3009 3010; do
+          if ! curl -sf http://localhost:$port/mcp > /dev/null 2>&1; then
+            echo "⚠️  Port $port unhealthy"
+            all_healthy=false
+          fi
+        done
+        if [ "$all_healthy" = true ]; then
+          echo "✅ All MCP proxies healthy ($(date +%H:%M:%S))"
+        fi
+        sleep 60
+      done'
     availability:
-      restart: "on_failure"
+      restart: "always"
+    log_location: ./logs/health-checker.log
     depends_on:
       mcp-proxy-aws-iac:
         condition: process_healthy

@@ -67,12 +67,22 @@ aws-api describe_instances '{"region": "us-east-1"}'
 aws-api list_buckets '{}'
 ```
 
-## Port Assignments
+## Available CLI Wrappers
 
-- `3001` - aws-iac (CloudFormation, CDK, IaC)
-- `3002` - aws-serverless (Lambda, SAM, Step Functions)
-- `3003` - aws-api (General AWS API access)
-- `3010` - github (GitHub API via MCP)
+| Wrapper | Port | MCP Server | Description |
+|---------|------|-----------|-------------|
+| `aws-iac` | 3001 | aws-iac-mcp-server | Terraform, CloudFormation, CDK |
+| `aws-serverless` | 3002 | aws-serverless-mcp-server | Lambda, SAM, Step Functions |
+| `aws-api` | 3003 | aws-api-mcp-server | General AWS API access |
+| `aws-cdk` | 3004 | aws-cdk-mcp-server | AWS CDK operations |
+| `aws-cfn` | 3005 | aws-cfn-mcp-server | CloudFormation stacks |
+| `aws-support` | 3006 | aws-support-mcp-server | AWS Support cases |
+| `aws-pricing` | 3007 | aws-pricing-mcp-server | AWS pricing queries |
+| `billing-cost` | 3008 | billing-cost-management | Billing & cost analytics |
+| `aws-docs` | 3009 | aws-documentation | AWS documentation search |
+| `github-mcp` | 3010 | server-github | GitHub API operations |
+
+**All wrappers support**: `<wrapper>` (lists available tools) or `<wrapper> <tool_name> '<json_args>'`
 
 ## When to Use MCP vs Direct CLI
 

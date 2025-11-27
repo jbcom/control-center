@@ -1,16 +1,16 @@
 #!/bin/bash
-# CLI wrapper for AWS API MCP server via mcp-proxy
-# Usage: aws-api <tool_name> [arguments_json]
-# Example: aws-api describe_ec2_instances '{"region": "us-east-1"}'
+# CLI wrapper for GitHub MCP server via mcp-proxy
+# Usage: github-mcp <tool_name> [arguments_json]
+# Example: github-mcp list_issues '{"owner": "jbcom", "repo": "extended-data-types"}'
 
 set -e
 
-MCP_PROXY_URL="${MCP_PROXY_AWS_API_URL:-http://localhost:3003}"
+MCP_PROXY_URL="${MCP_PROXY_GITHUB_URL:-http://localhost:3010}"
 TOOL_NAME="$1"
 ARGS_JSON="${2:-{}}"
 
 if [ -z "$TOOL_NAME" ]; then
-  echo "Usage: aws-api <tool_name> [arguments_json]"
+  echo "Usage: github-mcp <tool_name> [arguments_json]"
   echo ""
   echo "Available tools:"
   curl -s "${MCP_PROXY_URL}/list-tools" | jq -r '.tools[] | "  - \(.name): \(.description)"'
