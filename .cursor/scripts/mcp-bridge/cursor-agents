@@ -1,0 +1,93 @@
+#!/bin/bash
+# CLI wrapper for Cursor Background Agent Manager
+# Usage: cursor-agents <action> [options]
+# Examples:
+#   cursor-agents list
+#   cursor-agents create --task "Review PR #123"
+#   cursor-agents status <agent-id>
+
+set -e
+
+CURSOR_API_KEY="${CURSOR_API_KEY}"
+
+if [ -z "$CURSOR_API_KEY" ]; then
+  echo "❌ Error: CURSOR_API_KEY not set"
+  exit 1
+fi
+
+# Check if cursor-agent-manager service is running
+if ! pgrep -f cursor-background-agent-mcp-server > /dev/null; then
+  echo "⚠️  Warning: cursor-agent-manager service not running"
+  echo "   Start with: process-compose up -d cursor-agent-manager"
+fi
+
+ACTION="$1"
+shift
+
+case "$ACTION" in
+  list)
+    echo "=== Active Cursor Background Agents ==="
+    # List agents via MCP server
+    echo "Querying cursor-background-agent-mcp-server..."
+    # TODO: Implement MCP call to list agents
+    ;;
+  
+  create)
+    echo "=== Creating New Background Agent ==="
+    TASK="$1"
+    if [ -z "$TASK" ]; then
+      echo "Usage: cursor-agents create '<task description>'"
+      exit 1
+    fi
+    echo "Task: $TASK"
+    # TODO: Implement MCP call to create agent
+    ;;
+  
+  status)
+    AGENT_ID="$1"
+    if [ -z "$AGENT_ID" ]; then
+      echo "Usage: cursor-agents status <agent-id>"
+      exit 1
+    fi
+    echo "=== Agent Status: $AGENT_ID ==="
+    # TODO: Implement MCP call to get agent status
+    ;;
+  
+  stop)
+    AGENT_ID="$1"
+    if [ -z "$AGENT_ID" ]; then
+      echo "Usage: cursor-agents stop <agent-id>"
+      exit 1
+    fi
+    echo "Stopping agent: $AGENT_ID"
+    # TODO: Implement MCP call to stop agent
+    ;;
+  
+  help|--help|-h|"")
+    echo "Cursor Background Agent Manager"
+    echo ""
+    echo "Usage: cursor-agents <action> [options]"
+    echo ""
+    echo "Actions:"
+    echo "  list                  List all active background agents"
+    echo "  create '<task>'       Create a new background agent with task"
+    echo "  status <agent-id>     Get status of specific agent"
+    echo "  stop <agent-id>       Stop a running agent"
+    echo "  help                  Show this help message"
+    echo ""
+    echo "Examples:"
+    echo "  cursor-agents list"
+    echo "  cursor-agents create 'Review PR #123 and fix linting issues'"
+    echo "  cursor-agents status agent-abc123"
+    echo "  cursor-agents stop agent-abc123"
+    echo ""
+    echo "Environment:"
+    echo "  CURSOR_API_KEY - Required for authentication"
+    ;;
+  
+  *)
+    echo "❌ Unknown action: $ACTION"
+    echo "Run 'cursor-agents help' for usage information"
+    exit 1
+    ;;
+esac

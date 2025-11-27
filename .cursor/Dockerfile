@@ -71,9 +71,12 @@ RUN pnpm install -g \
     @intellectronica/ruler \
     # MCP Proxy - Bridge stdio MCP servers to HTTP/SSE for background agents
     mcp-proxy \
+    # Cursor Background Agent MCP Server - Manage other Cursor background agents
+    cursor-background-agent-mcp-server \
     # Verify installation
     && ruler --version && \
-    mcp-proxy --version
+    mcp-proxy --version && \
+    cursor-background-agent-mcp-server --version
 
 # =============================================================================
 # RUST TOOLING (for modern CLI tools)
