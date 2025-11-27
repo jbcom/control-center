@@ -26,6 +26,15 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Explicit permissions for the default GITHUB_TOKEN
+# This ensures consistent behavior regardless of repository settings
+permissions:
+  contents: read        # Clone repository, read files
+  pull-requests: write  # Comment on PRs (used by reusable workflows)
+  id-token: write       # Required for PyPI trusted publishing
+  pages: write          # Deploy documentation to GitHub Pages
+  attestations: write   # Create build attestations for packages
+
 jobs:
   # ============================================
   # MATRIX DEFINITION
