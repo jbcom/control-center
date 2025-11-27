@@ -1,0 +1,29 @@
+#!/bin/bash
+# CLI wrapper for AWS API MCP server via mcp-proxy
+# Usage: aws-api <tool_name> [arguments_json]
+
+set -e
+
+MCP_PROXY_URL="${MCP_PROXY_AWS_API_URL:-http://localhost:3003}"
+TOOL_NAME="$1"
+ARGS_JSON="${2:-{}}"
+
+if [ -z "$TOOL_NAME" ]; then
+    echo "❌ Usage: aws-api <tool_name> [args_json]"
+    echo ""
+    echo "Available tools:"
+    curl -s "$MCP_PROXY_URL/tools" 2>/dev/null | jq -r '.tools[]? | "  - \(.name): \(.description)"' || echo "  ⚠️  MCP proxy not running. Start with: process-compose up -d"
+    exit 1
+fi
+
+RESPONSE=$(curl -s -X POST "$MCP_PROXY_URL/call-tool" \
+    -H "Content-Type: application/json" \
+    -d "{\"name\": \"$TOOL_NAME\", \"arguments\": $ARGS_JSON}" 2>/dev/null)
+
+if echo "$RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "❌ Error:" >&2
+    echo "$RESPONSE" | jq -r '.error.message' >&2
+    exit 1
+fi
+
+echo "$RESPONSE" | jq -r '.content[]?.text // .'

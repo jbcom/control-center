@@ -69,8 +69,11 @@ RUN corepack enable && \
 RUN pnpm install -g \
     # Ruler - Agent instruction management (https://ai.intellectronica.net/ruler)
     @intellectronica/ruler \
+    # MCP Proxy - Bridge stdio MCP servers to HTTP/SSE for background agents
+    mcp-proxy \
     # Verify installation
-    && ruler --version
+    && ruler --version && \
+    mcp-proxy --version
 
 # =============================================================================
 # RUST TOOLING (for modern CLI tools)
@@ -259,6 +262,15 @@ ENV POWERSHELL_TELEMETRY_OPTOUT=1
 
 # Set working directory (files copied by Cursor, not in image build)
 WORKDIR /workspace
+
+# =============================================================================
+# MCP BRIDGE SETUP
+# =============================================================================
+# Setup MCP bridge scripts after workspace is mounted
+# Note: This runs AFTER Cursor copies workspace files
+# Create placeholder directory for when workspace is mounted
+RUN mkdir -p /workspace/.cursor/scripts/mcp-bridge && \
+    echo "# MCP bridge scripts will be available after workspace mount" > /workspace/.cursor/scripts/mcp-bridge/README.md
 
 # =============================================================================
 # FINAL VERIFICATION

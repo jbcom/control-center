@@ -1,0 +1,110 @@
+# process-compose configuration for jbcom control center
+# Manages background services for agent operation
+
+version: "0.5"
+
+log_location: ./logs
+log_level: info
+
+processes:
+  # =============================================================================
+  # AGENT MEMORY MANAGEMENT
+  # =============================================================================
+
+  conport:
+    command: "uvx --from context-portal-mcp conport-mcp --mode stdio --workspace_id ${PWD} --log-file ./logs/conport.log --log-level INFO"
+    availability:
+      restart: "always"
+      backoff_seconds: 10
+    log_location: ./logs/conport.log
+
+  # =============================================================================
+  # MCP PROXY BRIDGES (stdio → HTTP/SSE for background agents)
+  # =============================================================================
+  # These proxies allow background agents to call MCP servers via HTTP
+  # instead of requiring persistent stdio connections
+
+  mcp-proxy-aws-iac:
+    command: "mcp-proxy --server 'uvx awslabs.aws-iac-mcp-server@latest' --port 3001 --log-level error"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    environment:
+      - "AWS_PROFILE=${AWS_PROFILE:-default}"
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3001
+        path: /health
+      initial_delay_seconds: 5
+      period_seconds: 10
+
+  mcp-proxy-aws-serverless:
+    command: "mcp-proxy --server 'uvx awslabs.aws-serverless-mcp-server@latest' --port 3002 --log-level error"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    environment:
+      - "AWS_PROFILE=${AWS_PROFILE:-default}"
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3002
+        path: /health
+      initial_delay_seconds: 5
+      period_seconds: 10
+
+  mcp-proxy-aws-api:
+    command: "mcp-proxy --server 'uvx awslabs.aws-api-mcp-server@latest' --port 3003 --log-level error"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    environment:
+      - "AWS_PROFILE=${AWS_PROFILE:-default}"
+      - "AWS_REGION=${AWS_REGION:-us-east-1}"
+      - "FASTMCP_LOG_LEVEL=ERROR"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3003
+        path: /health
+      initial_delay_seconds: 5
+      period_seconds: 10
+
+  mcp-proxy-github:
+    command: "mcp-proxy --server 'npx -y @modelcontextprotocol/server-github' --port 3010 --log-level error"
+    availability:
+      restart: "always"
+      backoff_seconds: 5
+    environment:
+      - "GITHUB_PERSONAL_ACCESS_TOKEN=${GITHUB_JBCOM_TOKEN}"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3010
+        path: /health
+      initial_delay_seconds: 5
+      period_seconds: 10
+
+  # =============================================================================
+  # HELPER SERVICES
+  # =============================================================================
+
+  # Health check aggregator
+  health-checker:
+    command: "bash -c 'while true; do curl -s http://localhost:3001/health > /dev/null && echo \"✅ All MCP proxies healthy\"; sleep 60; done'"
+    availability:
+      restart: "on_failure"
+    depends_on:
+      mcp-proxy-aws-iac:
+        condition: process_healthy
+      mcp-proxy-aws-serverless:
+        condition: process_healthy
+      mcp-proxy-aws-api:
+        condition: process_healthy
+      mcp-proxy-github:
+        condition: process_healthy

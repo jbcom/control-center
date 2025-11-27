@@ -1,0 +1,158 @@
+---
+alwaysApply: true
+description: MCP Server Usage for Background Agents
+globs: ["**/*"]
+priority: 12
+---
+
+# MCP Server Access for Background Agents
+
+**Background agents CANNOT use MCP servers directly via stdio.**
+
+## The Solution: MCP-Proxy Bridge
+
+We use **mcp-proxy** to convert stdio MCP servers to HTTP/SSE endpoints, then provide CLI wrappers for easy access.
+
+## Architecture
+
+```
+IDE Agents (Cursor, Claude) → MCP stdio directly ✅
+                                    
+Background Agents → CLI wrapper → HTTP → mcp-proxy → MCP stdio ✅
+```
+
+## Starting MCP Services
+
+```bash
+# Start all MCP proxy services
+process-compose up -d
+
+# Verify services running
+process-compose ps
+
+# Check specific service
+process-compose logs mcp-proxy-aws-iac
+```
+
+## Available MCP Services
+
+### AWS Infrastructure
+```bash
+# List available AWS IAC tools
+aws-iac
+
+# Validate CloudFormation template
+aws-iac validate_template '{"template_path": "./template.yaml"}'
+
+# Get CDK best practices
+aws-iac get_cdk_guidance '{"construct": "S3Bucket"}'
+
+# List CloudFormation stacks
+aws-iac list_stacks '{"region": "us-east-1"}'
+```
+
+### AWS Serverless
+```bash
+# List Lambda functions
+aws-serverless list_functions '{"runtime": "python3.13"}'
+
+# Analyze SAM template
+aws-serverless analyze_sam '{"template": "./template.yaml"}'
+```
+
+### AWS General API
+```bash
+# Call any AWS service API
+aws-api describe_instances '{"region": "us-east-1"}'
+aws-api list_buckets '{}'
+```
+
+## Port Assignments
+
+- `3001` - aws-iac (CloudFormation, CDK, IaC)
+- `3002` - aws-serverless (Lambda, SAM, Step Functions)
+- `3003` - aws-api (General AWS API access)
+- `3010` - github (GitHub API via MCP)
+
+## When to Use MCP vs Direct CLI
+
+### Use MCP Wrapper When:
+- ✅ Need best practices guidance
+- ✅ Want security validation
+- ✅ Need documentation lookup
+- ✅ Want structured, parsed responses
+- ✅ Cross-service orchestration
+
+### Use Direct CLI When:
+- ✅ Simple, well-known commands
+- ✅ Need raw output format
+- ✅ Performance critical (avoid proxy latency)
+- ✅ Batch operations
+
+### Examples
+
+**MCP (guidance + validation):**
+```bash
+aws-iac validate_template '{"template_path": "./cfn.yaml"}'
+# Returns: validation + security issues + best practices
+```
+
+**Direct CLI (execution):**
+```bash
+aws cloudformation create-stack --stack-name mystack --template-body file://cfn.yaml
+# Returns: stack ID
+```
+
+## Error Handling
+
+### MCP Proxy Not Running
+```bash
+if ! curl -s http://localhost:3001/health > /dev/null; then
+    echo "Starting MCP services..."
+    process-compose up -d
+    sleep 5
+fi
+```
+
+### AWS Credentials Not Set
+```bash
+if ! aws sts get-caller-identity > /dev/null 2>&1; then
+    echo "❌ AWS credentials not configured"
+    echo "Run: aws configure"
+    exit 1
+fi
+```
+
+## Adding New MCP Services
+
+1. Add server to `.ruler/ruler.toml`
+2. Add proxy to `process-compose.yml` with unique port
+3. Create CLI wrapper in `.cursor/scripts/mcp-bridge/`
+4. Run `.cursor/scripts/mcp-bridge/setup.sh` to install
+5. Document in this file
+
+## Best Practices
+
+- ✅ Always check service health before use
+- ✅ Use specific tools (aws-iac) over general (aws-api) when available
+- ✅ Parse JSON responses with jq
+- ✅ Handle errors gracefully
+- ✅ Log MCP calls for debugging
+
+## Integration with ConPort
+
+MCP services can log decisions to ConPort:
+
+```bash
+# Get guidance from MCP
+GUIDANCE=$(aws-iac get_cdk_guidance '{"construct": "S3Bucket"}')
+
+# Log decision to ConPort (if using MCP tools available)
+# ConPort decision logging happens through standard MCP interface
+```
+
+---
+
+**Last Updated**: 2025-11-27
+**Priority**: 12 (After ConPort setup)
+**Requires**: process-compose running
