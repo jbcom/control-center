@@ -1,5 +1,44 @@
 # Quick Reference: Available Tools in Background Agent Environment
 
+## Infrastructure & Cloud Management
+
+```bash
+# Terraform
+terraform version                    # Show Terraform version (1.13.1 org-specific)
+terraform init                       # Initialize Terraform working directory
+terraform plan                       # Preview infrastructure changes
+terraform apply                      # Apply infrastructure changes
+
+# Terragrunt
+terragrunt --version                 # Show Terragrunt version (0.93.11)
+terragrunt run-all plan             # Plan all modules
+terragrunt run-all apply            # Apply all modules
+
+# SOPS - Secrets Operations
+sops --version                       # Show SOPS version (3.11.0)
+sops -e secrets.yaml                # Encrypt file
+sops -d secrets.enc.yaml            # Decrypt file
+sops -i secrets.enc.yaml            # Edit encrypted file in-place
+
+# AWS CLI
+aws --version                        # Show AWS CLI version
+aws s3 ls                           # List S3 buckets
+aws ec2 describe-instances          # List EC2 instances
+aws configure                       # Configure AWS credentials
+
+# Google Cloud CLI
+gcloud version                       # Show gcloud version (512.1.0)
+gcloud auth login                   # Authenticate with Google Cloud
+gcloud projects list                # List GCP projects
+gsutil ls                           # List Cloud Storage buckets
+
+# GAM - Google Workspace Management
+gam version                         # Show GAM version (7.29.01)
+gam info user user@example.com     # Get user information
+gam print users                     # List all users
+gam create user                     # Create new user
+```
+
 ## Core Languages & Runtimes
 
 ```bash

@@ -168,6 +168,77 @@ RUN go install github.com/mikefarah/yq/v4@latest && \
     go install github.com/charmbracelet/glow@latest
 
 # =============================================================================
+# INFRASTRUCTURE & CLOUD TOOLS
+# =============================================================================
+# Tools for managing cloud infrastructure and secrets
+# VERIFIED: 2025-11-27 from GitHub releases and official sources
+
+# Terraform - specific version required by organization
+ENV TERRAFORM_VERSION="1.13.1"
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_${ARCH}.zip" \
+    -o /tmp/terraform.zip && \
+    unzip -q /tmp/terraform.zip -d /usr/local/bin && \
+    rm /tmp/terraform.zip && \
+    chmod +x /usr/local/bin/terraform && \
+    terraform version
+
+# Terragrunt - latest stable
+ENV TERRAGRUNT_VERSION="0.93.11"
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "https://github.com/gruntwork-io/terragrunt/releases/download/v${TERRAGRUNT_VERSION}/terragrunt_linux_${ARCH}" \
+    -o /usr/local/bin/terragrunt && \
+    chmod +x /usr/local/bin/terragrunt && \
+    terragrunt --version
+
+# SOPS - secrets operations
+ENV SOPS_VERSION="3.11.0"
+RUN ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "https://github.com/getsops/sops/releases/download/v${SOPS_VERSION}/sops-v${SOPS_VERSION}.linux.${ARCH}" \
+    -o /usr/local/bin/sops && \
+    chmod +x /usr/local/bin/sops && \
+    sops --version
+
+# AWS CLI v2 - latest stable
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        curl -sSL "https://awscli.amazonaws.com/awscli-exe-linux-aarch64.zip" -o /tmp/awscliv2.zip; \
+    fi && \
+    unzip -q /tmp/awscliv2.zip -d /tmp && \
+    /tmp/aws/install && \
+    rm -rf /tmp/aws /tmp/awscliv2.zip && \
+    aws --version
+
+# Google Cloud CLI - latest stable
+ENV GCLOUD_VERSION="512.1.0"
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        curl -sSL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-x86_64.tar.gz" \
+        -o /tmp/gcloud.tar.gz; \
+    elif [ "$ARCH" = "aarch64" ]; then \
+        curl -sSL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-${GCLOUD_VERSION}-linux-arm.tar.gz" \
+        -o /tmp/gcloud.tar.gz; \
+    fi && \
+    tar -xzf /tmp/gcloud.tar.gz -C /usr/local && \
+    rm /tmp/gcloud.tar.gz && \
+    /usr/local/google-cloud-sdk/install.sh --quiet --usage-reporting false --path-update true && \
+    ln -s /usr/local/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud && \
+    ln -s /usr/local/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil && \
+    gcloud version
+
+# GAM - Google Workspace management
+ENV GAM_VERSION="7.29.01"
+RUN curl -sSL "https://github.com/GAM-team/GAM/releases/download/v${GAM_VERSION}/gam-${GAM_VERSION}-linux-x86_64.tar.xz" \
+    -o /tmp/gam.tar.xz && \
+    mkdir -p /usr/local/gam && \
+    tar -xf /tmp/gam.tar.xz -C /usr/local/gam --strip-components=1 && \
+    rm /tmp/gam.tar.xz && \
+    ln -s /usr/local/gam/gam /usr/local/bin/gam && \
+    gam version
+
+# =============================================================================
 # ENVIRONMENT SETUP
 # =============================================================================
 # Set up environment variables for optimal background agent operation
@@ -194,22 +265,35 @@ WORKDIR /workspace
 # =============================================================================
 # Verify all critical tools are installed and working
 RUN echo "=== VERIFICATION ===" && \
+    echo "Languages:" && \
     python --version && \
     node --version && \
+    go version && \
+    rustc --version && \
+    echo "Package Managers:" && \
     pnpm --version && \
     uv --version && \
+    cargo --version && \
+    echo "Version Control:" && \
     git --version && \
     gh --version && \
+    echo "Development Tools:" && \
     just --version && \
     sqlite3 --version && \
     rg --version && \
     fd --version && \
     jq --version && \
-    process-compose version && \
-    cargo --version && \
-    go version && \
     ruff --version && \
     mypy --version && \
     pre-commit --version && \
+    echo "Process & Browser:" && \
+    process-compose version && \
     ruler --version && \
+    echo "Infrastructure & Cloud:" && \
+    terraform version && \
+    terragrunt --version && \
+    sops --version && \
+    aws --version && \
+    gcloud version && \
+    gam version && \
     echo "=== ALL TOOLS VERIFIED ==="
