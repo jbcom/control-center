@@ -38,6 +38,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           prompt: |
             Perform a comprehensive code review of this PR:
             
@@ -128,6 +129,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           prompt: |
             Review all AI feedback on this PR and synthesize a comprehensive action plan:
             
@@ -178,6 +180,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           prompt: |
             Auto-heal critical issues found in reviews:
             
@@ -226,6 +229,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           claude_args: |
             --model claude-sonnet-4-20250514
             --max-turns 15
@@ -292,6 +296,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           prompt: |
             Fix CI failures:
             
