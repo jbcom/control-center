@@ -1,0 +1,35 @@
+# Mise configuration for jbcom-control-center
+# This defines all language runtimes and tools for the development environment
+# Used by .cursor/Dockerfile for reproducible environment setup
+
+[tools]
+# Core language runtimes
+python = "3.13"           # Primary language for jbcom ecosystem
+node = "24"               # For Node.js tools and MCP servers
+rust = "stable"           # For modern CLI tools (ripgrep, fd, bat, etc.)
+go = "1.23.4"             # For Go-based tools (yq, lazygit, glow)
+
+# Package managers (mise will use language-native managers)
+# pnpm is installed via corepack (enabled by mise node installation)
+# uv is bundled with Python or installed separately
+# cargo comes with rust
+# go modules come with go
+
+# Development tools available via mise plugins
+just = "1.43.1"           # Task automation (verified Nov 2025)
+
+[env]
+# Python optimizations
+PYTHONUNBUFFERED = "1"
+PYTHONDONTWRITEBYTECODE = "1"
+PYTHONIOENCODING = "utf-8"
+
+# Disable telemetry
+DO_NOT_TRACK = "1"
+DISABLE_TELEMETRY = "1"
+
+# Terminal settings
+TERM = "xterm-256color"
+COLORTERM = "truecolor"
+EDITOR = "vim"
+PAGER = "less"

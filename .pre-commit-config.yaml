@@ -59,6 +59,15 @@ repos:
     hooks:
       - id: actionlint
 
+  # Dockerfile linting with hadolint
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        args: [--ignore, DL3008, --ignore, DL3009]
+        # DL3008: Pin versions in apt-get install (we use --no-install-recommends)
+        # DL3009: Delete apt cache (we use rm -rf /var/lib/apt/lists/*)
+
   # Custom validators for this management hub
   - repo: local
     hooks:
