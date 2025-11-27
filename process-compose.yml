@@ -19,11 +19,11 @@ processes:
     log_location: ./logs/conport.log
 
   # =============================================================================
-  # CURSOR BACKGROUND AGENT MANAGEMENT
+  # CURSOR BACKGROUND AGENT MANAGEMENT (via mcp-proxy)
   # =============================================================================
   
   cursor-agent-manager:
-    command: "cursor-background-agent-mcp-server"
+    command: "mcp-proxy --port 3011 -- cursor-background-agent-mcp-server"
     availability:
       restart: "always"
       backoff_seconds: 10
@@ -32,9 +32,11 @@ processes:
       - "CURSOR_API_KEY=${CURSOR_API_KEY}"
       - "CURSOR_WORKSPACE_ID=${PWD}"
     readiness_probe:
-      exec:
-        command: "pgrep -f cursor-background-agent-mcp-server"
-      initial_delay_seconds: 5
+      http_get:
+        host: localhost
+        port: 3011
+        path: /mcp
+      initial_delay_seconds: 8
       period_seconds: 15
 
   # =============================================================================

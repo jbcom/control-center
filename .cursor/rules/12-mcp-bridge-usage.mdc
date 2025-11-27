@@ -81,6 +81,7 @@ aws-api list_buckets '{}'
 | `billing-cost` | 3008 | billing-cost-management | Billing & cost analytics |
 | `aws-docs` | 3009 | aws-documentation | AWS documentation search |
 | `github-mcp` | 3010 | server-github | GitHub API operations |
+| `cursor-agents` | 3011 | cursor-background-agent-mcp-server | Manage background agents |
 
 **All wrappers support**: `<wrapper>` (lists available tools) or `<wrapper> <tool_name> '<json_args>'`
 
