@@ -69,8 +69,8 @@ RUN git lfs install --system --skip-smudge
 # =============================================================================
 # NODE.JS PACKAGE MANAGER (pnpm)
 # =============================================================================
-# pnpm version (line 70) MUST match package.json "packageManager" field exactly.
-# PNPM_HOME path configuration (line 66) is independent and does not need to match package.json.
+# pnpm version (line 78) MUST match package.json "packageManager" field exactly.
+# PNPM_HOME path configuration (line 74) is independent and does not need to match package.json.
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 # Enable corepack (comes with mise's Node.js) and install pnpm
