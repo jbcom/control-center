@@ -38,8 +38,7 @@ Requested command:
 jq '.messages[] | select(.text | contains("fix/vendor-connectors-pypi-name"))' \
   .cursor/recovery/bc-c1254c3f-ea3a-43a9-a958-13e921226f5d/conversation.json
 
-### Note
-The referenced `conversation.json` file does **not** exist at the expected location (verified: 2025-11-27). The agent's conversation log cannot be replayed. Based on the branch contents and PR #165 title, their objective appears to have been to rename the PyPI artifact to `vendor-connectors` and broaden that effort into a full vendor connectors + monorepo migration. Please regenerate or supply the recovery transcript if a verbatim action log is needed.
+**Note:** The referenced `conversation.json` file does **not** exist at the expected location (verified: 2025-11-27). The agent's conversation log cannot be replayed. Based on the branch contents and PR #165 title, their objective appears to have been to rename the PyPI artifact to `vendor-connectors` and broaden that effort into a full vendor connectors + monorepo migration. Please regenerate or supply the recovery transcript if a verbatim action log is needed.
 
 ## Next Steps
 1. Decide whether to fast-forward `main` to this branch or open a new PR that encapsulates the 44 commits (auditing the history for any partial work before merging).
