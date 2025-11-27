@@ -180,6 +180,38 @@ uv run crew_agents full             # Complete pipeline
 # Ruler (agent instructions)
 ruler apply                         # Apply/regenerate agent configs
 ruler apply --dry-run               # Preview changes
+
+# Aider (AI pair programming) - requires Python 3.12
+aider --version                     # Check aider version
+aider --model claude-sonnet-4-20250514  # Start with Claude
+aider --no-auto-commits             # Disable auto-commits
+```
+
+## Agent Triage & Recovery
+
+```bash
+# Local triage (works without MCP)
+.cursor/scripts/agent-triage-local <agent-id> analyze   # Analyze conversation
+.cursor/scripts/agent-triage-local <agent-id> decompose # Create repo-specific tasks
+.cursor/scripts/agent-triage-local <agent-id> execute   # Run aider analysis
+.cursor/scripts/agent-triage-local <agent-id> full      # Run all phases
+
+# Automated pipeline
+.cursor/scripts/triage-pipeline     # Process all unprocessed sessions
+
+# Memory bank replay
+python scripts/replay_agent_session.py \
+    --conversation .cursor/recovery/<agent-id>/conversation.json \
+    --tasks-dir .cursor/recovery/<agent-id>/tasks \
+    --session-label "recovered-session"
+
+# MCP-based tools (when cursor-agent-manager running)
+.cursor/scripts/mcp-bridge/cursor-agents list           # List agents
+.cursor/scripts/mcp-bridge/cursor-agents status <id>    # Get agent status
+.cursor/scripts/mcp-bridge/cursor-agents conversation <id>  # Get conversation
+
+# Swarm orchestrator
+.cursor/scripts/agent-swarm-orchestrator <agent-id>     # Create parallel tasks
 ```
 
 ## File Operations
