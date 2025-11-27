@@ -5,14 +5,18 @@ FROM jdxcode/mise:latest
 # =============================================================================
 # MISE CONFIGURATION & LANGUAGE RUNTIMES
 # =============================================================================
+# Set working directory first (mise looks for .mise.toml in working directory)
+WORKDIR /workspace
+
 # Copy mise configuration from repository root
-COPY .mise.toml /root/.config/mise/config.toml
+COPY .mise.toml /workspace/.mise.toml
 
-# Install all language runtimes defined in mise config
+# Trust the mise config and install all language runtimes
 # This handles: Python 3.13, Node.js 24, Rust stable, Go 1.23.4, just
-RUN mise install && mise reshim
+RUN mise trust && mise install && mise reshim
 
-# Enable mise in shell environment
+# Enable mise in shell environment (mise shims are automatically in PATH)
+# But we need to ensure the PATH is set correctly
 ENV PATH="/root/.local/share/mise/shims:$PATH"
 
 # =============================================================================
@@ -261,8 +265,8 @@ ENV DO_NOT_TRACK=1
 ENV DISABLE_TELEMETRY=1
 ENV POWERSHELL_TELEMETRY_OPTOUT=1
 
-# Set working directory (files copied by Cursor, not in image build)
-WORKDIR /workspace
+# Working directory already set at top of Dockerfile for mise configuration
+# Files will be copied by Cursor when container starts
 
 # =============================================================================
 # MCP BRIDGE SETUP
