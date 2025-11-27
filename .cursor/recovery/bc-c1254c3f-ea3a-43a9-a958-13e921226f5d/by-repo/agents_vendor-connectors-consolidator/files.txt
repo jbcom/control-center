@@ -1,0 +1,7 @@
+.cursor/agents/jbcom-ecosystem-manager.md
+.github/copilot-instructions.md
+.github/workflows/ci.yml
+AGENTS.md
+README.md
+packages/ECOSYSTEM.toml
+pyproject.toml

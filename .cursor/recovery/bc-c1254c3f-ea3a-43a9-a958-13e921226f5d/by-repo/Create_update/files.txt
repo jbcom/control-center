@@ -1,0 +1,6 @@
+.cursor/memory-bank/activeContext.md
+.cursor/memory-bank/progress.md
+README.md
+activeContext.md
+agenticRules.md
+progress.md

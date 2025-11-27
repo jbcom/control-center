@@ -1,0 +1,2 @@
+.github/workflows/sync-enterprise-secrets.yml
+vendors.json

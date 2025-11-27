@@ -1,0 +1,15 @@
+.github/workflows/enterprise-secrets-sync.yml
+README.md
+activeContext.md
+agenticRules.md
+app.py
+aws_client.py
+enterprise_secrets.py
+github_client.py
+lib/terraform_modules/enterprise_secrets.py
+progress.md
+pyproject.toml
+terraform_data_source.py
+terraform_null_resource.py
+utils.py
+workspaces/lambda/src/app.py

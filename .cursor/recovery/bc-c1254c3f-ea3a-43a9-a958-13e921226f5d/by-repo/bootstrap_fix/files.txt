@@ -1,0 +1,2 @@
+.github/workflows/enterprise-secrets-sync.yml
+lib/terraform_modules/enterprise_secrets.py
