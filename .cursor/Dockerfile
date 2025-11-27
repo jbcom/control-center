@@ -152,7 +152,8 @@ RUN pnpm dlx playwright@${PLAYWRIGHT_VERSION} install-deps chromium && \
 # =============================================================================
 # Some tools we might want in the future are Go-based
 # Install Go for potential future tooling needs
-ENV GO_VERSION="1.23.4"
+# VERIFIED: https://go.dev/dl/ on 2025-11-27
+ENV GO_VERSION="1.25.4"
 RUN GOARCH=$(dpkg --print-architecture | sed 's/armhf/arm/' | sed 's/i386/386/') && \
     curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-${GOARCH}.tar.gz" -o /tmp/go.tar.gz && \
     tar -C /usr/local -xzf /tmp/go.tar.gz && \

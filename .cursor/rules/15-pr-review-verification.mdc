@@ -9,22 +9,25 @@ priority: 2
 
 **CRITICAL: All AI agents performing PR reviews MUST follow this verification protocol**
 
-## Core Principle
+## Core Principle: Training Data is ALWAYS Outdated
 
-**Never rely solely on training data for version numbers, tool recommendations, or technical specifications.**
+**Your training data will ALWAYS be out of date for software releases.**
 
-All technical claims in PR reviews must be verified against current, authoritative sources before making recommendations.
+This is not a limitation you can work around - it is a fundamental truth:
+- Go 1.25.4 exists (even if your training ends before it)
+- Rust 1.91.1 is current (even if you think 1.83 is latest)
+- Node.js 25.x exists (even if you think 24 is newest)
 
-## Verification Requirements
+**NEVER assume a version "doesn't exist yet" based on your training cutoff.**
 
-### Before Suggesting Version Updates
+## Mandatory Research Before ANY Version Claim
 
-**ALWAYS verify current versions from official sources:**
+Before making ANY statement about versions, you MUST:
 
-1. **Check official release pages** (not documentation, not blog posts)
-2. **Use authoritative URLs** listed below
-3. **Document verification** in your response
-4. **Admit uncertainty** if you cannot verify
+1. **Attempt web research** using curl/wget if available
+2. **Document verification** in your response
+3. **Admit inability** if you cannot verify (don't guess!)
+4. **NEVER say "as of November 2025"** based on training data
 
 ### Official Version Sources
 
@@ -58,17 +61,23 @@ npm view <package-name> version
 
 ## Common Verification Mistakes
 
-### ❌ DON'T: Hallucinate versions
+### ❌ DON'T: Assume versions don't exist
 ```markdown
-"Go 1.23.6 is the latest stable version as of November 2025"
+"Go 1.25 doesn't exist yet based on my training data"
 ```
-Without actually checking https://go.dev/dl/
+**WRONG**: Go 1.25.4 exists! Your training is outdated.
 
-### ❌ DON'T: Use training data cutoff
+### ❌ DON'T: Use training data cutoff as authority
 ```markdown
-"Rust 1.83.0 was released..."
+"As of November 2025, Rust 1.83.0 is latest"
 ```
-Without verifying current stable release
+**WRONG**: Rust 1.91.1 is current. Verify, don't assume!
+
+### ❌ DON'T: Doubt the user's version claims
+```markdown
+"That version seems too high, let me check..."
+```
+**WRONG**: Just check! Skepticism without verification is unhelpful.
 
 ### ❌ DON'T: Assume tool installation patterns
 ```markdown
