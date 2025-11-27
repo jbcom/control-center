@@ -275,9 +275,43 @@ WORKDIR /workspace
 # =============================================================================
 # Setup MCP bridge scripts after workspace is mounted
 # Note: This runs AFTER Cursor copies workspace files
-# Create placeholder directory for when workspace is mounted
-RUN mkdir -p /workspace/.cursor/scripts/mcp-bridge && \
-    echo "# MCP bridge scripts will be available after workspace mount" > /workspace/.cursor/scripts/mcp-bridge/README.md
+# Runtime bootstrap: ensure log directories exist and wire up MCP bridge wrappers when present
+RUN cat <<'EOF' >/usr/local/bin/bootstrap-cursor-runtime.sh
+#!/usr/bin/env bash
+set -euo pipefail
+
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
+LOG_ROOT="${LOG_ROOT:-$WORKSPACE_ROOT/logs}"
+CURSOR_ROOT="${CURSOR_ROOT:-$WORKSPACE_ROOT/.cursor}"
+MEMORY_BANK_ROOT="${MEMORY_BANK_ROOT:-$WORKSPACE_ROOT/memory-bank}"
+
+if [ -d "$LOG_ROOT" ]; then
+  echo "ℹ️  Logs directory present at $LOG_ROOT"
+else
+  echo "ℹ️  Logs directory missing; background agents will create it when they start writing"
+fi
+
+if [ -d "$MEMORY_BANK_ROOT" ]; then
+  if [ ! -L "$CURSOR_ROOT/memory-bank" ]; then
+    if [ -e "$CURSOR_ROOT/memory-bank" ]; then
+      echo "ℹ️  Existing .cursor/memory-bank found; leaving in place (not a symlink)"
+    else
+      ln -s "$MEMORY_BANK_ROOT" "$CURSOR_ROOT/memory-bank"
+    fi
+  fi
+else
+  echo "ℹ️  Global memory bank not found at $MEMORY_BANK_ROOT; agents should create it during handoff if needed"
+fi
+
+SETUP_SCRIPT="$CURSOR_ROOT/scripts/mcp-bridge/setup.sh"
+if [ -x "$SETUP_SCRIPT" ]; then
+  echo "🔗 Linking MCP bridge wrappers via $SETUP_SCRIPT --global"
+  "$SETUP_SCRIPT" --global || true
+else
+  echo "ℹ️  Skipping MCP bridge linking; $SETUP_SCRIPT not present in workspace"
+fi
+EOF
+RUN chmod +x /usr/local/bin/bootstrap-cursor-runtime.sh
 
 # =============================================================================
 # FINAL VERIFICATION

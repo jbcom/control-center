@@ -2,7 +2,7 @@
 # Cross-platform AI agent instructions and MCP server definitions
 
 # Default agents when --agents flag not specified
-default_agents = ["copilot", "cursor", "claude", "aider", "cline", "windsurf"]
+default_agents = ["copilot", "cursor", "claude", "aider", "cline", "windsurf", "codex"]
 
 # Enable nested rule loading for package-specific instructions
 # This allows .ruler/ directories in packages/*/
@@ -224,3 +224,7 @@ enabled = true
 [agents.kilocode]
 enabled = true
 output_path = ".kilocode/rules/ruler_kilocode_instructions.md"
+
+[agents.codex]
+enabled = true
+output_path = ".codex/rules/ruler_codex_instructions.md"

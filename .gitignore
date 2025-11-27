@@ -236,6 +236,10 @@ fabric.properties
 /.aider.conf.yml.bak
 /.clinerules
 /.clinerules.bak
+/.codex/config.json
+/.codex/config.json.bak
+/.codex/config.toml
+/.codex/config.toml.bak
 /.cursor/mcp.json
 /.cursor/mcp.json.bak
 /.github/copilot-instructions.md
