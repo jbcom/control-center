@@ -376,8 +376,7 @@ class ConventionalCommitMonorepoParser(
                             ],
                         )
                         if self.options.scope_prefix
-                        and self.options.scope_prefix
-                        not in commit.message.split("\n", maxsplit=1)[0]
+                        and self.options.scope_prefix not in commit.message.split("\n", maxsplit=1)[0]
                         # No prefix was defined, and the files don't match the path filter, and the commit message is not a valid conventional commit
                         else f"Format Mismatch! Unable to parse commit message: {commit.message!r}"
                     ),
