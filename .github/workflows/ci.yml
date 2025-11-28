@@ -212,7 +212,7 @@ jobs:
       - uses: hynek/setup-cached-uv@v2
 
       - name: Install semantic-release
-        run: uv pip install --system python-semantic-release
+        run: uv tool install python-semantic-release
 
       - name: Check version
         id: check
