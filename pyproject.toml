@@ -207,7 +207,7 @@ reportUnknownArgumentType = false
 # See: https://python-semantic-release.readthedocs.io/
 #
 # Commit message format (Conventional Commits):
-#   feat(package-scope): description  -> Minor bump
+#   feat(package-scope): description   -> Minor bump
 #   fix(package-scope): description   -> Patch bump  
 #   feat!: description                -> Major bump (breaking)
 #
