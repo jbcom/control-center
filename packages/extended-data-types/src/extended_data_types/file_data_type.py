@@ -16,7 +16,8 @@ import urllib.request
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
-from urllib.parse import urlparse
+
+import validators
 
 
 if sys.version_info >= (3, 10):
@@ -262,17 +263,23 @@ def resolve_local_path(file_path: FilePath, tld: Path | None = None) -> Path:
 def is_url(path: str) -> bool:
     """Check if a string is a valid and safe URL.
 
+    Uses the validators library for robust URL validation,
+    restricted to HTTP/HTTPS schemes only.
+
     Args:
         path (str): The string to check.
 
     Returns:
         bool: True if the string is a valid HTTP/HTTPS URL.
     """
-    try:
-        parsed = urlparse(path)
-        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
-    except ValueError:
+    if not path:
         return False
+    # validators.url returns True for valid URLs, ValidationError otherwise
+    result = validators.url(path)
+    if result is not True:
+        return False
+    # Additional check: only allow http/https schemes
+    return path.startswith(("http://", "https://"))
 
 
 def read_file(
@@ -419,7 +426,9 @@ def write_file(
     return local_path
 
 
-def delete_file(file_path: FilePath, tld: Path | None = None, missing_ok: bool = True) -> bool:
+def delete_file(
+    file_path: FilePath, tld: Path | None = None, missing_ok: bool = True
+) -> bool:
     """Deletes a file at the given path.
 
     Args:

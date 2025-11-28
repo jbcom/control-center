@@ -811,6 +811,7 @@ dependencies = [
     { name = "ruamel-yaml" },
     { name = "sortedcontainers" },
     { name = "tomlkit" },
+    { name = "validators" },
     { name = "wrapt" },
 ]
 
@@ -862,6 +863,7 @@ requires-dist = [
     { name = "tomlkit", specifier = ">=0.13.2" },
     { name = "types-pyyaml", marker = "extra == 'typing'", specifier = ">=6.0.12.20240724" },
     { name = "typing-extensions", marker = "python_full_version < '3.10'", specifier = ">=4.3.0" },
+    { name = "validators", specifier = ">=0.22.0" },
     { name = "wrapt", specifier = ">=1.16.0" },
 ]
 provides-extras = ["docs", "tests", "typing"]
