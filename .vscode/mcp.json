@@ -3,19 +3,19 @@
     {
       "type": "promptString",
       "id": "github_token",
-      "description": "GitHub Personal Access Token (use GITHUB_JBCOM_TOKEN)",
+      "description": "GitHub Personal Access Token (or use env COPILOT_MCP_GITHUB_TOKEN)",
       "password": true
     },
     {
       "type": "promptString",
       "id": "anthropic_key",
-      "description": "Anthropic API Key",
+      "description": "Anthropic API Key (or use env COPILOT_MCP_ANTHROPIC_API_KEY)",
       "password": true
     },
     {
       "type": "promptString",
       "id": "aws_profile",
-      "description": "AWS Profile (default: default)",
+      "description": "AWS Profile",
       "default": "default"
     }
   ],
