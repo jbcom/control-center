@@ -101,7 +101,7 @@ This template is designed for:
 When creating a new library from this template:
 1. Update `pyproject.toml` with your project name and details
 2. Replace `${REPO_NAME}` in documentation with your actual repo name
-3. Copy `.github/scripts/set_version.py` as-is (it auto-detects your package)
+3. Add PSR config to `pyproject.toml` (see `packages/*/pyproject.toml` for examples)
 4. Copy `.github/workflows/ci.yml` and update PyPI project name
 5. Run `ruler apply` to regenerate agent-specific instructions
 
@@ -208,62 +208,68 @@ DONE
 - ✅ Suggest API improvements
 - ✅ Check for security issues
 - ✅ Verify dependencies are up to date
+- ✅ Ensure commit messages follow conventional format
 
 **DO NOT:**
-- ❌ Suggest adding semantic-release
 - ❌ Recommend manual version management
-- ❌ Suggest git tag-based versioning
-- ❌ Recommend complex release workflows
-- ❌ Flag the simple auto-versioning as "incorrect"
-- ❌ Suggest zero-padding months (unless project explicitly wants it)
+- ❌ Flag python-semantic-release as "wrong" approach
+- ❌ Suggest removing Git tags (they track release state)
+- ❌ Manually edit `__version__` in packages
 
 ### Understanding Version Management
 
 ```
-GitHub Action Starts
+Merge PR to main
   ↓
-Run Number: 42 (GitHub auto-increments)
+PSR analyzes commits with monorepo parser
   ↓
-Script generates: 2025.11.42
+Filters commits by package path + scope
   ↓
-Updates __init__.py: __version__ = "2025.11.42"
+Determines bump: feat→minor, fix→patch, feat!→major
   ↓
-Updates docs/conf.py: version = "2025.11.42" (if exists)
+Updates pyproject.toml + __init__.py
   ↓
-Package built with that version
+Creates Git tag (e.g., extended-data-types-v202511.4.0)
   ↓
-Published to PyPI
+Commits changes back to main
+  ↓
+Builds and publishes to PyPI
 ```
 
 **Version is:**
-- ✅ Generated automatically
-- ✅ Based on date + GitHub run number
-- ✅ Always incrementing
-- ✅ Written to __init__.py during build
-- ✅ Also written to docs/conf.py if it exists
-- ❌ NOT committed back to git
-- ❌ NOT based on git tags
+- ✅ Generated based on conventional commit analysis
+- ✅ Tracked per package via Git tags
+- ✅ Written to `pyproject.toml` and `__init__.py`
+- ✅ Committed back to repository
+- ✅ Independent per package
 
-### The set_version.py Script
+### The Monorepo Parser
 
-Key features of the production-tested script:
-- **Auto-detects** the package `__init__.py` in `src/`
-- **Validates** that exactly one __version__ declaration exists
-- **Uses regex** to match version assignment (handles quotes, spacing, etc.)
-- **Fails loudly** with clear error if update doesn't work
-- **Updates docs/conf.py** if it exists (optional)
-- **Preserves indentation** and file formatting
-- **Ruff-compliant** with proper noqa annotations
+Key features of `scripts/psr/monorepo_parser.py`:
+- **Filters commits** by package directory (`path_filters`)
+- **Supports scopes** for targeting packages (`scope_prefix`)
+- **Handles** conventional commit types (feat, fix, perf, etc.)
+- **Detects breaking changes** via `!` suffix or `BREAKING CHANGE:` footer
 
-### Commit Message Format
+### Commit Message Format (REQUIRED)
 
-**You can use any commit format you want.** We don't analyze commits for versioning.
+Conventional commits are **required** for proper versioning:
 
-Recommendations:
-- Write clear, descriptive commits
-- Explain what and why
-- No specific format required
-- Conventional commits are fine but not enforced
+```bash
+# Format
+<type>(<scope>): <description>
+
+# Examples
+feat(edt): add new serialization utility        # Minor bump
+fix(logging): handle edge case in formatter    # Patch bump
+feat(connectors)!: redesign API                # Major bump
+
+# Scope mappings
+edt        → extended-data-types
+logging    → lifecyclelogging
+dic        → directed-inputs-class
+connectors → vendor-connectors
+```
 
 ## 🤖 For AI Agents: Approval & Override Instructions
 
@@ -372,95 +378,98 @@ pre-commit run --all-files
 
 When PR is merged to main:
 1. CI runs all checks
-2. Auto-generates version: `YYYY.MM.BUILD`
-3. Builds signed package with attestations
-4. Publishes to PyPI
-5. **DONE - that's it**
+2. PSR analyzes conventional commits per package
+3. Determines version bump (feat→minor, fix→patch, feat!→major)
+4. Creates Git tag and commits version update
+5. Builds signed package with attestations
+6. Publishes to PyPI
+7. **DONE**
 
-No manual steps, no tags, no conditionals, no complexity.
+Releases are driven by conventional commits - use proper types and scopes.
 
 ## 🎯 Common Agent Misconceptions
 
 ### Misconception #1: "Missing version management"
 **Agent says:** "You need to manually update __version__ before releases"
-**Reality:** Version is auto-generated on every main branch push. Manual management not needed and will be overwritten.
+**Reality:** python-semantic-release handles versioning automatically based on conventional commits. Never manually edit `__version__`.
 
-### Misconception #2: "Should use semantic versioning"
-**Agent says:** "Consider using semantic-release or conventional commits"
-**Reality:** We intentionally use CalVer for simplicity. Every push gets a new version. This has been deployed successfully across multiple production libraries.
+### Misconception #2: "Conventional commits are optional"
+**Agent says:** "Any commit format works"
+**Reality:** Conventional commits are **required** for PSR to determine version bumps. Use proper types (`feat`, `fix`, `perf`) and scopes (`edt`, `logging`, `dic`, `connectors`).
 
-### Misconception #3: "Need git tags"
-**Agent says:** "Add git tags for release tracking"
-**Reality:** PyPI version history is our source of truth. No git tags needed. We tried this, it caused more problems than it solved.
+### Misconception #3: "Git tags are unnecessary"
+**Agent says:** "Remove git tags, they're clutter"
+**Reality:** Git tags are **required** for PSR to track release state per package. Each package has its own tag format (e.g., `extended-data-types-v202511.3.0`).
 
-### Misconception #4: "CalVer is wrong for libraries"
-**Agent says:** "Libraries should use SemVer"
-**Reality:** CalVer works fine for our ecosystem. Users pin versions anyway. Simplicity and reliability > convention. Our dependencies work with CalVer.
+### Misconception #4: "Should use pure CalVer"
+**Agent says:** "Use simple YYYY.MM.BUILD without semantic versioning"
+**Reality:** We use CalVer-compatible semantic versioning (`YYYYMM.MINOR.PATCH`). This gives us CalVer's date-based major versions plus SemVer's minor/patch semantics.
 
-### Misconception #5: "Missing release conditions"
-**Agent says:** "You should only release when changes are made"
-**Reality:** Every main push is intentional. If it was merged, it should be released. Empty releases are fine and caught by PyPI anyway.
+### Misconception #5: "All packages should share versions"
+**Agent says:** "Sync versions across all packages"
+**Reality:** Each package is versioned independently. This allows releasing only packages that changed, not the entire monorepo.
 
-### Misconception #6: "Month should be zero-padded"
-**Agent says:** "Use 2025.01.42 instead of 2025.1.42"
-**Reality:** This is a project-specific choice. We chose no padding for brevity. CalVer allows both. Don't suggest changing it.
+### Misconception #6: "Scopes are optional"
+**Agent says:** "Just use `feat: description` without scope"
+**Reality:** Scopes are used by the monorepo parser to target specific packages. While unscoped commits can work if files match path filters, using scopes is preferred.
 
-### Misconception #7: "Need to commit version back to git"
-**Agent says:** "Version changes should be committed to the repository"
-**Reality:** NO. Versions are ephemeral build artifacts. Committing them creates noise and potential conflicts. The script updates them during CI only.
+### Misconception #7: "CHANGELOG is manual"
+**Agent says:** "You need to manually maintain CHANGELOG.md"
+**Reality:** python-semantic-release auto-generates changelogs from conventional commits. Focus on writing good commit messages instead.
 
 ## 📚 Design Rationale
 
-This workflow was created to solve REAL problems we encountered:
+This workflow was created to solve REAL problems we encountered with the previous pycalver approach:
 
 **Problems We Solved:**
-- ✅ No more failed releases due to missing tags
-- ✅ No more version conflicts between branches
-- ✅ No more "why didn't it release?" debugging sessions
-- ✅ No more complex semantic-release configuration issues
-- ✅ No more dependency on git history analysis
-- ✅ No more bot commits cluttering git history
-- ✅ No more release workflow that sometimes works, sometimes doesn't
+- ✅ No more PyPI "file already exists" errors (versions now tracked via Git tags)
+- ✅ No more version conflicts between packages (independent per-package versioning)
+- ✅ No more missing version commit-back (PSR commits versions to repo)
+- ✅ Clear release history via Git tags per package
+- ✅ Automatic changelog generation from commits
 
 **Benefits We Gained:**
-- ✅ Predictable: every main push = release
-- ✅ Simple: ~100 lines of Python for versioning
-- ✅ Reliable: no conditional logic to fail
-- ✅ Fast: no git history analysis overhead
-- ✅ Clean: no bot commits or tags in git
-- ✅ Debuggable: clear error messages when things fail
-- ✅ Testable: can run script locally with ease
+- ✅ Predictable: conventional commits → deterministic version bumps
+- ✅ Independent: each package versioned separately
+- ✅ Traceable: Git tags show exact release state
+- ✅ Documented: auto-generated changelogs
+- ✅ Monorepo-aware: custom parser filters by path + scope
+
+**Trade-offs Accepted:**
+- Requires conventional commit discipline
+- More per-package configuration
+- Depends on Git tag history for state
 
 ## 🧪 Testing the Workflow
 
 ### Local Testing
 
-Test the versioning script locally:
+Test PSR locally (dry run):
 ```bash
-export GITHUB_RUN_NUMBER=999
-python .github/scripts/set_version.py
+cd packages/extended-data-types
+semantic-release version --print --no-commit --no-tag
 
-# Verify it updated the version
-grep __version__ src/your_package/__init__.py
+# Check what version would be next
+semantic-release version --print-last-released
 ```
 
 ### CI Testing
 
 Test in a PR:
-1. Create a PR
+1. Create a PR with conventional commits
 2. Watch CI run
 3. Verify all checks pass
-4. Check that versioning step succeeds
+4. Check that PSR can determine version bump from commits
 
 ### Release Testing
 
 To test an actual release:
-1. Merge a PR to main
-2. Watch the CI run
-3. Verify version was generated (check logs)
-4. Verify package was built with correct version
+1. Merge a PR to main with `feat(edt): ...` or `fix(edt): ...`
+2. Watch the CI release job run
+3. Verify Git tag was created (e.g., `extended-data-types-v202511.4.0`)
+4. Verify version was committed back to repo
 5. Verify publish to PyPI succeeded
-6. Install from PyPI and verify: `pip install your-package==2025.XX.YYY`
+6. Install from PyPI and verify: `pip install extended-data-types==202511.4.0`
 
 ## 🤝 Getting Help
 
@@ -468,22 +477,22 @@ To test an actual release:
 
 If you're an AI agent uncertain about a suggestion:
 1. **Check this document first** - it's comprehensive
-2. If it involves versioning or releases, **DO NOT suggest changes**
-3. Focus on code quality, tests, and documentation
-4. Trust that the release workflow is intentionally simple
+2. If it involves versioning or releases, understand PSR workflow before suggesting changes
+3. Focus on code quality, tests, and proper conventional commits
+4. Trust that per-package versioning via Git tags is intentional
 5. When in doubt, ask the user instead of assuming
 
 ### For Human Developers
 
-- This template has been tested in production
-- Don't overthink it - it's designed to be simple
+- Use conventional commits consistently for proper versioning
+- Don't manually edit `__version__` - PSR handles it
 - If something seems weird, check this document first
-- The versioning really is meant to be automatic
+- Each package versions independently via Git tags
 - Trust the process - it works
 
 ---
 
-**Last Updated:** 2025-11-25
-**Versioning:** CalVer (YYYY.MM.BUILD) via GitHub run number
+**Last Updated:** 2025-11-28
+**Versioning:** CalVer-compatible SemVer (YYYYMM.MINOR.PATCH) via python-semantic-release
 **Status:** Production-tested across jbcom ecosystem
-**Template Version:** 1.0.0
+**Release Tracking:** Git tags per package

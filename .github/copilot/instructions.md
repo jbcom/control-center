@@ -78,11 +78,19 @@ Coordinate releases in dependency order.
 
 ## Versioning
 
-### Python Libraries: CalVer
-- Format: `YYYY.MM.BUILD` (e.g., 2025.11.42)
-- Auto-generated on every main push
-- No manual version management
-- No git tags
+### Python Libraries: CalVer-Compatible SemVer
+- Format: `YYYYMM.MINOR.PATCH` (e.g., 202511.3.0)
+- Uses python-semantic-release with monorepo parser
+- Per-package Git tags track release state
+- Conventional commits determine version bumps
+
+### Commit Scopes (Python)
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
 
 ### Other Projects: SemVer
 - TypeScript: semantic-release
@@ -92,12 +100,13 @@ Coordinate releases in dependency order.
 ## DO NOT Suggest
 
 ❌ Manual version management
-❌ Git tags for Python libraries
-❌ semantic-release for Python
-❌ Complex release workflows
+❌ Removing Git tags (they track release state)
+❌ Non-conventional commit messages
+❌ Shared versioning across packages
 
 ## DO Suggest
 
+✅ Using conventional commits with proper scopes
 ✅ Using vendor-connectors for integrations
 ✅ Following dependency order for releases
 ✅ Consolidating duplicated code

@@ -2,11 +2,21 @@
 
 ## Key Rules
 
-1. **CalVer**: `YYYY.MM.BUILD` - never manual
-2. **Package manager**: `uv`
-3. **Lint**: `ruff check --fix && ruff format`
-4. **Type check**: `mypy src/`
-5. **Test**: `pytest`
+1. **Versioning**: `YYYYMM.MINOR.PATCH` via python-semantic-release
+2. **Commits**: Conventional commits with scopes (`edt`, `logging`, `dic`, `connectors`)
+3. **Package manager**: `uv`
+4. **Lint**: `ruff check --fix && ruff format`
+5. **Type check**: `mypy src/`
+6. **Test**: `pytest`
+
+## Commit Scopes
+
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
 
 ## Packages
 
@@ -33,6 +43,7 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
 ## DO NOT
 
 - ❌ Change versions manually
-- ❌ Use semantic-release
+- ❌ Remove Git tags (they track release state)
+- ❌ Use non-conventional commit messages
 - ❌ Add duplicate utilities
 - ❌ Skip tests

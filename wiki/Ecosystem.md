@@ -18,9 +18,9 @@ jbcom-control-center/packages/
 
 ### Workflow
 1. **Edit** code in `packages/`
-2. **PR** to control-center main
-3. **Sync workflow** creates PRs in public repos
-4. **Merge** public PRs → CI → PyPI release
+2. **PR** to control-center main (use conventional commits!)
+3. **Merge** → PSR bumps versions, creates Git tags, publishes to PyPI
+4. **Sync workflow** creates PRs in public repos
 
 ### Why Monorepo
 - ✅ No cloning external repos
@@ -119,10 +119,19 @@ sed -i 's/extended-data-types>=.*/extended-data-types>=2025.11.200/' \
 ### Create PR
 ```bash
 git checkout -b fix/whatever
-git add -A && git commit -m "Fix: description"
+# Use conventional commits with package scopes!
+git add -A && git commit -m "fix(edt): description of the fix"
 git push -u origin fix/whatever
-gh pr create --title "Fix: whatever"
+gh pr create --title "fix(edt): description"
 ```
+
+### Commit Scopes
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
 
 ---
 
