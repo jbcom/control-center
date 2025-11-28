@@ -148,6 +148,9 @@ version_variables = ["src/vendor_connectors/__init__.py:__version__"]
 [tool.semantic_release.publish]
 dist_glob_patterns = ["../../dist/vendor_connectors-*"]
 
+[tool.semantic_release.remote]
+upload_to_vcs_release = false
+
 [tool.semantic_release.branches.main]
 match = "main"
 prerelease = false
