@@ -1,46 +1,45 @@
-**[[Home]]**
+**[Home](Home)**
 
 ---
 
 **Memory Bank**
-* [[Memory-Bank-Active-Context|Active Context]]
-* [[Memory-Bank-Progress|Progress]]
-* [[Memory-Bank-Agentic-Rules|Agentic Rules]]
+* [Active Context](memory-bank/Active-Context)
+* [Progress](memory-bank/Progress)
+* [Agentic Rules](memory-bank/Agentic-Rules)
 
 ---
 
 **Agentic Rules**
-* [[Agentic-Rules-Core-Guidelines|Core Guidelines]]
-* [[Agentic-Rules-Python-Standards|Python Standards]]
-* [[Agentic-Rules-PR-Ownership|PR Ownership]]
-* [[Agentic-Rules-Ecosystem|Ecosystem]]
-* [[Agentic-Rules-Self-Sufficiency|Self-Sufficiency]]
-* [[Agentic-Rules-Environment-Setup|Environment Setup]]
+* [Core Guidelines](agentic-rules/Core-Guidelines)
+* [Python Standards](agentic-rules/Python-Standards)
+* [PR Ownership](agentic-rules/PR-Ownership)
+* [Ecosystem](agentic-rules/Ecosystem)
+* [Self Sufficiency](agentic-rules/Self-Sufficiency)
+* [Environment Setup](agentic-rules/Environment-Setup)
 
 ---
 
 **Agent Instructions**
-* [[Agent-Instructions-Cursor|Cursor]]
-* [[Agent-Instructions-Copilot|Copilot]]
-* [[Agent-Instructions-Claude|Claude]]
+* [Cursor](agent-instructions/Cursor)
+* [Copilot](agent-instructions/Copilot)
+* [Claude](agent-instructions/Claude)
 
 ---
 
 **Documentation**
-* [[Documentation-Architecture|Architecture]]
-* [[Documentation-Agentic-Orchestration|Agentic Orchestration]]
-* [[Documentation-Agent-Handoff|Agent Handoff]]
-* [[Documentation-Cursor-Management|Cursor Management]]
-* [[Documentation-Diff-Recovery|Diff Recovery]]
-* [[Documentation-MCP-Setup|MCP Setup]]
-* [[Documentation-MCP-Proxy-Setup|MCP Proxy Setup]]
-* [[Documentation-MCP-Proxy-Strategy|MCP Proxy Strategy]]
-* [[Documentation-Multi-AI-Review|Multi-AI Review]]
-* [[Documentation-Wiki-Architecture|Wiki Architecture]]
+* [Architecture](documentation/Architecture)
+* [Agentic Orchestration](documentation/Agentic-Orchestration)
+* [Agent Handoff](documentation/Agent-Handoff)
+* [Cursor Management](documentation/Cursor-Management)
+* [Diff Recovery](documentation/Diff-Recovery)
+* [MCP Setup](documentation/MCP-Setup)
+* [MCP Proxy Setup](documentation/MCP-Proxy-Setup)
+* [MCP Proxy Strategy](documentation/MCP-Proxy-Strategy)
+* [Multi AI Review](documentation/Multi-AI-Review)
 
 ---
 
 **Recovery**
-* [[Recovery-2025-11-27|Nov 27 Recovery]]
-* [[Recovery-Delegation|Delegation]]
-* [[Recovery-Replay|Replay]]
+* [2025-11-27](recovery/2025-11-27)
+* [Delegation](recovery/Delegation)
+* [Replay](recovery/Replay)

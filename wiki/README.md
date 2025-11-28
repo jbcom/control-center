@@ -1,28 +1,59 @@
-# Wiki Source
+# jbcom Control Center Wiki
 
-This folder contains the source files for the GitHub Wiki.
+Central documentation hub for the jbcom Python library ecosystem.
 
-**DO NOT EDIT THE WIKI DIRECTLY** - Edit files here and push to main.
+## Quick Navigation
 
-The `publish-wiki.yml` workflow automatically syncs this folder to:
-https://github.com/jbcom/jbcom-control-center/wiki
+### 📋 [Memory Bank](memory-bank/)
+- [Active Context](memory-bank/Active-Context) - Current work focus
+- [Progress](memory-bank/Progress) - Session history
+- [Agentic Rules](memory-bank/Agentic-Rules) - Core behavior rules
 
-## Structure
+### 📜 [Agentic Rules](agentic-rules/)
+- [Core Guidelines](agentic-rules/Core-Guidelines) - **MUST READ FIRST**
+- [Python Standards](agentic-rules/Python-Standards) - Code style
+- [PR Ownership](agentic-rules/PR-Ownership) - AI collaboration
+- [Ecosystem](agentic-rules/Ecosystem) - Cross-repo coordination
+- [Self Sufficiency](agentic-rules/Self-Sufficiency) - Tool discovery
+- [Environment Setup](agentic-rules/Environment-Setup) - Docker, deps
 
-- `Home.md` → Wiki home page
-- `_Sidebar.md` → Navigation sidebar
-- `Memory-Bank-*.md` → Current context and progress
-- `Agentic-Rules-*.md` → Agent guidelines
-- `Agent-Instructions-*.md` → Per-agent instructions
-- `Documentation-*.md` → Technical docs
-- `Recovery-*.md` → Session recovery logs
+### 🤖 [Agent Instructions](agent-instructions/)
+- [Cursor](agent-instructions/Cursor) - Background agent modes
+- [Copilot](agent-instructions/Copilot) - Quick patterns
+- [Claude](agent-instructions/Claude) - Commands, wiki access
 
-## Local Preview
+### 📚 [Documentation](documentation/)
+- [Architecture](documentation/Architecture)
+- [Agentic Orchestration](documentation/Agentic-Orchestration)
+- [Agent Handoff](documentation/Agent-Handoff)
+- [Cursor Management](documentation/Cursor-Management)
+- [Diff Recovery](documentation/Diff-Recovery)
+- [MCP Setup](documentation/MCP-Setup)
+- [MCP Proxy Setup](documentation/MCP-Proxy-Setup)
+- [MCP Proxy Strategy](documentation/MCP-Proxy-Strategy)
+- [Multi AI Review](documentation/Multi-AI-Review)
 
-Files are standard Markdown. Use any Markdown previewer.
+### 🔄 [Recovery](recovery/)
+- [2025-11-27](recovery/2025-11-27)
+- [Delegation](recovery/Delegation)
+- [Replay](recovery/Replay)
 
-## Workflow
+---
 
-1. Edit files in `wiki/`
-2. Commit and push to `main`
-3. Workflow syncs to wiki automatically
+## Ecosystem Packages
+
+| Package | PyPI | GitHub |
+|---------|------|--------|
+| extended-data-types | [PyPI](https://pypi.org/project/extended-data-types/) | [Repo](https://github.com/jbcom/extended-data-types) |
+| lifecyclelogging | [PyPI](https://pypi.org/project/lifecyclelogging/) | [Repo](https://github.com/jbcom/lifecyclelogging) |
+| vendor-connectors | [PyPI](https://pypi.org/project/vendor-connectors/) | [Repo](https://github.com/jbcom/vendor-connectors) |
+| directed-inputs-class | [PyPI](https://pypi.org/project/directed-inputs-class/) | [Repo](https://github.com/jbcom/directed-inputs-class) |
+
+## Quick Access
+
+```bash
+# Edit wiki locally, push to main, auto-syncs to wiki
+vim wiki/memory-bank/Progress.md
+git add wiki/ && git commit -m "Update progress"
+git push
+```
