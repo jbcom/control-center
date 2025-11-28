@@ -65,7 +65,6 @@ from .state_utils import (
 )
 from .string_data_type import (
     bytestostr,
-    is_url,
     lower_first_char,
     removeprefix,
     removesuffix,
@@ -73,6 +72,17 @@ from .string_data_type import (
     titleize_name,
     truncate,
     upper_first_char,
+)
+from .string_transformations import (
+    humanize,
+    ordinalize,
+    pluralize,
+    singularize,
+    titleize,
+    to_camel_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
 )
 from .toml_utils import decode_toml, encode_toml
 from .type_utils import (
@@ -91,17 +101,6 @@ from .type_utils import (
     strtopath,
     strtotime,
     typeof,
-)
-from .string_transformations import (
-    humanize,
-    ordinalize,
-    pluralize,
-    singularize,
-    titleize,
-    to_camel_case,
-    to_kebab_case,
-    to_pascal_case,
-    to_snake_case,
 )
 from .yaml_utils import decode_yaml, encode_yaml, is_yaml_data
 
