@@ -458,7 +458,7 @@ class Logging:
 
     def exit_run(
         self,
-        results: Any = None,
+        results: Mapping[str, Any] | None = None,
         unhump_results: bool = False,
         key_transform: KeyTransform | str | None = None,
         prefix: str | None = None,
