@@ -204,7 +204,7 @@ reportUnknownArgumentType = false
 
 # PyCalVer - workspace-level versioning for all packages
 [pycalver]
-current_version = "v202511.0001"
+current_version = "v202511.0003"
 version_pattern = "{pycalver}"
 commit = false
 tag = false
