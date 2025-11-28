@@ -3,13 +3,7 @@
     {
       "type": "promptString",
       "id": "github_token",
-      "description": "GitHub Personal Access Token (or use env COPILOT_MCP_GITHUB_TOKEN)",
-      "password": true
-    },
-    {
-      "type": "promptString",
-      "id": "anthropic_key",
-      "description": "Anthropic API Key (or use env COPILOT_MCP_ANTHROPIC_API_KEY)",
+      "description": "GitHub Personal Access Token (requires 'repo' scope)",
       "password": true
     },
     {
@@ -24,16 +18,23 @@
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
       "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_token}"
+        "GITHUB_TOKEN": "${input:github_token}"
       }
     },
     "filesystem": {
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${workspaceFolder}"]
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "${workspaceFolder}/packages",
+        "${workspaceFolder}/wiki",
+        "${workspaceFolder}/scripts",
+        "${workspaceFolder}/.github"
+      ]
     },
     "git": {
-      "command": "uvx",
-      "args": ["mcp-server-git", "--repository", "${workspaceFolder}"]
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-git", "--repository", "${workspaceFolder}"]
     },
     "memory": {
       "command": "npx",
