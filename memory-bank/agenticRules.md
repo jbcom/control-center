@@ -4,6 +4,49 @@ Stable reference for AI agent behavior in this repository.
 
 ---
 
+## 🚨 MANDATORY SESSION START (READ FIRST - NO EXCEPTIONS)
+
+**BEFORE doing ANYTHING else, read ALL tooling documentation:**
+
+```bash
+# 1. Memory Bank State
+cat memory-bank/activeContext.md
+cat memory-bank/progress.md
+cat memory-bank/agenticRules.md
+
+# 2. YOUR OWN TOOLING (YOU MUST KNOW THIS)
+cat docs/CURSOR-AGENT-MANAGEMENT.md
+cat docs/AGENTIC-DIFF-RECOVERY.md
+cat docs/AGENT-TO-AGENT-HANDOFF.md
+
+# 3. Available Scripts
+ls -la .cursor/scripts/
+
+# 4. Recovery Directory
+ls -la .cursor/recovery/
+```
+
+**YOU HAVE COMPREHENSIVE TOOLING. USE IT. NEVER ASK USER ABOUT IT.**
+
+### Tools You MUST Know:
+- `cursor-agents list/create/status/conversation` - Manage sub-agents
+- `agent-triage-local` - Offline triage without MCP
+- `agent-swarm-orchestrator` - Spawn parallel recovery agents
+- `triage-pipeline` - Automated batch recovery
+- `replay_agent_session.py` - Memory bank updates
+- `aider` - AI forensic analysis
+
+### Sub-Agent Spawning (USE THIS):
+```bash
+# Spawn opus 4.5 agents for specific tasks
+cursor-agents create "Task description for sub-agent"
+
+# Or create GitHub issues for async agent work
+gh issue create --title "🤖 Agent Task: ..." --body "..."
+```
+
+---
+
 ## 🧠 Memory Bank (CRITICAL)
 
 ### Session Start
