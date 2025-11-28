@@ -107,48 +107,44 @@ When creating a new library from this template:
 
 ## 🚨 CRITICAL: CI/CD Workflow Design Philosophy
 
-### Our Simple Automated Release Workflow
+### Automated Release Workflow with python-semantic-release
 
-**This repository uses CALENDAR VERSIONING with automatic PyPI releases**. Every push to main that passes tests gets released automatically.
+**This repository uses python-semantic-release (PSR) for per-package versioning with Git tag tracking**. Releases are triggered automatically based on conventional commits when merging to main.
 
-This design has been battle-tested across:
-- `extended-data-types` (foundational library, released 2025.11.164)
-- `lifecyclelogging` (logging library)
-- `directed-inputs-class` (input processing)
+This approach was adopted to fix:
+- Version commit-back issues (versions weren't being tracked in git)
+- PyPI "file already exists" errors from duplicate version numbers
+- Shared versioning across packages (each package now has independent versions)
 
-### Key Design Decisions (DO NOT SUGGEST CHANGING THESE)
+### Key Design Decisions
 
-#### 1. **Calendar Versioning (CalVer) - No Manual Version Management**
+#### 1. **CalVer-Compatible Semantic Versioning**
 
 ✅ **How It Works:**
-- Version format: `YYYY.MM.BUILD_NUMBER`
-- Example: `2025.11.42`
-- **Month is NOT zero-padded** (project choice for brevity)
-- Version is auto-generated using GitHub run number
-- Script: `.github/scripts/set_version.py`
-
-❌ **INCORRECT Agent Suggestion:**
-> "You should manually manage versions in __init__.py"
-> "Add semantic-release for version management"
-> "Use git tags for versioning"
-> "Zero-pad the month for consistency"
+- Version format: `YYYYMM.MINOR.PATCH`
+- Example: `202511.3.0`
+- Major version (`202511`) maintains CalVer backward compatibility
+- Minor/patch follow SemVer semantics based on conventional commits
+- Each package is versioned independently via Git tags
+- Config: `packages/*/pyproject.toml` under `[tool.semantic_release]`
 
 ✅ **CORRECT Understanding:**
-- Version is AUTOMATICALLY updated on every main branch push
-- No git tags needed or used
-- No semantic analysis of commits needed
-- No manual version bumps required
-- Month padding is a project preference (we chose no padding)
+- Version bumps based on conventional commit types
+- Git tags track state per package (e.g., `extended-data-types-v202511.3.0`)
+- Changelog generated automatically from commits
+- Versions committed back to repo
 
-#### 2. **Every Push to Main = PyPI Release**
+#### 2. **Conventional Commits Drive Releases**
 
 ✅ **How It Works:**
 ```
-Push to main branch
+Merge PR to main branch
   ↓
-All tests pass
+PSR analyzes conventional commits
   ↓
-Auto-generate version (YYYY.MM.BUILD)
+Determine version bump per package (based on file changes + scopes)
+  ↓
+Create Git tags and commit version updates
   ↓
 Build signed package
   ↓
@@ -157,47 +153,49 @@ Publish to PyPI
 DONE
 ```
 
-❌ **INCORRECT Agent Suggestion:**
-> "Only release when version changes"
-> "Check if release is needed before publishing"
-> "Use conditional logic to skip releases"
+**Package Scopes:**
+| Scope | Package | Tag Format |
+|-------|---------|------------|
+| `edt` | extended-data-types | `extended-data-types-v{version}` |
+| `logging` | lifecyclelogging | `lifecyclelogging-v{version}` |
+| `dic` | directed-inputs-class | `directed-inputs-class-v{version}` |
+| `connectors` | vendor-connectors | `vendor-connectors-v{version}` |
 
-✅ **CORRECT Understanding:**
-- Every main branch push = new release
-- No conditionals, no skipping
-- Simple, predictable, automatic
-- If code was merged to main, it should be released
+**Commit Type to Bump:**
+| Type | Bump | Example |
+|------|------|---------|
+| `feat` | Minor | `feat(edt): add utility` → `202511.3.0` → `202511.4.0` |
+| `fix`, `perf` | Patch | `fix(logging): handle error` → `202511.3.0` → `202511.3.1` |
+| `feat!` or `BREAKING CHANGE:` | Major | → `202512.0.0` |
+| `docs`, `chore`, etc. | None | No release |
 
-#### 3. **No Git Tags, No GitHub Releases**
+#### 3. **Git Tags Track Release State**
 
 ✅ **What We Do:**
-- Publish directly to PyPI
-- Version in package metadata only
-- PyPI is the source of truth for releases
+- Create per-package Git tags (e.g., `extended-data-types-v202511.3.0`)
+- Commit version updates back to repo
+- Auto-generate CHANGELOG per package
+- Publish to PyPI with proper attestations
 
-❌ **What We Don't Do:**
-- ❌ Create git tags
-- ❌ Create GitHub releases
-- ❌ Manage changelog files automatically
-- ❌ Commit version changes back to repo
+✅ **Benefits:**
+- Independent per-package versioning
+- No more duplicate version errors on PyPI
+- Clear release history via Git tags
+- Changelog generation from commits
 
 #### 4. **Why This Approach?**
 
-**Problems with semantic-release and tag-based versioning:**
-- Complex setup and configuration
-- Depends on commit message conventions
-- Requires git tags and history analysis
-- Can fail or skip releases unexpectedly
-- Adds unnecessary complexity
-- Multiple points of failure
+**Problems This Solves:**
+- ✅ Version state tracking (Git tags per package)
+- ✅ Version commit-back (PSR handles this)
+- ✅ Per-package releases (independent versioning)
+- ✅ Changelog generation (automatic from commits)
+- ✅ No more PyPI "file already exists" errors
 
-**Benefits of CalVer + Auto-increment:**
-- ✅ Dead simple - minimal configuration
-- ✅ Always works - no analysis, no skipping
-- ✅ Predictable - every push = new version
-- ✅ No git pollution - no tags, no bot commits
-- ✅ Build number always increments
-- ✅ Fails loudly with clear error messages
+**Trade-offs:**
+- Requires conventional commit format
+- More configuration per package
+- Depends on Git tag history
 
 ## 📝 Making Code Changes
 

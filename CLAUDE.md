@@ -4,11 +4,21 @@
 
 ## Quick Reference
 
-- **CalVer**: `YYYY.MM.BUILD` - never manual
+- **Versioning**: `YYYYMM.MINOR.PATCH` via python-semantic-release
+- **Commits**: Conventional commits with scopes (`edt`, `logging`, `dic`, `connectors`)
 - **Package manager**: uv
 - **Lint**: `ruff check --fix && ruff format`
 - **Type check**: `mypy src/`
 - **Test**: `pytest`
+
+## Conventional Commit Scopes
+
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
 
 ## Wiki Access
 
