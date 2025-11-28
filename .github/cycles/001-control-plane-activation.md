@@ -93,8 +93,8 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 4. [ ] Set up Claude tooling in enterprise repos (where appropriate)
 
 ### Phase 2: Expanded Automation
-1. [ ] Recreate agent-issue-triage.yml with valid YAML
-2. [ ] Recreate agentic-cycle.yml for cycle orchestration
+1. [ ] Recreate claude-issue-triage.yml with valid YAML
+2. [ ] Recreate agentic-cycle.yml for cycle orchestration (orchestrates control plane cycles, integrates with Claude tooling for status updates and cross-repo coordination)
 3. [ ] Set up bidirectional feedback from managed repos
 4. [ ] Implement cycle decomposition to enterprise repos
 
@@ -110,19 +110,22 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 
 | Secret | Scope | Used For |
 |--------|-------|----------|
-| JBCOM_TOKEN | jbcom org | Cross-repo GitHub operations |
-| CI_GITHUB_TOKEN | Workflows | CI operations |
-| ANTHROPIC_API_KEY | Claude | Claude Code actions |
-| PYPI_TOKEN | PyPI | Package publishing |
+| `JBCOM_TOKEN` | jbcom org | Cross-repo GitHub operations |
+| `CI_GITHUB_TOKEN` | Workflows | CI operations |
+| `ANTHROPIC_API_KEY` | Claude | Claude Code actions |
+| `PYPI_TOKEN` | PyPI | Package publishing |
 
-### Enterprise Secrets (in fsc-internal-tooling-administration)
-- AWS credentials for SOPS/KMS
-- FLIPSIDE_GITHUB_TOKEN for enterprise repos
-- 44 org secrets synced via sync-enterprise-secrets workflow
+### Enterprise Secrets
+- Managed via fsc-internal-tooling-administration
+- AWS credentials for SOPS/KMS encryption
+- Enterprise GitHub tokens for cross-org operations
+- Secrets synced via automated workflows
 
 ---
 
 ## How to Continue This Cycle
+
+> **IMPORTANT:** When making changes to this document, update the *Last Updated* timestamp at the bottom.
 
 ### For Background Agents
 1. Check this file for current status
