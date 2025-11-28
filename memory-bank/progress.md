@@ -183,3 +183,55 @@ Shall I trigger a test run of this workflow?
 ### Pending
 - [ ] Wire `--ai-command` to Codex/Claude CLI with MCP to auto-summarize replays and spawn sub-agents.
 - [ ] Trigger session replay automatically from process-compose once background agents finish runs.
+
+## Session: Nov 28, 2025 (Agent Workflow Automation)
+
+### Completed
+- [x] Set `CURSOR_API_KEY` as GitHub repository secret
+- [x] Created PR #189: GitHub Actions for agent-driven development
+  - `agent-pr-review.yml` - Spawn review agents on PR events
+  - `agent-post-merge.yml` - Spawn follow-up agents on main merges
+  - `agent-issue-triage.yml` - Auto-label, project board, /agent commands
+  - `agent-project-management.yml` - Status sync, stale issues, reports
+  - `spawn-cursor-agent` reusable action
+
+### New Capabilities (PR #189)
+1. **PR Review Automation**
+   - Auto-spawn agents to review PRs
+   - Fallback to GitHub issue if direct spawn fails
+
+2. **Post-Merge Automation**
+   - Detect changes (packages, docs, workflows, agent tools)
+   - Spawn appropriate agents (ecosystem sync, docs update, security audit)
+
+3. **Issue Triage Automation**
+   - Auto-classify issues (bug, enhancement, security, package-specific)
+   - Auto-add to project board
+   - `/agent` commands in comments:
+     - `/agent review` - Request detailed analysis
+     - `/agent fix` - Request fix PR
+     - `/agent investigate` - Deep investigation
+     - `/agent close` - Verify can close
+     - `/agent help` - Show available commands
+   - Cross-repo issue linking
+
+4. **Project Management Automation**
+   - Sync issue/PR status to project board
+   - Weekly stale issue management (14 days → stale, 30 days → agent review)
+   - Ecosystem status report generation
+   - Maintenance agent spawning (weekly dependency audit, docs sync)
+
+### Key Insight
+Moving agent orchestration FROM:
+- Single background agent managing everything
+
+TO:
+- GitHub Actions triggering on events
+- /agent commands for user-initiated tasks
+- Scheduled maintenance agents
+- Self-healing project management
+
+### Pending
+- [ ] Merge PR #189
+- [ ] Test workflows in production
+- [ ] Monitor agent spawning behavior

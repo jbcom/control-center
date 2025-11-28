@@ -1,0 +1,348 @@
+name: Agent Project Management
+
+on:
+  issues:
+    types: [opened, closed, reopened, assigned, labeled]
+  pull_request:
+    types: [opened, closed, merged, review_requested]
+  schedule:
+    # Run daily at 6 AM UTC for stale issue check
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - sync-project-status
+          - cleanup-stale-issues
+          - generate-ecosystem-report
+          - spawn-maintenance-agents
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  projects: write
+
+env:
+  PROJECT_NUMBER: 2
+  STALE_DAYS: 14
+  VERY_STALE_DAYS: 30
+  # Centralized list of ecosystem repos
+  ECOSYSTEM_REPOS: "jbcom/jbcom-control-center jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class"
+
+jobs:
+  sync-issue-to-project:
+    name: Sync Issue Status to Project
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    
+    steps:
+      - name: Update Project Item Status
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          echo "Issue #${ISSUE_NUM} action: ${ACTION}"
+          
+          # Determine new status based on action
+          STATUS=""
+          case "$ACTION" in
+            opened|reopened)
+              STATUS="Todo"
+              ;;
+            assigned)
+              STATUS="In Progress"
+              ;;
+            closed)
+              STATUS="Done"
+              ;;
+            labeled)
+              # Check for specific labels
+              LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
+              if echo "$LABELS" | grep -qE 'blocked|waiting'; then
+                STATUS="Blocked"
+              elif echo "$LABELS" | grep -qE 'in-progress|wip'; then
+                STATUS="In Progress"
+              fi
+              ;;
+          esac
+          
+          if [ -n "$STATUS" ]; then
+            echo "Setting status to: $STATUS"
+            # Note: Actual project field update requires GraphQL API
+            # TODO: Implement GraphQL mutation for project field update
+            echo "⚠️ Project status update not yet fully implemented (requires GraphQL)"
+          fi
+
+  sync-pr-to-project:
+    name: Sync PR Status to Project
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+      - name: Link PR to Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
+        run: |
+          # Get PR body safely
+          PR_DATA=$(gh pr view "${PR_NUM}" --json body)
+          PR_BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
+          
+          # Extract issue references from PR body using grep
+          ISSUES=$(echo "$PR_BODY" | grep -oiE '(fixes|closes|resolves|relates to) #[0-9]+' | grep -oE '#[0-9]+' || echo "")
+          
+          if [ -n "$ISSUES" ]; then
+            echo "Found related issues: $ISSUES"
+            
+            for issue in $ISSUES; do
+              ISSUE_NUM=$(echo "$issue" | tr -d '#')
+              
+              case "$ACTION" in
+                opened)
+                  gh issue comment "${ISSUE_NUM}" --body "🔗 PR #${PR_NUM} opened that references this issue." || true
+                  gh issue edit "${ISSUE_NUM}" --add-label "has-pr" || true
+                  ;;
+                closed)
+                  if [ "$PR_MERGED" = "true" ]; then
+                    gh issue comment "${ISSUE_NUM}" --body "✅ PR #${PR_NUM} merged! This issue may be resolved." || true
+                  fi
+                  ;;
+              esac
+            done
+          fi
+
+  stale-issue-management:
+    name: Manage Stale Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'cleanup-stale-issues')
+    
+    steps:
+      - name: Find and Process Stale Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔍 Checking for stale issues..."
+          
+          # Calculate dates (cross-platform compatible)
+          STALE_DATE=$(date -u -d "-${{ env.STALE_DAYS }} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
+                       date -u -v-${{ env.STALE_DAYS }}d +%Y-%m-%dT%H:%M:%SZ)
+          VERY_STALE_DATE=$(date -u -d "-${{ env.VERY_STALE_DAYS }} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
+                           date -u -v-${{ env.VERY_STALE_DAYS }}d +%Y-%m-%dT%H:%M:%SZ)
+          
+          echo "Stale threshold: $STALE_DATE"
+          echo "Very stale threshold: $VERY_STALE_DATE"
+          
+          # Get open issues
+          gh issue list --state open --json number,updatedAt,labels --jq '.[] | "\(.number) \(.updatedAt)"' | while read -r line; do
+            ISSUE_NUM=$(echo "$line" | cut -d' ' -f1)
+            UPDATED=$(echo "$line" | cut -d' ' -f2)
+            
+            if [[ "$UPDATED" < "$STALE_DATE" ]]; then
+              # Get current labels
+              LABELS=$(gh issue view "$ISSUE_NUM" --json labels --jq '.labels[].name' | tr '\n' ',')
+              
+              if echo "$LABELS" | grep -q "stale"; then
+                # Already stale, check if very stale
+                if [[ "$UPDATED" < "$VERY_STALE_DATE" ]]; then
+                  echo "Issue #$ISSUE_NUM is very stale, requesting agent review"
+                  gh issue comment "$ISSUE_NUM" --body '⚠️ **Very Stale Issue Alert**
+
+This issue has been inactive for over 30 days.
+
+A background agent will review if this should be:
+- Closed as wont fix
+- Reassigned
+- Bumped for attention
+
+Use `/agent review` to request manual agent review.' || true
+                fi
+              else
+                # Mark as stale
+                echo "Marking issue #$ISSUE_NUM as stale"
+                gh issue edit "$ISSUE_NUM" --add-label "stale" || true
+                gh issue comment "$ISSUE_NUM" --body '⏰ **Stale Issue Notice**
+
+This issue has been inactive for 14+ days.
+
+- If still relevant, please comment with an update
+- If blocked, add the `blocked` label and explain
+- If no longer needed, please close
+
+Issues inactive for 30 days may be auto-closed or reviewed by agents.' || true
+              fi
+            fi
+          done
+
+  generate-ecosystem-report:
+    name: Generate Ecosystem Status Report
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'generate-ecosystem-report'
+    
+    steps:
+      - name: Gather Ecosystem Data
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "📊 Generating ecosystem status report..."
+          
+          REPORT="# 📊 Ecosystem Status Report
+
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+"
+          
+          for repo in ${{ env.ECOSYSTEM_REPOS }}; do
+            echo "Checking $repo..."
+            
+            # Get repo stats
+            OPEN_ISSUES=$(gh issue list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null || echo "N/A")
+            OPEN_PRS=$(gh pr list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null || echo "N/A")
+            LAST_RELEASE=$(gh release list --repo "$repo" --limit 1 --json tagName --jq '.[0].tagName // "none"' 2>/dev/null || echo "N/A")
+            LAST_CI=$(gh run list --repo "$repo" --limit 1 --json conclusion --jq '.[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+            
+            REPORT+="## $repo
+| Metric | Value |
+|--------|-------|
+| Open Issues | $OPEN_ISSUES |
+| Open PRs | $OPEN_PRS |
+| Last Release | $LAST_RELEASE |
+| Last CI | $LAST_CI |
+
+"
+          done
+          
+          # Create report issue
+          gh issue create \
+            --title "📊 Ecosystem Status Report - $(date +%Y-%m-%d)" \
+            --body "${REPORT}" \
+            --label "report" \
+            --label "ecosystem"
+
+  spawn-maintenance-agents:
+    name: Spawn Maintenance Agents
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'spawn-maintenance-agents'
+    
+    steps:
+      - name: Create Maintenance Tasks
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🤖 Spawning maintenance agents..."
+          
+          # Dependency Update Agent
+          gh issue create \
+            --title "🤖 Agent Task: Weekly Dependency Audit" \
+            --body '## Background Agent Task: Dependency Audit
+
+Perform weekly dependency maintenance:
+
+### 1. Check for Updates
+```bash
+cd packages/extended-data-types && uv pip list --outdated
+cd packages/lifecyclelogging && uv pip list --outdated
+cd packages/vendor-connectors && uv pip list --outdated
+```
+
+### 2. Security Audit
+```bash
+uv pip audit
+```
+
+### 3. Update Safe Dependencies
+- Patch updates: Auto-update
+- Minor updates: Review changelog first
+- Major updates: Create separate issue
+
+### 4. Test After Updates
+```bash
+pytest
+mypy src/
+ruff check .
+```
+
+## Deliverables
+- [ ] List of updated packages
+- [ ] Security audit results
+- [ ] PR with updates (if any)
+
+---
+*Weekly maintenance task*' \
+            --label "agent-task" \
+            --label "maintenance" \
+            --label "dependencies"
+          
+          # Documentation Sync Agent
+          gh issue create \
+            --title "🤖 Agent Task: Documentation Sync Check" \
+            --body '## Background Agent Task: Documentation Sync
+
+Verify documentation is current:
+
+### 1. Check README Files
+- [ ] Root README.md
+- [ ] Package READMEs
+- [ ] Docs folder
+
+### 2. Verify Examples Work
+```bash
+# Test code examples in docs
+python -c "from extended_data_types import ..."
+```
+
+### 3. Check Links
+- [ ] All URLs valid
+- [ ] Internal links work
+- [ ] Badge URLs correct
+
+### 4. API Documentation
+- [ ] All public functions documented
+- [ ] Type hints complete
+- [ ] Examples provided
+
+## Deliverables
+- [ ] List of outdated docs
+- [ ] PR with fixes (if any)
+
+---
+*Weekly maintenance task*' \
+            --label "agent-task" \
+            --label "maintenance" \
+            --label "documentation"
+          
+          echo "✅ Maintenance agents spawned"
+
+  weekly-project-sync:
+    name: Weekly Project Board Sync
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Sync Project Board
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔄 Running weekly project board sync..."
+          
+          # Get open issues
+          gh issue list --state open --json number,labels --jq '.[] | "\(.number) \(.labels[].name)"' | while read -r line; do
+            ISSUE_NUM=$(echo "$line" | cut -d' ' -f1)
+            LABELS=$(echo "$line" | cut -d' ' -f2-)
+            
+            # Add to project if has relevant labels
+            if echo "$LABELS" | grep -qE 'agent-task|ecosystem|ci-cd|security|bug'; then
+              echo "Ensuring issue #$ISSUE_NUM is in project"
+              gh project item-add "${{ env.PROJECT_NUMBER }}" \
+                --owner "@me" \
+                --url "https://github.com/${{ github.repository }}/issues/$ISSUE_NUM" 2>/dev/null || true
+            fi
+          done
+          
+          echo "✅ Project board sync complete"
