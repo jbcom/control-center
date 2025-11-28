@@ -25,7 +25,12 @@ mcp_call() {
 case "$1" in
     list)
         echo "=== Active Fleet ==="
-        mcp_call "listAgents" "{}" | jq -r '.result.content[0].text | fromjson | .agents[] | "\(.status)\t\(.id)\t\(.source.repository | split("/")[-1])\t\(.name)"' | column -t -s $'\t'
+        LIST_OUTPUT=$(mcp_call "listAgents" "{}" | jq -r '.result.content[0].text | fromjson | .agents[] | "\(.status)\t\(.id)\t\(.source.repository | split("/")[-1])\t\(.name)"')
+        if command -v column >/dev/null 2>&1; then
+            echo "$LIST_OUTPUT" | column -t -s $'\t'
+        else
+            echo "$LIST_OUTPUT"
+        fi
         ;;
     
     running)
