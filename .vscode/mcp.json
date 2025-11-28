@@ -1,0 +1,79 @@
+{
+  "inputs": [
+    {
+      "type": "promptString",
+      "id": "github_token",
+      "description": "GitHub Personal Access Token (use GITHUB_JBCOM_TOKEN)",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "anthropic_key",
+      "description": "Anthropic API Key",
+      "password": true
+    },
+    {
+      "type": "promptString",
+      "id": "aws_profile",
+      "description": "AWS Profile (default: default)",
+      "default": "default"
+    }
+  ],
+  "servers": {
+    "github": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${input:github_token}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${workspaceFolder}"]
+    },
+    "git": {
+      "command": "uvx",
+      "args": ["mcp-server-git", "--repository", "${workspaceFolder}"]
+    },
+    "memory": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-memory"]
+    },
+    "python-stdlib": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-python-stdlib"]
+    },
+    "aws-iac": {
+      "command": "uvx",
+      "args": ["awslabs.aws-iac-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${input:aws_profile}",
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "aws-cdk": {
+      "command": "uvx",
+      "args": ["awslabs.cdk-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "aws-cfn": {
+      "command": "uvx",
+      "args": ["awslabs.cfn-mcp-server@latest"],
+      "env": {
+        "AWS_PROFILE": "${input:aws_profile}",
+        "AWS_REGION": "us-east-1",
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    },
+    "aws-documentation": {
+      "command": "uvx",
+      "args": ["awslabs.aws-documentation-mcp-server@latest"],
+      "env": {
+        "FASTMCP_LOG_LEVEL": "ERROR"
+      }
+    }
+  }
+}

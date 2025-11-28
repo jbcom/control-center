@@ -49,7 +49,9 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix: something" --body "Det
 | `packages/ECOSYSTEM.toml` | Package metadata, dependencies, release order |
 | `.github/workflows/release.yml` | PyPI publishing with pycalver |
 | `.github/workflows/sync-packages.yml` | Sync to public repos |
-| `.ruler/` | Agent instructions (source of truth) |
+| `.vscode/mcp.json` | VS Code/Copilot MCP configuration |
+| `.cursor/mcp.json` | Cursor IDE MCP configuration |
+| `.github/copilot/` | Copilot agent instructions |
 
 ## Versioning
 
@@ -88,4 +90,4 @@ Always release in this order.
 
 ---
 
-See `.cursor/agents/jbcom-ecosystem-manager.md` for detailed agent instructions.
+See `.github/copilot/instructions.md` for agent instructions.
