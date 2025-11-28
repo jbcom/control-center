@@ -1,6 +1,6 @@
 # Cycle 001: Control Plane Activation
 
-**Status**: IN PROGRESS
+**Status**: PHASE 1 COMPLETE
 **Started**: 2025-11-28
 **Owner**: Background Agent
 
@@ -90,8 +90,10 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
    - `terraform-modules` uses `extended-data-types` (only consumer found)
 2. [x] Update terraform-modules to use latest package versions
    - PR #208: https://github.com/FlipsideCrypto/terraform-modules/pull/208
-3. [ ] Document enterprise dependency graph
-4. [ ] Set up Claude tooling in enterprise repos (where appropriate)
+3. [x] Document enterprise dependency graph
+   - See [Enterprise Dependency Graph](#enterprise-dependency-graph) below
+4. [x] Set up Claude tooling in enterprise repos (where appropriate)
+   - `terraform-modules` already has CLAUDE.md and .claude/ (no workflows needed for enterprise)
 
 ### Phase 2: Expanded Automation
 1. [ ] Recreate claude-issue-triage.yml with valid YAML
@@ -150,6 +152,23 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 
 ---
 
+## Enterprise Dependency Graph
+
+```
+jbcom-control-center (packages/)
+├── extended-data-types ─────► FlipsideCrypto/terraform-modules (pyproject.toml)
+├── lifecyclelogging ────────► (no enterprise consumers)
+├── directed-inputs-class ───► (no enterprise consumers)
+└── vendor-connectors ───────► (no enterprise consumers)
+```
+
+**Notes:**
+- Only `extended-data-types` has an enterprise consumer
+- `terraform-modules` is the primary enterprise integration point
+- Other packages may be used internally but not declared in enterprise repos
+
+---
+
 ## Architecture Diagram
 
 ```
@@ -185,5 +204,5 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 
 ---
 
-*Last Updated*: 2025-11-28 04:40 UTC
+*Last Updated*: 2025-11-28 04:45 UTC
 *Cycle Owner*: Background Agent
