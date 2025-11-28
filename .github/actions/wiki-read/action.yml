@@ -1,0 +1,72 @@
+name: 'Read Wiki Page'
+description: 'Read content from GitHub Wiki'
+author: 'jbcom'
+
+inputs:
+  page:
+    description: 'Wiki page path (e.g., Memory-Bank/Active-Context)'
+    required: true
+  wiki_repo:
+    description: 'Repository with wiki (default: jbcom/jbcom-control-center)'
+    required: false
+    default: 'jbcom/jbcom-control-center'
+  token:
+    description: 'GitHub token with wiki access'
+    required: true
+
+outputs:
+  content:
+    description: 'Content of the wiki page'
+    value: ${{ steps.read.outputs.content }}
+  exists:
+    description: 'Whether the page exists'
+    value: ${{ steps.read.outputs.exists }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Clone Wiki
+      id: clone
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        WIKI_REPO: ${{ inputs.wiki_repo }}
+      run: |
+        WIKI_DIR="/tmp/wiki-$$"
+        git clone --depth 1 "https://${GH_TOKEN}@github.com/${WIKI_REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null || {
+          echo "exists=false" >> $GITHUB_OUTPUT
+          exit 0
+        }
+        echo "wiki_dir=$WIKI_DIR" >> $GITHUB_OUTPUT
+        echo "exists=true" >> $GITHUB_OUTPUT
+
+    - name: Read Page
+      id: read
+      if: steps.clone.outputs.exists == 'true'
+      shell: bash
+      env:
+        WIKI_DIR: ${{ steps.clone.outputs.wiki_dir }}
+        PAGE: ${{ inputs.page }}
+      run: |
+        FILE="${WIKI_DIR}/${PAGE}.md"
+        
+        if [ -f "$FILE" ]; then
+          echo "exists=true" >> $GITHUB_OUTPUT
+          
+          # Read content and escape for output
+          CONTENT=$(cat "$FILE")
+          
+          # Use heredoc for multiline output
+          echo "content<<EOF" >> $GITHUB_OUTPUT
+          echo "$CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        else
+          echo "exists=false" >> $GITHUB_OUTPUT
+          echo "content=" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: |
+        rm -rf /tmp/wiki-$$ 2>/dev/null || true
