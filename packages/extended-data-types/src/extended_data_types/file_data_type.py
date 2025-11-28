@@ -352,15 +352,19 @@ def decode_file(
     if suffix is None and file_path is not None:
         suffix = Path(file_path).suffix.lstrip(".").lower()
 
-    if suffix in ("yml", "yaml"):
-        return decode_yaml(file_data)
-    elif suffix == "json":
-        return decode_json(file_data)
-    elif suffix == "toml":
-        return decode_toml(file_data)
-    elif suffix in ("hcl", "tf"):
-        return decode_hcl2(file_data)
+    # Map suffixes to decoder functions
+    decoder_map = {
+        "yml": decode_yaml,
+        "yaml": decode_yaml,
+        "json": decode_json,
+        "toml": decode_toml,
+        "hcl": decode_hcl2,
+        "tf": decode_hcl2,
+    }
 
+    decoder = decoder_map.get(suffix)
+    if decoder is not None:
+        return decoder(file_data)
     return file_data
 
 
