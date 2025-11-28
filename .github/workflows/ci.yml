@@ -5,9 +5,11 @@
 # - Package x Target repo for sync/release/docs
 #
 # On PR:   Test + Lint
-# On main: Test + Lint + Version + Sync + Release + Docs + Enforce Standards
+# On main: Test + Lint + Version (per-package via PSR) + Sync + Release + Docs + Enforce Standards
 #
-# VERSIONING: pycalver generates ONE version at start, ALL packages use it
+# VERSIONING: python-semantic-release manages per-package versions via Git tags
+# Each package has independent versioning based on conventional commits
+# Version format: 202511.MINOR.PATCH (CalVer-compatible SemVer starting at major 202511)
 
 name: CI
 
@@ -21,19 +23,22 @@ on:
         description: 'Run standards enforcement'
         type: boolean
         default: false
+      force_release:
+        description: 'Force release even without changes'
+        type: boolean
+        default: false
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Explicit permissions for the default GITHUB_TOKEN
-# This ensures consistent behavior regardless of repository settings
+# Permissions for PyPI trusted publishing and Git operations
 permissions:
-  contents: read        # Clone repository, read files
-  pull-requests: write  # Comment on PRs (used by reusable workflows)
-  id-token: write       # Required for PyPI trusted publishing
-  pages: write          # Deploy documentation to GitHub Pages
-  attestations: write   # Create build attestations for packages
+  contents: write       # Push tags and version commits
+  pull-requests: write  # Comment on PRs
+  id-token: write       # PyPI trusted publishing
+  pages: write          # Deploy documentation
+  attestations: write   # Build attestations
 
 jobs:
   # ============================================
@@ -48,7 +53,7 @@ jobs:
     steps:
       - id: set
         run: |
-          # Package definitions - single line for GITHUB_OUTPUT compatibility
+          # Package definitions with dependency order
           PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"vendor-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
           
           PYTHON_VERSIONS='["3.9","3.13"]'
@@ -83,93 +88,136 @@ jobs:
     uses: ./.github/workflows/reusable-lint.yml
 
   # ============================================
-  # VERSION - Generate ONE version for ALL packages (main only)
+  # VERSION & RELEASE - Per-package semantic versioning (main only)
+  # Uses python-semantic-release with monorepo parser
+  # Combines version, sync, and release into one job per package
   # ============================================
-  version:
-    needs: [test, lint]
+  release:
+    needs: [matrix, test, lint]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
+    strategy:
+      fail-fast: false
+      max-parallel: 1  # Release packages sequentially (dependency order)
+      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
     steps:
-      - uses: actions/checkout@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for PSR to analyze commits
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - uses: astral-sh/setup-uv@v7
 
-      - name: Bump version with pycalver
-        id: bump
+      - name: Install dependencies
         run: |
-          # Show current version
-          echo "Current version:"
-          grep 'current_version' pyproject.toml | head -1
-          
-          # Bump to new version using uvx (config has commit=false, tag=false, push=false)
-          # pycalver requires setuptools for pkg_resources
-          uvx --with setuptools pycalver bump --release final
-          
-          # Extract new version
-          NEW_VERSION=$(grep 'current_version' pyproject.toml | head -1 | sed 's/.*= *"\([^"]*\)".*/\1/')
-          echo "New version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          
-          # Show what was updated
-          echo "=== Updated files ==="
-          git diff --name-only
-          
-          # Verify all packages have the same version
-          echo "=== Package versions ==="
-          grep -r "__version__" packages/*/src/*/__init__.py || true
+          uv pip install --system python-semantic-release
 
-      - name: Upload versioned source
-        uses: actions/upload-artifact@v5
-        with:
-          name: versioned-source
-          path: |
-            packages/
-            pyproject.toml
-          retention-days: 1
+      - name: Get current version
+        id: current
+        run: |
+          VERSION=$(grep '^version = ' packages/${{ matrix.name }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $VERSION"
 
-  # ============================================
-  # SYNC TO PUBLIC REPOS (main only, after version)
-  # ============================================
-  sync:
-    needs: [matrix, version]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      max-parallel: 1  # Sync in order
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-sync.yml
-    with:
-      package: ${{ matrix.name }}
-      target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+      - name: Check for version bump
+        id: check
+        working-directory: packages/${{ matrix.name }}
+        run: |
+          # Check if PSR would create a new version
+          set +e
+          NEW_VERSION=$(semantic-release --noop version --print 2>/dev/null)
+          EXIT_CODE=$?
+          set -e
+          
+          CURRENT="${{ steps.current.outputs.version }}"
+          
+          if [ $EXIT_CODE -eq 0 ] && [ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "$CURRENT" ]; then
+            echo "Will release: $CURRENT -> $NEW_VERSION"
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          else
+            echo "No release needed for ${{ matrix.name }}"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "new_version=$CURRENT" >> $GITHUB_OUTPUT
+          fi
 
-  # ============================================
-  # RELEASE TO PYPI (main only, after sync)
-  # ============================================
-  release:
-    needs: [matrix, version, sync]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      max-parallel: 1  # Release in dependency order
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-release.yml
-    with:
-      package: ${{ matrix.name }}
-      pypi-name: ${{ matrix.pypi }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      pypi-token: ${{ secrets.PYPI_TOKEN }}
+      - name: Create release
+        if: steps.check.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.name }}
+        run: |
+          echo "Releasing ${{ matrix.name }} v${{ steps.check.outputs.new_version }}"
+          
+          # Configure git
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          
+          # Run semantic-release (creates tag, bumps version, commits)
+          semantic-release version
+          
+          # Push changes and tags
+          git push origin main --follow-tags
+
+      - name: Build package
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          echo "Building ${{ matrix.name }} v$VERSION"
+          uv build --package ${{ matrix.name }}
+          ls -la dist/
+
+      - name: Publish to PyPI
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          
+          if uv publish 2>&1 | tee publish.log; then
+            echo "✅ Published ${{ matrix.pypi }} v$VERSION to PyPI"
+          else
+            if grep -qE "(already exists|File already exists)" publish.log; then
+              echo "⚠️ Version $VERSION already exists on PyPI (skipping)"
+            else
+              echo "❌ Failed to publish"
+              cat publish.log
+              exit 1
+            fi
+          fi
+
+      - name: Sync to public repo
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          REPO="${{ matrix.repo }}"
+          
+          echo "Syncing ${{ matrix.name }} v$VERSION to $REPO"
+          
+          # Clone target repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" target
+          
+          # Clear and copy
+          cd target
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r ../packages/${{ matrix.name }}/* .
+          
+          # Commit and push
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          git add -A
+          
+          if git diff --staged --quiet; then
+            echo "No changes to sync"
+          else
+            git commit -m "🚀 Release v$VERSION from control-center"
+            git push
+            echo "✅ Synced to $REPO"
+          fi
 
   # ============================================
   # DEPLOY DOCS (main only, after release)
   # ============================================
   docs:
-    needs: [matrix, version, release]
+    needs: [matrix, release]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     strategy:
       fail-fast: false
@@ -178,7 +226,7 @@ jobs:
     with:
       package: ${{ matrix.name }}
       target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
+      version: "latest"  # Docs workflow will read actual version from package
     secrets:
       token: ${{ secrets.CI_GITHUB_TOKEN }}
 
@@ -186,7 +234,7 @@ jobs:
   # ENFORCE STANDARDS (main or manual, non-blocking)
   # ============================================
   enforce:
-    needs: [matrix, test, lint]  # Run after tests pass, parallel to version/sync/release
+    needs: [matrix, test, lint]
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)

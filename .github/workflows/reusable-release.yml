@@ -13,7 +13,12 @@ on:
       version:
         required: true
         type: string
-        description: "Unified version from pycalver"
+        description: "Version from python-semantic-release"
+      skip-if-exists:
+        required: false
+        type: boolean
+        default: true
+        description: "Don't fail if version already exists on PyPI"
     secrets:
       pypi-token:
         required: true
@@ -22,11 +27,11 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - name: Download versioned source
-        uses: actions/download-artifact@v6
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          name: versioned-source
-          path: source
+          ref: main  # Get the latest with version commits
+          fetch-depth: 1
 
       - uses: astral-sh/setup-uv@v7
 
@@ -35,15 +40,18 @@ jobs:
           echo "=== Releasing ${{ inputs.package }} v${{ inputs.version }} ==="
           
           # Verify version in package
-          INIT_FILE=$(find source/packages/${{ inputs.package }}/src -name "__init__.py" -exec grep -l "__version__" {} \; | head -1)
+          INIT_FILE=$(find packages/${{ inputs.package }}/src -name "__init__.py" -exec grep -l "__version__" {} \; | head -1)
           if [ -n "$INIT_FILE" ]; then
             echo "Version in $INIT_FILE:"
             grep "__version__" "$INIT_FILE"
           fi
+          
+          # Also check pyproject.toml
+          echo "Version in pyproject.toml:"
+          grep '^version = ' packages/${{ inputs.package }}/pyproject.toml || true
 
       - name: Build package
         run: |
-          cd source
           uv build --package ${{ inputs.package }}
           
           # Show what was built
@@ -54,8 +62,20 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.pypi-token }}
         run: |
-          cd source
-          
-          # uv publish with --skip-existing is not available, but we can handle errors
-          uv publish || echo "Package may already exist on PyPI (this is OK)"
-          echo "📦 Published ${{ inputs.pypi-name }} v${{ inputs.version }} to PyPI"
+          # Publish with error handling for existing versions
+          if uv publish 2>&1 | tee publish.log; then
+            echo "✅ Published ${{ inputs.pypi-name }} v${{ inputs.version }} to PyPI"
+          else
+            if grep -q "already exists" publish.log || grep -q "File already exists" publish.log; then
+              if [ "${{ inputs.skip-if-exists }}" = "true" ]; then
+                echo "⚠️ Version ${{ inputs.version }} already exists on PyPI (skipping)"
+              else
+                echo "❌ Version ${{ inputs.version }} already exists on PyPI"
+                exit 1
+              fi
+            else
+              echo "❌ Failed to publish"
+              cat publish.log
+              exit 1
+            fi
+          fi
