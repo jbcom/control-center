@@ -75,14 +75,15 @@ jobs:
           # Copy workflows
           cp ../control-center/templates/claude/workflows/*.yml ./.github/workflows/
           
-          # Check for changes
-          if git diff --quiet && git diff --cached --quiet; then
+          # Check for changes (including untracked files)
+          git add -A
+          if git diff --cached --quiet; then
             echo "changed=false" >> $GITHUB_OUTPUT
             echo "No changes to sync for ${{ matrix.repo }}"
           else
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Changes detected for ${{ matrix.repo }}"
-            git diff --stat
+            git diff --cached --stat
           fi
       
       - name: Create sync PR
