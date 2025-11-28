@@ -1,0 +1,129 @@
+name: 'Deploy Docs to GitHub Pages'
+description: 'Build and deploy Sphinx docs to gh-pages branch'
+author: 'jbcom'
+
+inputs:
+  package:
+    description: 'Package name'
+    required: true
+  target-repo:
+    description: 'Target repository for docs (owner/repo)'
+    required: true
+  version:
+    description: 'Version being documented'
+    required: true
+  token:
+    description: 'GitHub token with push access'
+    required: true
+  source-path:
+    description: 'Path to versioned source (from artifact download)'
+    required: false
+    default: 'source'
+
+outputs:
+  deployed:
+    description: 'Whether docs were deployed'
+    value: ${{ steps.deploy.outputs.deployed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Build docs
+      shell: bash
+      run: |
+        PKG_DIR="${{ inputs.source-path }}/packages/${{ inputs.package }}"
+        
+        echo "=== Building docs for ${{ inputs.package }} v${{ inputs.version }} ==="
+        
+        # Sync workspace - try with docs extra, fall back to base
+        cd ${{ inputs.source-path }}
+        if ! uv sync --package ${{ inputs.package }} --extra docs 2>/dev/null; then
+          echo "Note: docs extra not defined, using base dependencies"
+          uv sync --package ${{ inputs.package }}
+        fi
+        cd ..
+        
+        # Ensure docs/_build directory exists
+        mkdir -p "$PKG_DIR/docs/_build"
+        
+        # Build if docs source exists
+        if [ -d "$PKG_DIR/docs" ] && [ -f "$PKG_DIR/docs/conf.py" ]; then
+          echo "Building Sphinx docs..."
+          cd "$PKG_DIR/docs"
+          uv run sphinx-build -b html . _build || echo "Sphinx build had warnings"
+        else
+          echo "No Sphinx docs found, generating placeholder..."
+          cat > "$PKG_DIR/docs/_build/index.html" << 'PLACEHOLDER'
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>${{ inputs.package }} v${{ inputs.version }}</title>
+        </head>
+        <body>
+          <h1>${{ inputs.package }}</h1>
+          <p>Version: ${{ inputs.version }}</p>
+          <p>Documentation coming soon.</p>
+          <p><a href="https://pypi.org/project/${{ inputs.package }}/">PyPI</a></p>
+        </body>
+        </html>
+        PLACEHOLDER
+        fi
+
+    - name: Deploy to gh-pages
+      id: deploy
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        PKG_DIR="${{ inputs.source-path }}/packages/${{ inputs.package }}"
+        REPO="${{ inputs.target-repo }}"
+        
+        # Clone gh-pages branch or create it
+        if git clone --branch gh-pages --single-branch --depth 1 \
+             "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" \
+             gh-pages 2>/dev/null; then
+          echo "Cloned existing gh-pages branch"
+        else
+          echo "Creating new gh-pages branch"
+          mkdir gh-pages
+          cd gh-pages
+          git init
+          git checkout -b gh-pages
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
+          cd ..
+        fi
+        
+        # Clear old docs (preserve .git)
+        find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
+        
+        if [ -d "$PKG_DIR/docs/_build" ]; then
+          cp -r "$PKG_DIR/docs/_build/"* gh-pages/ 2>/dev/null || true
+        fi
+        
+        # Ensure index.html exists
+        if [ ! -f "gh-pages/index.html" ]; then
+          echo "<html><body><h1>${{ inputs.package }} v${{ inputs.version }}</h1></body></html>" > gh-pages/index.html
+        fi
+        
+        # Add .nojekyll
+        touch gh-pages/.nojekyll
+        
+        # Push
+        cd gh-pages
+        git config user.name "jbcom-bot"
+        git config user.email "jbcom-bot@users.noreply.github.com"
+        git add -A
+        
+        if git diff --staged --quiet; then
+          echo "No changes to docs"
+          echo "deployed=false" >> $GITHUB_OUTPUT
+        else
+          git commit -m "📚 Docs for ${{ inputs.package }} v${{ inputs.version }}"
+          git push -u origin gh-pages --force
+          echo "deployed=true" >> $GITHUB_OUTPUT
+          echo "✅ Docs deployed"
+        fi

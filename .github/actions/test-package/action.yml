@@ -1,0 +1,43 @@
+name: 'Test Python Package'
+description: 'Run pytest for a Python package'
+author: 'jbcom'
+
+inputs:
+  package:
+    description: 'Package name to test'
+    required: true
+  python-version:
+    description: 'Python version to use'
+    required: false
+    default: '3.13'
+  pytest-args:
+    description: 'Additional pytest arguments'
+    required: false
+    default: '-v --tb=short'
+
+outputs:
+  passed:
+    description: 'Whether tests passed'
+    value: ${{ steps.test.outputs.passed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup UV + Python
+      uses: ./.github/actions/setup-uv-python
+      with:
+        python-version: ${{ inputs.python-version }}
+        package: ${{ inputs.package }}
+        extra: tests
+
+    - name: Run tests
+      id: test
+      shell: bash
+      run: |
+        cd packages/${{ inputs.package }}
+        if uv run pytest tests ${{ inputs.pytest-args }}; then
+          echo "passed=true" >> $GITHUB_OUTPUT
+        else
+          echo "passed=false" >> $GITHUB_OUTPUT
+          exit 1
+        fi

@@ -1,6 +1,6 @@
 # Master CI/CD orchestration workflow
 #
-# Uses reusable workflows with stacked matrices:
+# Uses composite actions with matrices:
 # - Package x Python version for testing
 # - Package x Target repo for sync/release/docs
 #
@@ -26,14 +26,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Explicit permissions for the default GITHUB_TOKEN
-# This ensures consistent behavior regardless of repository settings
 permissions:
-  contents: read        # Clone repository, read files
-  pull-requests: write  # Comment on PRs (used by reusable workflows)
-  id-token: write       # Required for PyPI trusted publishing
-  pages: write          # Deploy documentation to GitHub Pages
-  attestations: write   # Create build attestations for packages
+  contents: read
+  pull-requests: write
+  id-token: write
+  pages: write
+  attestations: write
 
 jobs:
   # ============================================
@@ -48,15 +46,11 @@ jobs:
     steps:
       - id: set
         run: |
-          # Package definitions - single line for GITHUB_OUTPUT compatibility
           PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"vendor-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
           
           PYTHON_VERSIONS='["3.9","3.13"]'
           
-          # Test matrix: package x python
           TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
-          
-          # Deploy matrix: packages with metadata
           DEPLOY_MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
           
           echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
@@ -68,19 +62,29 @@ jobs:
   # ============================================
   test:
     needs: matrix
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.test-matrix) }}
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      package: ${{ matrix.package }}
-      python-version: ${{ matrix.python }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/test-package
+        with:
+          package: ${{ matrix.package }}
+          python-version: ${{ matrix.python }}
 
   # ============================================
   # LINT (once)
   # ============================================
   lint:
-    uses: ./.github/workflows/reusable-lint.yml
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/lint-python
+        with:
+          paths: packages/
 
   # ============================================
   # VERSION - Generate ONE version for ALL packages (main only)
@@ -99,24 +103,18 @@ jobs:
       - name: Bump version with pycalver
         id: bump
         run: |
-          # Show current version
           echo "Current version:"
           grep 'current_version' pyproject.toml | head -1
           
-          # Bump to new version using uvx (config has commit=false, tag=false, push=false)
-          # pycalver requires setuptools for pkg_resources
           uvx --with setuptools pycalver bump --release final
           
-          # Extract new version
           NEW_VERSION=$(grep 'current_version' pyproject.toml | head -1 | sed 's/.*= *"\([^"]*\)".*/\1/')
           echo "New version: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           
-          # Show what was updated
           echo "=== Updated files ==="
           git diff --name-only
           
-          # Verify all packages have the same version
           echo "=== Package versions ==="
           grep -r "__version__" packages/*/src/*/__init__.py || true
 
@@ -135,17 +133,27 @@ jobs:
   sync:
     needs: [matrix, version]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 1  # Sync in order
+      max-parallel: 1
       matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-sync.yml
-    with:
-      package: ${{ matrix.name }}
-      target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download versioned source
+        uses: actions/download-artifact@v6
+        with:
+          name: versioned-source
+          path: source
+
+      - uses: ./.github/actions/sync-package
+        with:
+          package: ${{ matrix.name }}
+          target-repo: ${{ matrix.repo }}
+          version: ${{ needs.version.outputs.version }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          source-path: source
 
   # ============================================
   # RELEASE TO PYPI (main only, after sync)
@@ -153,17 +161,27 @@ jobs:
   release:
     needs: [matrix, version, sync]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: 1  # Release in dependency order
+      max-parallel: 1
       matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-release.yml
-    with:
-      package: ${{ matrix.name }}
-      pypi-name: ${{ matrix.pypi }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      pypi-token: ${{ secrets.PYPI_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download versioned source
+        uses: actions/download-artifact@v6
+        with:
+          name: versioned-source
+          path: source
+
+      - uses: ./.github/actions/release-package
+        with:
+          package: ${{ matrix.name }}
+          pypi-name: ${{ matrix.pypi }}
+          version: ${{ needs.version.outputs.version }}
+          pypi-token: ${{ secrets.PYPI_TOKEN }}
+          source-path: source
 
   # ============================================
   # DEPLOY DOCS (main only, after release)
@@ -171,30 +189,43 @@ jobs:
   docs:
     needs: [matrix, version, release]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-docs.yml
-    with:
-      package: ${{ matrix.name }}
-      target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download versioned source
+        uses: actions/download-artifact@v6
+        with:
+          name: versioned-source
+          path: source
+
+      - uses: ./.github/actions/deploy-docs
+        with:
+          package: ${{ matrix.name }}
+          target-repo: ${{ matrix.repo }}
+          version: ${{ needs.version.outputs.version }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          source-path: source
 
   # ============================================
   # ENFORCE STANDARDS (main or manual, non-blocking)
   # ============================================
   enforce:
-    needs: [matrix, test, lint]  # Run after tests pass, parallel to version/sync/release
+    needs: [matrix, test, lint]
     if: |
       (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
       (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-enforce-standards.yml
-    with:
-      repo: ${{ matrix.repo }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: ./.github/actions/enforce-standards
+        with:
+          repo: ${{ matrix.repo }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}

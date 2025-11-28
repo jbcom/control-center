@@ -1,0 +1,70 @@
+name: 'Sync Package to Public Repo'
+description: 'Push versioned package contents to a public repository'
+author: 'jbcom'
+
+inputs:
+  package:
+    description: 'Package name to sync'
+    required: true
+  target-repo:
+    description: 'Target repository (owner/repo)'
+    required: true
+  version:
+    description: 'Version being synced'
+    required: true
+  token:
+    description: 'GitHub token with push access to target repo'
+    required: true
+  source-path:
+    description: 'Path to versioned source (from artifact download)'
+    required: false
+    default: 'source'
+
+outputs:
+  synced:
+    description: 'Whether changes were synced'
+    value: ${{ steps.sync.outputs.synced }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Checkout target repo
+      uses: actions/checkout@v6
+      with:
+        repository: ${{ inputs.target-repo }}
+        token: ${{ inputs.token }}
+        path: target
+
+    - name: Sync files
+      id: sync
+      shell: bash
+      run: |
+        echo "=== Syncing ${{ inputs.package }} v${{ inputs.version }} to ${{ inputs.target-repo }} ==="
+        
+        # Clear target (except .git)
+        cd target
+        find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+        cd ..
+        
+        # Copy package contents (already versioned by pycalver)
+        cp -r ${{ inputs.source-path }}/packages/${{ inputs.package }}/* target/
+        
+        # Verify version in synced files
+        echo "=== Version check ==="
+        grep -r "__version__" target/src/*/__init__.py 2>/dev/null || echo "No __version__ found"
+        
+        # Commit and push
+        cd target
+        git config user.name "jbcom-bot"
+        git config user.email "jbcom-bot@users.noreply.github.com"
+        git add -A
+        
+        if git diff --staged --quiet; then
+          echo "No changes to sync"
+          echo "synced=false" >> $GITHUB_OUTPUT
+        else
+          git commit -m "🚀 Release v${{ inputs.version }} from control-center"
+          git push
+          echo "synced=true" >> $GITHUB_OUTPUT
+          echo "✅ Synced ${{ inputs.package }} v${{ inputs.version }}"
+        fi

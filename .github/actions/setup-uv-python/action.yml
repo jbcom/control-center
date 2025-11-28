@@ -1,0 +1,53 @@
+name: 'Setup UV + Python'
+description: 'Common setup for Python projects using uv package manager'
+author: 'jbcom'
+
+inputs:
+  python-version:
+    description: 'Python version to install'
+    required: false
+    default: '3.13'
+  package:
+    description: 'Package name for cache key (optional)'
+    required: false
+    default: ''
+  extra:
+    description: 'Extra dependencies to install (e.g., tests, docs)'
+    required: false
+    default: ''
+
+outputs:
+  cache-hit:
+    description: 'Whether cache was hit'
+    value: ${{ steps.cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: ${{ inputs.python-version }}
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Cache uv
+      id: cache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/uv
+        key: uv-${{ inputs.python-version }}-${{ inputs.package }}-${{ hashFiles('uv.lock') }}
+        restore-keys: |
+          uv-${{ inputs.python-version }}-${{ inputs.package }}-
+          uv-${{ inputs.python-version }}-
+
+    - name: Sync dependencies
+      if: inputs.package != ''
+      shell: bash
+      run: |
+        if [ -n "${{ inputs.extra }}" ]; then
+          uv sync --package ${{ inputs.package }} --extra ${{ inputs.extra }}
+        else
+          uv sync --package ${{ inputs.package }}
+        fi

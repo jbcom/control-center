@@ -1,0 +1,68 @@
+name: 'Release Package to PyPI'
+description: 'Build and publish a Python package to PyPI'
+author: 'jbcom'
+
+inputs:
+  package:
+    description: 'Package name to release'
+    required: true
+  pypi-name:
+    description: 'Package name on PyPI'
+    required: true
+  version:
+    description: 'Version being released'
+    required: true
+  pypi-token:
+    description: 'PyPI API token'
+    required: true
+  source-path:
+    description: 'Path to versioned source (from artifact download)'
+    required: false
+    default: 'source'
+
+outputs:
+  published:
+    description: 'Whether package was published'
+    value: ${{ steps.publish.outputs.published }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Verify version
+      shell: bash
+      run: |
+        echo "=== Releasing ${{ inputs.package }} v${{ inputs.version }} ==="
+        
+        INIT_FILE=$(find ${{ inputs.source-path }}/packages/${{ inputs.package }}/src -name "__init__.py" -exec grep -l "__version__" {} \; | head -1)
+        if [ -n "$INIT_FILE" ]; then
+          echo "Version in $INIT_FILE:"
+          grep "__version__" "$INIT_FILE"
+        fi
+
+    - name: Build package
+      shell: bash
+      run: |
+        cd ${{ inputs.source-path }}
+        uv build --package ${{ inputs.package }}
+        
+        echo "=== Built artifacts ==="
+        ls -la dist/
+
+    - name: Publish to PyPI
+      id: publish
+      shell: bash
+      env:
+        UV_PUBLISH_TOKEN: ${{ inputs.pypi-token }}
+      run: |
+        cd ${{ inputs.source-path }}
+        
+        if uv publish; then
+          echo "published=true" >> $GITHUB_OUTPUT
+          echo "📦 Published ${{ inputs.pypi-name }} v${{ inputs.version }} to PyPI"
+        else
+          echo "published=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Package may already exist on PyPI (this is OK)"
+        fi

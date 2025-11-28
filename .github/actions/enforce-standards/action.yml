@@ -1,0 +1,189 @@
+name: 'Enforce Repository Standards'
+description: 'Apply jbcom repository standards to a target repo'
+author: 'jbcom'
+
+inputs:
+  repo:
+    description: 'Repository to enforce standards on (owner/repo)'
+    required: true
+  token:
+    description: 'GitHub token with admin access to target repo'
+    required: true
+
+outputs:
+  enforced:
+    description: 'Whether standards were enforced'
+    value: ${{ steps.summary.outputs.enforced }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Enforce repo settings
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Repo Settings ==="
+        gh api repos/$REPO -X PATCH \
+          -F has_issues=true \
+          -F has_wiki=false \
+          -F has_projects=false \
+          -F has_discussions=false \
+          -F allow_squash_merge=true \
+          -F allow_merge_commit=false \
+          -F allow_rebase_merge=false \
+          -F delete_branch_on_merge=true \
+          -F allow_auto_merge=true \
+          -F allow_update_branch=true \
+          -f squash_merge_commit_title=PR_TITLE \
+          -f squash_merge_commit_message=PR_BODY
+
+    - name: Enforce branch protection
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Branch Protection ==="
+        gh api repos/$REPO/branches/main/protection -X PUT \
+          -H "Accept: application/vnd.github+json" \
+          -f required_status_checks=null \
+          -F enforce_admins=false \
+          -f required_pull_request_reviews=null \
+          -f restrictions=null \
+          -F required_linear_history=true \
+          -F allow_force_pushes=false \
+          -F allow_deletions=false 2>/dev/null || echo "Branch protection skipped"
+
+    - name: Enforce Pages
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Pages ==="
+        # Ensure gh-pages branch exists
+        MAIN_SHA=$(gh api repos/$REPO/git/refs/heads/main --jq '.object.sha')
+        gh api repos/$REPO/git/refs -X POST \
+          -f ref=refs/heads/gh-pages \
+          -f sha=$MAIN_SHA 2>/dev/null || true
+        
+        # Enable/configure Pages
+        if gh api repos/$REPO/pages 2>/dev/null; then
+          gh api repos/$REPO/pages -X PUT \
+            -f build_type=legacy \
+            -f source[branch]=gh-pages \
+            -f source[path]=/
+        else
+          gh api repos/$REPO/pages -X POST \
+            -f build_type=legacy \
+            -f source[branch]=gh-pages \
+            -f source[path]=/
+        fi
+
+    - name: Enforce labels
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Labels ==="
+        declare -A LABELS=(
+          ["bug"]="d73a4a:Something isn't working"
+          ["enhancement"]="a2eeef:New feature or request"
+          ["documentation"]="0075ca:Improvements or additions to documentation"
+          ["dependencies"]="0366d6:Pull requests that update a dependency file"
+          ["automated"]="6f42c1:Automated PR from control-center"
+          ["security"]="ee0701:Security related"
+        )
+        
+        for name in "${!LABELS[@]}"; do
+          IFS=':' read -r color desc <<< "${LABELS[$name]}"
+          gh api repos/$REPO/labels -X POST \
+            -f name="$name" \
+            -f color="$color" \
+            -f description="$desc" 2>/dev/null || \
+          gh api repos/$REPO/labels/$name -X PATCH \
+            -f color="$color" \
+            -f description="$desc" 2>/dev/null || true
+        done
+
+    - name: Enforce topics
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Topics ==="
+        PKG_NAME=$(echo $REPO | cut -d'/' -f2)
+        
+        gh api repos/$REPO/topics -X PUT \
+          -H "Accept: application/vnd.github+json" \
+          -f "names[]=python" \
+          -f "names[]=jbcom" \
+          -f "names[]=library" \
+          -f "names[]=$PKG_NAME"
+
+    - name: Enforce security settings
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo "=== Security ==="
+        gh api repos/$REPO/vulnerability-alerts -X PUT 2>/dev/null || true
+        gh api repos/$REPO/automated-security-fixes -X PUT 2>/dev/null || true
+
+    - name: Remove prohibited files
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repo }}
+      run: |
+        set +e
+        echo "=== Cleanup Prohibited Files ==="
+        
+        delete_file() {
+          local FILE_PATH="$1"
+          local MESSAGE="$2"
+          
+          SHA=$(gh api "repos/$REPO/contents/$FILE_PATH" --jq '.sha' 2>&1 | grep -v "Not Found" | grep -v "404" || echo "")
+          
+          if [ -n "$SHA" ] && [ "$SHA" != "null" ] && [ ${#SHA} -eq 40 ]; then
+            if gh api "repos/$REPO/contents/$FILE_PATH" -X DELETE \
+              -f message="$MESSAGE" \
+              -f sha="$SHA" >/dev/null 2>&1; then
+              echo "  ✓ Deleted $FILE_PATH"
+            else
+              echo "  ⚠ Could not delete $FILE_PATH"
+            fi
+          fi
+        }
+        
+        # Delete workflows
+        WORKFLOWS=$(gh api "repos/$REPO/contents/.github/workflows" --jq '.[].name' 2>&1 | grep -v "Not Found" | grep -v "404" || echo "")
+        if [ -n "$WORKFLOWS" ]; then
+          echo "$WORKFLOWS" | while IFS= read -r wf; do
+            [ -n "$wf" ] && delete_file ".github/workflows/$wf" "Remove workflow (managed by control-center)"
+          done
+        fi
+        
+        delete_file ".github/CODEOWNERS" "Remove CODEOWNERS (managed by control-center)"
+        delete_file ".github/dependabot.yml" "Remove dependabot.yml (managed by control-center)"
+        delete_file ".github/repo-standards.yml" "Remove repo-standards.yml (managed by control-center)"
+        
+        echo "=== Cleanup Complete ==="
+
+    - name: Summary
+      id: summary
+      shell: bash
+      env:
+        REPO: ${{ inputs.repo }}
+      run: |
+        echo ""
+        echo "✅ Standards enforced on $REPO"
+        echo ""
+        echo "Repo: https://github.com/$REPO"
+        echo "Pages: https://$(echo $REPO | cut -d'/' -f1).github.io/$(echo $REPO | cut -d'/' -f2)/"
+        echo "enforced=true" >> $GITHUB_OUTPUT

@@ -1,0 +1,43 @@
+name: 'Lint Python'
+description: 'Run ruff linter and formatter check'
+author: 'jbcom'
+
+inputs:
+  paths:
+    description: 'Paths to lint (space-separated)'
+    required: false
+    default: 'packages/'
+  fix:
+    description: 'Auto-fix issues (only for check, not format)'
+    required: false
+    default: 'false'
+
+outputs:
+  passed:
+    description: 'Whether lint passed'
+    value: ${{ steps.lint.outputs.passed }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v7
+
+    - name: Run ruff check
+      id: lint
+      shell: bash
+      run: |
+        PASSED=true
+        
+        # Lint check
+        if [ "${{ inputs.fix }}" = "true" ]; then
+          uvx ruff check --fix ${{ inputs.paths }} || PASSED=false
+        else
+          uvx ruff check ${{ inputs.paths }} || PASSED=false
+        fi
+        
+        # Format check
+        uvx ruff format --check ${{ inputs.paths }} || PASSED=false
+        
+        echo "passed=$PASSED" >> $GITHUB_OUTPUT
+        [ "$PASSED" = "true" ] || exit 1
