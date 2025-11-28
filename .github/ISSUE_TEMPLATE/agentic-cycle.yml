@@ -1,0 +1,99 @@
+name: 🔄 Agentic Cycle
+description: Start a new agentic orchestration cycle
+title: "🔄 Agentic Cycle: [CYCLE_NAME]"
+labels: ["agentic-cycle"]
+assignees: []
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Agentic Cycle Template
+        
+        This issue defines a coordinated work cycle across the jbcom ecosystem.
+        When this issue is labeled `agentic-cycle`, the orchestration workflow will:
+        1. Parse the tasks below
+        2. Create issues in each mentioned repo
+        3. Track progress across repos
+        4. Aggregate status updates
+
+  - type: textarea
+    id: goals
+    attributes:
+      label: Cycle Goals
+      description: What should be accomplished by the end of this cycle?
+      placeholder: |
+        - [ ] Goal 1
+        - [ ] Goal 2
+        - [ ] Goal 3
+    validations:
+      required: true
+
+  - type: textarea
+    id: extended-data-types
+    attributes:
+      label: "### extended-data-types"
+      description: Tasks for the extended-data-types package
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: lifecyclelogging
+    attributes:
+      label: "### lifecyclelogging"
+      description: Tasks for the lifecyclelogging package
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: vendor-connectors
+    attributes:
+      label: "### vendor-connectors"
+      description: Tasks for the vendor-connectors package
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: directed-inputs-class
+    attributes:
+      label: "### directed-inputs-class"
+      description: Tasks for the directed-inputs-class package
+      placeholder: |
+        - [ ] Task 1
+        - [ ] Task 2
+    validations:
+      required: false
+
+  - type: textarea
+    id: completion-criteria
+    attributes:
+      label: Completion Criteria
+      description: How do we know the cycle is complete?
+      placeholder: |
+        - [ ] All repo PRs merged
+        - [ ] All CI green
+        - [ ] PyPI releases successful
+        - [ ] No regressions
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        ---
+        
+        **Next Steps**: After creating this issue, the `agentic-cycle` label will trigger automatic decomposition to the repos listed above.
+        
+        **Commands**:
+        - Manual decompose: Run workflow with action=decompose
+        - Check status: Run workflow with action=aggregate
+        - Complete cycle: Run workflow with action=complete
