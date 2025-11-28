@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v202511.5.0 (2025-11-28)
+
+### Features
+
+- Force new release to sync with PyPI
+  ([`a42f125`](https://github.com/jbcom/jbcom-control-center/commit/a42f125d42c449ecec5b11e89ed8ac632353d043))
+
+
 ## v202511.4.1 (2025-11-28)
 
 ### Bug Fixes
