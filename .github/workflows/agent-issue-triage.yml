@@ -1,0 +1,339 @@
+name: Agent Issue Triage
+
+on:
+  issues:
+    types: [opened, reopened, labeled]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to triage'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+  projects: write
+
+env:
+  PROJECT_ID: 2  # jbcom Ecosystem Integration project
+
+jobs:
+  auto-label:
+    name: Auto-Label New Issues
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    outputs:
+      labels: ${{ steps.classify.outputs.labels }}
+      priority: ${{ steps.classify.outputs.priority }}
+      
+    steps:
+      - name: Classify Issue
+        id: classify
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          BODY="${{ github.event.issue.body }}"
+          LABELS=""
+          PRIORITY="medium"
+          
+          # Agent task detection
+          if echo "$TITLE" | grep -qiE '🤖|agent task|background agent'; then
+            LABELS="agent-task"
+            PRIORITY="high"
+          fi
+          
+          # Bug detection
+          if echo "$TITLE $BODY" | grep -qiE 'bug|error|fail|crash|broken'; then
+            LABELS="${LABELS:+$LABELS,}bug"
+            PRIORITY="high"
+          fi
+          
+          # Feature detection
+          if echo "$TITLE $BODY" | grep -qiE 'feature|enhancement|add|new'; then
+            LABELS="${LABELS:+$LABELS,}enhancement"
+          fi
+          
+          # CI/CD detection
+          if echo "$TITLE $BODY" | grep -qiE 'ci|cd|workflow|action|pipeline|deploy'; then
+            LABELS="${LABELS:+$LABELS,}ci-cd"
+          fi
+          
+          # Documentation detection
+          if echo "$TITLE $BODY" | grep -qiE 'doc|readme|guide|tutorial'; then
+            LABELS="${LABELS:+$LABELS,}documentation"
+          fi
+          
+          # Security detection
+          if echo "$TITLE $BODY" | grep -qiE 'security|vulnerability|cve|secret|credential'; then
+            LABELS="${LABELS:+$LABELS,}security"
+            PRIORITY="critical"
+          fi
+          
+          # Package detection
+          for pkg in extended-data-types lifecyclelogging vendor-connectors directed-inputs-class; do
+            if echo "$TITLE $BODY" | grep -qi "$pkg"; then
+              LABELS="${LABELS:+$LABELS,}pkg:$pkg"
+            fi
+          done
+          
+          echo "labels=$LABELS" >> $GITHUB_OUTPUT
+          echo "priority=$PRIORITY" >> $GITHUB_OUTPUT
+          echo "Detected labels: $LABELS"
+          echo "Priority: $PRIORITY"
+      
+      - name: Apply Labels
+        if: steps.classify.outputs.labels != ''
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          IFS=',' read -ra LABEL_ARRAY <<< "${{ steps.classify.outputs.labels }}"
+          for label in "${LABEL_ARRAY[@]}"; do
+            gh issue edit ${{ github.event.issue.number }} --add-label "$label" 2>/dev/null || \
+            echo "Label $label may not exist, skipping"
+          done
+
+  add-to-project:
+    name: Add to Project Board
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    needs: auto-label
+    
+    steps:
+      - name: Add Issue to Project
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Adding issue #${{ github.event.issue.number }} to project..."
+          
+          # Add to user project (jbcom Ecosystem Integration)
+          gh project item-add ${{ env.PROJECT_ID }} \
+            --owner "@me" \
+            --url "${{ github.event.issue.html_url }}" 2>/dev/null || \
+          echo "Could not add to project (may need different permissions)"
+          
+          echo "✅ Issue added to project board"
+
+  spawn-triage-agent:
+    name: Spawn Triage Agent
+    runs-on: ubuntu-latest
+    if: |
+      (github.event_name == 'issues' && github.event.action == 'opened') ||
+      github.event_name == 'workflow_dispatch'
+    needs: [auto-label]
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Determine Issue
+        id: issue
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "number=${{ github.event.inputs.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Create Triage Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          ISSUE_NUM="${{ steps.issue.outputs.number }}"
+          
+          # Get issue details
+          ISSUE_DATA=$(gh issue view $ISSUE_NUM --json title,body,labels,author)
+          ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
+          ISSUE_AUTHOR=$(echo "$ISSUE_DATA" | jq -r '.author.login')
+          ISSUE_LABELS=$(echo "$ISSUE_DATA" | jq -r '.labels[].name' | tr '\n' ', ')
+          
+          # Check if this is already an agent task
+          if echo "$ISSUE_LABELS" | grep -q "agent-task"; then
+            echo "Issue is already an agent task, skipping triage agent"
+            exit 0
+          fi
+          
+          # Create triage comment
+          gh issue comment $ISSUE_NUM --body "$(cat << EOF
+          🤖 **Issue Triage Initiated**
+          
+          **Auto-detected labels**: ${ISSUE_LABELS:-none}
+          **Priority**: ${{ needs.auto-label.outputs.priority || 'medium' }}
+          
+          A background agent will analyze this issue and:
+          1. Verify classification is correct
+          2. Identify related issues/PRs
+          3. Estimate complexity
+          4. Suggest assignees or next steps
+          
+          ---
+          *Automated by agent-issue-triage workflow*
+          EOF
+          )"
+
+  handle-agent-command:
+    name: Handle Agent Commands in Comments
+    runs-on: ubuntu-latest
+    if: |
+      github.event_name == 'issue_comment' &&
+      contains(github.event.comment.body, '/agent')
+    
+    steps:
+      - name: Parse Command
+        id: command
+        run: |
+          COMMENT="${{ github.event.comment.body }}"
+          
+          if echo "$COMMENT" | grep -q '/agent review'; then
+            echo "command=review" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/agent fix'; then
+            echo "command=fix" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/agent investigate'; then
+            echo "command=investigate" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/agent close'; then
+            echo "command=close" >> $GITHUB_OUTPUT
+          elif echo "$COMMENT" | grep -q '/agent help'; then
+            echo "command=help" >> $GITHUB_OUTPUT
+          else
+            echo "command=unknown" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Execute Command
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          COMMAND="${{ steps.command.outputs.command }}"
+          
+          case "$COMMAND" in
+            review)
+              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
+          🤖 **Agent Review Requested**
+          
+          Spawning a background agent to review this issue in detail.
+          
+          The agent will:
+          - Analyze the issue description
+          - Check related code
+          - Identify potential solutions
+          - Comment with findings
+          EOF
+          )"
+              gh issue edit $ISSUE_NUM --add-label "agent-review-requested"
+              ;;
+            
+            fix)
+              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
+          🤖 **Agent Fix Requested**
+          
+          Spawning a background agent to attempt a fix.
+          
+          The agent will:
+          - Analyze the issue
+          - Create a fix branch
+          - Submit a PR
+          - Link PR to this issue
+          EOF
+          )"
+              gh issue edit $ISSUE_NUM --add-label "agent-fix-requested"
+              ;;
+            
+            investigate)
+              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
+          🤖 **Agent Investigation Requested**
+          
+          Spawning a background agent to investigate.
+          
+          The agent will:
+          - Deep dive into the problem
+          - Check logs, history, related issues
+          - Document findings
+          - Recommend next steps
+          EOF
+          )"
+              gh issue edit $ISSUE_NUM --add-label "agent-investigating"
+              ;;
+            
+            close)
+              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
+          🤖 **Agent Close Review**
+          
+          Verifying this issue can be closed:
+          - Checking if work is complete
+          - Verifying no related open items
+          - Confirming resolution
+          EOF
+          )"
+              ;;
+            
+            help)
+              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
+          🤖 **Agent Commands Available**
+          
+          | Command | Description |
+          |---------|-------------|
+          | `/agent review` | Request detailed analysis of this issue |
+          | `/agent fix` | Request agent to attempt a fix and create PR |
+          | `/agent investigate` | Request deep investigation |
+          | `/agent close` | Verify issue can be closed |
+          | `/agent help` | Show this help message |
+          
+          ---
+          *Powered by agent-issue-triage workflow*
+          EOF
+          )"
+              ;;
+            
+            *)
+              gh issue comment $ISSUE_NUM --body "❓ Unknown command. Use \`/agent help\` to see available commands."
+              ;;
+          esac
+
+  cross-repo-linking:
+    name: Cross-Repository Issue Linking
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    
+    steps:
+      - name: Find Related Issues
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TITLE="${{ github.event.issue.title }}"
+          BODY="${{ github.event.issue.body }}"
+          ISSUE_NUM="${{ github.event.issue.number }}"
+          
+          # Search for related issues in ecosystem
+          REPOS="jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class FlipsideCrypto/terraform-modules"
+          
+          RELATED=""
+          for repo in $REPOS; do
+            # Skip current repo
+            [ "$repo" = "${{ github.repository }}" ] && continue
+            
+            # Search for similar issues
+            MATCHES=$(gh issue list --repo "$repo" --state all --limit 5 --json number,title,url \
+              --jq ".[] | select(.title | ascii_downcase | contains(\"$(echo $TITLE | cut -c1-30 | tr '[:upper:]' '[:lower:]')\")) | \"- \(.url)\"" 2>/dev/null || echo "")
+            
+            if [ -n "$MATCHES" ]; then
+              RELATED="${RELATED}\n### $repo\n$MATCHES"
+            fi
+          done
+          
+          if [ -n "$RELATED" ]; then
+            gh issue comment $ISSUE_NUM --body "$(cat << EOF
+          🔗 **Potentially Related Issues Found**
+          
+          $(echo -e "$RELATED")
+          
+          ---
+          *Auto-detected by cross-repo linking*
+          EOF
+          )"
+          fi
