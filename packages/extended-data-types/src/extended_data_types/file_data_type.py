@@ -307,8 +307,8 @@ def read_file(
             the Path object if return_path=True, or None if the file doesn't exist.
 
     Raises:
-        FileNotFoundError: If the file doesn't exist and it's a local path.
         urllib.error.URLError: If the URL cannot be accessed.
+        ValueError: If the URL scheme is not allowed (only http/https permitted).
     """
     path_str = str(file_path)
 
@@ -434,10 +434,14 @@ def delete_file(
     Args:
         file_path (FilePath): The path to the file to delete.
         tld (Path | None): Top-level directory for resolving relative paths.
-        missing_ok (bool): If True, don't raise an error if file doesn't exist. Defaults to True.
+        missing_ok (bool): If True, return False when file doesn't exist.
+            If False, raise FileNotFoundError when file doesn't exist. Defaults to True.
 
     Returns:
-        bool: True if the file was deleted, False if it didn't exist.
+        bool: True if the file was deleted, False if it didn't exist (only when missing_ok=True).
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist and missing_ok=False.
     """
     local_path = resolve_local_path(file_path, tld=tld)
     existed = local_path.exists()
