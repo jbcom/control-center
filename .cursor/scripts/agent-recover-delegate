@@ -100,7 +100,7 @@ jq -r '.messages[].text' .cursor/failed_agent_${FAILED_AGENT_ID}_conversation.js
 
 ### Step 3: Use Aider for Forensic Analysis
 \`\`\`bash
-aider --model claude-opus-4-1-20250805 --message \"
+aider --model claude-haiku-4-5-20251001 --message \"
 FORENSIC ANALYSIS
 
 Compare the conversation artifacts with actual repository state:

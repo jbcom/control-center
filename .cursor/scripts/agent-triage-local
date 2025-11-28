@@ -325,7 +325,7 @@ Use this structure:
     cd /workspace
     
     aider \
-        --model claude-sonnet-4-20250514 \
+        --model claude-haiku-4-5-20251001 \
         --no-auto-commits \
         --yes \
         --message "$AIDER_PROMPT" \
@@ -348,7 +348,7 @@ Execute this file with aider to perform forensic recovery:
 \`\`\`bash
 export ANTHROPIC_API_KEY="your-key"
 cd /workspace
-aider --model claude-sonnet-4-20250514 --no-auto-commits --yes --message "\$(cat $RECOVERY_DIR/aider_prompt.txt)"
+aider --model claude-haiku-4-5-20251001 --no-auto-commits --yes --message "\$(cat $RECOVERY_DIR/aider_prompt.txt)"
 \`\`\`
 
 ## Aider Prompt

@@ -41,7 +41,7 @@ permissions:
   actions: read
 
 env:
-  CLAUDE_MODEL: claude-opus-4-1-20250805
+  CLAUDE_MODEL: claude-haiku-4-5-20251001
   ALLOWED_BOTS: "cursor[bot],github-actions[bot],dependabot[bot],amazon-q-developer[bot],gemini-code-assist[bot]"
 
 jobs:

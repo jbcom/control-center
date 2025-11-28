@@ -183,7 +183,7 @@ ruler apply --dry-run               # Preview changes
 
 # Aider (AI pair programming) - requires Python 3.12
 aider --version                     # Check aider version
-aider --model claude-sonnet-4-20250514  # Start with Claude
+aider --model claude-haiku-4-5-20251001  # Standard model for agentic tasks
 aider --no-auto-commits             # Disable auto-commits
 ```
 

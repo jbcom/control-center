@@ -8,7 +8,7 @@ This repository uses a comprehensive multi-AI review system to ensure code quali
 
 ### 1. Claude Code (Anthropic)
 **Role**: Primary code reviewer and auto-healer
-- **Model**: claude-opus-4-20250514
+- **Model**: claude-haiku-4-5-20251001
 - **Strengths**: 
   - Deep code understanding
   - Contextual refactoring
@@ -219,9 +219,7 @@ OPENAI_API_KEY: # For DiffGuard (optional)
 **To change Claude's model**:
 ```yaml
 claude_args: |
-  --model claude-sonnet-4-20250514  # Faster, cheaper
-  # or
-  --model claude-opus-4-20250514     # More capable
+  --model claude-haiku-4-5-20251001  # Standard for all agentic tasks
 ```
 
 **To restrict Claude's tools**:

@@ -95,7 +95,7 @@ SITUATION:
 YOUR TASK:
 1. Read their full conversation from /tmp/failed_agent.json
 2. Extract all files, branches, and PRs they mentioned
-3. Use aider with claude-opus-4 to compare what they SAID vs what EXISTS
+3. Use aider with claude-haiku-4-5 to compare what they SAID vs what EXISTS
 4. Check git history: git log --all --oneline
 5. Check branches: git branch -a
 6. Check PRs: gh pr list --limit 50
@@ -214,7 +214,7 @@ export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
 aider --message "$(cat /tmp/recovery_prompt.txt)" \
       --no-auto-commits \
       --yes \
-      --model claude-opus-4-20250514 \
+      --model claude-haiku-4-5-20251001 \
       > /tmp/aider_recovery_report.txt
 ```
 
@@ -398,7 +398,7 @@ Generate GO/NO-GO recommendation for merge." \
 
 ```yaml
 # Agent-optimized aider configuration
-model: claude-opus-4-20250514
+model: claude-haiku-4-5-20251001
 edit-format: diff
 no-auto-commits: true
 yes: true
@@ -413,7 +413,7 @@ attribute-committer: false
 ```bash
 # In Dockerfile or .bashrc
 export ANTHROPIC_API_KEY="${ANTHROPIC_API_KEY}"
-export AIDER_MODEL="claude-opus-4-20250514"
+export AIDER_MODEL="claude-haiku-4-5-20251001"
 export AIDER_NO_AUTO_COMMITS="true"
 ```
 
