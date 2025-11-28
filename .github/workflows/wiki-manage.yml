@@ -19,6 +19,7 @@ on:
 
 permissions:
   contents: write
+  pages: write
 
 jobs:
   wiki-init:
@@ -32,7 +33,7 @@ jobs:
       
       - name: Initialize Wiki
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           chmod +x .cursor/scripts/wiki-cli
           .cursor/scripts/wiki-cli init
@@ -50,7 +51,7 @@ jobs:
       
       - name: Migrate Content
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           chmod +x .cursor/scripts/wiki-cli
           
@@ -72,8 +73,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_JBCOM_TOKEN }}
       
       - name: Create Minimal AGENTS.md
         run: |
@@ -91,7 +90,6 @@ jobs:
           ## Critical Rules
 
           - **CalVer versioning** - `YYYY.MM.BUILD`, never manual
-          - **Use GITHUB_JBCOM_TOKEN** - For jbcom repo operations
           - **Read wiki first** - Before making decisions
 
           ## Memory Bank Access
@@ -164,7 +162,6 @@ jobs:
           ## Critical Rules
 
           - CalVer versioning (never manual)
-          - Use GITHUB_JBCOM_TOKEN for jbcom repos
           - Read wiki before making decisions
           - Update wiki after completing work
           EOF
@@ -186,6 +183,8 @@ jobs:
       
       - name: Commit Changes
         if: inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git config user.name "github-actions[bot]"
