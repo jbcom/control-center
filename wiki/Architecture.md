@@ -27,8 +27,14 @@ extended-data-types ← Foundation (no internal deps)
 ## CI/CD Flow
 
 ```
-Push to main → Tests & lint → Auto-version (YYYY.MM.BUILD) → Build → PyPI
+PR to main (conventional commits) → Tests & lint → Merge →
+PSR analyzes commits → Version bump per package → Git tags →
+Build → PyPI publish
 ```
+
+### Version Format
+- `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
+- Per-package Git tags (e.g., `extended-data-types-v202511.3.0`)
 
 ## Wiki Flow
 

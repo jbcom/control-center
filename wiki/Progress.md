@@ -272,3 +272,57 @@ TO:
 - [ ] Run sync-claude-tooling to push to repos
 - [ ] Create first agentic cycle to test
 - [ ] Close holding PR #182
+
+## Session: Nov 28, 2025 (PSR Migration & PR Cleanup)
+
+### Completed
+
+#### PR #213 - python-semantic-release Migration
+- [x] Replaced pycalver with python-semantic-release (PSR)
+- [x] Created monorepo parser (`scripts/psr/monorepo_parser.py`)
+- [x] Configured per-package PSR in all 4 packages
+- [x] Set initial versions to `202511.3.0`
+- [x] Updated CI workflow for PSR-based releases
+- [x] **Major Documentation Update:**
+  - README.md - versioning section with commit scopes
+  - CONTRIBUTING.md - comprehensive conventional commit guide
+  - CLAUDE.md - updated quick reference
+  - wiki/Core-Guidelines.md - complete rewrite for PSR
+  - wiki/Ecosystem.md, Architecture.md, Claude.md, Copilot.md
+  - wiki/Agentic-Rules-Overview.md
+  - .amazonq/rules/jbcom-control-center.md
+  - .github/copilot-instructions.md
+  - .github/copilot/instructions.md
+
+#### PR Cleanup (Autonomous Session)
+- [x] Closed PR #215 (WIP, empty diff, targeted PR #213 branch)
+- [x] Merged PR #203 (docs: recovery summary)
+- [x] Merged PR #205 (chore: MCP config)
+- [x] Closed PR #204 (conflicts + security issues - needs fresh PR)
+- [x] Merged PR #209 (feat: file operations + exit_run)
+
+#### Issue Management
+- [x] Closed issue #210 (release needed - resolved by PR #209)
+- [x] Updated issue #212 with implementation status (RFC implemented by PR #213)
+
+### Version Strategy (New)
+| Aspect | Before (pycalver) | After (PSR) |
+|--------|-------------------|-------------|
+| Format | `YYYYMM.BUILD` | `YYYYMM.MINOR.PATCH` |
+| State tracking | None | Git tags per package |
+| Commit-back | Never | Always |
+| Per-package | Shared counter | Independent |
+| Changelog | None | Auto-generated |
+
+### Commit Scopes
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
+
+### Pending
+- [ ] Merge PR #213 (final step - ends agent session)
+- [ ] First PSR release cycle after merge
+- [ ] Verify PyPI publishes with new versions

@@ -68,7 +68,7 @@ dev = [
     "jbcom-control-center[tests,typing,docs]",
     "pre-commit>=3.6.0",
     "ruff>=0.8.0",
-    "pycalver>=202010.0",
+    "python-semantic-release>=9.14.0",
     "nox>=2024.4.15",
 ]
 
@@ -202,27 +202,18 @@ reportUnknownMemberType = false
 reportUnknownVariableType = false
 reportUnknownArgumentType = false
 
-# PyCalVer - workspace-level versioning for all packages
-[pycalver]
-current_version = "v202511.0001"
-version_pattern = "{pycalver}"
-commit = false
-tag = false
-push = false
-
-[pycalver.file_patterns]
-"pyproject.toml" = [
-    'current_version = "{pycalver}"',
-]
-"packages/extended-data-types/src/extended_data_types/__init__.py" = [
-    '__version__ = "{pep440_pycalver}"',
-]
-"packages/lifecyclelogging/src/lifecyclelogging/__init__.py" = [
-    '__version__ = "{pep440_pycalver}"',
-]
-"packages/directed-inputs-class/src/directed_inputs_class/__init__.py" = [
-    '__version__ = "{pep440_pycalver}"',
-]
-"packages/vendor-connectors/src/vendor_connectors/__init__.py" = [
-    '__version__ = "{pep440_pycalver}"',
-]
+# Python Semantic Release - per-package versioning with Git tags
+# Each package has its own semantic version tracked via Git tags
+# See: https://python-semantic-release.readthedocs.io/
+#
+# Commit message format (Conventional Commits):
+#   feat(package-scope): description   -> Minor bump
+#   fix(package-scope): description   -> Patch bump  
+#   feat!: description                -> Major bump (breaking)
+#
+# Examples:
+#   feat(edt): add new file operations       -> extended-data-types minor bump
+#   fix(logging): handle edge case           -> lifecyclelogging patch bump
+#   feat(connectors): add new vendor         -> vendor-connectors minor bump
+#
+# Per-package configuration is in packages/*/pyproject.toml

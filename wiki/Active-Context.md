@@ -1,60 +1,72 @@
 # Active Context
 
 ## Current Focus
-- **Agentic Orchestration Architecture** - Bidirectional coordination between control plane and repos
-- Integrate `anthropics/claude-code-action` for proper AI workflows
-- Standardize Claude tooling across all managed repos
-- Implement agentic cycles for distributed work
+- **python-semantic-release Migration** - PR #213 ready to merge
+- All documentation updated for new versioning approach
+- PR cleanup complete, issues updated
 
-## Active Work
+## Completed This Session
 
-### PR #189 - GitHub Actions Agent Workflows (MERGED)
-Basic gh CLI workflows for fallback automation.
+### PR #213 - python-semantic-release Migration
+Replaces pycalver with PSR for robust per-package versioning:
+- Version format: `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
+- Per-package Git tags track release state
+- Conventional commits determine version bumps
+- Auto-generated changelogs
 
-### PR #190 - Claude Code Action Integration (OPEN)
-Integrates `anthropics/claude-code-action` for proper AI-driven workflows:
-- `claude.yml` - Interactive @claude mentions
-- `claude-pr-review.yml` - Auto PR review with inline comments
-- `claude-issue-triage.yml` - Auto-labeling
-- `claude-ci-fix.yml` - Auto-fix CI failures
-- Custom commands in `.claude/commands/`
+### PR Cleanup
+| PR | Action | Result |
+|----|--------|--------|
+| #215 | Closed | WIP, empty diff |
+| #203 | Merged | docs: recovery summary |
+| #205 | Merged | chore: MCP config |
+| #204 | Closed | Needs rebase + security fixes |
+| #209 | Merged | feat: file operations + exit_run |
 
-### Agentic Orchestration (IN PROGRESS)
-Building distributed agent coordination:
-- `agentic-cycle.yml` - Cycle orchestration workflow
-- `sync-claude-tooling.yml` - Push tooling to repos
-- Templates for managed repos
-- Issue template for cycles
+### Issue Updates
+| Issue | Status | Notes |
+|-------|--------|-------|
+| #210 | ✅ Closed | Resolved by PR #209 |
+| #212 | Updated | RFC implemented by PR #213 |
+| #214 | Open | Composite actions (future work) |
 
-### Prior PRs (MERGED)
-- ✅ PR #185: aider CLI with Python 3.12 workaround
-- ✅ PR #186: Automated agent triage pipeline
-- ✅ PR #188: Agentic rule updates (tooling documentation)
+## New Versioning System
 
-### Agent Recovery (COMPLETED)
-- Session `bc-c1254c3f-ea3a-43a9-a958-13e921226f5d`: 287 messages recovered
-- Artifacts extracted: 22 PRs, 11 repos, 1 branch, 83 files
-- Tasks delegated via GitHub issues (#207, #8, #42)
+### Commit Scopes (Required)
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
+
+### Commit Types
+| Type | Bump | Example |
+|------|------|---------|
+| `feat` | Minor | `feat(edt): add utility` |
+| `fix`, `perf` | Patch | `fix(logging): handle error` |
+| `feat!` | Major | `feat!: breaking change` |
+
+## Documentation Updated
+- README.md, CONTRIBUTING.md, CLAUDE.md
+- wiki/Core-Guidelines.md (major rewrite)
+- wiki/Ecosystem.md, Architecture.md, Claude.md, Copilot.md
+- wiki/Agentic-Rules-Overview.md
+- .amazonq/rules/jbcom-control-center.md
+- .github/copilot-instructions.md, .github/copilot/instructions.md
 
 ## Next Actions
-1. Wait for PR #189 review/merge
-2. Monitor workflows after merge
-3. Test `/agent` commands on a new issue
+1. **Merge PR #213** - Final step (will trigger first PSR release)
+2. Monitor PyPI releases with new version format
+3. Verify Git tags created for each package
 
 ## Open PRs
 | Repo | PR | Status | Description |
 |------|-----|--------|-------------|
-| jbcom/jbcom-control-center | #189 | Open | GitHub Actions agent workflows |
-| /terraform-modules | #203 | Ready to merge | vendor-connectors integration |
+| jbcom/jbcom-control-center | #213 | Ready | PSR migration (MERGE LAST) |
 
-## Open Issues (Agent Tasks)
+## Open Issues
 | Repo | Issue | Status | Description |
 |------|-------|--------|-------------|
-| jbcom/jbcom-control-center | #183 | Todo | Enterprise SOPS secrets sync |
-| jbcom/vendor-connectors | #8 | Todo | Fix CI/PyPI publish |
-| jbcom/lifecyclelogging | #42 | Todo | Fix CodeQL/CI workflow |
-| /terraform-modules | #207 | Todo | Merge PR #203 |
-
-## Holding PR
-- PR #182: `agent/rebalance-github-projects-issues-20251127-224414`
-- Purpose: Keep background agent session alive during multi-merge workflow
+| jbcom/jbcom-control-center | #212 | Open | RFC - will close with PR #213 |
+| jbcom/jbcom-control-center | #214 | Open | Composite actions (future) |
