@@ -584,6 +584,13 @@ class Logging:
                                 transformed_result[transformed_key] = self._transform_nested_keys(
                                     field_data, transform_fn
                                 )
+                            elif isinstance(field_data, list):
+                                transformed_result[transformed_key] = [
+                                    self._transform_nested_keys(item, transform_fn)
+                                    if isinstance(item, Mapping)
+                                    else item
+                                    for item in field_data
+                                ]
                             else:
                                 transformed_result[transformed_key] = field_data
 
