@@ -2,6 +2,14 @@
 
 <!-- version list -->
 
+## v202511.4.1 (2025-11-28)
+
+### Bug Fixes
+
+- Disable GitHub release creation for vendor-connectors
+  ([`f28a25b`](https://github.com/jbcom/jbcom-control-center/commit/f28a25b541f36c2cc0a35f716d57254c34f09a77))
+
+
 ## v202511.4.0 (2025-11-28)
 
 ### Features
