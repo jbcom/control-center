@@ -1,4 +1,4 @@
-# Reusable lint workflow
+# Reusable lint workflow using tox with tox-uv
 name: Lint
 
 on:
@@ -9,9 +9,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
       - uses: astral-sh/setup-uv@v7
 
-      - name: Lint
-        run: |
-          uvx ruff check packages/
-          uvx ruff format --check packages/
+      - name: Cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .tox
+          key: tox-lint-${{ hashFiles('uv.lock', 'tox.ini') }}
+
+      - name: Install tox
+        run: uv tool install tox --with tox-uv --with tox-gh
+
+      - name: Lint with tox
+        run: tox -e lint

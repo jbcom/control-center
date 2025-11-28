@@ -1,4 +1,4 @@
-# Reusable test workflow
+# Reusable test workflow using tox with tox-uv and tox-gh
 name: Test Package
 
 on:
@@ -26,14 +26,13 @@ jobs:
       - name: Cache
         uses: actions/cache@v4
         with:
-          path: ~/.cache/uv
-          key: uv-${{ inputs.python-version }}-${{ inputs.package }}-${{ hashFiles('uv.lock') }}
+          path: |
+            ~/.cache/uv
+            .tox
+          key: tox-${{ inputs.python-version }}-${{ inputs.package }}-${{ hashFiles('uv.lock', 'tox.ini') }}
 
-      - name: Install and test
-        run: |
-          # Sync workspace with test dependencies for this package
-          uv sync --package ${{ inputs.package }} --extra tests
-          
-          # Run tests
-          cd packages/${{ inputs.package }}
-          uv run pytest tests -v --tb=short
+      - name: Install tox
+        run: uv tool install tox --with tox-uv --with tox-gh
+
+      - name: Run tests with tox
+        run: tox -e ${{ inputs.package }}
