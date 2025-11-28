@@ -301,7 +301,12 @@ def read_file(
     path_str = str(file_path)
 
     # Handle URLs
+    # Handle URLs
     if is_url(path_str):
+        # Validate URL to prevent SSRF attacks
+        if not _is_safe_url(path_str):
+            raise ValueError(f"URL not allowed: {path_str}")
+        
         headers = headers or {}
         request = urllib.request.Request(path_str, headers=dict(headers))
         with urllib.request.urlopen(request) as response:
