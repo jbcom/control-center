@@ -16,7 +16,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-permissions: {}
+# Workflow-level permissions
+permissions:
+  contents: read
+  pull-requests: write
+  id-token: write
+  pages: write
+  attestations: write
 
 jobs:
   # ============================================
@@ -25,9 +31,6 @@ jobs:
   build-packages:
     name: Build ${{ matrix.package }}
     runs-on: ubuntu-latest
-    permissions:
-      attestations: write
-      id-token: write
 
     strategy:
       fail-fast: false
@@ -42,7 +45,6 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          persist-credentials: false
 
       - uses: hynek/build-and-inspect-python-package@v2
         with:
@@ -50,7 +52,7 @@ jobs:
           upload-name-suffix: -${{ matrix.package }}
 
   # ============================================
-  # TESTS
+  # TESTS (using tox-uv like original)
   # ============================================
   tests:
     name: Test ${{ matrix.package }} py${{ matrix.python-version }}
@@ -68,12 +70,7 @@ jobs:
         python-version: ["3.9", "3.13"]
 
     steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: Packages-${{ matrix.package }}
-          path: dist
-
-      - run: tar xf dist/*.tar.gz --strip-components=1
+      - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
@@ -82,10 +79,19 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Test
-        run: |
-          uv pip install --system pytest pytest-cov dist/*.whl
-          pytest tests/ -v --tb=short || echo "Tests completed"
+      - name: Cache tox
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .tox
+          key: tox-${{ matrix.python-version }}-${{ matrix.package }}-${{ hashFiles('uv.lock', 'tox.ini') }}
+
+      - name: Install tox
+        run: uv tool install tox --with tox-uv --with tox-gh
+
+      - name: Run tests with tox
+        run: tox -e ${{ matrix.package }}
 
   # ============================================
   # LINT
@@ -96,8 +102,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
 
       - uses: actions/setup-python@v5
         with:
@@ -115,16 +119,9 @@ jobs:
     name: AI Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-      id-token: write
 
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
 
       - name: Check for code changes
         id: check
@@ -273,9 +270,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: release
     runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
 
     strategy:
       fail-fast: false
