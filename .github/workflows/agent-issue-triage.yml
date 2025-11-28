@@ -20,6 +20,8 @@ permissions:
 
 env:
   PROJECT_ID: 2  # jbcom Ecosystem Integration project
+  # Centralized list of ecosystem repos
+  ECOSYSTEM_REPOS: "jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class FlipsideCrypto/terraform-modules"
 
 jobs:
   auto-label:
@@ -35,14 +37,18 @@ jobs:
         id: classify
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          TITLE="${{ github.event.issue.title }}"
-          BODY="${{ github.event.issue.body }}"
+          # Get issue data safely via API rather than direct interpolation
+          ISSUE_DATA=$(gh issue view "${ISSUE_NUMBER}" --json title,body)
+          TITLE=$(echo "$ISSUE_DATA" | jq -r '.title // ""' | tr -cd '[:alnum:][:space:]._-')
+          BODY=$(echo "$ISSUE_DATA" | jq -r '.body // ""' | tr -cd '[:alnum:][:space:]._-')
+          
           LABELS=""
           PRIORITY="medium"
           
           # Agent task detection
-          if echo "$TITLE" | grep -qiE '🤖|agent task|background agent'; then
+          if echo "$TITLE" | grep -qiE 'agent.task|background.agent'; then
             LABELS="agent-task"
             PRIORITY="high"
           fi
@@ -90,11 +96,13 @@ jobs:
         if: steps.classify.outputs.labels != ''
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           IFS=',' read -ra LABEL_ARRAY <<< "${{ steps.classify.outputs.labels }}"
           for label in "${LABEL_ARRAY[@]}"; do
-            gh issue edit ${{ github.event.issue.number }} --add-label "$label" 2>/dev/null || \
-            echo "Label $label may not exist, skipping"
+            if ! gh issue edit "${ISSUE_NUMBER}" --add-label "$label"; then
+              echo "⚠️ Label '$label' may not exist, skipping"
+            fi
           done
 
   add-to-project:
@@ -107,17 +115,18 @@ jobs:
       - name: Add Issue to Project
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_URL: ${{ github.event.issue.html_url }}
         run: |
-          echo "Adding issue #${{ github.event.issue.number }} to project..."
+          echo "Adding issue to project..."
           
           # Add to user project (jbcom Ecosystem Integration)
-          gh project item-add ${{ env.PROJECT_ID }} \
+          if ! gh project item-add "${{ env.PROJECT_ID }}" \
             --owner "@me" \
-            --url "${{ github.event.issue.html_url }}" 2>/dev/null || \
-          echo "Could not add to project (may need different permissions)"
-          
-          echo "✅ Issue added to project board"
+            --url "${ISSUE_URL}"; then
+            echo "⚠️ Could not add to project board. Check permissions and configuration."
+          else
+            echo "✅ Issue added to project board"
+          fi
 
   spawn-triage-agent:
     name: Spawn Triage Agent
@@ -143,14 +152,11 @@ jobs:
       - name: Create Triage Task
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          ISSUE_NUM: ${{ steps.issue.outputs.number }}
+          PRIORITY: ${{ needs.auto-label.outputs.priority }}
         run: |
-          ISSUE_NUM="${{ steps.issue.outputs.number }}"
-          
-          # Get issue details
-          ISSUE_DATA=$(gh issue view $ISSUE_NUM --json title,body,labels,author)
-          ISSUE_TITLE=$(echo "$ISSUE_DATA" | jq -r '.title')
-          ISSUE_AUTHOR=$(echo "$ISSUE_DATA" | jq -r '.author.login')
+          # Get issue details safely
+          ISSUE_DATA=$(gh issue view "${ISSUE_NUM}" --json title,body,labels,author)
           ISSUE_LABELS=$(echo "$ISSUE_DATA" | jq -r '.labels[].name' | tr '\n' ', ')
           
           # Check if this is already an agent task
@@ -160,22 +166,21 @@ jobs:
           fi
           
           # Create triage comment
-          gh issue comment $ISSUE_NUM --body "$(cat << EOF
-          🤖 **Issue Triage Initiated**
+          BODY="🤖 **Issue Triage Initiated**
+
+**Auto-detected labels**: ${ISSUE_LABELS:-none}
+**Priority**: ${PRIORITY:-medium}
+
+A background agent will analyze this issue and:
+1. Verify classification is correct
+2. Identify related issues/PRs
+3. Estimate complexity
+4. Suggest assignees or next steps
+
+---
+*Automated by agent-issue-triage workflow*"
           
-          **Auto-detected labels**: ${ISSUE_LABELS:-none}
-          **Priority**: ${{ needs.auto-label.outputs.priority || 'medium' }}
-          
-          A background agent will analyze this issue and:
-          1. Verify classification is correct
-          2. Identify related issues/PRs
-          3. Estimate complexity
-          4. Suggest assignees or next steps
-          
-          ---
-          *Automated by agent-issue-triage workflow*
-          EOF
-          )"
+          gh issue comment "${ISSUE_NUM}" --body "${BODY}"
 
   handle-agent-command:
     name: Handle Agent Commands in Comments
@@ -187,18 +192,19 @@ jobs:
     steps:
       - name: Parse Command
         id: command
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          COMMENT="${{ github.event.comment.body }}"
-          
-          if echo "$COMMENT" | grep -q '/agent review'; then
+          # Sanitize comment - only check for specific commands
+          if echo "$COMMENT_BODY" | grep -q '/agent review'; then
             echo "command=review" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q '/agent fix'; then
+          elif echo "$COMMENT_BODY" | grep -q '/agent fix'; then
             echo "command=fix" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q '/agent investigate'; then
+          elif echo "$COMMENT_BODY" | grep -q '/agent investigate'; then
             echo "command=investigate" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q '/agent close'; then
+          elif echo "$COMMENT_BODY" | grep -q '/agent close'; then
             echo "command=close" >> $GITHUB_OUTPUT
-          elif echo "$COMMENT" | grep -q '/agent help'; then
+          elif echo "$COMMENT_BODY" | grep -q '/agent help'; then
             echo "command=help" >> $GITHUB_OUTPUT
           else
             echo "command=unknown" >> $GITHUB_OUTPUT
@@ -207,91 +213,75 @@ jobs:
       - name: Execute Command
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          COMMAND: ${{ steps.command.outputs.command }}
         run: |
-          ISSUE_NUM="${{ github.event.issue.number }}"
-          COMMAND="${{ steps.command.outputs.command }}"
-          
           case "$COMMAND" in
             review)
-              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
-          🤖 **Agent Review Requested**
-          
-          Spawning a background agent to review this issue in detail.
-          
-          The agent will:
-          - Analyze the issue description
-          - Check related code
-          - Identify potential solutions
-          - Comment with findings
-          EOF
-          )"
-              gh issue edit $ISSUE_NUM --add-label "agent-review-requested"
+              gh issue comment "${ISSUE_NUM}" --body '🤖 **Agent Review Requested**
+
+Spawning a background agent to review this issue in detail.
+
+The agent will:
+- Analyze the issue description
+- Check related code
+- Identify potential solutions
+- Comment with findings'
+              gh issue edit "${ISSUE_NUM}" --add-label "agent-review-requested" || true
               ;;
             
             fix)
-              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
-          🤖 **Agent Fix Requested**
-          
-          Spawning a background agent to attempt a fix.
-          
-          The agent will:
-          - Analyze the issue
-          - Create a fix branch
-          - Submit a PR
-          - Link PR to this issue
-          EOF
-          )"
-              gh issue edit $ISSUE_NUM --add-label "agent-fix-requested"
+              gh issue comment "${ISSUE_NUM}" --body '🤖 **Agent Fix Requested**
+
+Spawning a background agent to attempt a fix.
+
+The agent will:
+- Analyze the issue
+- Create a fix branch
+- Submit a PR
+- Link PR to this issue'
+              gh issue edit "${ISSUE_NUM}" --add-label "agent-fix-requested" || true
               ;;
             
             investigate)
-              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
-          🤖 **Agent Investigation Requested**
-          
-          Spawning a background agent to investigate.
-          
-          The agent will:
-          - Deep dive into the problem
-          - Check logs, history, related issues
-          - Document findings
-          - Recommend next steps
-          EOF
-          )"
-              gh issue edit $ISSUE_NUM --add-label "agent-investigating"
+              gh issue comment "${ISSUE_NUM}" --body '🤖 **Agent Investigation Requested**
+
+Spawning a background agent to investigate.
+
+The agent will:
+- Deep dive into the problem
+- Check logs, history, related issues
+- Document findings
+- Recommend next steps'
+              gh issue edit "${ISSUE_NUM}" --add-label "agent-investigating" || true
               ;;
             
             close)
-              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
-          🤖 **Agent Close Review**
-          
-          Verifying this issue can be closed:
-          - Checking if work is complete
-          - Verifying no related open items
-          - Confirming resolution
-          EOF
-          )"
+              gh issue comment "${ISSUE_NUM}" --body '🤖 **Agent Close Review**
+
+Verifying this issue can be closed:
+- Checking if work is complete
+- Verifying no related open items
+- Confirming resolution'
               ;;
             
             help)
-              gh issue comment $ISSUE_NUM --body "$(cat << 'EOF'
-          🤖 **Agent Commands Available**
-          
-          | Command | Description |
-          |---------|-------------|
-          | `/agent review` | Request detailed analysis of this issue |
-          | `/agent fix` | Request agent to attempt a fix and create PR |
-          | `/agent investigate` | Request deep investigation |
-          | `/agent close` | Verify issue can be closed |
-          | `/agent help` | Show this help message |
-          
-          ---
-          *Powered by agent-issue-triage workflow*
-          EOF
-          )"
+              gh issue comment "${ISSUE_NUM}" --body '🤖 **Agent Commands Available**
+
+| Command | Description |
+|---------|-------------|
+| `/agent review` | Request detailed analysis of this issue |
+| `/agent fix` | Request agent to attempt a fix and create PR |
+| `/agent investigate` | Request deep investigation |
+| `/agent close` | Verify issue can be closed |
+| `/agent help` | Show this help message |
+
+---
+*Powered by agent-issue-triage workflow*'
               ;;
             
             *)
-              gh issue comment $ISSUE_NUM --body "❓ Unknown command. Use \`/agent help\` to see available commands."
+              gh issue comment "${ISSUE_NUM}" --body '❓ Unknown command. Use `/agent help` to see available commands.'
               ;;
           esac
 
@@ -304,36 +294,44 @@ jobs:
       - name: Find Related Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          CURRENT_REPO: ${{ github.repository }}
         run: |
-          TITLE="${{ github.event.issue.title }}"
-          BODY="${{ github.event.issue.body }}"
-          ISSUE_NUM="${{ github.event.issue.number }}"
+          # Get issue data safely
+          ISSUE_DATA=$(gh issue view "${ISSUE_NUM}" --json title)
+          TITLE=$(echo "$ISSUE_DATA" | jq -r '.title // ""')
           
-          # Search for related issues in ecosystem
-          REPOS="jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class FlipsideCrypto/terraform-modules"
+          # Sanitize title for search - remove special chars, take first 30 chars
+          TITLE_SEARCH=$(echo "$TITLE" | tr -cd '[:alnum:][:space:]' | head -c 30 | tr '[:upper:]' '[:lower:]')
+          
+          if [ -z "$TITLE_SEARCH" ]; then
+            echo "No searchable title content, skipping cross-repo linking"
+            exit 0
+          fi
           
           RELATED=""
-          for repo in $REPOS; do
+          for repo in ${{ env.ECOSYSTEM_REPOS }}; do
             # Skip current repo
-            [ "$repo" = "${{ github.repository }}" ] && continue
+            [ "$repo" = "${CURRENT_REPO}" ] && continue
             
-            # Search for similar issues
+            # Search for similar issues using jq --arg for safe interpolation
             MATCHES=$(gh issue list --repo "$repo" --state all --limit 5 --json number,title,url \
-              --jq ".[] | select(.title | ascii_downcase | contains(\"$(echo $TITLE | cut -c1-30 | tr '[:upper:]' '[:lower:]')\")) | \"- \(.url)\"" 2>/dev/null || echo "")
+              --jq --arg search "$TITLE_SEARCH" '.[] | select(.title | ascii_downcase | contains($search)) | "- \(.url)"' 2>/dev/null || echo "")
             
             if [ -n "$MATCHES" ]; then
-              RELATED="${RELATED}\n### $repo\n$MATCHES"
+              RELATED="${RELATED}
+
+### $repo
+$MATCHES"
             fi
           done
           
           if [ -n "$RELATED" ]; then
-            gh issue comment $ISSUE_NUM --body "$(cat << EOF
-          🔗 **Potentially Related Issues Found**
-          
-          $(echo -e "$RELATED")
-          
-          ---
-          *Auto-detected by cross-repo linking*
-          EOF
-          )"
+            BODY="🔗 **Potentially Related Issues Found**
+${RELATED}
+
+---
+*Auto-detected by cross-repo linking*"
+            
+            gh issue comment "${ISSUE_NUM}" --body "${BODY}"
           fi

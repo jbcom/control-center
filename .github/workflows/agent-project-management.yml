@@ -30,6 +30,8 @@ env:
   PROJECT_NUMBER: 2
   STALE_DAYS: 14
   VERY_STALE_DAYS: 30
+  # Centralized list of ecosystem repos
+  ECOSYSTEM_REPOS: "jbcom/jbcom-control-center jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class"
 
 jobs:
   sync-issue-to-project:
@@ -41,13 +43,13 @@ jobs:
       - name: Update Project Item Status
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          ACTION: ${{ github.event.action }}
         run: |
-          ISSUE_NUM="${{ github.event.issue.number }}"
-          ACTION="${{ github.event.action }}"
-          
-          echo "Issue #$ISSUE_NUM action: $ACTION"
+          echo "Issue #${ISSUE_NUM} action: ${ACTION}"
           
           # Determine new status based on action
+          STATUS=""
           case "$ACTION" in
             opened|reopened)
               STATUS="Todo"
@@ -72,7 +74,8 @@ jobs:
           if [ -n "$STATUS" ]; then
             echo "Setting status to: $STATUS"
             # Note: Actual project field update requires GraphQL API
-            # This is a placeholder for the status update logic
+            # TODO: Implement GraphQL mutation for project field update
+            echo "⚠️ Project status update not yet fully implemented (requires GraphQL)"
           fi
 
   sync-pr-to-project:
@@ -84,13 +87,16 @@ jobs:
       - name: Link PR to Issues
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ github.event.pull_request.number }}
+          ACTION: ${{ github.event.action }}
+          PR_MERGED: ${{ github.event.pull_request.merged }}
         run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          PR_BODY="${{ github.event.pull_request.body }}"
-          ACTION="${{ github.event.action }}"
+          # Get PR body safely
+          PR_DATA=$(gh pr view "${PR_NUM}" --json body)
+          PR_BODY=$(echo "$PR_DATA" | jq -r '.body // ""')
           
-          # Extract issue references from PR body
-          ISSUES=$(echo "$PR_BODY" | grep -oE '(fixes|closes|resolves|relates to) #[0-9]+' | grep -oE '#[0-9]+' || echo "")
+          # Extract issue references from PR body using grep
+          ISSUES=$(echo "$PR_BODY" | grep -oiE '(fixes|closes|resolves|relates to) #[0-9]+' | grep -oE '#[0-9]+' || echo "")
           
           if [ -n "$ISSUES" ]; then
             echo "Found related issues: $ISSUES"
@@ -100,12 +106,12 @@ jobs:
               
               case "$ACTION" in
                 opened)
-                  gh issue comment $ISSUE_NUM --body "🔗 PR #$PR_NUM opened that references this issue."
-                  gh issue edit $ISSUE_NUM --add-label "has-pr"
+                  gh issue comment "${ISSUE_NUM}" --body "🔗 PR #${PR_NUM} opened that references this issue." || true
+                  gh issue edit "${ISSUE_NUM}" --add-label "has-pr" || true
                   ;;
                 closed)
-                  if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                    gh issue comment $ISSUE_NUM --body "✅ PR #$PR_NUM merged! This issue may be resolved."
+                  if [ "$PR_MERGED" = "true" ]; then
+                    gh issue comment "${ISSUE_NUM}" --body "✅ PR #${PR_NUM} merged! This issue may be resolved." || true
                   fi
                   ;;
               esac
@@ -124,53 +130,53 @@ jobs:
         run: |
           echo "🔍 Checking for stale issues..."
           
-          # Find issues not updated in STALE_DAYS
-          STALE_DATE=$(date -d "-${{ env.STALE_DAYS }} days" +%Y-%m-%d)
-          VERY_STALE_DATE=$(date -d "-${{ env.VERY_STALE_DAYS }} days" +%Y-%m-%d)
+          # Calculate dates (cross-platform compatible)
+          STALE_DATE=$(date -u -d "-${{ env.STALE_DAYS }} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
+                       date -u -v-${{ env.STALE_DAYS }}d +%Y-%m-%dT%H:%M:%SZ)
+          VERY_STALE_DATE=$(date -u -d "-${{ env.VERY_STALE_DAYS }} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || \
+                           date -u -v-${{ env.VERY_STALE_DAYS }}d +%Y-%m-%dT%H:%M:%SZ)
           
-          # Get stale issues
-          STALE_ISSUES=$(gh issue list --state open --json number,title,updatedAt \
-            --jq ".[] | select(.updatedAt < \"${STALE_DATE}\") | .number")
+          echo "Stale threshold: $STALE_DATE"
+          echo "Very stale threshold: $VERY_STALE_DATE"
           
-          for issue_num in $STALE_ISSUES; do
-            # Check if already labeled stale
-            LABELS=$(gh issue view $issue_num --json labels --jq '.labels[].name' | tr '\n' ',')
+          # Get open issues
+          gh issue list --state open --json number,updatedAt,labels --jq '.[] | "\(.number) \(.updatedAt)"' | while read -r line; do
+            ISSUE_NUM=$(echo "$line" | cut -d' ' -f1)
+            UPDATED=$(echo "$line" | cut -d' ' -f2)
             
-            if echo "$LABELS" | grep -q "stale"; then
-              # Already stale, check if very stale
-              UPDATED=$(gh issue view $issue_num --json updatedAt --jq '.updatedAt')
-              if [[ "$UPDATED" < "$VERY_STALE_DATE" ]]; then
-                echo "Issue #$issue_num is very stale, requesting agent review"
-                gh issue comment $issue_num --body "$(cat << 'EOF'
-          ⚠️ **Very Stale Issue Alert**
-          
-          This issue has been inactive for over 30 days.
-          
-          A background agent will review if this should be:
-          - Closed as won't fix
-          - Reassigned
-          - Bumped for attention
-          
-          Use `/agent review` to request manual agent review.
-          EOF
-          )"
+            if [[ "$UPDATED" < "$STALE_DATE" ]]; then
+              # Get current labels
+              LABELS=$(gh issue view "$ISSUE_NUM" --json labels --jq '.labels[].name' | tr '\n' ',')
+              
+              if echo "$LABELS" | grep -q "stale"; then
+                # Already stale, check if very stale
+                if [[ "$UPDATED" < "$VERY_STALE_DATE" ]]; then
+                  echo "Issue #$ISSUE_NUM is very stale, requesting agent review"
+                  gh issue comment "$ISSUE_NUM" --body '⚠️ **Very Stale Issue Alert**
+
+This issue has been inactive for over 30 days.
+
+A background agent will review if this should be:
+- Closed as wont fix
+- Reassigned
+- Bumped for attention
+
+Use `/agent review` to request manual agent review.' || true
+                fi
+              else
+                # Mark as stale
+                echo "Marking issue #$ISSUE_NUM as stale"
+                gh issue edit "$ISSUE_NUM" --add-label "stale" || true
+                gh issue comment "$ISSUE_NUM" --body '⏰ **Stale Issue Notice**
+
+This issue has been inactive for 14+ days.
+
+- If still relevant, please comment with an update
+- If blocked, add the `blocked` label and explain
+- If no longer needed, please close
+
+Issues inactive for 30 days may be auto-closed or reviewed by agents.' || true
               fi
-            else
-              # Mark as stale
-              echo "Marking issue #$issue_num as stale"
-              gh issue edit $issue_num --add-label "stale"
-              gh issue comment $issue_num --body "$(cat << 'EOF'
-          ⏰ **Stale Issue Notice**
-          
-          This issue has been inactive for 14+ days.
-          
-          - If still relevant, please comment with an update
-          - If blocked, add the `blocked` label and explain
-          - If no longer needed, please close
-          
-          Issues inactive for 30 days may be auto-closed or reviewed by agents.
-          EOF
-          )"
             fi
           done
 
@@ -186,34 +192,38 @@ jobs:
         run: |
           echo "📊 Generating ecosystem status report..."
           
-          REPOS="jbcom/jbcom-control-center jbcom/extended-data-types jbcom/lifecyclelogging jbcom/vendor-connectors jbcom/directed-inputs-class"
+          REPORT="# 📊 Ecosystem Status Report
+
+**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+"
           
-          REPORT="# 📊 Ecosystem Status Report\n\n"
-          REPORT+="**Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")\n\n"
-          
-          for repo in $REPOS; do
+          for repo in ${{ env.ECOSYSTEM_REPOS }}; do
             echo "Checking $repo..."
             
             # Get repo stats
-            OPEN_ISSUES=$(gh issue list --repo $repo --state open --json number --jq 'length')
-            OPEN_PRS=$(gh pr list --repo $repo --state open --json number --jq 'length')
-            LAST_RELEASE=$(gh release list --repo $repo --limit 1 --json tagName --jq '.[0].tagName // "none"' 2>/dev/null || echo "N/A")
-            LAST_CI=$(gh run list --repo $repo --limit 1 --json conclusion --jq '.[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
+            OPEN_ISSUES=$(gh issue list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null || echo "N/A")
+            OPEN_PRS=$(gh pr list --repo "$repo" --state open --json number --jq 'length' 2>/dev/null || echo "N/A")
+            LAST_RELEASE=$(gh release list --repo "$repo" --limit 1 --json tagName --jq '.[0].tagName // "none"' 2>/dev/null || echo "N/A")
+            LAST_CI=$(gh run list --repo "$repo" --limit 1 --json conclusion --jq '.[0].conclusion // "unknown"' 2>/dev/null || echo "unknown")
             
-            REPORT+="## $repo\n"
-            REPORT+="| Metric | Value |\n"
-            REPORT+="|--------|-------|\n"
-            REPORT+="| Open Issues | $OPEN_ISSUES |\n"
-            REPORT+="| Open PRs | $OPEN_PRS |\n"
-            REPORT+="| Last Release | $LAST_RELEASE |\n"
-            REPORT+="| Last CI | $LAST_CI |\n\n"
+            REPORT+="## $repo
+| Metric | Value |
+|--------|-------|
+| Open Issues | $OPEN_ISSUES |
+| Open PRs | $OPEN_PRS |
+| Last Release | $LAST_RELEASE |
+| Last CI | $LAST_CI |
+
+"
           done
           
           # Create report issue
           gh issue create \
             --title "📊 Ecosystem Status Report - $(date +%Y-%m-%d)" \
-            --body "$(echo -e "$REPORT")" \
-            --label "report,ecosystem"
+            --body "${REPORT}" \
+            --label "report" \
+            --label "ecosystem"
 
   spawn-maintenance-agents:
     name: Spawn Maintenance Agents
@@ -224,91 +234,88 @@ jobs:
       - name: Create Maintenance Tasks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
         run: |
           echo "🤖 Spawning maintenance agents..."
           
           # Dependency Update Agent
           gh issue create \
             --title "🤖 Agent Task: Weekly Dependency Audit" \
-            --body "$(cat << 'EOF'
-          ## Background Agent Task: Dependency Audit
-          
-          Perform weekly dependency maintenance:
-          
-          ### 1. Check for Updates
-          ```bash
-          cd packages/extended-data-types && uv pip list --outdated
-          cd packages/lifecyclelogging && uv pip list --outdated
-          cd packages/vendor-connectors && uv pip list --outdated
-          ```
-          
-          ### 2. Security Audit
-          ```bash
-          uv pip audit
-          ```
-          
-          ### 3. Update Safe Dependencies
-          - Patch updates: Auto-update
-          - Minor updates: Review changelog first
-          - Major updates: Create separate issue
-          
-          ### 4. Test After Updates
-          ```bash
-          pytest
-          mypy src/
-          ruff check .
-          ```
-          
-          ## Deliverables
-          - [ ] List of updated packages
-          - [ ] Security audit results
-          - [ ] PR with updates (if any)
-          
-          ---
-          *Weekly maintenance task*
-          EOF
-          )" \
-            --label "agent-task,maintenance,dependencies"
+            --body '## Background Agent Task: Dependency Audit
+
+Perform weekly dependency maintenance:
+
+### 1. Check for Updates
+```bash
+cd packages/extended-data-types && uv pip list --outdated
+cd packages/lifecyclelogging && uv pip list --outdated
+cd packages/vendor-connectors && uv pip list --outdated
+```
+
+### 2. Security Audit
+```bash
+uv pip audit
+```
+
+### 3. Update Safe Dependencies
+- Patch updates: Auto-update
+- Minor updates: Review changelog first
+- Major updates: Create separate issue
+
+### 4. Test After Updates
+```bash
+pytest
+mypy src/
+ruff check .
+```
+
+## Deliverables
+- [ ] List of updated packages
+- [ ] Security audit results
+- [ ] PR with updates (if any)
+
+---
+*Weekly maintenance task*' \
+            --label "agent-task" \
+            --label "maintenance" \
+            --label "dependencies"
           
           # Documentation Sync Agent
           gh issue create \
             --title "🤖 Agent Task: Documentation Sync Check" \
-            --body "$(cat << 'EOF'
-          ## Background Agent Task: Documentation Sync
-          
-          Verify documentation is current:
-          
-          ### 1. Check README Files
-          - [ ] Root README.md
-          - [ ] Package READMEs
-          - [ ] Docs folder
-          
-          ### 2. Verify Examples Work
-          ```bash
-          # Test code examples in docs
-          python -c "from extended_data_types import ..."
-          ```
-          
-          ### 3. Check Links
-          - [ ] All URLs valid
-          - [ ] Internal links work
-          - [ ] Badge URLs correct
-          
-          ### 4. API Documentation
-          - [ ] All public functions documented
-          - [ ] Type hints complete
-          - [ ] Examples provided
-          
-          ## Deliverables
-          - [ ] List of outdated docs
-          - [ ] PR with fixes (if any)
-          
-          ---
-          *Weekly maintenance task*
-          EOF
-          )" \
-            --label "agent-task,maintenance,documentation"
+            --body '## Background Agent Task: Documentation Sync
+
+Verify documentation is current:
+
+### 1. Check README Files
+- [ ] Root README.md
+- [ ] Package READMEs
+- [ ] Docs folder
+
+### 2. Verify Examples Work
+```bash
+# Test code examples in docs
+python -c "from extended_data_types import ..."
+```
+
+### 3. Check Links
+- [ ] All URLs valid
+- [ ] Internal links work
+- [ ] Badge URLs correct
+
+### 4. API Documentation
+- [ ] All public functions documented
+- [ ] Type hints complete
+- [ ] Examples provided
+
+## Deliverables
+- [ ] List of outdated docs
+- [ ] PR with fixes (if any)
+
+---
+*Weekly maintenance task*' \
+            --label "agent-task" \
+            --label "maintenance" \
+            --label "documentation"
           
           echo "✅ Maintenance agents spawned"
 
@@ -324,19 +331,17 @@ jobs:
         run: |
           echo "🔄 Running weekly project board sync..."
           
-          # Find issues not in project
-          ALL_ISSUES=$(gh issue list --state open --json number --jq '.[].number')
-          
-          for issue_num in $ALL_ISSUES; do
-            # Check if important enough for project
-            LABELS=$(gh issue view $issue_num --json labels --jq '.labels[].name' | tr '\n' ',')
+          # Get open issues
+          gh issue list --state open --json number,labels --jq '.[] | "\(.number) \(.labels[].name)"' | while read -r line; do
+            ISSUE_NUM=$(echo "$line" | cut -d' ' -f1)
+            LABELS=$(echo "$line" | cut -d' ' -f2-)
             
             # Add to project if has relevant labels
             if echo "$LABELS" | grep -qE 'agent-task|ecosystem|ci-cd|security|bug'; then
-              echo "Ensuring issue #$issue_num is in project"
-              gh project item-add ${{ env.PROJECT_NUMBER }} \
+              echo "Ensuring issue #$ISSUE_NUM is in project"
+              gh project item-add "${{ env.PROJECT_NUMBER }}" \
                 --owner "@me" \
-                --url "https://github.com/${{ github.repository }}/issues/$issue_num" 2>/dev/null || true
+                --url "https://github.com/${{ github.repository }}/issues/$ISSUE_NUM" 2>/dev/null || true
             fi
           done
           

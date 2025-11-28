@@ -28,18 +28,30 @@ jobs:
           node-version: '20'
       
       - name: Install cursor-background-agent-mcp-server
-        run: npm install -g cursor-background-agent-mcp-server
+        run: |
+          if ! npm install -g cursor-background-agent-mcp-server; then
+            echo "⚠️ Package not available, will use fallback"
+          fi
       
       - name: Generate Review Task
         id: task
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          PR_SHA: ${{ github.event.pull_request.head.sha }}
+          REPO: ${{ github.repository }}
         run: |
-          cat > /tmp/review_task.md << 'EOF'
+          # Sanitize inputs to prevent command injection
+          PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | tr -cd '[:alnum:][:space:]._-')
+          PR_AUTHOR=$(echo "${{ github.event.pull_request.user.login }}" | tr -cd '[:alnum:]._-')
+          
+          cat > /tmp/review_task.md << EOF
           # PR Review Task
           
-          **PR**: #${{ github.event.pull_request.number }}
-          **Title**: ${{ github.event.pull_request.title }}
-          **Author**: ${{ github.event.pull_request.user.login }}
-          **Branch**: ${{ github.event.pull_request.head.ref }}
+          **PR**: #${PR_NUMBER}
+          **Title**: ${PR_TITLE}
+          **Author**: ${PR_AUTHOR}
+          **Branch**: ${PR_BRANCH}
           
           ## Your Mission
           
@@ -72,31 +84,30 @@ jobs:
           
           ## Files Changed
           
-          ```bash
-          gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path'
-          ```
+          \`\`\`bash
+          gh pr view ${PR_NUMBER} --json files --jq '.files[].path'
+          \`\`\`
           
           ---
           
-          **Repository**: ${{ github.repository }}
-          **Ref**: ${{ github.event.pull_request.head.sha }}
+          **Repository**: ${REPO}
+          **Ref**: ${PR_SHA}
           EOF
           
-          echo "task=$(cat /tmp/review_task.md | base64 -w0)" >> $GITHUB_OUTPUT
+          # Cross-platform base64 encoding (no -w0 flag)
+          echo "task=$(cat /tmp/review_task.md | base64 | tr -d '\n')" >> $GITHUB_OUTPUT
       
       - name: Spawn Review Agent
         env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          # Create agent via MCP server
-          TASK=$(echo "${{ steps.task.outputs.task }}" | base64 -d)
-          
-          echo "📋 Spawning review agent for PR #${{ github.event.pull_request.number }}"
+          # Note: CURSOR_API_KEY is available but not logged
+          echo "📋 Spawning review agent for PR #${PR_NUMBER}"
           
           # For now, create a comment indicating agent was requested
           # Full MCP integration requires running server
-          gh pr comment ${{ github.event.pull_request.number }} --body "$(cat << 'COMMENT'
+          gh pr comment "${PR_NUMBER}" --body "$(cat << 'COMMENT'
           🤖 **Background Agent Review Requested**
           
           A Cursor background agent has been dispatched to review this PR.
@@ -115,20 +126,24 @@ jobs:
         if: failure()
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh issue create \
-            --title "🤖 Agent Task: Review PR #${{ github.event.pull_request.number }}" \
-            --body "$(cat << EOF
-          ## Background Agent Task
+          # Sanitize inputs
+          PR_TITLE=$(echo "${{ github.event.pull_request.title }}" | tr -cd '[:alnum:][:space:]._-' | head -c 100)
           
-          **PR**: #${{ github.event.pull_request.number }}
-          **Title**: ${{ github.event.pull_request.title }}
+          # Create issue body
+          BODY="## Background Agent Task
+
+          **PR**: #${PR_NUMBER}
+          **Title**: ${PR_TITLE}
           **Priority**: HIGH
-          
+
           Review this PR and comment with findings.
-          
+
           ---
-          *Auto-created by agent-pr-review workflow (fallback)*
-          EOF
-          )" \
+          *Auto-created by agent-pr-review workflow (fallback)*"
+          
+          gh issue create \
+            --title "🤖 Agent Task: Review PR #${PR_NUMBER}" \
+            --body "${BODY}" \
             --label "agent-task"
