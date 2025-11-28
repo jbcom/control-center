@@ -1,35 +1,45 @@
-**[Home](Home)**
+# Navigation
 
-**Memory Bank**
-* [Active Context](Active-Context)
-* [Progress](Progress)
-* [Agentic Rules Overview](Agentic-Rules-Overview)
+## Quick Links
+- [Home](Home)
+- [**Active Cycle**](Active-Cycle) 🔄
 
-**Agentic Rules**
-* [Core Guidelines](Core-Guidelines)
-* [Python Standards](Python-Standards)
-* [PR Ownership](PR-Ownership)
-* [Ecosystem](Ecosystem)
-* [Self Sufficiency](Self-Sufficiency)
-* [Environment Setup](Environment-Setup)
+## Core
+- [Core Guidelines](Core-Guidelines)
+- [Ecosystem](Ecosystem)
+- [Architecture](Architecture)
 
-**Agent Instructions**
-* [Cursor](Cursor)
-* [Copilot](Copilot)
-* [Claude](Claude)
+## Agent Documentation
+- [Agentic Rules](Agentic-Rules-Overview)
+- [Agentic Orchestration](Agentic-Orchestration)
+- [Self-Sufficiency](Self-Sufficiency)
+- [PR Ownership](PR-Ownership)
 
-**Documentation**
-* [Architecture](Architecture)
-* [Agentic Orchestration](Agentic-Orchestration)
-* [Agent Handoff](Agent-Handoff)
-* [Cursor Management](Cursor-Management)
-* [Diff Recovery](Diff-Recovery)
-* [MCP Setup](MCP-Setup)
-* [MCP Proxy Setup](MCP-Proxy-Setup)
-* [MCP Proxy Strategy](MCP-Proxy-Strategy)
-* [Multi AI Review](Multi-AI-Review)
+## Platform Guides
+- [Claude](Claude)
+- [Copilot](Copilot)
+- [Cursor](Cursor)
+- [Cursor Management](Cursor-Management)
 
-**Recovery**
-* [Recovery 2025-11-27](Recovery-2025-11-27)
-* [Recovery Delegation](Recovery-Delegation)
-* [Recovery Replay](Recovery-Replay)
+## Setup & Config
+- [Environment Setup](Environment-Setup)
+- [MCP Setup](MCP-Setup)
+- [MCP Proxy Setup](MCP-Proxy-Setup)
+- [MCP Proxy Strategy](MCP-Proxy-Strategy)
+
+## Recovery & Handoff
+- [Agent Handoff](Agent-Handoff)
+- [Diff Recovery](Diff-Recovery)
+- [Multi-AI Review](Multi-AI-Review)
+
+## Memory Bank
+- [Active Context](Active-Context)
+- [Progress](Progress)
+
+## Recovery Artifacts
+- [Recovery 2025-11-27](Recovery-2025-11-27)
+- [Recovery Delegation](Recovery-Delegation)
+- [Recovery Replay](Recovery-Replay)
+
+## Reference
+- [Python Standards](Python-Standards)
