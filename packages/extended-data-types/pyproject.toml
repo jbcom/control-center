@@ -237,7 +237,7 @@ ignore_missing_imports = true
 # Python Semantic Release configuration
 [tool.semantic_release]
 # Build command using uv
-build_command = "pip install uv && uv build"
+build_command = "uv build"
 
 # Monorepo parser filters commits by file path
 commit_parser = "../../scripts/psr/monorepo_parser.py:ConventionalCommitMonorepoParser"
