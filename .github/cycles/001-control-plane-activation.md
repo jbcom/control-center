@@ -73,8 +73,7 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 ### Enterprise ()
 | Repo | Type | Status |
 |------|------|--------|
-| terraform-modules | Consumer | ⏳ Pending integration |
-| (others) | TBD | ⏳ Inventory needed |
+| terraform-modules | Consumer (`extended-data-types`) | 🔄 PR #208 open |
 
 ### Enterprise ()
 | Repo | Type | Status |
@@ -87,8 +86,10 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 ## Next Actions
 
 ### Phase 1: Enterprise Integration (This Cycle)
-1. [ ] Inventory  repos that use jbcom packages
-2. [ ] Update terraform-modules to use latest package versions
+1. [x] Inventory  repos that use jbcom packages
+   - `terraform-modules` uses `extended-data-types` (only consumer found)
+2. [x] Update terraform-modules to use latest package versions
+   - PR #208: https://github.com//terraform-modules/pull/208
 3. [ ] Document enterprise dependency graph
 4. [ ] Set up Claude tooling in enterprise repos (where appropriate)
 
@@ -184,5 +185,5 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 
 ---
 
-*Last Updated*: 2025-11-28 04:15 UTC
+*Last Updated*: 2025-11-28 04:40 UTC
 *Cycle Owner*: Background Agent
