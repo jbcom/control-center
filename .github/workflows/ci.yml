@@ -109,8 +109,9 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - run: uvx ruff check .
-      - run: uvx ruff format --check .
+      # Lint packages/ only (scripts/ has different rules)
+      - run: uvx ruff check packages/
+      - run: uvx ruff format --check packages/
 
   # ============================================
   # AI CODE REVIEW (PR only)
