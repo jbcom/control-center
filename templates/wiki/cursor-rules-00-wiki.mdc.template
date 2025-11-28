@@ -1,0 +1,56 @@
+---
+alwaysApply: true
+---
+
+# Agent Instructions - Wiki Reference
+
+> **📚 All documentation is in the wiki**: https://github.com/jbcom/jbcom-control-center/wiki
+
+## Session Start
+
+Before any work, read these wiki pages:
+
+```bash
+# Core guidelines (MUST READ)
+wiki-cli read "Agentic-Rules/Core-Guidelines"
+
+# Current context (what's being worked on)
+wiki-cli read "Memory-Bank/Active-Context"
+
+# Progress history (what's been done)
+wiki-cli read "Memory-Bank/Progress"
+```
+
+## Key Wiki Pages
+
+| Page | Purpose |
+|------|---------|
+| [Core-Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Core-Guidelines) | Universal agent rules |
+| [Python-Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards) | CalVer, types, style |
+| [PR-Ownership](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/PR-Ownership) | AI collaboration |
+| [Active-Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context) | Current work |
+| [Progress](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Progress) | Session history |
+
+## Update Memory Bank
+
+```bash
+# Update active context
+wiki-cli write "Memory-Bank/Active-Context" "# Active Context
+## Current Focus
+- Task description
+
+## Active Work
+- Work in progress"
+
+# Append to progress
+wiki-cli append "Memory-Bank/Progress" "## Session: $(date -u +%Y-%m-%d)
+### Completed
+- [x] Task done"
+```
+
+## Critical Rules
+
+1. **CalVer versioning** - Never manually edit versions
+2. **Use GITHUB_JBCOM_TOKEN** - For all jbcom repo operations
+3. **Read wiki first** - Before making decisions
+4. **Update wiki** - After completing work

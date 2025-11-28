@@ -1,0 +1,76 @@
+# Claude Code Project Instructions
+
+This is **${PACKAGE_NAME}** - part of the jbcom Python library ecosystem.
+
+## Project Context
+
+- **Repository**: ${REPO}
+- **PyPI Package**: ${PACKAGE_NAME}
+- **Control Plane**: [jbcom/jbcom-control-center](https://github.com/jbcom/jbcom-control-center)
+
+## Key Rules
+
+### 1. Versioning (CRITICAL)
+- **CalVer**: `YYYY.MM.BUILD` (e.g., `2025.11.164`)
+- **Automatic**: Versions are auto-generated on CI push to main
+- **NEVER manually edit** `__version__` in `__init__.py`
+- **NEVER suggest** semantic-release, git tags, or manual versioning
+
+### 2. Release Process
+- Every push to main = automatic PyPI release
+- No conditional releases, no skipping
+- PyPI is the source of truth
+
+### 3. Code Style
+- **Type hints required** on all public functions (Python 3.9+ style)
+- **Docstrings** in Google format
+- **Ruff** for linting/formatting
+- **Mypy** for type checking
+- **Pytest** for testing
+
+### 4. Dependencies
+- Use **uv** as package manager
+- Check `extended-data-types` before adding new dependencies
+
+## Common Commands
+
+```bash
+# Run tests
+pytest
+
+# Type check
+mypy src/
+
+# Lint and format
+ruff check --fix . && ruff format .
+
+# Install locally
+uv pip install -e .
+```
+
+## Ecosystem Integration
+
+This repo is managed by the jbcom-control-center:
+- Tooling synced from control plane
+- Report issues to control plane for coordination
+- Cross-repo work coordinated via GitHub Issues
+
+### Upstream Communication
+
+When completing agent tasks:
+1. Comment on the control plane issue that spawned this task
+2. Link PRs back to the originating cycle
+3. Report blockers immediately
+
+Example:
+```bash
+gh issue comment --repo jbcom/jbcom-control-center 123 --body "✅ Completed task in ${REPO}. PR: #45"
+```
+
+## What NOT to Do
+
+❌ Manually edit version numbers
+❌ Suggest semantic-release or git tags
+❌ Add dependencies without checking extended-data-types first
+❌ Push directly to main (use PRs)
+❌ Work in isolation without updating control plane

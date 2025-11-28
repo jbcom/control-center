@@ -1,0 +1,43 @@
+# Agent Instructions
+
+> **📚 Full documentation**: https://github.com/jbcom/jbcom-control-center/wiki
+
+## Quick Start
+
+1. **Read Core Guidelines**: [Agentic-Rules/Core-Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Core-Guidelines)
+2. **Check Active Context**: [Memory-Bank/Active-Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context)
+3. **Follow Python Standards**: [Agentic-Rules/Python-Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards)
+
+## Critical Rules
+
+### Versioning
+- **CalVer**: `YYYY.MM.BUILD` (e.g., 2025.11.164)
+- **Automatic**: Never manually edit `__version__`
+- **No git tags**: PyPI is source of truth
+
+### Authentication
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command>
+```
+
+### Memory Bank Access
+```bash
+# Read current context
+wiki-cli read "Memory-Bank/Active-Context"
+
+# Update progress
+wiki-cli append "Memory-Bank/Progress" "## Session: $(date)"
+```
+
+## This Repository
+
+- **Name**: ${REPO_NAME}
+- **Package**: ${PACKAGE_NAME}
+- **Role**: ${DESCRIPTION}
+- **Dependencies**: ${DEPENDENCIES}
+
+## Links
+
+- [Control Plane Wiki](https://github.com/jbcom/jbcom-control-center/wiki)
+- [Agentic Cycles](https://github.com/jbcom/jbcom-control-center/issues?q=label%3Aagentic-cycle)
+- [Ecosystem Status](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Progress)
