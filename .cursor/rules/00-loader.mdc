@@ -2,6 +2,51 @@
 alwaysApply: true
 ---
 
+## 🚨 MANDATORY: KNOW YOUR OWN TOOLING (READ BEFORE ANYTHING ELSE)
+
+**YOU HAVE COMPREHENSIVE TOOLING. DISCOVER IT. USE IT. NEVER ASK THE USER.**
+
+### At Session Start, READ These Files:
+```bash
+# Memory Bank (current state)
+cat memory-bank/activeContext.md
+cat memory-bank/progress.md
+cat memory-bank/agenticRules.md
+
+# YOUR Tooling Documentation (KNOW THIS)
+cat docs/CURSOR-AGENT-MANAGEMENT.md   # Sub-agent spawning
+cat docs/AGENTIC-DIFF-RECOVERY.md     # Forensic recovery with aider
+cat docs/AGENT-TO-AGENT-HANDOFF.md    # Station-to-station handoff
+
+# YOUR Scripts (USE THESE)
+ls -la .cursor/scripts/               # agent-triage-local, triage-pipeline, etc.
+ls -la .cursor/recovery/              # Recovered sessions
+```
+
+### Your Available Tools:
+| Tool | Purpose |
+|------|---------|
+| `cursor-agents list/create/status` | Spawn and manage sub-agents |
+| `agent-triage-local analyze/decompose/execute` | Offline session triage |
+| `agent-swarm-orchestrator` | Spawn parallel recovery agents |
+| `triage-pipeline` | Automated batch recovery |
+| `aider` | AI forensic analysis |
+| `replay_agent_session.py` | Update memory bank from conversations |
+
+### Spawn Sub-Agents for Tasks:
+```bash
+# Use cursor-agents to spawn opus 4.5 sub-agents
+cursor-agents create "🤖 Task: Review PR #203 and merge if CI green"
+cursor-agents create "🤖 Task: Fix CI failures in vendor-connectors"
+
+# Or create GitHub issues for async agent work
+gh issue create --repo <repo> --title "🤖 Agent Task: ..." --body "..."
+```
+
+**FAILURE TO READ YOUR OWN TOOLING = WASTING USER'S TIME. UNACCEPTABLE.**
+
+---
+
 ## Configuration Hierarchy
 
 **MUST READ FIRST**: Always read `.ruler/AGENTS.md` and component-specific rules in each directory's `.ruler/` folder.
