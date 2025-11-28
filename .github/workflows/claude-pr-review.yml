@@ -19,7 +19,7 @@ jobs:
       issues: write
       id-token: write
       actions: read
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
@@ -31,50 +31,50 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           track_progress: true
-          
+          # Allow bot-initiated PRs (cursor background agents, dependabot, etc.)
+          allowed_bots: "cursor,github-actions[bot],dependabot[bot],amazon-q-developer[bot],gemini-code-assist[bot]"
           prompt: |
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
             PR TITLE: ${{ github.event.pull_request.title }}
             PR AUTHOR: ${{ github.event.pull_request.user.login }}
             PR BRANCH: ${{ github.event.pull_request.head.ref }}
-            
+
             Please review this pull request with a focus on:
-            
+
             ## Code Quality
             - Check for bugs, logic errors, and edge cases
             - Verify type safety (this is a typed Python project)
             - Review error handling and exceptions
             - Check for code duplication
-            
+
             ## Security
             - Check for credential leaks or hardcoded secrets
             - Verify input validation
             - Review any API/network calls for security
             - Check for command injection in shell scripts
-            
+
             ## Python Best Practices
-            - Type hints on all public functions
+            - Type hints on all public functions (Google style)
             - Docstrings for public APIs (Google style)
             - Use of pathlib over os.path
             - Modern Python patterns (3.9+)
-            
+
             ## Tests
             - Verify test coverage for new code
             - Check test quality and assertions
             - Look for missing edge case tests
-            
+
             ## Project Standards
             - CalVer versioning (YYYY.MM.BUILD)
             - No manual version management
             - Ruff for linting, mypy for type checking
-            
+
             ## Instructions
             - Use `gh pr comment` for top-level feedback
             - Use inline comments for specific code issues
             - Be constructive and helpful
             - If approving, explain why it's good
             - If requesting changes, be specific about fixes needed
-          
           claude_args: |
             --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Read,Glob,Grep"

@@ -1,0 +1,38 @@
+---
+alwaysApply: true
+---
+
+# Agent Instructions
+
+> **📚 Documentation**: https://github.com/jbcom/jbcom-control-center/wiki
+
+## Session Start
+
+```bash
+wiki-cli read "Agentic-Rules-Core-Guidelines"
+wiki-cli read "Memory-Bank-Active-Context"
+```
+
+## Key Wiki Pages
+
+- [Core Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules-Core-Guidelines) - MUST READ
+- [Active Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank-Active-Context) - Current work
+- [Python Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules-Python-Standards) - Code style
+- [PR Ownership](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules-PR-Ownership) - Collaboration
+
+## Critical Rules
+
+1. **CalVer versioning** - `YYYY.MM.BUILD`, never manual
+2. **Read wiki first** - Before making decisions
+3. **Update wiki** - After completing work
+4. **Use GITHUB_JBCOM_TOKEN** - For all jbcom operations
+
+## After Completing Work
+
+```bash
+wiki-cli append "Memory-Bank-Progress" "## Session $(date +%Y-%m-%d)
+
+### Completed
+- [x] Task description
+"
+```

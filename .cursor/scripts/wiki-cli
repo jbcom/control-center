@@ -1,330 +1,83 @@
-#!/usr/bin/env bash
-# wiki-cli - Read and write GitHub Wiki pages
-# 
-# Usage:
-#   wiki-cli read <page>              Read a wiki page
-#   wiki-cli write <page> <content>   Write a wiki page
-#   wiki-cli append <page> <content>  Append to a wiki page
-#   wiki-cli list                     List all wiki pages
-#   wiki-cli init                     Initialize wiki structure
-#   wiki-cli migrate                  Migrate repo content to wiki
+#!/bin/bash
+# Wiki CLI - Manage GitHub Wiki content
+# Usage: wiki-cli <command> [args]
 
-set -euo pipefail
+set -e
 
-WIKI_REPO="${WIKI_REPO:-jbcom/jbcom-control-center}"
-GH_TOKEN="${GITHUB_JBCOM_TOKEN:-$GH_TOKEN}"
+REPO="jbcom/jbcom-control-center"
+WIKI_URL="https://github.com/${REPO}.wiki.git"
 
-# Colors
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Use GITHUB_JBCOM_TOKEN if GH_TOKEN not set
+: "${GH_TOKEN:=${GITHUB_JBCOM_TOKEN}}"
 
-log_info() { echo -e "${BLUE}ℹ${NC} $1"; }
-log_success() { echo -e "${GREEN}✓${NC} $1"; }
-log_warn() { echo -e "${YELLOW}⚠${NC} $1"; }
-log_error() { echo -e "${RED}✗${NC} $1" >&2; }
+if [ -z "$GH_TOKEN" ]; then
+    echo "Error: GH_TOKEN or GITHUB_JBCOM_TOKEN must be set"
+    exit 1
+fi
 
-# Wiki is accessed via git clone of the wiki repo
-WIKI_DIR="${WIKI_DIR:-/tmp/wiki-cache-$(echo "$WIKI_REPO" | tr '/' '-')}"
+WIKI_DIR="/tmp/wiki-cache-$$"
+trap "rm -rf $WIKI_DIR" EXIT
 
-ensure_wiki_clone() {
-    if [ ! -d "$WIKI_DIR/.git" ]; then
-        log_info "Cloning wiki..."
-        rm -rf "$WIKI_DIR"
-        git clone "https://${GH_TOKEN}@github.com/${WIKI_REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null || {
-            log_error "Failed to clone wiki. Is it enabled?"
-            log_info "Enable wiki at: https://github.com/${WIKI_REPO}/settings"
-            exit 1
-        }
-    else
-        log_info "Updating wiki cache..."
-        (cd "$WIKI_DIR" && git pull --quiet)
+clone_wiki() {
+    if [ ! -d "$WIKI_DIR" ]; then
+        git clone "https://${GH_TOKEN}@github.com/${REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null
+        cd "$WIKI_DIR"
+        git config user.email "agent@jbcom.dev"
+        git config user.name "jbcom-agent"
     fi
 }
 
-push_wiki() {
-    (cd "$WIKI_DIR" && git push --quiet)
-}
-
-cmd_read() {
-    local page="$1"
-    ensure_wiki_clone
-    
-    local file="$WIKI_DIR/${page}.md"
-    if [ -f "$file" ]; then
-        cat "$file"
-    else
-        log_error "Page not found: $page"
-        exit 1
-    fi
-}
-
-cmd_write() {
-    local page="$1"
-    local content="$2"
-    ensure_wiki_clone
-    
-    local file="$WIKI_DIR/${page}.md"
-    local dir=$(dirname "$file")
-    
-    mkdir -p "$dir"
-    echo "$content" > "$file"
-    
-    (cd "$WIKI_DIR" && \
-        git add "$file" && \
-        git commit -m "Update $page" --quiet && \
-        push_wiki)
-    
-    log_success "Updated: $page"
-}
-
-cmd_append() {
-    local page="$1"
-    local content="$2"
-    ensure_wiki_clone
-    
-    local file="$WIKI_DIR/${page}.md"
-    
-    if [ -f "$file" ]; then
-        echo -e "\n$content" >> "$file"
-    else
-        echo "$content" > "$file"
-    fi
-    
-    (cd "$WIKI_DIR" && \
-        git add "$file" && \
-        git commit -m "Append to $page" --quiet && \
-        push_wiki)
-    
-    log_success "Appended to: $page"
-}
-
-cmd_list() {
-    ensure_wiki_clone
-    
-    find "$WIKI_DIR" -name "*.md" -type f | \
-        sed "s|$WIKI_DIR/||" | \
-        sed 's/\.md$//' | \
-        sort
-}
-
-cmd_init() {
-    ensure_wiki_clone
-    
-    log_info "Initializing wiki structure..."
-    
-    # Create directory structure
-    mkdir -p "$WIKI_DIR/Memory-Bank/Recovery"
-    mkdir -p "$WIKI_DIR/Agentic-Rules"
-    mkdir -p "$WIKI_DIR/Agent-Instructions"
-    mkdir -p "$WIKI_DIR/Documentation"
-    mkdir -p "$WIKI_DIR/Templates"
-    
-    # Create Home page
-    cat > "$WIKI_DIR/Home.md" << 'EOF'
-# jbcom Control Center Wiki
-
-Welcome to the centralized documentation for the jbcom Python library ecosystem.
-
-## Quick Navigation
-
-### 📋 Memory Bank
-Current agent context and session history.
-- [[Memory-Bank/Active-Context|Active Context]] - Current work focus
-- [[Memory-Bank/Progress|Progress]] - Session history
-
-### 📜 Agentic Rules
-Guidelines for AI agents working in this ecosystem.
-- [[Agentic-Rules/Core-Guidelines|Core Guidelines]] - MUST READ FIRST
-- [[Agentic-Rules/Python-Standards|Python Standards]] - CalVer, typing, etc.
-- [[Agentic-Rules/PR-Ownership|PR Ownership]] - AI collaboration
-- [[Agentic-Rules/Ecosystem|Ecosystem]] - Cross-repo coordination
-
-### 🤖 Agent-Specific Instructions
-Platform-specific instructions.
-- [[Agent-Instructions/Cursor|Cursor]]
-- [[Agent-Instructions/Copilot|GitHub Copilot]]
-- [[Agent-Instructions/Claude|Claude Code]]
-
-### 📚 Documentation
-Technical documentation and architecture.
-- [[Documentation/Architecture|Architecture]]
-- [[Documentation/Agentic-Orchestration|Orchestration]]
-
----
-
-**Ecosystem Repos**:
-- [extended-data-types](https://github.com/jbcom/extended-data-types)
-- [lifecyclelogging](https://github.com/jbcom/lifecyclelogging)
-- [vendor-connectors](https://github.com/jbcom/vendor-connectors)
-- [directed-inputs-class](https://github.com/jbcom/directed-inputs-class)
-EOF
-    
-    # Create _Sidebar
-    cat > "$WIKI_DIR/_Sidebar.md" << 'EOF'
-**[[Home]]**
-
----
-
-**Memory Bank**
-* [[Memory-Bank/Active-Context|Active Context]]
-* [[Memory-Bank/Progress|Progress]]
-
-**Agentic Rules**
-* [[Agentic-Rules/Core-Guidelines|Core Guidelines]]
-* [[Agentic-Rules/Python-Standards|Python Standards]]
-* [[Agentic-Rules/PR-Ownership|PR Ownership]]
-* [[Agentic-Rules/Ecosystem|Ecosystem]]
-
-**Agent Instructions**
-* [[Agent-Instructions/Cursor|Cursor]]
-* [[Agent-Instructions/Copilot|Copilot]]
-* [[Agent-Instructions/Claude|Claude]]
-
-**Documentation**
-* [[Documentation/Architecture|Architecture]]
-* [[Documentation/Orchestration|Orchestration]]
-EOF
-    
-    (cd "$WIKI_DIR" && \
-        git add -A && \
-        git commit -m "Initialize wiki structure" --quiet && \
-        push_wiki)
-    
-    log_success "Wiki structure initialized"
-}
-
-cmd_migrate() {
-    local repo_root="${1:-.}"
-    ensure_wiki_clone
-    
-    log_info "Migrating content from repo to wiki..."
-    
-    # Migrate memory-bank
-    if [ -d "$repo_root/memory-bank" ]; then
-        log_info "Migrating memory-bank..."
-        
-        if [ -f "$repo_root/memory-bank/activeContext.md" ]; then
-            cp "$repo_root/memory-bank/activeContext.md" "$WIKI_DIR/Memory-Bank/Active-Context.md"
-        fi
-        
-        if [ -f "$repo_root/memory-bank/progress.md" ]; then
-            cp "$repo_root/memory-bank/progress.md" "$WIKI_DIR/Memory-Bank/Progress.md"
-        fi
-        
-        if [ -f "$repo_root/memory-bank/agenticRules.md" ]; then
-            cp "$repo_root/memory-bank/agenticRules.md" "$WIKI_DIR/Agentic-Rules/Core-Guidelines.md"
-        fi
-        
-        # Migrate recovery files
-        if [ -d "$repo_root/memory-bank/recovery" ]; then
-            cp -r "$repo_root/memory-bank/recovery/"* "$WIKI_DIR/Memory-Bank/Recovery/" 2>/dev/null || true
-        fi
-    fi
-    
-    # Migrate docs
-    if [ -d "$repo_root/docs" ]; then
-        log_info "Migrating docs..."
-        
-        for doc in "$repo_root/docs/"*.md; do
-            [ -f "$doc" ] || continue
-            local name=$(basename "$doc")
-            cp "$doc" "$WIKI_DIR/Documentation/$name"
-        done
-    fi
-    
-    # Migrate .ruler content
-    if [ -d "$repo_root/.ruler" ]; then
-        log_info "Migrating .ruler content..."
-        
-        if [ -f "$repo_root/.ruler/AGENTS.md" ]; then
-            # Extract sections and organize
-            cp "$repo_root/.ruler/AGENTS.md" "$WIKI_DIR/Agentic-Rules/Core-Guidelines.md"
-        fi
-        
-        if [ -f "$repo_root/.ruler/ecosystem.md" ]; then
-            cp "$repo_root/.ruler/ecosystem.md" "$WIKI_DIR/Agentic-Rules/Ecosystem.md"
-        fi
-        
-        if [ -f "$repo_root/.ruler/cursor.md" ]; then
-            cp "$repo_root/.ruler/cursor.md" "$WIKI_DIR/Agent-Instructions/Cursor.md"
-        fi
-        
-        if [ -f "$repo_root/.ruler/copilot.md" ]; then
-            cp "$repo_root/.ruler/copilot.md" "$WIKI_DIR/Agent-Instructions/Copilot.md"
-        fi
-    fi
-    
-    # Migrate CLAUDE.md
-    if [ -f "$repo_root/CLAUDE.md" ]; then
-        log_info "Migrating CLAUDE.md..."
-        cp "$repo_root/CLAUDE.md" "$WIKI_DIR/Agent-Instructions/Claude.md"
-    fi
-    
-    # Commit all migrations
-    (cd "$WIKI_DIR" && \
-        git add -A && \
-        git commit -m "Migrate content from repo" --quiet && \
-        push_wiki)
-    
-    log_success "Migration complete!"
-    log_info "Wiki URL: https://github.com/${WIKI_REPO}/wiki"
-    
-    echo ""
-    log_warn "Next steps:"
-    echo "  1. Review migrated content in wiki"
-    echo "  2. Delete old files from repo:"
-    echo "     rm -rf memory-bank/ docs/ .ruler/"
-    echo "  3. Update AGENTS.md to point to wiki"
-    echo "  4. Update .cursor/rules/ to point to wiki"
-}
-
-# Main
-case "${1:-help}" in
+case "$1" in
     read)
-        [ -z "${2:-}" ] && { log_error "Usage: wiki-cli read <page>"; exit 1; }
-        cmd_read "$2"
+        clone_wiki
+        PAGE="${2/\//-}"  # Replace / with -
+        if [ -f "$WIKI_DIR/${PAGE}.md" ]; then
+            cat "$WIKI_DIR/${PAGE}.md"
+        else
+            echo "Page not found: $2"
+            exit 1
+        fi
         ;;
+    
     write)
-        [ -z "${2:-}" ] && { log_error "Usage: wiki-cli write <page> <content>"; exit 1; }
-        content="${3:-$(cat -)}"
-        cmd_write "$2" "$content"
+        clone_wiki
+        PAGE="${2/\//-}"
+        echo "$3" > "$WIKI_DIR/${PAGE}.md"
+        cd "$WIKI_DIR"
+        git add "${PAGE}.md"
+        git commit -m "Update ${PAGE}" 2>/dev/null || true
+        git push origin master 2>/dev/null
+        echo "Updated: $2"
         ;;
+    
     append)
-        [ -z "${2:-}" ] && { log_error "Usage: wiki-cli append <page> <content>"; exit 1; }
-        content="${3:-$(cat -)}"
-        cmd_append "$2" "$content"
+        clone_wiki
+        PAGE="${2/\//-}"
+        echo "" >> "$WIKI_DIR/${PAGE}.md"
+        echo "$3" >> "$WIKI_DIR/${PAGE}.md"
+        cd "$WIKI_DIR"
+        git add "${PAGE}.md"
+        git commit -m "Append to ${PAGE}" 2>/dev/null || true
+        git push origin master 2>/dev/null
+        echo "Appended to: $2"
         ;;
+    
     list)
-        cmd_list
+        clone_wiki
+        ls "$WIKI_DIR"/*.md 2>/dev/null | xargs -I{} basename {} .md
         ;;
-    init)
-        cmd_init
-        ;;
-    migrate)
-        cmd_migrate "${2:-.}"
-        ;;
-    help|--help|-h)
-        echo "wiki-cli - Read and write GitHub Wiki pages"
-        echo ""
-        echo "Usage:"
-        echo "  wiki-cli read <page>              Read a wiki page"
-        echo "  wiki-cli write <page> <content>   Write a wiki page"
-        echo "  wiki-cli append <page> <content>  Append to a wiki page"
-        echo "  wiki-cli list                     List all wiki pages"
-        echo "  wiki-cli init                     Initialize wiki structure"
-        echo "  wiki-cli migrate [repo_root]      Migrate repo content to wiki"
-        echo ""
-        echo "Environment:"
-        echo "  WIKI_REPO      Repository (default: jbcom/jbcom-control-center)"
-        echo "  GH_TOKEN       GitHub token for authentication"
-        echo "  WIKI_DIR       Local wiki cache directory"
-        ;;
+    
     *)
-        log_error "Unknown command: $1"
-        echo "Run 'wiki-cli help' for usage"
-        exit 1
+        echo "Usage: wiki-cli <command> [args]"
+        echo ""
+        echo "Commands:"
+        echo "  read <page>           Read a wiki page"
+        echo "  write <page> <text>   Write/replace a wiki page"
+        echo "  append <page> <text>  Append to a wiki page"
+        echo "  list                  List all pages"
+        echo ""
+        echo "Examples:"
+        echo "  wiki-cli read Memory-Bank-Active-Context"
+        echo "  wiki-cli append Memory-Bank-Progress '## Session update'"
         ;;
 esac
