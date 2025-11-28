@@ -250,6 +250,30 @@ class TestExitRunNoExit:
         assert "pre_normal_field" in output["item1"]
         assert "excluded_field" in output["item1"]
 
+    def test_exit_run_prefix_with_nested_lists(
+        self, logger: Logging, tmp_path: Path
+    ) -> None:
+        """Test exit_run with prefix transforms keys in nested lists of dicts."""
+        import os
+
+        os.chdir(tmp_path)
+        results = {
+            "item1": {
+                "myList": [{"itemKey": "v1"}, {"itemKey": "v2"}],
+                "simpleField": "value",
+            }
+        }
+        output = logger.exit_run(
+            results,
+            prefix="pre",
+            exit_on_completion=False,
+        )
+        assert "item1" in output
+        assert "pre_my_list" in output["item1"]
+        assert "pre_simple_field" in output["item1"]
+        # Verify that nested dict keys inside lists are also transformed
+        assert all("item_key" in item for item in output["item1"]["pre_my_list"])
+
     def test_exit_run_sort_by_field(self, logger: Logging, tmp_path: Path) -> None:
         """Test exit_run sorts results by specified field."""
         import os
