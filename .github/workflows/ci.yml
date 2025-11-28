@@ -236,7 +236,8 @@ jobs:
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           semantic-release version
-          git push origin main --follow-tags
+          # Push changes and tags (skip CI to prevent infinite loops)
+          git push origin main --follow-tags -o ci.skip
 
       - uses: actions/download-artifact@v4
         with:
