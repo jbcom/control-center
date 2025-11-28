@@ -1,0 +1,154 @@
+name: 'Spawn Cursor Background Agent'
+description: 'Spawn a Cursor background agent for a specific task'
+author: 'jbcom'
+
+inputs:
+  cursor_api_key:
+    description: 'Cursor API key for authentication'
+    required: true
+  task:
+    description: 'Task description for the agent'
+    required: true
+  repository:
+    description: 'Repository for the agent to work on'
+    required: false
+    default: ${{ github.repository }}
+  ref:
+    description: 'Git ref for the agent to checkout'
+    required: false
+    default: ${{ github.ref }}
+  model:
+    description: 'AI model to use (e.g., claude-4.5-opus)'
+    required: false
+    default: 'claude-4.5-opus'
+  fallback_to_issue:
+    description: 'Create GitHub issue if agent spawn fails'
+    required: false
+    default: 'true'
+  issue_labels:
+    description: 'Labels for fallback issue (comma-separated)'
+    required: false
+    default: 'agent-task'
+
+outputs:
+  agent_id:
+    description: 'ID of spawned agent (if successful)'
+    value: ${{ steps.spawn.outputs.agent_id }}
+  issue_url:
+    description: 'URL of fallback issue (if created)'
+    value: ${{ steps.fallback.outputs.issue_url }}
+  status:
+    description: 'Status: spawned, fallback-issue, or failed'
+    value: ${{ steps.result.outputs.status }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    
+    - name: Install Dependencies
+      shell: bash
+      run: |
+        if ! npm install -g cursor-background-agent-mcp-server 2>/dev/null; then
+          echo "⚠️ cursor-background-agent-mcp-server not available"
+        fi
+    
+    - name: Spawn Agent
+      id: spawn
+      shell: bash
+      env:
+        CURSOR_API_KEY: ${{ inputs.cursor_api_key }}
+        AGENT_REPO: ${{ inputs.repository }}
+        AGENT_REF: ${{ inputs.ref }}
+        AGENT_MODEL: ${{ inputs.model }}
+      run: |
+        # Note: API key is used but NOT logged
+        echo "🤖 Attempting to spawn Cursor background agent..."
+        echo "Repository: ${AGENT_REPO}"
+        echo "Ref: ${AGENT_REF}"
+        echo "Model: ${AGENT_MODEL}"
+        
+        SPAWN_SUCCESS=false
+        
+        # Attempt to spawn via MCP server
+        if command -v cursor-background-agent-mcp-server &> /dev/null; then
+          echo "Using cursor-background-agent-mcp-server..."
+          # TODO: Implement actual MCP server spawn when available
+          # For now, fall back to issue creation
+          SPAWN_SUCCESS=false
+        fi
+        
+        if [ "$SPAWN_SUCCESS" = "true" ]; then
+          echo "spawned=true" >> $GITHUB_OUTPUT
+        else
+          echo "spawned=false" >> $GITHUB_OUTPUT
+          echo "⚠️ Direct agent spawn not available, will use fallback"
+        fi
+    
+    - name: Create Fallback Issue
+      id: fallback
+      if: steps.spawn.outputs.spawned != 'true' && inputs.fallback_to_issue == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        AGENT_TASK: ${{ inputs.task }}
+        AGENT_MODEL: ${{ inputs.model }}
+        AGENT_REPO: ${{ inputs.repository }}
+        AGENT_REF: ${{ inputs.ref }}
+        ISSUE_LABELS: ${{ inputs.issue_labels }}
+      run: |
+        echo "📝 Creating fallback issue for agent task..."
+        
+        # Sanitize task for title (alphanumeric + basic punctuation)
+        TITLE_TASK=$(echo "$AGENT_TASK" | tr -cd '[:alnum:][:space:]._-' | head -c 60)
+        
+        # Build body safely
+        BODY="## Background Agent Task
+
+**Model**: ${AGENT_MODEL}
+**Repository**: ${AGENT_REPO}
+**Ref**: ${AGENT_REF}
+**Created**: $(date -u +'%Y-%m-%dT%H:%M:%SZ')
+
+## Task Description
+
+${AGENT_TASK}
+
+---
+
+*This task was created because direct agent spawning was not available.*
+*A background agent should pick this up and work on it.*
+
+**To work on this task:**
+1. Read the task description above
+2. Complete the required actions
+3. Comment with results
+4. Close the issue when done"
+        
+        # Create issue
+        ISSUE_URL=$(gh issue create \
+          --repo "${AGENT_REPO}" \
+          --title "🤖 Agent Task: ${TITLE_TASK}..." \
+          --body "${BODY}" \
+          --label "${ISSUE_LABELS}")
+        
+        echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+        echo "✅ Created fallback issue: $ISSUE_URL"
+    
+    - name: Set Result Status
+      id: result
+      shell: bash
+      env:
+        SPAWNED: ${{ steps.spawn.outputs.spawned }}
+        ISSUE_URL: ${{ steps.fallback.outputs.issue_url }}
+      run: |
+        if [ "$SPAWNED" = "true" ]; then
+          echo "status=spawned" >> $GITHUB_OUTPUT
+        elif [ -n "$ISSUE_URL" ]; then
+          echo "status=fallback-issue" >> $GITHUB_OUTPUT
+        else
+          echo "status=failed" >> $GITHUB_OUTPUT
+        fi

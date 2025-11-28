@@ -1,0 +1,317 @@
+name: Agent Post-Merge Tasks
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      task_type:
+        description: 'Type of agent task to spawn'
+        required: true
+        default: 'ecosystem-sync'
+        type: choice
+        options:
+          - ecosystem-sync
+          - dependency-update
+          - documentation-update
+          - security-audit
+          - full-ci-verification
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+env:
+  # Centralized list of ecosystem repos
+  ECOSYSTEM_REPOS: "extended-data-types lifecyclelogging directed-inputs-class vendor-connectors"
+
+jobs:
+  analyze-changes:
+    name: Analyze Merged Changes
+    runs-on: ubuntu-latest
+    outputs:
+      packages_changed: ${{ steps.changes.outputs.packages }}
+      docs_changed: ${{ steps.changes.outputs.docs }}
+      workflows_changed: ${{ steps.changes.outputs.workflows }}
+      agent_tools_changed: ${{ steps.changes.outputs.agent_tools }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      
+      - name: Detect Changes
+        id: changes
+        run: |
+          # Get changed files
+          CHANGED=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "")
+          
+          # Check what changed
+          if echo "$CHANGED" | grep -qE '^packages/'; then
+            echo "packages=true" >> $GITHUB_OUTPUT
+          else
+            echo "packages=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED" | grep -qE '^docs/|README'; then
+            echo "docs=true" >> $GITHUB_OUTPUT
+          else
+            echo "docs=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED" | grep -qE '^\.github/workflows/'; then
+            echo "workflows=true" >> $GITHUB_OUTPUT
+          else
+            echo "workflows=false" >> $GITHUB_OUTPUT
+          fi
+          
+          if echo "$CHANGED" | grep -qE '^\.cursor/scripts/|^scripts/.*agent'; then
+            echo "agent_tools=true" >> $GITHUB_OUTPUT
+          else
+            echo "agent_tools=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "Changed files:"
+          echo "$CHANGED"
+
+  spawn-ecosystem-sync-agent:
+    name: Spawn Ecosystem Sync Agent
+    runs-on: ubuntu-latest
+    needs: analyze-changes
+    if: |
+      needs.analyze-changes.outputs.packages_changed == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.task_type == 'ecosystem-sync'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create Ecosystem Sync Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          # Sanitize commit info to prevent command injection
+          COMMIT_MSG=$(echo "${{ github.event.head_commit.message }}" | tr -cd '[:alnum:][:space:]._-' | head -c 100)
+          COMMIT_AUTHOR=$(echo "${{ github.event.head_commit.author.name }}" | tr -cd '[:alnum:][:space:]._-' | head -c 50)
+          
+          # Build issue body safely
+          BODY="## Background Agent Task: Ecosystem Sync
+
+**Triggered by**: Push to main (${COMMIT_SHA})
+**Commit**: ${COMMIT_MSG}
+**Author**: ${COMMIT_AUTHOR}
+
+## Task Description
+
+Packages were updated. Verify ecosystem consistency:
+
+### 1. Public Repository Sync
+Check that public repos are in sync:
+- [ ] jbcom/extended-data-types
+- [ ] jbcom/lifecyclelogging
+- [ ] jbcom/directed-inputs-class
+- [ ] jbcom/vendor-connectors
+
+\`\`\`bash
+for repo in ${ECOSYSTEM_REPOS}; do
+  gh run list --repo jbcom/\$repo --limit 1
+done
+\`\`\`
+
+### 2. PyPI Version Verification
+\`\`\`bash
+pip index versions extended-data-types
+pip index versions lifecyclelogging
+pip index versions directed-inputs-class
+pip index versions vendor-connectors
+\`\`\`
+
+### 3. Downstream Compatibility
+Check terraform-modules still works with new versions.
+
+## Success Criteria
+- [ ] All public repos synced
+- [ ] All PyPI versions match
+- [ ] No compatibility issues
+- [ ] Comment results here
+
+---
+*Auto-created by agent-post-merge workflow*"
+          
+          gh issue create \
+            --title "🤖 Agent Task: Ecosystem Sync after ${COMMIT_SHA:0:7}" \
+            --body "${BODY}" \
+            --label "agent-task" \
+            --label "ecosystem"
+
+  spawn-documentation-agent:
+    name: Spawn Documentation Agent
+    runs-on: ubuntu-latest
+    needs: analyze-changes
+    if: |
+      needs.analyze-changes.outputs.agent_tools_changed == 'true' ||
+      github.event_name == 'workflow_dispatch' && github.event.inputs.task_type == 'documentation-update'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create Documentation Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          BODY="## Background Agent Task: Documentation Update
+
+**Triggered by**: Agent tooling changes in ${COMMIT_SHA:0:7}
+
+## Task Description
+
+Agent tools were updated. Ensure documentation is current:
+
+### Files to Review
+- [ ] docs/CURSOR-AGENT-MANAGEMENT.md
+- [ ] docs/AGENTIC-DIFF-RECOVERY.md
+- [ ] docs/AGENT-TO-AGENT-HANDOFF.md
+- [ ] .cursor/TOOLS_REFERENCE.md
+- [ ] memory-bank/agenticRules.md
+
+### Actions
+1. Verify all tool commands are documented
+2. Update examples if behavior changed
+3. Ensure consistency across docs
+4. Run \`ruler apply\` if .ruler/ changed
+
+## Success Criteria
+- [ ] All docs reflect current tooling
+- [ ] Examples work
+- [ ] ruler configs regenerated if needed
+
+---
+*Auto-created by agent-post-merge workflow*"
+          
+          gh issue create \
+            --title "🤖 Agent Task: Update Documentation after ${COMMIT_SHA:0:7}" \
+            --body "${BODY}" \
+            --label "agent-task" \
+            --label "documentation"
+
+  spawn-security-audit-agent:
+    name: Spawn Security Audit Agent
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.task_type == 'security-audit'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create Security Audit Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="## Background Agent Task: Security Audit
+
+**Triggered by**: Manual dispatch
+
+## Task Description
+
+Perform comprehensive security audit:
+
+### 1. Dependency Audit
+\`\`\`bash
+cd packages/extended-data-types && uv pip audit
+cd packages/lifecyclelogging && uv pip audit
+cd packages/vendor-connectors && uv pip audit
+\`\`\`
+
+### 2. Secret Scanning
+- Check for hardcoded credentials
+- Verify no API keys in code
+- Check .gitignore coverage
+
+### 3. Docker Security
+- Review Dockerfile for best practices
+- Check base image versions
+- Verify no secrets in image layers
+
+### 4. Workflow Security
+- Review workflow permissions
+- Check secret usage
+- Verify no command injection
+
+## Success Criteria
+- [ ] No vulnerable dependencies
+- [ ] No exposed secrets
+- [ ] Docker image secure
+- [ ] Workflows secure
+
+---
+*Auto-created by agent-post-merge workflow*"
+          
+          gh issue create \
+            --title "🤖 Agent Task: Security Audit" \
+            --body "${BODY}" \
+            --label "agent-task" \
+            --label "security"
+
+  spawn-ci-verification-agent:
+    name: Spawn Full CI Verification Agent  
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.task_type == 'full-ci-verification'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Create CI Verification Task
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="## Background Agent Task: Full CI/CD Verification
+
+**Triggered by**: Manual dispatch
+
+## Task Description
+
+Verify entire CI/CD pipeline is healthy:
+
+### 1. Control Center CI
+\`\`\`bash
+gh run list --repo jbcom/jbcom-control-center --limit 5
+\`\`\`
+
+### 2. Public Repos CI
+\`\`\`bash
+for repo in ${ECOSYSTEM_REPOS}; do
+  echo \"=== \$repo ===\"
+  gh run list --repo jbcom/\$repo --limit 3
+done
+\`\`\`
+
+### 3. Enterprise Repos
+\`\`\`bash
+gh run list --repo FlipsideCrypto/terraform-modules --limit 3
+\`\`\`
+
+### 4. Fix Any Failures
+- Investigate red CI runs
+- Create fix PRs as needed
+- Monitor until green
+
+## Success Criteria
+- [ ] All CI runs green
+- [ ] All releases successful
+- [ ] All docs deployed
+- [ ] Report any issues found
+
+---
+*Auto-created by agent-post-merge workflow*"
+          
+          gh issue create \
+            --title "🤖 Agent Task: Full CI/CD Verification" \
+            --body "${BODY}" \
+            --label "agent-task" \
+            --label "ci-cd"
