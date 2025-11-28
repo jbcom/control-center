@@ -128,3 +128,8 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+
+[tool.uv.sources]
+extended-data-types = { workspace = true }
+lifecyclelogging = { workspace = true }
+directed-inputs-class = { workspace = true }

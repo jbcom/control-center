@@ -133,7 +133,9 @@ ignore = [
 "src/lifecyclelogging/logging.py" = [
     "A005", # Module can shadow stdlib.
     "SLF001", # Private member access required for stdlib logging.
+    "PLR0912", # Too many branches acceptable in exit_run.
     "PLR0913", # Many arguments are acceptable for logging interface.
+    "PLR0915", # Too many statements acceptable in exit_run.
     "FBT001", # Boolean args are acceptable for configuration.
     "FBT002", # Boolean defaults are acceptable for configuration.
     "C901", # Complex functions are acceptable in logging.
@@ -152,6 +154,9 @@ convention = "google"
 [tool.ruff.lint.isort]
 lines-between-types = 1
 lines-after-imports = 2
+
+[tool.uv.sources]
+extended-data-types = { workspace = true }
 
 [tool.mypy]
 python_version = "3.9"

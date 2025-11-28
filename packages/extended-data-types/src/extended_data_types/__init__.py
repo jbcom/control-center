@@ -12,13 +12,19 @@ from .export_utils import make_raw_data_export_safe, wrap_raw_data_for_export
 from .file_data_type import (
     FilePath,
     clone_repository_to_temp,
+    decode_file,
+    delete_file,
     file_path_depth,
     file_path_rel_to_root,
     get_encoding_for_file_path,
     get_parent_repository,
     get_repository_name,
     get_tld,
+    is_url,
     match_file_extensions,
+    read_file,
+    resolve_local_path,
+    write_file,
 )
 from .hcl2_utils import decode_hcl2
 from .import_utils import unwrap_raw_data_from_import
@@ -59,7 +65,6 @@ from .state_utils import (
 )
 from .string_data_type import (
     bytestostr,
-    is_url,
     lower_first_char,
     removeprefix,
     removesuffix,
@@ -67,6 +72,17 @@ from .string_data_type import (
     titleize_name,
     truncate,
     upper_first_char,
+)
+from .string_transformations import (
+    humanize,
+    ordinalize,
+    pluralize,
+    singularize,
+    titleize,
+    to_camel_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
 )
 from .toml_utils import decode_toml, encode_toml
 from .type_utils import (
@@ -107,12 +123,14 @@ __all__ = [
     "convert_special_type",
     "convert_special_types",
     "create_merger",
+    "decode_file",
     "decode_hcl2",
     "decode_json",
     "decode_toml",
     "decode_yaml",
     "deduplicate_map",
     "deep_merge",
+    "delete_file",
     "encode_json",
     "encode_toml",
     "encode_yaml",
@@ -136,6 +154,8 @@ __all__ = [
     "get_repository_name",
     "get_tld",
     "get_unique_signature",
+    # String transformation aliases
+    "humanize",
     "is_non_empty_match",
     "is_nothing",
     "is_partial_match",
@@ -145,11 +165,16 @@ __all__ = [
     "make_hashable",
     "make_raw_data_export_safe",
     "match_file_extensions",
+    "ordinalize",
+    "pluralize",
+    "read_file",
     "reconstruct_special_type",
     "reconstruct_special_types",
     "removeprefix",
     "removesuffix",
+    "resolve_local_path",
     "sanitize_key",
+    "singularize",
     "split_dict_by_type",
     "split_list_by_type",
     "strtobool",
@@ -159,7 +184,12 @@ __all__ = [
     "strtoint",
     "strtopath",
     "strtotime",
+    "titleize",
     "titleize_name",
+    "to_camel_case",
+    "to_kebab_case",
+    "to_pascal_case",
+    "to_snake_case",
     "truncate",
     "typeof",
     "unhump_map",
@@ -167,6 +197,7 @@ __all__ = [
     "update_docstring",
     "upper_first_char",
     "wrap_raw_data_for_export",
+    "write_file",
     "yield_non_empty",
     "zipmap",
 ]
