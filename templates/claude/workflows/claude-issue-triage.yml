@@ -1,0 +1,45 @@
+name: Claude Issue Triage
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  triage:
+    if: |
+      !contains(github.event.issue.labels.*.name, 'agent-task')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+
+      - name: Run Claude Issue Triage
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_non_write_users: "*"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          
+          prompt: |
+            REPO: ${{ github.repository }}
+            ISSUE_NUMBER: ${{ github.event.issue.number }}
+            
+            Triage this issue:
+            1. Classify type (bug, enhancement, documentation, question)
+            2. Assess priority (critical, high, medium, low)
+            3. Apply appropriate labels
+            4. Check for duplicates
+            
+            Add a brief triage comment with classification.
+          
+          claude_args: |
+            --allowedTools "Bash(gh issue:*),Bash(gh search:*),Read"
+            --max-turns 10

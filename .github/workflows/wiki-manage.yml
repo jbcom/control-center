@@ -1,0 +1,206 @@
+name: Wiki Management
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - init
+          - migrate
+          - cleanup-repo
+      dry_run:
+        description: 'Dry run (no changes)'
+        required: false
+        default: 'false'
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  wiki-init:
+    name: Initialize Wiki Structure
+    runs-on: ubuntu-latest
+    if: inputs.action == 'init'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      
+      - name: Initialize Wiki
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+        run: |
+          chmod +x .cursor/scripts/wiki-cli
+          .cursor/scripts/wiki-cli init
+
+  wiki-migrate:
+    name: Migrate Content to Wiki
+    runs-on: ubuntu-latest
+    if: inputs.action == 'migrate'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      
+      - name: Migrate Content
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+        run: |
+          chmod +x .cursor/scripts/wiki-cli
+          
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            echo "DRY RUN - Would migrate:"
+            echo "- memory-bank/ → Wiki/Memory-Bank/"
+            echo "- docs/ → Wiki/Documentation/"
+            echo "- .ruler/ → Wiki/Agentic-Rules/"
+            echo "- CLAUDE.md → Wiki/Agent-Instructions/Claude"
+          else
+            .cursor/scripts/wiki-cli migrate .
+          fi
+
+  cleanup-repo:
+    name: Cleanup Repo (Remove Migrated Files)
+    runs-on: ubuntu-latest
+    if: inputs.action == 'cleanup-repo'
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+      
+      - name: Create Minimal AGENTS.md
+        run: |
+          cat > AGENTS.md << 'EOF'
+          # Agent Instructions
+
+          > **📚 Full documentation**: https://github.com/jbcom/jbcom-control-center/wiki
+
+          ## Quick Start
+
+          1. **Read Core Guidelines**: [Agentic-Rules/Core-Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Core-Guidelines)
+          2. **Check Active Context**: [Memory-Bank/Active-Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context)
+          3. **Follow Python Standards**: [Agentic-Rules/Python-Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards)
+
+          ## Critical Rules
+
+          - **CalVer versioning** - `YYYY.MM.BUILD`, never manual
+          - **Use GITHUB_JBCOM_TOKEN** - For jbcom repo operations
+          - **Read wiki first** - Before making decisions
+
+          ## Memory Bank Access
+
+          ```bash
+          wiki-cli read "Memory-Bank/Active-Context"
+          wiki-cli append "Memory-Bank/Progress" "## Session update"
+          ```
+
+          ## Links
+
+          - [Wiki Home](https://github.com/jbcom/jbcom-control-center/wiki)
+          - [Active Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context)
+          - [Progress](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Progress)
+          EOF
+      
+      - name: Create Minimal CLAUDE.md
+        run: |
+          cat > CLAUDE.md << 'EOF'
+          # Claude Code Project Instructions
+
+          > **📚 Full documentation**: https://github.com/jbcom/jbcom-control-center/wiki/Agent-Instructions/Claude
+
+          ## Quick Reference
+
+          - **CalVer**: `YYYY.MM.BUILD` - never manual
+          - **Package manager**: uv
+          - **Lint**: ruff check --fix && ruff format
+          - **Type check**: mypy src/
+          - **Test**: pytest
+
+          ## Wiki Access
+
+          ```bash
+          # Read current context
+          wiki-cli read "Memory-Bank/Active-Context"
+
+          # Read guidelines
+          wiki-cli read "Agentic-Rules/Core-Guidelines"
+          ```
+
+          For full instructions, see the [wiki](https://github.com/jbcom/jbcom-control-center/wiki/Agent-Instructions/Claude).
+          EOF
+      
+      - name: Create Minimal Cursor Rule
+        run: |
+          mkdir -p .cursor/rules
+          cat > .cursor/rules/00-wiki.mdc << 'EOF'
+          ---
+          alwaysApply: true
+          ---
+
+          # Agent Instructions
+
+          > **📚 Documentation**: https://github.com/jbcom/jbcom-control-center/wiki
+
+          ## Session Start
+
+          ```bash
+          wiki-cli read "Agentic-Rules/Core-Guidelines"
+          wiki-cli read "Memory-Bank/Active-Context"
+          ```
+
+          ## Key Pages
+
+          - [Core Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Core-Guidelines)
+          - [Active Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context)
+          - [Python Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards)
+
+          ## Critical Rules
+
+          - CalVer versioning (never manual)
+          - Use GITHUB_JBCOM_TOKEN for jbcom repos
+          - Read wiki before making decisions
+          - Update wiki after completing work
+          EOF
+      
+      - name: Remove Old Files
+        if: inputs.dry_run != 'true'
+        run: |
+          # Remove directories that have been migrated
+          rm -rf memory-bank/
+          rm -rf docs/
+          rm -rf .ruler/
+          
+          # Remove old generated files
+          rm -f .cursorrules
+          rm -f .github/copilot-instructions.md
+          
+          # Keep .cursor/rules/ but only with wiki pointer
+          find .cursor/rules/ -name "*.mdc" ! -name "00-wiki.mdc" -delete 2>/dev/null || true
+      
+      - name: Commit Changes
+        if: inputs.dry_run != 'true'
+        run: |
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          
+          git add -A
+          git commit -m "refactor: Move documentation to wiki
+
+          - Removed memory-bank/ (now in wiki)
+          - Removed docs/ (now in wiki)
+          - Removed .ruler/ (no longer needed)
+          - Simplified AGENTS.md to wiki pointer
+          - Simplified CLAUDE.md to wiki pointer
+          - Simplified .cursor/rules/ to wiki pointer
+
+          All documentation is now at:
+          https://github.com/jbcom/jbcom-control-center/wiki"
+          
+          git push

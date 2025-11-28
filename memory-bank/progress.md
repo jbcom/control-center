@@ -232,6 +232,43 @@ TO:
 - Self-healing project management
 
 ### Pending
-- [ ] Merge PR #189
-- [ ] Test workflows in production
-- [ ] Monitor agent spawning behavior
+- [ ] Merge PR #190 (Claude Code + Orchestration)
+- [ ] Set ANTHROPIC_API_KEY secret
+- [ ] Test agentic cycle workflow
+- [ ] Sync tooling to managed repos
+
+## Session: Nov 28, 2025 (Agentic Orchestration)
+
+### Completed
+- [x] Merged PR #189 (basic agent workflows)
+- [x] Created PR #190 with comprehensive Claude Code integration
+- [x] Designed agentic orchestration architecture
+- [x] Created agentic-cycle.yml workflow
+- [x] Created sync-claude-tooling.yml for repo sync
+- [x] Created templates for managed repos
+- [x] Created agentic cycle issue template
+- [x] Documented architecture in AGENTIC-ORCHESTRATION.md
+
+### Architecture Highlights
+1. **Control Plane → Repos**: Cycles decompose to repo issues
+2. **Repos → Control Plane**: Upstream notify workflow
+3. **Station-to-Station**: Cross-repo issue linking
+4. **Cycles Replace Holding PRs**: Structured, persistent tracking
+
+### Key Files Created
+- `.github/workflows/claude.yml` - @claude mentions
+- `.github/workflows/claude-pr-review.yml` - Auto PR review
+- `.github/workflows/claude-ci-fix.yml` - Auto-fix CI
+- `.github/workflows/agentic-cycle.yml` - Cycle orchestration
+- `.github/workflows/sync-claude-tooling.yml` - Tooling sync
+- `docs/AGENTIC-ORCHESTRATION.md` - Architecture doc
+- `templates/claude/` - Templates for repos
+- `.claude/commands/` - Custom slash commands
+- `CLAUDE.md` - Project context
+
+### Next Steps
+- [ ] Set ANTHROPIC_API_KEY in GitHub secrets
+- [ ] Merge PR #190
+- [ ] Run sync-claude-tooling to push to repos
+- [ ] Create first agentic cycle to test
+- [ ] Close holding PR #182

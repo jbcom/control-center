@@ -1,32 +1,30 @@
 # Active Context
 
 ## Current Focus
-- GitHub Actions workflows for agent-driven development
-- Moving agent orchestration OUTSIDE single background agent
-- Issue triage and project management automation
+- **Agentic Orchestration Architecture** - Bidirectional coordination between control plane and repos
+- Integrate `anthropics/claude-code-action` for proper AI workflows
+- Standardize Claude tooling across all managed repos
+- Implement agentic cycles for distributed work
 
 ## Active Work
 
-### GitHub Actions Agent Workflows (PR #189 - OPEN)
-- `agent-pr-review.yml` - Review on PR events
-- `agent-post-merge.yml` - Follow-up on main merges
-- `agent-issue-triage.yml` - Auto-label, /agent commands, cross-repo linking
-- `agent-project-management.yml` - Project sync, stale management, reports
-- `spawn-cursor-agent` reusable action
+### PR #189 - GitHub Actions Agent Workflows (MERGED)
+Basic gh CLI workflows for fallback automation.
 
-Features:
-- Auto-classify and label issues (bug, enhancement, security, ci-cd, package-specific)
-- Auto-add issues to GitHub project board
-- `/agent` commands in issue comments:
-  - `/agent review` - Request detailed analysis
-  - `/agent fix` - Request fix PR
-  - `/agent investigate` - Deep investigation
-  - `/agent close` - Verify can close
-  - `/agent help` - Show commands
-- Cross-repo issue linking across ecosystem
-- Weekly stale issue management
-- Ecosystem status report generation
-- Maintenance agent spawning
+### PR #190 - Claude Code Action Integration (OPEN)
+Integrates `anthropics/claude-code-action` for proper AI-driven workflows:
+- `claude.yml` - Interactive @claude mentions
+- `claude-pr-review.yml` - Auto PR review with inline comments
+- `claude-issue-triage.yml` - Auto-labeling
+- `claude-ci-fix.yml` - Auto-fix CI failures
+- Custom commands in `.claude/commands/`
+
+### Agentic Orchestration (IN PROGRESS)
+Building distributed agent coordination:
+- `agentic-cycle.yml` - Cycle orchestration workflow
+- `sync-claude-tooling.yml` - Push tooling to repos
+- Templates for managed repos
+- Issue template for cycles
 
 ### Prior PRs (MERGED)
 - ✅ PR #185: aider CLI with Python 3.12 workaround

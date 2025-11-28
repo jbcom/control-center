@@ -1,0 +1,96 @@
+name: 'Write Wiki Page'
+description: 'Write content to GitHub Wiki'
+author: 'jbcom'
+
+inputs:
+  page:
+    description: 'Wiki page path (e.g., Memory-Bank/Active-Context)'
+    required: true
+  content:
+    description: 'Content to write'
+    required: true
+  mode:
+    description: 'Write mode: overwrite or append'
+    required: false
+    default: 'overwrite'
+  commit_message:
+    description: 'Commit message for the wiki update'
+    required: false
+    default: 'Update wiki page'
+  wiki_repo:
+    description: 'Repository with wiki (default: jbcom/jbcom-control-center)'
+    required: false
+    default: 'jbcom/jbcom-control-center'
+  token:
+    description: 'GitHub token with wiki write access'
+    required: true
+
+outputs:
+  success:
+    description: 'Whether the write was successful'
+    value: ${{ steps.write.outputs.success }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Clone Wiki
+      id: clone
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        WIKI_REPO: ${{ inputs.wiki_repo }}
+      run: |
+        WIKI_DIR="/tmp/wiki-$$"
+        git clone "https://${GH_TOKEN}@github.com/${WIKI_REPO}.wiki.git" "$WIKI_DIR" 2>/dev/null || {
+          echo "❌ Failed to clone wiki"
+          exit 1
+        }
+        echo "wiki_dir=$WIKI_DIR" >> $GITHUB_OUTPUT
+
+    - name: Write Page
+      id: write
+      shell: bash
+      env:
+        WIKI_DIR: ${{ steps.clone.outputs.wiki_dir }}
+        PAGE: ${{ inputs.page }}
+        CONTENT: ${{ inputs.content }}
+        MODE: ${{ inputs.mode }}
+        COMMIT_MSG: ${{ inputs.commit_message }}
+      run: |
+        cd "$WIKI_DIR"
+        
+        FILE="${PAGE}.md"
+        DIR=$(dirname "$FILE")
+        
+        # Create directory if needed
+        mkdir -p "$DIR"
+        
+        # Write content based on mode
+        if [ "$MODE" = "append" ] && [ -f "$FILE" ]; then
+          echo -e "\n$CONTENT" >> "$FILE"
+        else
+          echo "$CONTENT" > "$FILE"
+        fi
+        
+        # Configure git
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git config user.name "github-actions[bot]"
+        
+        # Commit and push
+        git add "$FILE"
+        
+        if git diff --cached --quiet; then
+          echo "No changes to commit"
+          echo "success=true" >> $GITHUB_OUTPUT
+        else
+          git commit -m "$COMMIT_MSG"
+          git push
+          echo "success=true" >> $GITHUB_OUTPUT
+          echo "✅ Updated: $PAGE"
+        fi
+
+    - name: Cleanup
+      if: always()
+      shell: bash
+      run: |
+        rm -rf /tmp/wiki-$$ 2>/dev/null || true
