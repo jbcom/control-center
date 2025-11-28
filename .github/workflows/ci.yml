@@ -6,11 +6,6 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      enforce_standards:
-        description: 'Run standards enforcement'
-        type: boolean
-        default: false
 
 env:
   FORCE_COLOR: "1"
@@ -28,7 +23,7 @@ jobs:
   # BUILD & INSPECT ALL PACKAGES
   # ============================================
   build-packages:
-    name: Build & verify packages
+    name: Build ${{ matrix.package }}
     runs-on: ubuntu-latest
     permissions:
       attestations: write
@@ -50,20 +45,15 @@ jobs:
           persist-credentials: false
 
       - uses: hynek/build-and-inspect-python-package@v2
-        id: baipp
         with:
           path: packages/${{ matrix.package }}
           upload-name-suffix: -${{ matrix.package }}
-
-    outputs:
-      # Python versions from trove classifiers (use first package as reference)
-      python-versions: ${{ steps.baipp.outputs.supported_python_classifiers_json_array }}
 
   # ============================================
   # TESTS
   # ============================================
   tests:
-    name: Tests ${{ matrix.package }} / py${{ matrix.python-version }}
+    name: Test ${{ matrix.package }} py${{ matrix.python-version }}
     runs-on: ubuntu-latest
     needs: build-packages
 
@@ -93,7 +83,7 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Run tests
+      - name: Install and test
         run: |
           uv pip install --system pytest pytest-cov dist/*.whl
           pytest tests/ -v --tb=short || echo "Tests completed"
@@ -116,17 +106,14 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Run ruff
-        run: uvx ruff check .
-
-      - name: Run ruff format check
-        run: uvx ruff format --check .
+      - run: uvx ruff check .
+      - run: uvx ruff format --check .
 
   # ============================================
   # REQUIRED CHECKS
   # ============================================
   required-checks-pass:
-    name: All required checks passed
+    name: All CI passed
     if: always()
     needs: [build-packages, tests, lint]
     runs-on: ubuntu-latest
@@ -142,7 +129,7 @@ jobs:
   release:
     name: Release ${{ matrix.package }}
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [build-packages, tests, lint]
+    needs: required-checks-pass
     runs-on: ubuntu-latest
 
     permissions:
@@ -171,32 +158,29 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Install python-semantic-release
+      - name: Install PSR
         run: uv pip install --system python-semantic-release
 
-      - name: Check for version bump
+      - name: Check version
         id: check
         working-directory: packages/${{ matrix.package }}
         run: |
           CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
           echo "current=$CURRENT" >> $GITHUB_OUTPUT
           
-          set +e
-          NEW_VERSION=$(semantic-release --noop version --print 2>/dev/null)
-          EXIT_CODE=$?
-          set -e
+          NEW=$(semantic-release --noop version --print 2>/dev/null || echo "$CURRENT")
           
-          if [ $EXIT_CODE -eq 0 ] && [ -n "$NEW_VERSION" ] && [ "$NEW_VERSION" != "$CURRENT" ]; then
+          if [ -n "$NEW" ] && [ "$NEW" != "$CURRENT" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
-            echo "📦 Will release: $CURRENT → $NEW_VERSION"
+            echo "version=$NEW" >> $GITHUB_OUTPUT
+            echo "📦 $CURRENT → $NEW"
           else
             echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "new_version=$CURRENT" >> $GITHUB_OUTPUT
-            echo "⏭️ No release needed"
+            echo "version=$CURRENT" >> $GITHUB_OUTPUT
+            echo "⏭️ No release"
           fi
 
-      - name: Create release
+      - name: Bump version
         if: steps.check.outputs.should_release == 'true'
         working-directory: packages/${{ matrix.package }}
         run: |
@@ -205,7 +189,7 @@ jobs:
           semantic-release version
           git push origin main --follow-tags
 
-      - name: Download pre-built package
+      - name: Download built package
         uses: actions/download-artifact@v4
         with:
           name: Packages-${{ matrix.package }}
@@ -221,35 +205,26 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          VERSION="${{ steps.check.outputs.new_version }}"
-          REPO="${{ matrix.repo }}"
-          
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" target
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" target
           cd target
           find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
           cp -r ../packages/${{ matrix.package }}/* .
-          
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          
-          if ! git diff --staged --quiet; then
-            git commit -m "🚀 Release v$VERSION from control-center"
-            git push
-          fi
+          git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}" && git push
 
   # ============================================
-  # DOCS
+  # DOCS (main only)
   # ============================================
   docs:
-    name: Deploy docs ${{ matrix.package }}
+    name: Docs ${{ matrix.package }}
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: release
     runs-on: ubuntu-latest
 
     permissions:
       contents: write
-      pages: write
 
     strategy:
       fail-fast: false
@@ -271,78 +246,39 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Get package version
-        id: version
+      - name: Get version
+        id: ver
         run: |
-          VERSION=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          V=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "version=$V" >> $GITHUB_OUTPUT
 
       - name: Build docs
         run: |
-          PKG_DIR="packages/${{ matrix.package }}"
-          mkdir -p "$PKG_DIR/docs/_build"
+          PKG="packages/${{ matrix.package }}"
+          mkdir -p "$PKG/docs/_build"
           
-          if [ -d "$PKG_DIR/docs" ] && [ -f "$PKG_DIR/docs/conf.py" ]; then
-            cd "$PKG_DIR"
-            uv sync --extra docs 2>/dev/null || uv sync
+          if [ -f "$PKG/docs/conf.py" ]; then
+            cd "$PKG" && uv sync --extra docs 2>/dev/null || uv sync
             uv run sphinx-build -b html docs docs/_build || true
           else
-            echo '<!DOCTYPE html><html><head><title>${{ matrix.package }}</title></head><body><h1>${{ matrix.package }} v${{ steps.version.outputs.version }}</h1><p><a href="https://pypi.org/project/${{ matrix.package }}/">PyPI</a></p></body></html>' > "$PKG_DIR/docs/_build/index.html"
+            echo '<html><body><h1>${{ matrix.package }} v${{ steps.ver.outputs.version }}</h1></body></html>' > "$PKG/docs/_build/index.html"
           fi
 
-      - name: Deploy to gh-pages
+      - name: Deploy gh-pages
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          REPO="${{ matrix.repo }}"
-          PKG_DIR="packages/${{ matrix.package }}"
-          
-          git clone --branch gh-pages --single-branch --depth 1 \
-            "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git" gh-pages 2>/dev/null || {
-            mkdir gh-pages && cd gh-pages && git init && git checkout -b gh-pages
-            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${REPO}.git"
-            cd ..
+          git clone --branch gh-pages --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" gh-pages 2>/dev/null || {
+            mkdir gh-pages && cd gh-pages && git init -b gh-pages
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" && cd ..
           }
           
           find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
-          cp -r "$PKG_DIR/docs/_build/"* gh-pages/ 2>/dev/null || true
+          cp -r packages/${{ matrix.package }}/docs/_build/* gh-pages/ 2>/dev/null || true
           touch gh-pages/.nojekyll
           
           cd gh-pages
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || {
-            git commit -m "📚 Docs for ${{ matrix.package }} v${{ steps.version.outputs.version }}"
-            git push -u origin gh-pages --force
-          }
-
-  # ============================================
-  # ENFORCE STANDARDS
-  # ============================================
-  enforce:
-    name: Enforce standards ${{ matrix.repo }}
-    if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)
-    needs: [tests, lint]
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-      pull-requests: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        repo:
-          - jbcom/extended-data-types
-          - jbcom/lifecyclelogging
-          - jbcom/directed-inputs-class
-          - jbcom/vendor-connectors
-
-    uses: ./.github/workflows/reusable-enforce-standards.yml
-    with:
-      repo: ${{ matrix.repo }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+          git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}" && git push -uf origin gh-pages
