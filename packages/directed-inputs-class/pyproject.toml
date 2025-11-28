@@ -122,3 +122,6 @@ no_incremental = true
 [[tool.mypy.overrides]]
 module = ["wrapt.*", "deepmerge.*"]
 ignore_missing_imports = true
+
+[tool.uv.sources]
+extended-data-types = { workspace = true }
