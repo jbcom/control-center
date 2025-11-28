@@ -18,8 +18,8 @@ packages/
 
 1. **Develop here** - Edit code in `packages/`
 2. **PR to main** - CI runs tests, lint, review
-3. **Merge** - Sync workflow pushes to public repos
-4. **Release** - pycalver bumps version, publishes to PyPI
+3. **Merge** - python-semantic-release bumps version, creates Git tags, publishes to PyPI
+4. **Sync** - Sync workflow pushes to public repos
 
 ## Quick Start
 
@@ -45,18 +45,37 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix: something" --body "Det
 
 | File | Purpose |
 |------|---------|
-| `pyproject.toml` | uv workspace + pycalver config |
+| `pyproject.toml` | uv workspace + dev dependencies |
+| `packages/*/pyproject.toml` | Per-package PSR config |
 | `packages/ECOSYSTEM.toml` | Package metadata, dependencies, release order |
-| `.github/workflows/release.yml` | PyPI publishing with pycalver |
-| `.github/workflows/sync-packages.yml` | Sync to public repos |
-| `.ruler/` | Agent instructions (source of truth) |
+| `scripts/psr/monorepo_parser.py` | Monorepo commit parser for PSR |
+| `.github/workflows/ci.yml` | CI, release, and PyPI publishing |
 
 ## Versioning
 
-Uses [pycalver](https://github.com/mbarkhau/pycalver) at workspace level:
-- Format: `YYYYMM.NNNN` (e.g., `202511.0042`)
-- Config in root `pyproject.toml`
-- Bumps all packages simultaneously
+Uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) with per-package configuration:
+- Format: `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
+- Major version (`202511`) maintains CalVer backward compatibility
+- Minor/patch follow SemVer semantics based on conventional commits
+- Each package has independent versioning tracked via Git tags
+
+### Commit Message Format
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) with package scopes:
+
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
+
+Examples:
+```bash
+feat(edt): add new utility function     # → extended-data-types minor bump
+fix(logging): handle edge case          # → lifecyclelogging patch bump
+feat!: breaking change                  # → major bump (new CalVer month)
+```
 
 ## Authentication
 

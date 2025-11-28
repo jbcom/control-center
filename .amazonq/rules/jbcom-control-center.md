@@ -6,18 +6,36 @@ This is the jbcom-control-center, managing the Python library ecosystem via mono
 
 ## Core Principles
 
-### 1. CalVer Auto-Versioning
+### 1. CalVer-Compatible Semantic Versioning
 - **NEVER** manually edit `__version__` in `__init__.py`
-- Versions are auto-generated: `YYYY.MM.BUILD_NUMBER`
-- Example: `2025.11.42` (month NOT zero-padded)
-- Every push to main = automatic PyPI release
+- Versions use format: `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
+- Major version (`YYYYMM`) maintains CalVer backward compatibility
+- Minor/patch follow SemVer semantics based on conventional commits
+- Each package versioned independently via Git tags
 
 ### 2. Release Philosophy
-- Every push to `main` that passes CI = automatic PyPI release
-- No git tags, no GitHub releases, no manual steps
-- No semantic-release, no conventional commits required
+- Uses python-semantic-release (PSR) for automated versioning
+- Conventional commits determine version bumps
+- Per-package Git tags track release state
+- Merge to `main` with proper commits = automatic PyPI release
 
-### 3. Python Best Practices
+### 3. Conventional Commit Format (REQUIRED)
+
+```
+<type>(<scope>): <description>
+
+Types: feat (minor), fix/perf (patch), feat! (major)
+Scopes: edt, logging, dic, connectors
+```
+
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `connectors` | vendor-connectors |
+
+### 4. Python Best Practices
 - Use modern type hints (`list[]`, `dict[]`, not `List[]`, `Dict[]`)
 - Prefer `pathlib` over `os.path`
 - Use `ruff` for linting (configured in `pyproject.toml`)
@@ -25,7 +43,7 @@ This is the jbcom-control-center, managing the Python library ecosystem via mono
 - Docstrings for public functions/classes (Google style)
 - Tests for new features
 
-### 4. Dependency Management
+### 5. Dependency Management
 - Use `uv` for package management
 - Check `extended-data-types` before adding dependencies
 - Avoid duplication across packages
@@ -61,6 +79,7 @@ This is the jbcom-control-center, managing the Python library ecosystem via mono
 - Missing tests for new features
 - Deprecated API usage
 - Inconsistent naming conventions
+- Non-conventional commit messages
 
 ### What to Suggest (🔵)
 - Refactoring opportunities
@@ -89,16 +108,16 @@ packages/
 ## Common Mistakes to Avoid
 
 ❌ **DON'T**:
-- Suggest adding semantic-release
+- Suggest removing python-semantic-release
 - Recommend manual version management
-- Suggest git tag-based versioning
+- Remove Git tags (they track release state)
 - Add duplicate utilities (check extended-data-types first)
-- Zero-pad months in CalVer (project choice)
+- Use non-conventional commit messages
 - Use `typing.List`, `typing.Dict` (use built-ins)
 
 ✅ **DO**:
 - Use `extended_data_types` utilities
-- Follow CalVer philosophy
+- Use conventional commits with proper scopes
 - Run tests before committing
 - Check for dependency duplication
 - Use modern Python features (3.13+)
@@ -108,6 +127,7 @@ packages/
 When reviewing code, check:
 
 - [ ] No manual version edits
+- [ ] Commit messages follow conventional format
 - [ ] Type hints present and correct
 - [ ] Tests added for new features
 - [ ] No hardcoded secrets
@@ -123,7 +143,7 @@ When reviewing code, check:
 ### When Claude Code Reviews
 - Focus on Python-specific best practices
 - Check ecosystem consistency
-- Validate against .ruler/AGENTS.md
+- Validate conventional commit messages
 
 ### When You (Amazon Q) Review
 - Focus on AWS infrastructure patterns

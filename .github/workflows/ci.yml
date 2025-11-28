@@ -1,14 +1,3 @@
-# Master CI/CD orchestration workflow
-#
-# Uses reusable workflows with stacked matrices:
-# - Package x Python version for testing
-# - Package x Target repo for sync/release/docs
-#
-# On PR:   Test + Lint
-# On main: Test + Lint + Version + Sync + Release + Docs + Enforce Standards
-#
-# VERSIONING: pycalver generates ONE version at start, ALL packages use it
-
 name: CI
 
 on:
@@ -16,185 +5,328 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-    inputs:
-      enforce_standards:
-        description: 'Run standards enforcement'
-        type: boolean
-        default: false
+
+env:
+  FORCE_COLOR: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_NO_PYTHON_VERSION_WARNING: "1"
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Explicit permissions for the default GITHUB_TOKEN
-# This ensures consistent behavior regardless of repository settings
+# Workflow-level permissions
 permissions:
-  contents: read        # Clone repository, read files
-  pull-requests: write  # Comment on PRs (used by reusable workflows)
-  id-token: write       # Required for PyPI trusted publishing
-  pages: write          # Deploy documentation to GitHub Pages
-  attestations: write   # Create build attestations for packages
+  contents: read
+  pull-requests: write
+  id-token: write
+  pages: write
+  attestations: write
 
 jobs:
   # ============================================
-  # MATRIX DEFINITION
+  # BUILD & INSPECT ALL PACKAGES
   # ============================================
-  matrix:
+  build-packages:
+    name: Build ${{ matrix.package }}
     runs-on: ubuntu-latest
-    outputs:
-      packages: ${{ steps.set.outputs.packages }}
-      test-matrix: ${{ steps.set.outputs.test-matrix }}
-      deploy-matrix: ${{ steps.set.outputs.deploy-matrix }}
-    steps:
-      - id: set
-        run: |
-          # Package definitions - single line for GITHUB_OUTPUT compatibility
-          PACKAGES='[{"name":"extended-data-types","pypi":"extended-data-types","repo":"jbcom/extended-data-types","deps":[]},{"name":"lifecyclelogging","pypi":"lifecyclelogging","repo":"jbcom/lifecyclelogging","deps":["extended-data-types"]},{"name":"directed-inputs-class","pypi":"directed-inputs-class","repo":"jbcom/directed-inputs-class","deps":["extended-data-types"]},{"name":"vendor-connectors","pypi":"vendor-connectors","repo":"jbcom/vendor-connectors","deps":["extended-data-types","lifecyclelogging"]}]'
-          
-          PYTHON_VERSIONS='["3.9","3.13"]'
-          
-          # Test matrix: package x python
-          TEST_MATRIX=$(echo "$PACKAGES" | jq -c --argjson py "$PYTHON_VERSIONS" '{package: [.[].name], python: $py}')
-          
-          # Deploy matrix: packages with metadata
-          DEPLOY_MATRIX=$(echo "$PACKAGES" | jq -c '{include: .}')
-          
-          echo "packages=$PACKAGES" >> $GITHUB_OUTPUT
-          echo "test-matrix=$TEST_MATRIX" >> $GITHUB_OUTPUT
-          echo "deploy-matrix=$DEPLOY_MATRIX" >> $GITHUB_OUTPUT
 
-  # ============================================
-  # TEST (package x python matrix)
-  # ============================================
-  test:
-    needs: matrix
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.matrix.outputs.test-matrix) }}
-    uses: ./.github/workflows/reusable-test.yml
-    with:
-      package: ${{ matrix.package }}
-      python-version: ${{ matrix.python }}
+      matrix:
+        package:
+          - extended-data-types
+          - lifecyclelogging
+          - directed-inputs-class
+          - vendor-connectors
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: hynek/build-and-inspect-python-package@v2
+        with:
+          path: packages/${{ matrix.package }}
+          upload-name-suffix: -${{ matrix.package }}
 
   # ============================================
-  # LINT (once)
+  # TESTS (using tox-uv like original)
+  # ============================================
+  tests:
+    name: Test ${{ matrix.package }} py${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    needs: build-packages
+
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - extended-data-types
+          - lifecyclelogging
+          - directed-inputs-class
+          - vendor-connectors
+        python-version: ["3.9", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          allow-prereleases: true
+
+      - uses: hynek/setup-cached-uv@v2
+
+      - name: Cache tox
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/uv
+            .tox
+          key: tox-${{ matrix.python-version }}-${{ matrix.package }}-${{ hashFiles('uv.lock', 'tox.ini') }}
+
+      - name: Install tox
+        run: uv tool install tox --with tox-uv --with tox-gh
+
+      - name: Run tests with tox
+        run: tox -e ${{ matrix.package }}
+
+  # ============================================
+  # LINT
   # ============================================
   lint:
-    uses: ./.github/workflows/reusable-lint.yml
-
-  # ============================================
-  # VERSION - Generate ONE version for ALL packages (main only)
-  # ============================================
-  version:
-    needs: [test, lint]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    name: Lint
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.bump.outputs.version }}
+
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
 
-      - uses: astral-sh/setup-uv@v7
-
-      - name: Bump version with pycalver
-        id: bump
-        run: |
-          # Show current version
-          echo "Current version:"
-          grep 'current_version' pyproject.toml | head -1
-          
-          # Bump to new version using uvx (config has commit=false, tag=false, push=false)
-          # pycalver requires setuptools for pkg_resources
-          uvx --with setuptools pycalver bump --release final
-          
-          # Extract new version
-          NEW_VERSION=$(grep 'current_version' pyproject.toml | head -1 | sed 's/.*= *"\([^"]*\)".*/\1/')
-          echo "New version: $NEW_VERSION"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          
-          # Show what was updated
-          echo "=== Updated files ==="
-          git diff --name-only
-          
-          # Verify all packages have the same version
-          echo "=== Package versions ==="
-          grep -r "__version__" packages/*/src/*/__init__.py || true
-
-      - name: Upload versioned source
-        uses: actions/upload-artifact@v5
+      - uses: actions/setup-python@v5
         with:
-          name: versioned-source
-          path: |
-            packages/
-            pyproject.toml
-          retention-days: 1
+          python-version: "3.13"
+
+      - uses: hynek/setup-cached-uv@v2
+
+      # Lint packages/ only (scripts/ has different rules)
+      - run: uvx ruff check packages/
+      - run: uvx ruff format --check packages/
 
   # ============================================
-  # SYNC TO PUBLIC REPOS (main only, after version)
+  # AI CODE REVIEW (PR only)
   # ============================================
-  sync:
-    needs: [matrix, version]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      max-parallel: 1  # Sync in order
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-sync.yml
-    with:
-      package: ${{ matrix.name }}
-      target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+  ai-review:
+    name: AI Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for code changes
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CHANGED=$(gh pr diff ${{ github.event.pull_request.number }} --name-only)
+          CODE=$(echo "$CHANGED" | grep -vE '^(wiki/|docs/|.*\.md$)' || true)
+          
+          if [ -z "$CODE" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Claude Review
+        if: |
+          steps.check.outputs.skip != 'true' &&
+          !contains(github.event.pull_request.title, '[HOLDING]') &&
+          !contains(github.event.pull_request.labels.*.name, 'no-review')
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
+          allowed_bots: "cursor,github-actions[bot],dependabot[bot]"
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} for:
+            - Bugs and logic errors
+            - Security issues  
+            - Type safety
+            - Test coverage
+            
+            Use gh pr comment for summary.
+            Use mcp__github_inline_comment__create_inline_comment for specifics.
+          claude_args: |
+            --max-turns 10
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Read,Grep"
 
   # ============================================
-  # RELEASE TO PYPI (main only, after sync)
+  # REQUIRED CHECKS
+  # ============================================
+  required-checks-pass:
+    name: All CI passed
+    if: always()
+    needs: [build-packages, tests, lint]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: re-actors/alls-green@v1.2.2
+        with:
+          jobs: ${{ toJSON(needs) }}
+
+  # ============================================
+  # RELEASE (main only)
   # ============================================
   release:
-    needs: [matrix, version, sync]
+    name: Release ${{ matrix.package }}
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: required-checks-pass
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+
     strategy:
       fail-fast: false
-      max-parallel: 1  # Release in dependency order
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-release.yml
-    with:
-      package: ${{ matrix.name }}
-      pypi-name: ${{ matrix.pypi }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      pypi-token: ${{ secrets.PYPI_TOKEN }}
+      # Release one at a time in dependency order (extended-data-types first, vendor-connectors last)
+      max-parallel: 1
+      matrix:
+        # Order matters! Packages listed in dependency order for sequential release
+        include:
+          - package: extended-data-types
+            repo: jbcom/extended-data-types
+          - package: lifecyclelogging
+            repo: jbcom/lifecyclelogging
+          - package: directed-inputs-class
+            repo: jbcom/directed-inputs-class
+          - package: vendor-connectors
+            repo: jbcom/vendor-connectors
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - uses: hynek/setup-cached-uv@v2
+
+      - name: Install semantic-release
+        run: uv pip install --system python-semantic-release
+
+      - name: Check version
+        id: check
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          
+          NEW=$(semantic-release --noop version --print 2>/dev/null || echo "$CURRENT")
+          
+          if [ -n "$NEW" ] && [ "$NEW" != "$CURRENT" ]; then
+            echo "should_release=true" >> $GITHUB_OUTPUT
+            echo "version=$NEW" >> $GITHUB_OUTPUT
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "version=$CURRENT" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Bump version
+        if: steps.check.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          semantic-release version
+          # Push changes and tags (skip CI to prevent infinite loops)
+          git push origin main --follow-tags -o ci.skip
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: Packages-${{ matrix.package }}
+          path: dist
+
+      - name: Publish to PyPI
+        if: steps.check.outputs.should_release == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+      - name: Sync to public repo
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" target
+          cd target
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r ../packages/${{ matrix.package }}/* .
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          git add -A
+          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
 
   # ============================================
-  # DEPLOY DOCS (main only, after release)
+  # DOCS (main only)
   # ============================================
   docs:
-    needs: [matrix, version, release]
+    name: Docs ${{ matrix.package }}
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-docs.yml
-    with:
-      package: ${{ matrix.name }}
-      target-repo: ${{ matrix.repo }}
-      version: ${{ needs.version.outputs.version }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+    needs: release
+    runs-on: ubuntu-latest
 
-  # ============================================
-  # ENFORCE STANDARDS (main or manual, non-blocking)
-  # ============================================
-  enforce:
-    needs: [matrix, test, lint]  # Run after tests pass, parallel to version/sync/release
-    if: |
-      (github.ref == 'refs/heads/main' && github.event_name == 'push') ||
-      (github.event_name == 'workflow_dispatch' && inputs.enforce_standards)
     strategy:
       fail-fast: false
-      matrix: ${{ fromJson(needs.matrix.outputs.deploy-matrix) }}
-    uses: ./.github/workflows/reusable-enforce-standards.yml
-    with:
-      repo: ${{ matrix.repo }}
-    secrets:
-      token: ${{ secrets.CI_GITHUB_TOKEN }}
+      matrix:
+        include:
+          - package: extended-data-types
+            repo: jbcom/extended-data-types
+          - package: lifecyclelogging
+            repo: jbcom/lifecyclelogging
+          - package: directed-inputs-class
+            repo: jbcom/directed-inputs-class
+          - package: vendor-connectors
+            repo: jbcom/vendor-connectors
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: hynek/setup-cached-uv@v2
+
+      - name: Get version
+        id: ver
+        run: |
+          V=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "version=$V" >> $GITHUB_OUTPUT
+
+      - name: Build docs
+        run: |
+          PKG="packages/${{ matrix.package }}"
+          mkdir -p "$PKG/docs/_build"
+          
+          if [ -f "$PKG/docs/conf.py" ]; then
+            cd "$PKG" && uv sync --extra docs 2>/dev/null || uv sync
+            uv run sphinx-build -b html docs docs/_build || true
+          else
+            echo '<html><body><h1>${{ matrix.package }} v${{ steps.ver.outputs.version }}</h1></body></html>' > "$PKG/docs/_build/index.html"
+          fi
+
+      - name: Deploy gh-pages
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          git clone --branch gh-pages --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" gh-pages 2>/dev/null || {
+            mkdir gh-pages && cd gh-pages && git init -b gh-pages
+            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" && cd ..
+          }
+          
+          find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
+          cp -r packages/${{ matrix.package }}/docs/_build/* gh-pages/ 2>/dev/null || true
+          touch gh-pages/.nojekyll
+          
+          cd gh-pages
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          git add -A
+          (git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}") && git push -uf origin gh-pages

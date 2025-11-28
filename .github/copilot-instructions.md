@@ -4,9 +4,17 @@
 
 ## Quick Rules
 
-- **CalVer**: `YYYY.MM.BUILD` - automatic, never manual
-- **NO semantic-release** - We use CalVer
-- **NO git tags** - PyPI is source of truth
+- **Versioning**: `YYYYMM.MINOR.PATCH` via python-semantic-release
+- **Commits**: Use conventional commits with scopes (`edt`, `logging`, `dic`, `connectors`)
+- **Git tags**: Track release state per package (required)
+
+## Commit Format
+
+```bash
+feat(edt): add new utility       # Minor bump
+fix(logging): handle edge case   # Patch bump
+feat!: breaking change           # Major bump
+```
 
 ## Code Style
 
