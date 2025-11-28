@@ -63,7 +63,8 @@ def _get_scope_mismatch_error(
     Returns:
         The appropriate error message string
     """
-    if scope_prefix and scope_prefix not in commit.message.split("\n", maxsplit=1)[0]:
+    first_line = commit.message.split("\n", maxsplit=1)[0]
+    if scope_prefix and scope_prefix not in first_line:
         return scoped_error_msg
     return f"Format Mismatch! Unable to parse commit message: {commit.message!r}"
 
