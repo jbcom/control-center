@@ -259,15 +259,20 @@ def resolve_local_path(file_path: FilePath, tld: Path | None = None) -> Path:
 
 
 def is_url(path: str) -> bool:
-    """Check if a string is a URL.
+    """Check if a string is a valid and safe URL.
 
     Args:
         path (str): The string to check.
 
     Returns:
-        bool: True if the string starts with http:// or https://.
+        bool: True if the string is a valid HTTP/HTTPS URL.
     """
-    return path.startswith(("http://", "https://"))
+    try:
+        from urllib.parse import urlparse
+        parsed = urlparse(path)
+        return parsed.scheme in ("http", "https") and bool(parsed.netloc)
+    except Exception:
+        return False
 
 
 def read_file(
