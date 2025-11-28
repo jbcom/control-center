@@ -55,9 +55,6 @@ from .utils import add_json_data, clear_existing_handlers, find_logger, get_log_
 class ExitRunError(Exception):
     """Raised when exit_run encounters a formatting or data error."""
 
-    pass
-
-
 class Logging:
     """A class to manage logging configurations for console and file outputs.
 
