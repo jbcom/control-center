@@ -209,7 +209,7 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Install PSR
+          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
         run: uv pip install --system python-semantic-release
 
       - name: Check version
