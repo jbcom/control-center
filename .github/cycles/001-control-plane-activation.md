@@ -22,7 +22,7 @@ Fully activate the jbcom control plane for managing the Python library ecosystem
 
 ### 2. CI/CD Pipeline
 - **Unified workflow**: `ci.yml`
-- **Matrix testing**: Python 3.9, 3.13 across all packages
+- **Matrix testing**: Python 3.9-3.13 (support for 3.13 varies by package)
 - **Auto-versioning**: CalVer (YYYY.MM.BUILD)
 - **Auto-release**: PyPI on every main push
 - **Sync**: Pushes to public repos automatically
