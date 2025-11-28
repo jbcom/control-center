@@ -253,7 +253,7 @@ class ConventionalCommitMonorepoParser(
             accumulator["breaking_descriptions"].append(match.group(1) or "")
             return accumulator
 
-                    has_number.search,  # type: ignore[arg-type]
+        if match := self.issue_selector.match(text):
             predicate = regexp(r",? and | *[,;/& ] *").sub(
                 ",", match.group("issue_predicate") or ""
             )
