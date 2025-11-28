@@ -2,6 +2,19 @@
 
 <!-- version list -->
 
+## v202511.6.0 (2025-11-28)
+
+### Code Style
+
+- Fix formatting
+  ([`5069b71`](https://github.com/jbcom/jbcom-control-center/commit/5069b71c56a2a20a94d2fdecc33b53d35fba229d))
+
+### Features
+
+- Trigger release with PYPI_API_TOKEN configured
+  ([`cab7c2c`](https://github.com/jbcom/jbcom-control-center/commit/cab7c2ca43d6286f521e2e47ecd6911f6bf106df))
+
+
 ## v202511.5.0 (2025-11-28)
 
 ### Features
