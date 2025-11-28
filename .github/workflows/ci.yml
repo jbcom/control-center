@@ -189,8 +189,10 @@ jobs:
 
     strategy:
       fail-fast: false
+      # Release one at a time in dependency order (extended-data-types first, vendor-connectors last)
       max-parallel: 1
       matrix:
+        # Order matters! Packages listed in dependency order for sequential release
         include:
           - package: extended-data-types
             repo: jbcom/extended-data-types
@@ -209,7 +211,7 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
+      - name: Install semantic-release
         run: uv pip install --system python-semantic-release
 
       - name: Check version
@@ -261,7 +263,7 @@ jobs:
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}" && git push
+          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
 
   # ============================================
   # DOCS (main only)
@@ -327,4 +329,4 @@ jobs:
           git config user.name "jbcom-bot"
           git config user.email "jbcom-bot@users.noreply.github.com"
           git add -A
-          git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}" && git push -uf origin gh-pages
+          (git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}") && git push -uf origin gh-pages

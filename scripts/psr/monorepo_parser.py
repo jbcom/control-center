@@ -8,7 +8,7 @@ from functools import reduce
 from itertools import zip_longest
 from pathlib import Path
 from re import compile as regexp
-from typing import TYPE_CHECKING, Any, Iterable, Tuple
+from typing import TYPE_CHECKING, Any, Iterable
 
 from pydantic import Field, field_validator
 from pydantic.dataclasses import dataclass
@@ -28,7 +28,7 @@ from semantic_release.commit_parser.util import (
 from semantic_release.enums import LevelBump
 from semantic_release.errors import InvalidParserOptions
 
-# typing_extensions is for Python 3.8, 3.9, 3.10 compatibility
+# typing_extensions is for Python 3.9, 3.10 compatibility
 from typing_extensions import Annotated
 
 if TYPE_CHECKING:  # pragma: no cover
@@ -47,13 +47,13 @@ def _logged_parse_error(commit: Commit, error: str) -> ParseError:
 class ConventionalMonorepoParserOptions(ParserOptions):
     """Options dataclass for ConventionalCommitMonorepoParser."""
 
-    minor_tags: Tuple[str, ...] = ("feat",)
+    minor_tags: tuple[str, ...] = ("feat",)
     """Commit-type prefixes that should result in a minor release bump."""
 
-    patch_tags: Tuple[str, ...] = ("fix", "perf")
+    patch_tags: tuple[str, ...] = ("fix", "perf")
     """Commit-type prefixes that should result in a patch release bump."""
 
-    other_allowed_tags: Tuple[str, ...] = (
+    other_allowed_tags: tuple[str, ...] = (
         "build",
         "chore",
         "ci",
@@ -67,7 +67,7 @@ class ConventionalMonorepoParserOptions(ParserOptions):
     default_bump_level: LevelBump = LevelBump.NO_RELEASE
     """The minimum bump level to apply to valid commit message."""
 
-    path_filters: Annotated[Tuple[Path, ...], Field(validate_default=True)] = (Path("."),)
+    path_filters: Annotated[tuple[Path, ...], Field(validate_default=True)] = (Path("."),)
     """
     A set of relative paths to filter commits by. Only commits with file changes that
     match these file paths or its subdirectories will be considered valid commits.
@@ -86,7 +86,7 @@ class ConventionalMonorepoParserOptions(ParserOptions):
 
     @field_validator("path_filters", mode="before")
     @classmethod
-    def convert_strs_to_paths(cls, value: Any) -> Tuple[Path]:
+    def convert_strs_to_paths(cls, value: Any) -> tuple[Path, ...]:
         values = value if isinstance(value, Iterable) else [value]
         results = []
 
@@ -101,7 +101,7 @@ class ConventionalMonorepoParserOptions(ParserOptions):
 
     @field_validator("path_filters", mode="after")
     @classmethod
-    def resolve_path(cls, dir_paths: tuple[Path, ...]) -> Tuple[Path, ...]:
+    def resolve_path(cls, dir_paths: tuple[Path, ...]) -> tuple[Path, ...]:
         return tuple(
             [
                 (
