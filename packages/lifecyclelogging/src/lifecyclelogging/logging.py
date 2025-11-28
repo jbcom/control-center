@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import (
     Any,
     Callable,
-    NoReturn,
+    ClassVar,
     cast,
 )
 
@@ -39,12 +39,8 @@ from extended_data_types import (
     to_kebab_case,
     to_pascal_case,
     to_snake_case,
-    unhump_map,
     wrap_raw_data_for_export,
 )
-
-# Type alias for key transformation functions
-KeyTransform = Callable[[str], str]
 
 from .const import VERBOSITY
 from .handlers import add_console_handler, add_file_handler
@@ -52,8 +48,13 @@ from .log_types import LogLevel
 from .utils import add_json_data, clear_existing_handlers, find_logger, get_log_level
 
 
+# Type alias for key transformation functions
+KeyTransform = Callable[[str], str]
+
+
 class ExitRunError(Exception):
     """Raised when exit_run encounters a formatting or data error."""
+
 
 class Logging:
     """A class to manage logging configurations for console and file outputs.
@@ -379,12 +380,14 @@ class Logging:
         if no_formatting:
             log_file_path.write_text(str(results))
         else:
-            log_file_path.write_text(wrap_raw_data_for_export(results, allow_encoding=True))
+            log_file_path.write_text(
+                wrap_raw_data_for_export(results, allow_encoding=True)
+            )
 
         self.logged_statement(f"New results log: {log_file_path}")
 
     # Built-in key transforms from extended-data-types
-    KEY_TRANSFORMS: dict[str, KeyTransform] = {
+    KEY_TRANSFORMS: ClassVar[dict[str, KeyTransform]] = {
         "snake_case": to_snake_case,
         "camel_case": to_camel_case,
         "pascal_case": to_pascal_case,
@@ -444,7 +447,9 @@ class Logging:
         for key, value in data.items():
             transformed_key = transform_fn(key)
             if isinstance(value, Mapping):
-                result[transformed_key] = self._transform_nested_keys(value, transform_fn)
+                result[transformed_key] = self._transform_nested_keys(
+                    value, transform_fn
+                )
             elif isinstance(value, list):
                 result[transformed_key] = [
                     self._transform_nested_keys(item, transform_fn)
@@ -472,7 +477,7 @@ class Logging:
         key: str | None = None,
         exit_on_completion: bool = True,
         **format_opts: Any,
-    ) -> Any | NoReturn:
+    ) -> Any:
         """Format results and optionally exit the program cleanly.
 
         This method handles the lifecycle of formatting and outputting results,
@@ -525,7 +530,9 @@ class Logging:
             logging.exit_run(results, key_transform=lambda k: k.upper())
         """
         # Resolve key_transform from various inputs
-        transform_fn = self._resolve_key_transform(key_transform, unhump_results, prefix)
+        transform_fn = self._resolve_key_transform(
+            key_transform, unhump_results, prefix
+        )
         try:
             self.log_results(results, "results")
 
@@ -578,11 +585,15 @@ class Logging:
                                 and field_name not in prefix_denylist
                                 and transformed_key not in prefix_denylist
                             ):
-                                transformed_key = prefix_delimiter.join([prefix, transformed_key])
+                                transformed_key = prefix_delimiter.join(
+                                    [prefix, transformed_key]
+                                )
 
                             if isinstance(field_data, Mapping):
-                                transformed_result[transformed_key] = self._transform_nested_keys(
-                                    field_data, transform_fn
+                                transformed_result[transformed_key] = (
+                                    self._transform_nested_keys(
+                                        field_data, transform_fn
+                                    )
                                 )
                             elif isinstance(field_data, list):
                                 transformed_result[transformed_key] = [
@@ -606,16 +617,17 @@ class Logging:
 
             def encode_result_with_base64(r: Any) -> str:
                 if format_results:
-                    self.logger.info("Formatting results before encoding them with base64")
+                    self.logger.info(
+                        "Formatting results before encoding them with base64"
+                    )
                     r = wrap_raw_data_for_export(r, **format_opts)
-                
+
                 # Ensure we have a string for encoding
                 if isinstance(r, bytes):
                     return base64.b64encode(r).decode("utf-8")
-                elif isinstance(r, str):
+                if isinstance(r, str):
                     return base64.b64encode(r.encode("utf-8")).decode("utf-8")
-                else:
-                    return base64.b64encode(str(r).encode("utf-8")).decode("utf-8")
+                return base64.b64encode(str(r).encode("utf-8")).decode("utf-8")
 
             if encode_all_values_to_base64:
                 self.logger.info("Encoding all top-level values in results with base64")
@@ -631,7 +643,7 @@ class Logging:
                 self.log_results(results, "results_base64_encoded")
 
             if key:
-                self.logger.info(f"Wrapping results in key {key}")
+                self.logger.info("Wrapping results in key %s", key)
                 results = {key: results}
 
             if not isinstance(results, str):
@@ -641,6 +653,8 @@ class Logging:
             sys.stdout.write(results)
             sys.exit(0)
         except ExitRunError as exc:
-            err_msg = f"Failed to dump results because of a formatting error:\n\n{results}"
+            err_msg = (
+                f"Failed to dump results because of a formatting error:\n\n{results}"
+            )
             self.logger.critical(err_msg, exc_info=True)
             raise RuntimeError(err_msg) from exc

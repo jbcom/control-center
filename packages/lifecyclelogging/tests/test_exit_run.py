@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import base64
 import json
+import os
+
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -29,8 +30,6 @@ class TestLogResults:
 
     def test_log_results_creates_file(self, logger: Logging, tmp_path: Path) -> None:
         """Test that log_results creates a JSON file with results."""
-        import os
-
         os.chdir(tmp_path)
         results = {"key": "value"}
         logger.log_results(results, "test_results")
@@ -44,8 +43,6 @@ class TestLogResults:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test log_results with custom file extension."""
-        import os
-
         os.chdir(tmp_path)
         results = {"key": "value"}
         logger.log_results(results, "test_results", ext=".txt")
@@ -55,8 +52,6 @@ class TestLogResults:
 
     def test_log_results_no_formatting(self, logger: Logging, tmp_path: Path) -> None:
         """Test log_results with no_formatting=True."""
-        import os
-
         os.chdir(tmp_path)
         results = "raw string data"
         logger.log_results(results, "raw_results", no_formatting=True)
@@ -69,8 +64,6 @@ class TestLogResults:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test that log_results respects verbosity settings."""
-        import os
-
         os.chdir(tmp_path)
         logger.enable_verbose_output = False
         results = {"key": "value"}
@@ -85,8 +78,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_returns_results(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run returns results when not exiting."""
-        import os
-
         os.chdir(tmp_path)
         results = {"key": "value"}
         output = logger.exit_run(results, exit_on_completion=False)
@@ -94,16 +85,12 @@ class TestExitRunNoExit:
 
     def test_exit_run_none_results(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run handles None results."""
-        import os
-
         os.chdir(tmp_path)
         output = logger.exit_run(None, exit_on_completion=False)
         assert output == {}
 
     def test_exit_run_unhump_results(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run converts camelCase to snake_case."""
-        import os
-
         os.chdir(tmp_path)
         results = {"myKey": {"nestedKey": "value"}}
         output = logger.exit_run(results, unhump_results=True, exit_on_completion=False)
@@ -114,8 +101,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform with snake_case string."""
-        import os
-
         os.chdir(tmp_path)
         results = {"myKey": {"nestedKey": "value"}}
         output = logger.exit_run(
@@ -128,8 +113,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform with camel_case string."""
-        import os
-
         os.chdir(tmp_path)
         results = {"my_key": {"nested_key": "value"}}
         output = logger.exit_run(
@@ -142,8 +125,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform with pascal_case string."""
-        import os
-
         os.chdir(tmp_path)
         results = {"my_key": {"nested_key": "value"}}
         output = logger.exit_run(
@@ -156,8 +137,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform with kebab_case string."""
-        import os
-
         os.chdir(tmp_path)
         results = {"myKey": {"nestedKey": "value"}}
         output = logger.exit_run(
@@ -170,8 +149,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform with custom callable."""
-        import os
-
         os.chdir(tmp_path)
         results = {"myKey": {"nestedKey": "value"}}
         output = logger.exit_run(
@@ -184,8 +161,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test that invalid key_transform string raises ValueError."""
-        import os
-
         os.chdir(tmp_path)
         with pytest.raises(ValueError, match="Unknown key_transform"):
             logger.exit_run(
@@ -196,8 +171,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test key_transform handles nested lists of dicts."""
-        import os
-
         os.chdir(tmp_path)
         results = {"myList": [{"itemKey": "v1"}, {"itemKey": "v2"}]}
         output = logger.exit_run(
@@ -208,8 +181,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_with_prefix(self, logger: Logging, tmp_path: Path) -> None:
         """Test exit_run with prefix adds prefix to keys."""
-        import os
-
         os.chdir(tmp_path)
         results = {"item1": {"fieldName": "value1"}}
         output = logger.exit_run(
@@ -222,8 +193,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_prefix_allowlist(self, logger: Logging, tmp_path: Path) -> None:
         """Test exit_run only prefixes allowed keys."""
-        import os
-
         os.chdir(tmp_path)
         results = {"item1": {"allowedField": "v1", "excludedField": "v2"}}
         output = logger.exit_run(
@@ -237,8 +206,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_prefix_denylist(self, logger: Logging, tmp_path: Path) -> None:
         """Test exit_run excludes denied keys from prefixing."""
-        import os
-
         os.chdir(tmp_path)
         results = {"item1": {"normalField": "v1", "excludedField": "v2"}}
         output = logger.exit_run(
@@ -254,8 +221,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test exit_run with prefix transforms keys in nested lists of dicts."""
-        import os
-
         os.chdir(tmp_path)
         results = {
             "item1": {
@@ -276,8 +241,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_sort_by_field(self, logger: Logging, tmp_path: Path) -> None:
         """Test exit_run sorts results by specified field."""
-        import os
-
         os.chdir(tmp_path)
         results = {
             "a": {"sortKey": "zebra", "data": "first"},
@@ -295,8 +258,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test sort_by_field handles duplicate field values without data loss."""
-        import os
-
         os.chdir(tmp_path)
         results = {
             "a": {"sortKey": "same_value", "data": "first"},
@@ -310,7 +271,7 @@ class TestExitRunNoExit:
             exit_on_completion=False,
         )
         # All items should be preserved - no data loss
-        assert len(output) == 4
+        assert len(output) == len(results)
         # First occurrence uses the field value as key
         assert "same_value" in output
         # Subsequent duplicates get numeric suffixes
@@ -327,8 +288,6 @@ class TestExitRunNoExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test that sort_by_field raises when field is missing."""
-        import os
-
         os.chdir(tmp_path)
         results = {"a": {"otherField": "value"}}
         with pytest.raises(RuntimeError, match="formatting error"):
@@ -340,8 +299,6 @@ class TestExitRunNoExit:
 
     def test_exit_run_with_errors_raises(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run raises when error_list is not empty."""
-        import os
-
         os.chdir(tmp_path)
         logger.error_list.append("Test error 1")
         logger.error_list.append("Test error 2")
@@ -357,8 +314,6 @@ class TestExitRunWithExit:
         self, logger: Logging, tmp_path: Path
     ) -> None:
         """Test that exit_run writes JSON to stdout and exits."""
-        import os
-
         os.chdir(tmp_path)
         results = {"key": "value"}
 
@@ -374,8 +329,6 @@ class TestExitRunWithExit:
 
     def test_exit_run_wraps_in_key(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run wraps results in specified key."""
-        import os
-
         os.chdir(tmp_path)
         results = {"inner": "data"}
 
@@ -390,8 +343,6 @@ class TestExitRunWithExit:
 
     def test_exit_run_encode_to_base64(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run encodes entire result to base64."""
-        import os
-
         os.chdir(tmp_path)
         results = {"key": "value"}
 
@@ -406,8 +357,6 @@ class TestExitRunWithExit:
 
     def test_exit_run_encode_all_values(self, logger: Logging, tmp_path: Path) -> None:
         """Test that exit_run encodes each value to base64."""
-        import os
-
         os.chdir(tmp_path)
         results = {"item1": {"data": "value1"}, "item2": {"data": "value2"}}
 
@@ -427,11 +376,11 @@ class TestExitRunError:
 
     def test_exit_run_error_is_exported(self) -> None:
         """Test that ExitRunError is properly exported."""
-        from lifecyclelogging import ExitRunError
-
+        # ExitRunError is imported at module level - verify it's a proper Exception subclass
         assert issubclass(ExitRunError, Exception)
 
     def test_exit_run_error_message(self) -> None:
         """Test ExitRunError can be raised with a message."""
-        with pytest.raises(ExitRunError, match="test message"):
-            raise ExitRunError("test message")
+        msg = "test message"
+        with pytest.raises(ExitRunError, match=msg):
+            raise ExitRunError(msg)
