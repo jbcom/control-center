@@ -601,7 +601,14 @@ class Logging:
                 if format_results:
                     self.logger.info("Formatting results before encoding them with base64")
                     r = wrap_raw_data_for_export(r, **format_opts)
-                return base64.b64encode(r.encode("utf-8")).decode("utf-8")
+                
+                # Ensure we have a string for encoding
+                if isinstance(r, bytes):
+                    return base64.b64encode(r).decode("utf-8")
+                elif isinstance(r, str):
+                    return base64.b64encode(r.encode("utf-8")).decode("utf-8")
+                else:
+                    return base64.b64encode(str(r).encode("utf-8")).decode("utf-8")
 
             if encode_all_values_to_base64:
                 self.logger.info("Encoding all top-level values in results with base64")
