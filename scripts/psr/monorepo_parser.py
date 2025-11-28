@@ -78,7 +78,7 @@ class ConventionalMonorepoParserOptions(ParserOptions):
 
     scope_prefix: str = ""
     """
-    A prefix that will be striped from the scope when parsing commit messages.
+    A prefix that will be stripped from the scope when parsing commit messages.
 
     If set, it will cause unscoped commits to be ignored. Use this in tandem with
     the path_filter option to filter commits by directory and scope.
