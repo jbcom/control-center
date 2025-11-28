@@ -12,11 +12,11 @@ import os
 import sys
 import tempfile
 import urllib.request
-from urllib.parse import urlparse
 
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 
 if sys.version_info >= (3, 10):

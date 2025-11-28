@@ -154,6 +154,8 @@ __all__ = [
     "get_repository_name",
     "get_tld",
     "get_unique_signature",
+    # String transformation aliases
+    "humanize",
     "is_non_empty_match",
     "is_nothing",
     "is_partial_match",
@@ -163,6 +165,8 @@ __all__ = [
     "make_hashable",
     "make_raw_data_export_safe",
     "match_file_extensions",
+    "ordinalize",
+    "pluralize",
     "read_file",
     "reconstruct_special_type",
     "reconstruct_special_types",
@@ -170,6 +174,7 @@ __all__ = [
     "removesuffix",
     "resolve_local_path",
     "sanitize_key",
+    "singularize",
     "split_dict_by_type",
     "split_list_by_type",
     "strtobool",
@@ -195,9 +200,4 @@ __all__ = [
     "write_file",
     "yield_non_empty",
     "zipmap",
-    # String transformation aliases
-    "humanize",
-    "ordinalize",
-    "pluralize",
-    "singularize",
 ]
