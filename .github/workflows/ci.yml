@@ -68,8 +68,7 @@ jobs:
         python-version: ["3.9", "3.13"]
 
     steps:
-      - name: Download pre-built package
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: Packages-${{ matrix.package }}
           path: dist
@@ -83,7 +82,7 @@ jobs:
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Install and test
+      - name: Test
         run: |
           uv pip install --system pytest pytest-cov dist/*.whl
           pytest tests/ -v --tb=short || echo "Tests completed"
@@ -108,6 +107,61 @@ jobs:
 
       - run: uvx ruff check .
       - run: uvx ruff format --check .
+
+  # ============================================
+  # AI CODE REVIEW (PR only)
+  # ============================================
+  ai-review:
+    name: AI Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Check for code changes
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          CHANGED=$(gh pr diff ${{ github.event.pull_request.number }} --name-only)
+          CODE=$(echo "$CHANGED" | grep -vE '^(wiki/|docs/|.*\.md$)' || true)
+          
+          if [ -z "$CODE" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Claude Review
+        if: |
+          steps.check.outputs.skip != 'true' &&
+          !contains(github.event.pull_request.title, '[HOLDING]') &&
+          !contains(github.event.pull_request.labels.*.name, 'no-review')
+        uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          use_sticky_comment: true
+          allowed_bots: "cursor,github-actions[bot],dependabot[bot]"
+          prompt: |
+            Review PR #${{ github.event.pull_request.number }} for:
+            - Bugs and logic errors
+            - Security issues  
+            - Type safety
+            - Test coverage
+            
+            Use gh pr comment for summary.
+            Use mcp__github_inline_comment__create_inline_comment for specifics.
+          claude_args: |
+            --max-turns 10
+            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Read,Grep"
 
   # ============================================
   # REQUIRED CHECKS
@@ -173,11 +227,9 @@ jobs:
           if [ -n "$NEW" ] && [ "$NEW" != "$CURRENT" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "version=$NEW" >> $GITHUB_OUTPUT
-            echo "📦 $CURRENT → $NEW"
           else
             echo "should_release=false" >> $GITHUB_OUTPUT
             echo "version=$CURRENT" >> $GITHUB_OUTPUT
-            echo "⏭️ No release"
           fi
 
       - name: Bump version
@@ -189,8 +241,7 @@ jobs:
           semantic-release version
           git push origin main --follow-tags
 
-      - name: Download built package
-        uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v4
         with:
           name: Packages-${{ matrix.package }}
           path: dist
