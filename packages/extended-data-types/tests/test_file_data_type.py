@@ -24,13 +24,19 @@ import pytest
 from extended_data_types.file_data_type import (
     FilePath,
     clone_repository_to_temp,
+    decode_file,
+    delete_file,
     file_path_depth,
     file_path_rel_to_root,
     get_encoding_for_file_path,
     get_parent_repository,
     get_repository_name,
     get_tld,
+    is_url,
     match_file_extensions,
+    read_file,
+    resolve_local_path,
+    write_file,
 )
 from git import GitCommandError, InvalidGitRepositoryError, Repo
 
@@ -247,3 +253,293 @@ def test_file_path_rel_to_root(file_path: FilePath, expected_rel_to_root: str) -
         The result of file_path_rel_to_root matches the expected relative path.
     """
     assert file_path_rel_to_root(file_path) == expected_rel_to_root
+
+
+# Tests for new file operations
+
+
+@pytest.mark.parametrize(
+    ("path", "expected"),
+    [
+        ("http://example.com/file.txt", True),
+        ("https://example.com/file.txt", True),
+        ("/path/to/file.txt", False),
+        ("relative/path.txt", False),
+        ("ftp://example.com/file.txt", False),
+    ],
+)
+def test_is_url(path: str, expected: bool) -> None:
+    """Tests URL detection.
+
+    Args:
+        path (str): The string to check.
+        expected (bool): The expected result.
+
+    Asserts:
+        The result of is_url matches the expected boolean value.
+    """
+    assert is_url(path) == expected
+
+
+def test_resolve_local_path_absolute() -> None:
+    """Tests resolving an absolute path.
+
+    Asserts:
+        Absolute paths are resolved as-is.
+    """
+    result = resolve_local_path("/absolute/path/file.txt")
+    assert result == Path("/absolute/path/file.txt").resolve()
+
+
+def test_resolve_local_path_relative_with_tld(tmp_path: Path) -> None:
+    """Tests resolving a relative path with explicit tld.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Relative paths are resolved relative to the provided tld.
+    """
+    result = resolve_local_path("relative/file.txt", tld=tmp_path)
+    assert result == (tmp_path / "relative" / "file.txt").resolve()
+
+
+def test_resolve_local_path_relative_no_tld(mocker) -> None:
+    """Tests resolving a relative path without tld raises error when no git repo.
+
+    Args:
+        mocker: Mock object for simulating get_tld returning None.
+
+    Asserts:
+        RuntimeError is raised when no tld is available.
+    """
+    mocker.patch("extended_data_types.file_data_type.get_tld", return_value=None)
+    with pytest.raises(RuntimeError, match="Cannot resolve relative path"):
+        resolve_local_path("relative/file.txt")
+
+
+def test_read_file_local(tmp_path: Path) -> None:
+    """Tests reading a local file.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        File contents are read correctly.
+    """
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("Hello, World!")
+
+    result = read_file(test_file, tld=tmp_path)
+    assert result == "Hello, World!"
+
+
+def test_read_file_local_bytes(tmp_path: Path) -> None:
+    """Tests reading a local file as bytes.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        File contents are read as bytes when decode=False.
+    """
+    test_file = tmp_path / "test.bin"
+    test_file.write_bytes(b"\x00\x01\x02")
+
+    result = read_file(test_file, decode=False, tld=tmp_path)
+    assert result == b"\x00\x01\x02"
+
+
+def test_read_file_nonexistent(tmp_path: Path) -> None:
+    """Tests reading a nonexistent file returns None.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        None is returned when file doesn't exist.
+    """
+    result = read_file(tmp_path / "nonexistent.txt", tld=tmp_path)
+    assert result is None
+
+
+def test_read_file_return_path(tmp_path: Path) -> None:
+    """Tests read_file with return_path=True.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Path object is returned instead of contents.
+    """
+    result = read_file(tmp_path / "file.txt", return_path=True, tld=tmp_path)
+    assert isinstance(result, Path)
+    assert result == (tmp_path / "file.txt").resolve()
+
+
+@pytest.mark.parametrize(
+    ("data", "suffix", "expected_type"),
+    [
+        ('{"key": "value"}', "json", dict),
+        ("key: value", "yaml", dict),
+        ("key: value", "yml", dict),
+        ("plain text", "txt", str),
+    ],
+)
+def test_decode_file(data: str, suffix: str, expected_type: type) -> None:
+    """Tests decoding file data based on suffix.
+
+    Args:
+        data: The file data to decode.
+        suffix: The file format suffix.
+        expected_type: The expected type of the decoded result.
+
+    Asserts:
+        The decoded result is of the expected type.
+    """
+    result = decode_file(data, suffix=suffix)
+    assert isinstance(result, expected_type)
+
+
+def test_decode_file_infer_suffix() -> None:
+    """Tests decode_file inferring suffix from file path.
+
+    Asserts:
+        Suffix is correctly inferred from file path.
+    """
+    result = decode_file('{"key": "value"}', file_path="/path/to/file.json")
+    assert isinstance(result, dict)
+    assert result == {"key": "value"}
+
+
+def test_write_file_json(tmp_path: Path) -> None:
+    """Tests writing data as JSON.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Data is written as JSON.
+    """
+    test_file = tmp_path / "test.json"
+    data = {"key": "value"}
+
+    result = write_file(test_file, data, tld=tmp_path)
+
+    assert result == test_file.resolve()
+    assert test_file.exists()
+    content = test_file.read_text()
+    assert "key" in content
+    assert "value" in content
+
+
+def test_write_file_yaml(tmp_path: Path) -> None:
+    """Tests writing data as YAML.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Data is written as YAML.
+    """
+    test_file = tmp_path / "test.yaml"
+    data = {"key": "value"}
+
+    result = write_file(test_file, data, tld=tmp_path)
+
+    assert result == test_file.resolve()
+    assert test_file.exists()
+    content = test_file.read_text()
+    assert "key:" in content or "key :" in content
+
+
+def test_write_file_creates_directories(tmp_path: Path) -> None:
+    """Tests that write_file creates parent directories.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Parent directories are created.
+    """
+    test_file = tmp_path / "nested" / "dirs" / "test.txt"
+    write_file(test_file, "content", encoding="raw", tld=tmp_path)
+
+    assert test_file.exists()
+    assert test_file.read_text() == "content"
+
+
+def test_write_file_empty_not_allowed(tmp_path: Path) -> None:
+    """Tests that write_file returns None for empty data when not allowed.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        None is returned when data is empty and allow_empty=False.
+    """
+    test_file = tmp_path / "test.txt"
+    result = write_file(test_file, None, tld=tmp_path)
+    assert result is None
+    assert not test_file.exists()
+
+
+def test_write_file_empty_allowed(tmp_path: Path) -> None:
+    """Tests that write_file writes empty data when allowed.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        Empty data is written when allow_empty=True.
+    """
+    test_file = tmp_path / "test.txt"
+    result = write_file(test_file, "", allow_empty=True, encoding="raw", tld=tmp_path)
+    assert result == test_file.resolve()
+    assert test_file.exists()
+
+
+def test_delete_file_exists(tmp_path: Path) -> None:
+    """Tests deleting an existing file.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        File is deleted and True is returned.
+    """
+    test_file = tmp_path / "test.txt"
+    test_file.write_text("content")
+
+    result = delete_file(test_file, tld=tmp_path)
+
+    assert result is True
+    assert not test_file.exists()
+
+
+def test_delete_file_not_exists(tmp_path: Path) -> None:
+    """Tests deleting a nonexistent file with missing_ok=True.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        False is returned and no error is raised.
+    """
+    test_file = tmp_path / "nonexistent.txt"
+    result = delete_file(test_file, tld=tmp_path, missing_ok=True)
+    assert result is False
+
+
+def test_delete_file_not_exists_error(tmp_path: Path) -> None:
+    """Tests deleting a nonexistent file with missing_ok=False.
+
+    Args:
+        tmp_path: Pytest fixture for a temporary directory.
+
+    Asserts:
+        FileNotFoundError is raised.
+    """
+    test_file = tmp_path / "nonexistent.txt"
+    with pytest.raises(FileNotFoundError):
+        delete_file(test_file, tld=tmp_path, missing_ok=False)

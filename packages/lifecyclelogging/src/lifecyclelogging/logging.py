@@ -5,6 +5,7 @@ This module provides a Logging class that supports advanced logging features inc
 - Message storage and filtering
 - Verbosity control
 - Context and storage marker systems
+- Clean exit with formatted output (exit_run)
 
 The module allows for fine-grained control over log message handling, storage,
 and output across different logging contexts.
@@ -12,22 +13,47 @@ and output across different logging contexts.
 
 from __future__ import annotations
 
+import base64
 import logging
 import os
+import sys
 
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
+from copy import deepcopy
+from pathlib import Path
 from typing import (
     Any,
+    Callable,
+    ClassVar,
     cast,
 )
 
-from extended_data_types import get_unique_signature, strtobool
+import orjson
+
+from extended_data_types import (
+    get_unique_signature,
+    is_nothing,
+    strtobool,
+    to_camel_case,
+    to_kebab_case,
+    to_pascal_case,
+    to_snake_case,
+    wrap_raw_data_for_export,
+)
 
 from .const import VERBOSITY
 from .handlers import add_console_handler, add_file_handler
 from .log_types import LogLevel
 from .utils import add_json_data, clear_existing_handlers, find_logger, get_log_level
+
+
+# Type alias for key transformation functions
+KeyTransform = Callable[[str], str]
+
+
+class ExitRunError(Exception):
+    """Raised when exit_run encounters a formatting or data error."""
 
 
 class Logging:
@@ -325,3 +351,310 @@ class Logging:
         logger_method = getattr(self.logger, log_level)
         logger_method(final_msg)
         return final_msg
+
+    def log_results(
+        self,
+        results: Any,
+        log_file_name: str,
+        no_formatting: bool = False,
+        ext: str | None = None,
+        verbose: bool = False,
+        verbosity: int = 0,
+    ) -> None:
+        """Log results to a file.
+
+        Args:
+            results: The results to log.
+            log_file_name: Base name for the log file.
+            no_formatting: If True, write results as-is without JSON formatting.
+            ext: File extension (defaults to ".json").
+            verbose: Whether this is a verbose log.
+            verbosity: Verbosity level for this log.
+        """
+        if self.verbosity_exceeded(verbose, verbosity):
+            return
+
+        log_file_path = Path(f"./{log_file_name}").with_suffix(ext or ".json")
+        log_file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        if no_formatting:
+            log_file_path.write_text(str(results))
+        else:
+            log_file_path.write_text(
+                wrap_raw_data_for_export(results, allow_encoding=True)
+            )
+
+        self.logged_statement(f"New results log: {log_file_path}")
+
+    # Built-in key transforms from extended-data-types
+    KEY_TRANSFORMS: ClassVar[dict[str, KeyTransform]] = {
+        "snake_case": to_snake_case,
+        "camel_case": to_camel_case,
+        "pascal_case": to_pascal_case,
+        "kebab_case": to_kebab_case,
+    }
+
+    def _resolve_key_transform(
+        self,
+        key_transform: KeyTransform | str | None,
+        unhump_results: bool,
+        prefix: str | None,
+    ) -> KeyTransform | None:
+        """Resolve key_transform parameter to a callable.
+
+        Args:
+            key_transform: User-provided transform (callable, string name, or None).
+            unhump_results: Legacy flag for snake_case transformation.
+            prefix: If set, implies transformation is needed.
+
+        Returns:
+            A callable transform function or None.
+        """
+        # Explicit transform takes precedence
+        if key_transform is not None:
+            if callable(key_transform):
+                return key_transform
+            if isinstance(key_transform, str):
+                if key_transform not in self.KEY_TRANSFORMS:
+                    available = ", ".join(self.KEY_TRANSFORMS.keys())
+                    raise ValueError(
+                        f"Unknown key_transform '{key_transform}'. "
+                        f"Available: {available}"
+                    )
+                return self.KEY_TRANSFORMS[key_transform]
+
+        # Legacy unhump_results flag
+        if unhump_results or prefix:
+            return to_snake_case
+
+        return None
+
+    def _transform_nested_keys(
+        self,
+        data: Mapping[str, Any],
+        transform_fn: KeyTransform,
+    ) -> dict[str, Any]:
+        """Recursively transform all keys in a nested mapping.
+
+        Args:
+            data: The mapping to transform.
+            transform_fn: Function to apply to each key.
+
+        Returns:
+            A new dict with all keys transformed.
+        """
+        result = {}
+        for key, value in data.items():
+            transformed_key = transform_fn(key)
+            if isinstance(value, Mapping):
+                result[transformed_key] = self._transform_nested_keys(
+                    value, transform_fn
+                )
+            elif isinstance(value, list):
+                result[transformed_key] = [
+                    self._transform_nested_keys(item, transform_fn)
+                    if isinstance(item, Mapping)
+                    else item
+                    for item in value
+                ]
+            else:
+                result[transformed_key] = value
+        return result
+
+    def exit_run(
+        self,
+        results: Mapping[str, Any] | None = None,
+        unhump_results: bool = False,
+        key_transform: KeyTransform | str | None = None,
+        prefix: str | None = None,
+        prefix_allowlist: Sequence[str] | None = None,
+        prefix_denylist: Sequence[str] | None = None,
+        prefix_delimiter: str = "_",
+        sort_by_field: str | None = None,
+        format_results: bool = True,
+        encode_to_base64: bool = False,
+        encode_all_values_to_base64: bool = False,
+        key: str | None = None,
+        exit_on_completion: bool = True,
+        **format_opts: Any,
+    ) -> Any:
+        """Format results and optionally exit the program cleanly.
+
+        This method handles the lifecycle of formatting and outputting results,
+        typically used at the end of a data processing run. It supports:
+        - Error aggregation and reporting
+        - Result transformation (key transforms, prefixing, sorting)
+        - Base64 encoding
+        - JSON serialization
+        - Clean stdout output and exit
+
+        Args:
+            results: The results to format and output. Defaults to empty dict.
+            unhump_results: Convert camelCase keys to snake_case (shorthand for
+                key_transform="snake_case").
+            key_transform: Transform function for result keys. Can be:
+                - A callable that takes a string and returns a string
+                - A string naming a built-in transform: "snake_case", "camel_case",
+                  "pascal_case", "kebab_case"
+                - None to skip transformation
+                When unhump_results=True, defaults to "snake_case".
+            prefix: Prefix to add to result keys (implies key transformation).
+            prefix_allowlist: Keys to include when prefixing.
+            prefix_denylist: Keys to exclude when prefixing.
+            prefix_delimiter: Delimiter between prefix and key (default "_").
+            sort_by_field: Sort results by this field's value.
+            format_results: Whether to format results before base64 encoding.
+            encode_to_base64: Encode entire result to base64.
+            encode_all_values_to_base64: Encode each top-level value to base64.
+            key: Wrap results in a dict with this key.
+            exit_on_completion: If True, write to stdout and exit(0).
+                If False, return the formatted results.
+            **format_opts: Additional options for wrap_raw_data_for_export.
+
+        Returns:
+            If exit_on_completion=False, returns the formatted results.
+            Otherwise, writes to stdout and exits with code 0.
+
+        Raises:
+            RuntimeError: If there are accumulated errors in error_list.
+            ExitRunError: If result formatting fails.
+
+        Examples:
+            # Simple snake_case transformation (most common)
+            logging.exit_run(results, unhump_results=True)
+
+            # Explicit transform
+            logging.exit_run(results, key_transform="kebab_case")
+
+            # Custom transform function
+            logging.exit_run(results, key_transform=lambda k: k.upper())
+        """
+        # Resolve key_transform from various inputs
+        transform_fn = self._resolve_key_transform(
+            key_transform, unhump_results, prefix
+        )
+        try:
+            self.log_results(results, "results")
+
+            if self.error_list:
+                raise RuntimeError(os.linesep.join(self.error_list))
+
+            prefix_allowlist = list(prefix_allowlist) if prefix_allowlist else []
+            prefix_denylist = list(prefix_denylist) if prefix_denylist else []
+
+            if results is None:
+                results = {}
+
+            if sort_by_field:
+                sorted_results = {}
+                field_value_counts: dict[str, int] = {}
+                for top_level_key, top_level_value in results.items():
+                    field_data = top_level_value.get(sort_by_field)
+                    if is_nothing(field_data):
+                        raise ExitRunError(
+                            f"Cannot return results when top level key {top_level_key}'s "
+                            f"value for sort by field {sort_by_field} is empty or does not exist"
+                        )
+                    # Handle duplicate field values by appending a suffix
+                    new_key = str(field_data)
+                    if new_key in field_value_counts:
+                        field_value_counts[new_key] += 1
+                        new_key = f"{new_key}_{field_value_counts[new_key]}"
+                    else:
+                        field_value_counts[new_key] = 0
+                    sorted_results[new_key] = top_level_value
+                results = sorted_results
+
+            if transform_fn is not None:
+                if prefix:
+                    for top_level_key, top_level_value in results.items():
+                        if not isinstance(top_level_value, Mapping):
+                            results[top_level_key] = top_level_value
+                            continue
+
+                        transformed_result = {}
+                        for field_name, field_data in top_level_value.items():
+                            transformed_key = transform_fn(field_name)
+
+                            if (
+                                (
+                                    is_nothing(prefix_allowlist)
+                                    or field_name in prefix_allowlist
+                                    or transformed_key in prefix_allowlist
+                                )
+                                and field_name not in prefix_denylist
+                                and transformed_key not in prefix_denylist
+                            ):
+                                transformed_key = prefix_delimiter.join(
+                                    [prefix, transformed_key]
+                                )
+
+                            if isinstance(field_data, Mapping):
+                                transformed_result[transformed_key] = (
+                                    self._transform_nested_keys(
+                                        field_data, transform_fn
+                                    )
+                                )
+                            elif isinstance(field_data, list):
+                                transformed_result[transformed_key] = [
+                                    self._transform_nested_keys(item, transform_fn)
+                                    if isinstance(item, Mapping)
+                                    else item
+                                    for item in field_data
+                                ]
+                            else:
+                                transformed_result[transformed_key] = field_data
+
+                        results[top_level_key] = transformed_result
+                else:
+                    results = self._transform_nested_keys(results, transform_fn)
+
+            if not exit_on_completion:
+                return results
+
+            if "default" not in format_opts:
+                format_opts["default"] = str
+
+            def encode_result_with_base64(r: Any) -> str:
+                if format_results:
+                    self.logger.info(
+                        "Formatting results before encoding them with base64"
+                    )
+                    r = wrap_raw_data_for_export(r, **format_opts)
+
+                # Ensure we have a string for encoding
+                if isinstance(r, bytes):
+                    return base64.b64encode(r).decode("utf-8")
+                if isinstance(r, str):
+                    return base64.b64encode(r.encode("utf-8")).decode("utf-8")
+                return base64.b64encode(str(r).encode("utf-8")).decode("utf-8")
+
+            if encode_all_values_to_base64:
+                self.logger.info("Encoding all top-level values in results with base64")
+                results = {
+                    top_level_key: encode_result_with_base64(top_level_value)
+                    for top_level_key, top_level_value in deepcopy(results).items()
+                }
+                self.log_results(results, "results_values_base64_encoded")
+
+            if encode_to_base64:
+                self.logger.info("Encoding results with base64")
+                results = encode_result_with_base64(results)
+                self.log_results(results, "results_base64_encoded")
+
+            if key:
+                self.logger.info("Wrapping results in key %s", key)
+                results = {key: results}
+
+            if not isinstance(results, str):
+                self.logger.info("Dumping results to JSON")
+                results = orjson.dumps(results, default=str).decode("utf-8")
+
+            sys.stdout.write(results)
+            sys.exit(0)
+        except ExitRunError as exc:
+            err_msg = (
+                f"Failed to dump results because of a formatting error:\n\n{results}"
+            )
+            self.logger.critical(err_msg, exc_info=True)
+            raise RuntimeError(err_msg) from exc

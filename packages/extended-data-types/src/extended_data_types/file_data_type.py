@@ -2,7 +2,8 @@
 
 This module provides utilities for working with file paths, Git repositories,
 and file extensions. It includes functions for retrieving the parent Git repository,
-cloning repositories to temporary directories, and checking file extensions and encodings.
+cloning repositories to temporary directories, reading/writing files, and checking
+file extensions and encodings.
 """
 
 from __future__ import annotations
@@ -10,8 +11,13 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
+import urllib.request
 
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
+
+import validators
 
 
 if sys.version_info >= (3, 10):
@@ -219,3 +225,225 @@ def file_path_rel_to_root(file_path: FilePath) -> str:
     if depth == 0:
         return ""
     return "/".join([".."] * depth)
+
+
+def resolve_local_path(file_path: FilePath, tld: Path | None = None) -> Path:
+    """Resolves a file path relative to a top-level directory.
+
+    If the path is absolute, it is returned as-is (resolved).
+    If the path is relative and a tld is provided, it is resolved relative to tld.
+    If the path is relative and no tld is provided, attempts to find the Git repository root.
+
+    Args:
+        file_path (FilePath): The path to resolve.
+        tld (Path | None): Optional top-level directory for relative paths.
+            If None, attempts to use the Git repository root.
+
+    Returns:
+        Path: The resolved absolute path.
+
+    Raises:
+        RuntimeError: If the path is relative and no tld is available.
+    """
+    path = Path(file_path)
+    if path.is_absolute():
+        return path.resolve()
+
+    if tld is None:
+        tld = get_tld()
+
+    if tld is None:
+        raise RuntimeError(
+            f"Cannot resolve relative path '{file_path}' without a top-level directory"
+        )
+
+    return Path(tld, file_path).resolve()
+
+
+def is_url(path: str) -> bool:
+    """Check if a string is a valid and safe URL.
+
+    Uses the validators library for robust URL validation,
+    restricted to HTTP/HTTPS schemes only.
+
+    Args:
+        path (str): The string to check.
+
+    Returns:
+        bool: True if the string is a valid HTTP/HTTPS URL.
+    """
+    if not path:
+        return False
+    # validators.url returns True for valid URLs, ValidationError otherwise
+    result = validators.url(path)
+    if result is not True:
+        return False
+    # Additional check: only allow http/https schemes
+    return path.startswith(("http://", "https://"))
+
+
+def read_file(
+    file_path: FilePath,
+    decode: bool = True,
+    return_path: bool = False,
+    charset: str = "utf-8",
+    errors: str = "strict",
+    headers: Mapping[str, str] | None = None,
+    tld: Path | None = None,
+) -> str | bytes | Path | None:
+    """Reads a file from a local path or URL.
+
+    Args:
+        file_path (FilePath): The path or URL to read from.
+        decode (bool): Whether to decode bytes to string. Defaults to True.
+        return_path (bool): If True, returns the resolved Path object instead of contents.
+        charset (str): Character encoding for decoding. Defaults to "utf-8".
+        errors (str): Error handling for decoding. Defaults to "strict".
+        headers (Mapping[str, str] | None): HTTP headers for URL requests.
+        tld (Path | None): Top-level directory for resolving relative paths.
+
+    Returns:
+        str | bytes | Path | None: The file contents (str if decoded, bytes otherwise),
+            the Path object if return_path=True, or None if the file doesn't exist.
+
+    Raises:
+        urllib.error.URLError: If the URL cannot be accessed.
+        ValueError: If the URL scheme is not allowed (only http/https permitted).
+    """
+    path_str = str(file_path)
+
+    # Handle URLs (is_url already validates HTTP/HTTPS only)
+    if is_url(path_str):
+        headers = headers or {}
+        request = urllib.request.Request(path_str, headers=dict(headers))
+        with urllib.request.urlopen(request) as response:
+            file_data = response.read()
+            if decode:
+                return file_data.decode(charset, errors=errors)
+            return file_data
+
+    # Handle local files
+    local_path = resolve_local_path(file_path, tld=tld)
+
+    if return_path:
+        return local_path
+
+    if not local_path.exists():
+        return None
+
+    file_data = local_path.read_bytes()
+    if decode:
+        return file_data.decode(charset, errors=errors)
+    return file_data
+
+
+def decode_file(
+    file_data: str,
+    file_path: FilePath | None = None,
+    suffix: str | None = None,
+) -> Any:
+    """Decodes file data based on file extension or explicit suffix.
+
+    Supports YAML, JSON, TOML, and HCL2 formats.
+
+    Args:
+        file_data (str): The file contents to decode.
+        file_path (FilePath | None): Optional file path to infer format from extension.
+        suffix (str | None): Explicit format suffix (e.g., "yaml", "json", "toml", "hcl").
+            Takes precedence over file_path extension.
+
+    Returns:
+        Any: The decoded data structure, or the original string if format is unknown.
+    """
+    # Lazy imports to avoid circular dependencies
+    from .hcl2_utils import decode_hcl2
+    from .json_utils import decode_json
+    from .toml_utils import decode_toml
+    from .yaml_utils import decode_yaml
+
+    if suffix is None and file_path is not None:
+        suffix = Path(file_path).suffix.lstrip(".").lower()
+
+    # Map suffixes to decoder functions
+    decoder_map = {
+        "yml": decode_yaml,
+        "yaml": decode_yaml,
+        "json": decode_json,
+        "toml": decode_toml,
+        "hcl": decode_hcl2,
+        "tf": decode_hcl2,
+    }
+
+    decoder = decoder_map.get(suffix)
+    if decoder is not None:
+        return decoder(file_data)
+    return file_data
+
+
+def write_file(
+    file_path: FilePath,
+    data: Any,
+    encoding: str | None = None,
+    charset: str = "utf-8",
+    allow_empty: bool = False,
+    tld: Path | None = None,
+) -> Path | None:
+    """Writes data to a file with automatic format encoding.
+
+    Args:
+        file_path (FilePath): The path to write to.
+        data (Any): The data to write. Will be encoded based on file extension or encoding param.
+        encoding (str | None): Explicit encoding format ("yaml", "json", "toml", "raw").
+            If None, inferred from file extension.
+        charset (str): Character encoding for the file. Defaults to "utf-8".
+        allow_empty (bool): Whether to allow writing empty data. Defaults to False.
+        tld (Path | None): Top-level directory for resolving relative paths.
+
+    Returns:
+        Path | None: The path that was written to, or None if data was empty and not allowed.
+    """
+    from .export_utils import wrap_raw_data_for_export
+    from .state_utils import is_nothing
+
+    if is_nothing(data) and not allow_empty:
+        return None
+
+    if encoding is None:
+        encoding = get_encoding_for_file_path(file_path)
+
+    # Encode the data
+    if encoding != "raw" and not isinstance(data, str):
+        data = wrap_raw_data_for_export(data, allow_encoding=encoding)
+
+    local_path = resolve_local_path(file_path, tld=tld)
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+
+    if isinstance(data, bytes):
+        local_path.write_bytes(data)
+    else:
+        local_path.write_text(str(data), encoding=charset)
+
+    return local_path
+
+
+def delete_file(
+    file_path: FilePath, tld: Path | None = None, missing_ok: bool = True
+) -> bool:
+    """Deletes a file at the given path.
+
+    Args:
+        file_path (FilePath): The path to the file to delete.
+        tld (Path | None): Top-level directory for resolving relative paths.
+        missing_ok (bool): If True, return False when file doesn't exist.
+            If False, raise FileNotFoundError when file doesn't exist. Defaults to True.
+
+    Returns:
+        bool: True if the file was deleted, False if it didn't exist (only when missing_ok=True).
+
+    Raises:
+        FileNotFoundError: If the file doesn't exist and missing_ok=False.
+    """
+    local_path = resolve_local_path(file_path, tld=tld)
+    existed = local_path.exists()
+    local_path.unlink(missing_ok=missing_ok)
+    return existed
