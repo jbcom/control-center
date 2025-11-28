@@ -66,8 +66,8 @@ jobs:
           
           # Copy and customize CLAUDE.md
           cp ../control-center/templates/claude/CLAUDE.md.template ./CLAUDE.md
-          sed -i "s/\${PACKAGE_NAME}/$PACKAGE_NAME/g" ./CLAUDE.md
-          sed -i "s/\${REPO}/${{ matrix.repo }}/g" ./CLAUDE.md
+          sed -i "s|\${PACKAGE_NAME}|$PACKAGE_NAME|g" ./CLAUDE.md
+          sed -i "s|\${REPO}|${{ matrix.repo }}|g" ./CLAUDE.md
           
           # Copy commands
           cp ../control-center/templates/claude/commands/*.md ./.claude/commands/
