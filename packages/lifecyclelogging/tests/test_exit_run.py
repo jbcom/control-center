@@ -267,6 +267,38 @@ class TestExitRunNoExit:
         assert "zebra" in output
         assert "apple" in output
 
+    def test_exit_run_sort_by_field_duplicate_values(
+        self, logger: Logging, tmp_path: Path
+    ) -> None:
+        """Test sort_by_field handles duplicate field values without data loss."""
+        import os
+
+        os.chdir(tmp_path)
+        results = {
+            "a": {"sortKey": "same_value", "data": "first"},
+            "b": {"sortKey": "same_value", "data": "second"},
+            "c": {"sortKey": "same_value", "data": "third"},
+            "d": {"sortKey": "unique", "data": "fourth"},
+        }
+        output = logger.exit_run(
+            results,
+            sort_by_field="sortKey",
+            exit_on_completion=False,
+        )
+        # All items should be preserved - no data loss
+        assert len(output) == 4
+        # First occurrence uses the field value as key
+        assert "same_value" in output
+        # Subsequent duplicates get numeric suffixes
+        assert "same_value_1" in output
+        assert "same_value_2" in output
+        assert "unique" in output
+        # Verify data is correct
+        assert output["same_value"]["data"] == "first"
+        assert output["same_value_1"]["data"] == "second"
+        assert output["same_value_2"]["data"] == "third"
+        assert output["unique"]["data"] == "fourth"
+
     def test_exit_run_sort_missing_field_raises(
         self, logger: Logging, tmp_path: Path
     ) -> None:

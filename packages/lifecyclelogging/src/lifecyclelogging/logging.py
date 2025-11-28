@@ -543,6 +543,7 @@ class Logging:
 
             if sort_by_field:
                 sorted_results = {}
+                field_value_counts: dict[str, int] = {}
                 for top_level_key, top_level_value in results.items():
                     field_data = top_level_value.get(sort_by_field)
                     if is_nothing(field_data):
@@ -550,7 +551,14 @@ class Logging:
                             f"Cannot return results when top level key {top_level_key}'s "
                             f"value for sort by field {sort_by_field} is empty or does not exist"
                         )
-                    sorted_results[field_data] = top_level_value
+                    # Handle duplicate field values by appending a suffix
+                    new_key = str(field_data)
+                    if new_key in field_value_counts:
+                        field_value_counts[new_key] += 1
+                        new_key = f"{new_key}_{field_value_counts[new_key]}"
+                    else:
+                        field_value_counts[new_key] = 0
+                    sorted_results[new_key] = top_level_value
                 results = sorted_results
 
             if transform_fn is not None:
