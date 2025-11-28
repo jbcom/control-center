@@ -202,6 +202,11 @@ ignore = [
     "PYI041", # Use float instead of int|float - intentional for flexibility
 ]
 
+"src/extended_data_types/file_data_type.py" = [
+    "PLC0415", # Lazy imports to avoid circular dependencies
+    "S310",    # URL open is intentional - scheme validation done via is_url
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 [tool.ruff.lint.isort]
