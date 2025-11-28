@@ -4,6 +4,7 @@ This utility ingests a Cursor conversation export (the JSON stored in
 `.cursor/recovery/<agent-id>/conversation.json`) and updates the global
 `memory-bank` with:
 - A full chronological transcript saved under `memory-bank/recovery/`
+- A structured CHRONOLOGICAL_HISTORY.md with PRs, commits, issues extracted
 - A succinct progress entry appended to `memory-bank/progress.md`
 - A refreshed `memory-bank/activeContext.md` reflecting the replayed focus
 - An optional delegation plan that can be piped into MCP-friendly CLIs
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import subprocess
 import textwrap
 from datetime import UTC, datetime
@@ -24,7 +26,6 @@ from typing import Any, Iterable
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 MEMORY_BANK_ROOT = REPO_ROOT / "memory-bank"
-# CURSOR_MEMORY_BANK_ROOT removed - all memory now lives in global memory-bank/
 
 DEFAULT_TIMELINE_LIMIT = 50
 
@@ -54,6 +55,124 @@ def _load_conversation(path: Path) -> list[dict[str, str]]:
         parsed.append({"role": role, "text": text})
 
     return parsed
+
+
+def _extract_artifacts(messages: list[dict[str, str]]) -> dict[str, set[str]]:
+    """Extract PRs, commits, issues, branches, repos from conversation."""
+    artifacts: dict[str, set[str]] = {
+        "prs": set(),
+        "commits": set(),
+        "issues": set(),
+        "branches": set(),
+        "repos": set(),
+        "files": set(),
+    }
+    
+    for msg in messages:
+        text = msg["text"]
+        
+        # Extract PRs (PR #123, #123, pull/123)
+        for match in re.findall(r'(?:PR\s*)?#(\d+)', text):
+            if int(match) < 10000:  # Filter out run IDs
+                artifacts["prs"].add(f"#{match}")
+        
+        # Extract commits (7+ char hex)
+        for match in re.findall(r'\b([a-f0-9]{7,40})\b', text.lower()):
+            artifacts["commits"].add(match[:7])
+        
+        # Extract branches
+        for match in re.findall(r'((?:feat|fix|docs|refactor|chore|agent|copilot|cursor)/[a-z0-9_-]+)', text):
+            artifacts["branches"].add(match)
+        
+        # Extract repos
+        for match in re.findall(r'(?:github\.com/)?([a-zA-Z][a-zA-Z0-9_-]*/[a-zA-Z][a-zA-Z0-9_-]+)', text):
+            if match.split('/')[0].lower() in ('jbcom', 'flipsidecrypto', 'fsc'):
+                artifacts["repos"].add(match)
+        
+        # Extract files
+        for match in re.findall(r'([a-zA-Z0-9_/.-]+\.(?:py|ts|tsx|js|md|yml|yaml|toml|json|sh))', text):
+            if len(match) < 100:  # Filter out long paths
+                artifacts["files"].add(match)
+    
+    return artifacts
+
+
+def _extract_key_events(messages: list[dict[str, str]]) -> list[str]:
+    """Extract key events (commits, merges, PRs created, etc)."""
+    events: list[str] = []
+    keywords = [
+        "✅", "❌", "merged", "created pr", "pushed", "committed", 
+        "fixed", "completed", "done", "success", "failed", "error"
+    ]
+    
+    for i, msg in enumerate(messages):
+        if msg["role"] != "assistant":
+            continue
+        text_lower = msg["text"].lower()
+        for keyword in keywords:
+            if keyword.lower() in text_lower:
+                # Extract first 200 chars of relevant message
+                snippet = msg["text"][:200].replace('\n', ' ')
+                events.append(f"[{i+1}] {snippet}...")
+                break
+    
+    return events[-30:]  # Last 30 events
+
+
+def _generate_chronological_history(
+    messages: list[dict[str, str]], 
+    session_label: str,
+    artifacts: dict[str, set[str]],
+    events: list[str]
+) -> str:
+    """Generate a structured chronological history document."""
+    
+    return textwrap.dedent(f"""
+# Chronological History: {session_label}
+
+**Generated**: {datetime.now(UTC).isoformat()}
+**Messages**: {len(messages)}
+**User Messages**: {sum(1 for m in messages if m['role'] == 'user')}
+**Assistant Messages**: {sum(1 for m in messages if m['role'] == 'assistant')}
+
+---
+
+## Extracted Artifacts
+
+### PRs ({len(artifacts['prs'])})
+{chr(10).join(f"- {pr}" for pr in sorted(artifacts['prs'])) or "- (none)"}
+
+### Branches ({len(artifacts['branches'])})
+{chr(10).join(f"- `{b}`" for b in sorted(artifacts['branches'])) or "- (none)"}
+
+### Repositories ({len(artifacts['repos'])})
+{chr(10).join(f"- {r}" for r in sorted(artifacts['repos'])) or "- (none)"}
+
+### Commits ({len(artifacts['commits'])})
+{chr(10).join(f"- `{c}`" for c in sorted(artifacts['commits'])[:20]) or "- (none)"}
+{f"- ... and {len(artifacts['commits']) - 20} more" if len(artifacts['commits']) > 20 else ""}
+
+### Files Mentioned ({len(artifacts['files'])})
+{chr(10).join(f"- `{f}`" for f in sorted(artifacts['files'])[:30]) or "- (none)"}
+{f"- ... and {len(artifacts['files']) - 30} more" if len(artifacts['files']) > 30 else ""}
+
+---
+
+## Key Events Timeline
+
+{chr(10).join(events) or "(No key events extracted)"}
+
+---
+
+## User Instructions (Chronological)
+
+{chr(10).join(f"**[{i+1}]** {m['text'][:300]}{'...' if len(m['text']) > 300 else ''}" 
+              for i, m in enumerate(messages) if m['role'] == 'user')[:20] or "(No user messages)"}
+
+---
+
+*Auto-generated by replay_agent_session.py*
+    """).strip() + "\n"
 
 
 def _normalize_session_label(path: Path, explicit_label: str | None) -> str:
@@ -255,11 +374,45 @@ def main() -> None:
         "--ai-command",
         help="Optional CLI to generate an AI-authored summary (e.g., 'codex summarize --stdin').",
     )
+    parser.add_argument(
+        "--output-dir",
+        type=Path,
+        help="Output directory for recovery artifacts (defaults to conversation parent dir).",
+    )
 
     args = parser.parse_args()
 
     messages = _load_conversation(args.conversation)
     session_label = _normalize_session_label(args.conversation, args.session_label)
+    
+    # Extract artifacts automatically
+    print(f"📊 Processing {len(messages)} messages...")
+    artifacts = _extract_artifacts(messages)
+    events = _extract_key_events(messages)
+    
+    print(f"   PRs: {len(artifacts['prs'])}")
+    print(f"   Branches: {len(artifacts['branches'])}")
+    print(f"   Repos: {len(artifacts['repos'])}")
+    print(f"   Commits: {len(artifacts['commits'])}")
+    print(f"   Files: {len(artifacts['files'])}")
+    print(f"   Key Events: {len(events)}")
+    
+    # Generate and write chronological history
+    history_content = _generate_chronological_history(messages, session_label, artifacts, events)
+    recovery_dir = MEMORY_BANK_ROOT / "recovery"
+    recovery_dir.mkdir(parents=True, exist_ok=True)
+    history_path = recovery_dir / f"{session_label}-chronological-history.md"
+    history_path.write_text(history_content)
+    print(f"✅ Chronological history: {history_path}")
+    
+    # Also write to original recovery location if different
+    if args.output_dir:
+        args.output_dir.mkdir(parents=True, exist_ok=True)
+        (args.output_dir / "CHRONOLOGICAL_HISTORY.md").write_text(history_content)
+    elif args.conversation.parent != recovery_dir:
+        (args.conversation.parent / "CHRONOLOGICAL_HISTORY.md").write_text(history_content)
+    
+    # Generate timeline
     condensed_timeline = _format_timeline(messages, limit=args.timeline_limit)
     timeline_path = _write_recovery_timeline(condensed_timeline, session_label=session_label)
 
@@ -271,14 +424,20 @@ def main() -> None:
 
     _append_progress_entry(summary, timeline_path, tasks, session_label)
     _refresh_active_context(summary, tasks, session_label)
-    # Mirroring to .cursor/memory-bank removed - global memory-bank/ is the single source of truth
 
+    print("")
     print("=== Replay complete ===")
-    print(f"Session label: {session_label}")
-    print(f"Transcript:   {timeline_path}")
-    print(f"Delegation:   {delegation_plan}")
-    print(f"Progress log: {MEMORY_BANK_ROOT / 'progress.md'}")
-    print(f"Active ctx:   {MEMORY_BANK_ROOT / 'activeContext.md'}")
+    print(f"Session label:    {session_label}")
+    print(f"History:          {history_path}")
+    print(f"Transcript:       {timeline_path}")
+    print(f"Delegation:       {delegation_plan}")
+    print(f"Progress log:     {MEMORY_BANK_ROOT / 'progress.md'}")
+    print(f"Active ctx:       {MEMORY_BANK_ROOT / 'activeContext.md'}")
+    print("")
+    print("Artifacts extracted:")
+    print(f"  PRs:      {', '.join(sorted(artifacts['prs'])[:10]) or '(none)'}")
+    print(f"  Branches: {', '.join(sorted(artifacts['branches'])[:5]) or '(none)'}")
+    print(f"  Repos:    {', '.join(sorted(artifacts['repos'])[:5]) or '(none)'}")
 
 
 if __name__ == "__main__":
