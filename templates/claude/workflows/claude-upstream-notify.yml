@@ -48,7 +48,7 @@ jobs:
       - name: Notify Control Plane
         if: steps.find_ref.outputs.control_issue != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
           CONTROL_ISSUE="${{ steps.find_ref.outputs.control_issue }}"
           TYPE="${{ steps.find_ref.outputs.type }}"

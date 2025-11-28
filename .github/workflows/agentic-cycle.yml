@@ -77,7 +77,7 @@ jobs:
       
       - name: Parse cycle and create repo issues
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
           CYCLE_NUM: ${{ needs.detect-cycle.outputs.cycle_number }}
         run: |
           # Get cycle issue details
@@ -157,7 +157,7 @@ Monitor progress via the links above. Repos will notify back when complete.
     steps:
       - name: Collect status from repos
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
           CYCLE_NUM: ${{ needs.detect-cycle.outputs.cycle_number }}
         run: |
           echo "Aggregating status for cycle #$CYCLE_NUM..."
@@ -213,7 +213,7 @@ Monitor progress via the links above. Repos will notify back when complete.
     steps:
       - name: Verify and close cycle
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
           CYCLE_NUM: ${{ needs.detect-cycle.outputs.cycle_number }}
         run: |
           echo "Completing cycle #$CYCLE_NUM..."
