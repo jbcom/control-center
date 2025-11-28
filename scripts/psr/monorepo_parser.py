@@ -151,8 +151,18 @@ class ConventionalMonorepoParserOptions(ParserOptions):
 class ConventionalCommitMonorepoParser(
     CommitParser[ParseResult, ConventionalMonorepoParserOptions]
 ):
-    """"""
+    """
+    Parses conventional commit messages in a monorepo context, supporting filtering of commits
+    relevant to specific packages within the monorepo.
 
+    This parser applies selection and ignore filters based on file paths, allowing it to
+    determine which commits affect which packages. It uses configurable path filters to
+    include or exclude commits based on the files they touch, enabling accurate changelog
+    generation and version bumping for individual packages in a monorepo.
+
+    The parser also supports custom commit type patterns, scope prefixes, and integration
+    with issue and merge request selectors, making it suitable for complex monorepo workflows.
+    """
     # TODO: Deprecate in lieu of get_default_options()
     parser_options = ConventionalMonorepoParserOptions
 
