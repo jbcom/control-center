@@ -1,42 +1,45 @@
-# jbcom Control Center Wiki
+# jbcom Control Center
 
 Central documentation hub for the jbcom Python library ecosystem.
 
-## Quick Navigation
+## Memory Bank
 
-### 📋 [Memory Bank](memory-bank/)
-- [Active Context](memory-bank/Active-Context) - Current work focus
-- [Progress](memory-bank/Progress) - Session history
-- [Agentic Rules](memory-bank/Agentic-Rules) - Core behavior rules
+- [Active Context](Active-Context.md) - Current work focus
+- [Progress](Progress.md) - Session history
+- [Agentic Rules Overview](Agentic-Rules-Overview.md)
 
-### 📜 [Agentic Rules](agentic-rules/)
-- [Core Guidelines](agentic-rules/Core-Guidelines) - **MUST READ FIRST**
-- [Python Standards](agentic-rules/Python-Standards) - Code style
-- [PR Ownership](agentic-rules/PR-Ownership) - AI collaboration
-- [Ecosystem](agentic-rules/Ecosystem) - Cross-repo coordination
-- [Self Sufficiency](agentic-rules/Self-Sufficiency) - Tool discovery
-- [Environment Setup](agentic-rules/Environment-Setup) - Docker, deps
+## Agentic Rules
 
-### 🤖 [Agent Instructions](agent-instructions/)
-- [Cursor](agent-instructions/Cursor) - Background agent modes
-- [Copilot](agent-instructions/Copilot) - Quick patterns
-- [Claude](agent-instructions/Claude) - Commands, wiki access
+- [Core Guidelines](Core-Guidelines.md) - **MUST READ FIRST**
+- [Python Standards](Python-Standards.md)
+- [PR Ownership](PR-Ownership.md)
+- [Ecosystem](Ecosystem.md)
+- [Self Sufficiency](Self-Sufficiency.md)
+- [Environment Setup](Environment-Setup.md)
 
-### 📚 [Documentation](documentation/)
-- [Architecture](documentation/Architecture)
-- [Agentic Orchestration](documentation/Agentic-Orchestration)
-- [Agent Handoff](documentation/Agent-Handoff)
-- [Cursor Management](documentation/Cursor-Management)
-- [Diff Recovery](documentation/Diff-Recovery)
-- [MCP Setup](documentation/MCP-Setup)
-- [MCP Proxy Setup](documentation/MCP-Proxy-Setup)
-- [MCP Proxy Strategy](documentation/MCP-Proxy-Strategy)
-- [Multi AI Review](documentation/Multi-AI-Review)
+## Agent Instructions
 
-### 🔄 [Recovery](recovery/)
-- [2025-11-27](recovery/2025-11-27)
-- [Delegation](recovery/Delegation)
-- [Replay](recovery/Replay)
+- [Cursor](Cursor.md)
+- [Copilot](Copilot.md)
+- [Claude](Claude.md)
+
+## Documentation
+
+- [Architecture](Architecture.md)
+- [Agentic Orchestration](Agentic-Orchestration.md)
+- [Agent Handoff](Agent-Handoff.md)
+- [Cursor Management](Cursor-Management.md)
+- [Diff Recovery](Diff-Recovery.md)
+- [MCP Setup](MCP-Setup.md)
+- [MCP Proxy Setup](MCP-Proxy-Setup.md)
+- [MCP Proxy Strategy](MCP-Proxy-Strategy.md)
+- [Multi AI Review](Multi-AI-Review.md)
+
+## Recovery
+
+- [Recovery 2025-11-27](Recovery-2025-11-27.md)
+- [Recovery Delegation](Recovery-Delegation.md)
+- [Recovery Replay](Recovery-Replay.md)
 
 ---
 
@@ -44,16 +47,7 @@ Central documentation hub for the jbcom Python library ecosystem.
 
 | Package | PyPI | GitHub |
 |---------|------|--------|
-| extended-data-types | [PyPI](https://pypi.org/project/extended-data-types/) | [Repo](https://github.com/jbcom/extended-data-types) |
-| lifecyclelogging | [PyPI](https://pypi.org/project/lifecyclelogging/) | [Repo](https://github.com/jbcom/lifecyclelogging) |
-| vendor-connectors | [PyPI](https://pypi.org/project/vendor-connectors/) | [Repo](https://github.com/jbcom/vendor-connectors) |
-| directed-inputs-class | [PyPI](https://pypi.org/project/directed-inputs-class/) | [Repo](https://github.com/jbcom/directed-inputs-class) |
-
-## Quick Access
-
-```bash
-# Edit wiki locally, push to main, auto-syncs to wiki
-vim wiki/memory-bank/Progress.md
-git add wiki/ && git commit -m "Update progress"
-git push
-```
+| extended-data-types | [PyPI](https://pypi.org/project/extended-data-types/) | [GitHub](https://github.com/jbcom/extended-data-types) |
+| lifecyclelogging | [PyPI](https://pypi.org/project/lifecyclelogging/) | [GitHub](https://github.com/jbcom/lifecyclelogging) |
+| vendor-connectors | [PyPI](https://pypi.org/project/vendor-connectors/) | [GitHub](https://github.com/jbcom/vendor-connectors) |
+| directed-inputs-class | [PyPI](https://pypi.org/project/directed-inputs-class/) | [GitHub](https://github.com/jbcom/directed-inputs-class) |

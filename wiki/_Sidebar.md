@@ -1,45 +1,35 @@
 **[Home](Home)**
 
----
-
 **Memory Bank**
-* [Active Context](memory-bank/Active-Context)
-* [Progress](memory-bank/Progress)
-* [Agentic Rules](memory-bank/Agentic-Rules)
-
----
+* [Active Context](Active-Context)
+* [Progress](Progress)
+* [Agentic Rules Overview](Agentic-Rules-Overview)
 
 **Agentic Rules**
-* [Core Guidelines](agentic-rules/Core-Guidelines)
-* [Python Standards](agentic-rules/Python-Standards)
-* [PR Ownership](agentic-rules/PR-Ownership)
-* [Ecosystem](agentic-rules/Ecosystem)
-* [Self Sufficiency](agentic-rules/Self-Sufficiency)
-* [Environment Setup](agentic-rules/Environment-Setup)
-
----
+* [Core Guidelines](Core-Guidelines)
+* [Python Standards](Python-Standards)
+* [PR Ownership](PR-Ownership)
+* [Ecosystem](Ecosystem)
+* [Self Sufficiency](Self-Sufficiency)
+* [Environment Setup](Environment-Setup)
 
 **Agent Instructions**
-* [Cursor](agent-instructions/Cursor)
-* [Copilot](agent-instructions/Copilot)
-* [Claude](agent-instructions/Claude)
-
----
+* [Cursor](Cursor)
+* [Copilot](Copilot)
+* [Claude](Claude)
 
 **Documentation**
-* [Architecture](documentation/Architecture)
-* [Agentic Orchestration](documentation/Agentic-Orchestration)
-* [Agent Handoff](documentation/Agent-Handoff)
-* [Cursor Management](documentation/Cursor-Management)
-* [Diff Recovery](documentation/Diff-Recovery)
-* [MCP Setup](documentation/MCP-Setup)
-* [MCP Proxy Setup](documentation/MCP-Proxy-Setup)
-* [MCP Proxy Strategy](documentation/MCP-Proxy-Strategy)
-* [Multi AI Review](documentation/Multi-AI-Review)
-
----
+* [Architecture](Architecture)
+* [Agentic Orchestration](Agentic-Orchestration)
+* [Agent Handoff](Agent-Handoff)
+* [Cursor Management](Cursor-Management)
+* [Diff Recovery](Diff-Recovery)
+* [MCP Setup](MCP-Setup)
+* [MCP Proxy Setup](MCP-Proxy-Setup)
+* [MCP Proxy Strategy](MCP-Proxy-Strategy)
+* [Multi AI Review](Multi-AI-Review)
 
 **Recovery**
-* [2025-11-27](recovery/2025-11-27)
-* [Delegation](recovery/Delegation)
-* [Replay](recovery/Replay)
+* [Recovery 2025-11-27](Recovery-2025-11-27)
+* [Recovery Delegation](Recovery-Delegation)
+* [Recovery Replay](Recovery-Replay)
