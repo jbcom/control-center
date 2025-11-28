@@ -200,7 +200,7 @@ class ConventionalCommitMonorepoParser(
             )
 
         try:
-            commit_type_pattern = regexp(r"(?P<type>%s)" % str.join("|", self.options.allowed_tags))
+            commit_type_pattern = regexp(r"(?P<type>%s)" % "|".join(re.escape(tag) for tag in self.options.allowed_tags))
         except re.error as err:
             raise InvalidParserOptions(
                 str.join(
