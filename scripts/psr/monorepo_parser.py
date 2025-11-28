@@ -43,6 +43,31 @@ def _logged_parse_error(commit: Commit, error: str) -> ParseError:
     return ParseError(commit, error=error)
 
 
+def _get_scope_mismatch_error(
+    commit: Commit,
+    scope_prefix: str | None,
+    scoped_error_msg: str,
+) -> str:
+    """
+    Get the appropriate error message based on scope prefix validation.
+
+    Returns a scoped error message if the scope prefix is defined and not found
+    in the first line of the commit message, otherwise returns a generic format
+    mismatch error.
+
+    Args:
+        commit: The git commit object
+        scope_prefix: The expected scope prefix (if any)
+        scoped_error_msg: Error message to return when scope prefix doesn't match
+
+    Returns:
+        The appropriate error message string
+    """
+    if scope_prefix and scope_prefix not in commit.message.split("\n", maxsplit=1)[0]:
+        return scoped_error_msg
+    return f"Format Mismatch! Unable to parse commit message: {commit.message!r}"
+
+
 @dataclass
 class ConventionalMonorepoParserOptions(ParserOptions):
     """Options dataclass for ConventionalCommitMonorepoParser."""
@@ -253,7 +278,7 @@ class ConventionalCommitMonorepoParser(
             accumulator["breaking_descriptions"].append(match.group(1) or "")
             return accumulator
 
-                    has_number.search,  # type: ignore[arg-type]
+        if match := self.issue_selector.search(text):
             predicate = regexp(r",? and | *[,;/& ] *").sub(
                 ",", match.group("issue_predicate") or ""
             )
@@ -363,23 +388,18 @@ class ConventionalCommitMonorepoParser(
 
         if len(relevant_changed_files) == 0:
             if not pmsg_result:
+                # likely a different prefix and files don't match
+                scoped_error = str.join(
+                    " ",
+                    [
+                        f"Commit {commit.hexsha[:7]} is not scoped with the scope prefix {self.options.scope_prefix}",
+                        "and has no changed files in the path filter(s)",
+                        f"relative to the git root {git_root}",
+                    ],
+                )
                 return _logged_parse_error(
                     commit,
-                    (
-                        # likely a different prefix and files don't match
-                        str.join(
-                            " ",
-                            [
-                                f"Commit {commit.hexsha[:7]} is not scoped with the scope prefix {self.options.scope_prefix}",
-                                "and has no changed files in the path filter(s)",
-                                f"relative to the git root {git_root}",
-                            ],
-                        )
-                        if self.options.scope_prefix
-                        and self.options.scope_prefix not in commit.message.split("\n", maxsplit=1)[0]
-                        # No prefix was defined, and the files don't match the path filter, and the commit message is not a valid conventional commit
-                        else f"Format Mismatch! Unable to parse commit message: {commit.message!r}"
-                    ),
+                    _get_scope_mismatch_error(commit, self.options.scope_prefix, scoped_error),
                 )
 
             if not self.options.scope_prefix:
@@ -396,18 +416,11 @@ class ConventionalCommitMonorepoParser(
                 )
 
         if not pmsg_result:
+            # you have defined a scope prefix and the result fails to match -- ParseError
+            scoped_error = f"Commit {commit.hexsha[:7]} scope does not match scope prefix {self.options.scope_prefix}"
             return _logged_parse_error(
                 commit,
-                (
-                    (
-                        # you have defined a scope prefix and the result fails to match -- ParseError
-                        f"Commit {commit.hexsha[:7]} scope does not match scope prefix {self.options.scope_prefix}"
-                    )
-                    if self.options.scope_prefix
-                    and self.options.scope_prefix not in commit.message.split("\n")[0]
-                    # The commit message is not a valid conventional commit
-                    else f"Format Mismatch! Unable to parse commit message: {commit.message!r}"
-                ),
+                _get_scope_mismatch_error(commit, self.options.scope_prefix, scoped_error),
             )
 
         logger.debug(
