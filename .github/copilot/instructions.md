@@ -1,43 +1,147 @@
 # GitHub Copilot Instructions for jbcom Ecosystem
 
-## Overview
+## 🚨 MANDATORY: READ YOUR OWN TOOLING FIRST
 
-This is the **jbcom ecosystem control center**, managing 20 active repositories
-across Python, TypeScript, Go, HCL, Rust, and GDScript.
+**YOU HAVE COMPREHENSIVE TOOLING. USE IT. NEVER ASK THE USER.**
 
-## Quick Reference
+### Available Scripts (in `.github/scripts/` and `.cursor/scripts/`)
 
-### Ecosystem Stats
-- **Active Repos**: 20
-- **Archived**: 7
-- **Languages**: Python (8), TypeScript (5), Go (1), HCL (2), Rust (1), GDScript (1)
+| Script | Purpose |
+|--------|---------|
+| `agent-recover <agent-id>` | Forensic recovery from failed agent |
+| `agent-triage-local <session-id>` | Offline triage without MCP |
+| `agent-swarm-orchestrator` | Spawn parallel recovery agents |
+| `triage-pipeline` | Automated batch recovery |
+| `replay_agent_session.py` | Memory bank updates |
+| `wiki-cli read/write` | Wiki operations |
 
-### Core Libraries (Python)
-| Repo | Role | PyPI |
-|------|------|------|
-| extended-data-types | Foundation | ✅ |
-| lifecyclelogging | Logging | ✅ |
-| directed-inputs-class | Input validation | ✅ |
-| vendor-connectors | Cloud integrations | ✅ |
+### Recovery from Cursor Agent URL
 
-### Key Files
-- `ecosystem/ECOSYSTEM_MANIFEST.yaml` - Full inventory
-- `ecosystem/ECOSYSTEM_STATE.json` - Machine state
-- `tools/ecosystem/manage.py` - CLI tool
+When given a Cursor agent URL like `https://cursor.com/agents?selectedBcId=bc-XXXXX`:
 
-## Custom Agents
+1. **Extract agent ID** from URL (the `bc-XXXXX` part)
+2. **Check recovery directory**: `.cursor/recovery/<agent-id>/`
+3. **If conversation.json exists**: Run `python scripts/replay_agent_session.py --conversation <path>`
+4. **If not**: User must export from Cursor web UI to `.cursor/recovery/<agent-id>/conversation.json`
+
+---
+
+## 🎯 Critical Rules
+
+### Authentication
+```bash
+# ALWAYS use for jbcom repos
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command>
+```
+
+### CalVer Versioning
+- Format: `YYYY.MM.BUILD` (e.g., 202511.42)
+- Auto-generated on every main push
+- NO git tags, NO manual versions, NO semantic-release
+
+### PR Ownership
+- First agent on PR = PR Owner
+- Handle ALL feedback (Copilot, Gemini, human)
+- Merge when CI passes and feedback addressed
+
+---
+
+## 🔄 Agent Handoff Protocol
+
+### When Starting a Session
+1. Check for handoff PR: `gh pr list --label handoff --state open`
+2. Check for failed agents in recovery directory
+3. Read active context from wiki
+
+### When Ending a Session
+1. Create handoff document
+2. Update wiki with progress
+3. Document next steps clearly
+
+### Handoff Document Template
+```markdown
+# Agent Handoff
+
+**Agent ID**: [your-id]
+**Date**: [date]
+**Status**: Ready for handoff
+
+## Completed
+- [x] Task 1
+- [x] Task 2
+
+## In Progress
+- [ ] Task 3 (blocked by X)
+
+## Next Steps
+1. Step 1
+2. Step 2
+
+## Key Documentation
+- [Link 1]
+- [Link 2]
+```
+
+---
+
+## 🛠️ Recovery Workflow
+
+### Phase 1: Detect Recovery Need
+```bash
+# Check for unprocessed recovery sessions
+ls -la .cursor/recovery/
+```
+
+### Phase 2: Process Conversation
+```bash
+# If conversation.json exists
+python scripts/replay_agent_session.py \
+  --conversation .cursor/recovery/<agent-id>/conversation.json \
+  --session-label "<descriptive-name>"
+```
+
+### Phase 3: Extract Artifacts
+The replay script automatically extracts:
+- PRs mentioned
+- Branches mentioned
+- Files mentioned
+- Key events timeline
+
+### Phase 4: Generate Handoff
+Based on extracted artifacts, create actionable next steps.
+
+---
+
+## 📦 Ecosystem Overview
+
+### Managed Packages
+| Package | Role | PyPI |
+|---------|------|------|
+| extended-data-types | Foundation | ✅ 202511.2 |
+| lifecyclelogging | Logging | ✅ 202511.2 |
+| directed-inputs-class | Input validation | ✅ 202511.2 |
+| vendor-connectors | Cloud integrations | ✅ 202511.2 |
+
+### Dependency Order
+```
+extended-data-types (FOUNDATION)
+├── lifecyclelogging
+├── directed-inputs-class
+└── vendor-connectors
+```
+
+---
+
+## 🤖 Custom Copilot Agents
 
 ### @ecosystem-manager
-Central coordination for the entire ecosystem.
 ```
 /ecosystem-status    - Full health report
 /repo-status <name>  - Detailed repo status
 /check-ci            - CI status across all repos
-/find-integration    - Find repos using an integration
 ```
 
 ### @ci-deployer
-Deploy and maintain CI workflows.
 ```
 /deploy-ci <repo>    - Deploy CI to repo
 /check-workflows     - Audit all workflows
@@ -45,86 +149,90 @@ Deploy and maintain CI workflows.
 ```
 
 ### @dependency-coordinator
-Manage cross-repo dependencies.
 ```
 /check-deps          - Check for updates
 /cascade-update      - Update across dependents
 /dep-graph           - Show dependencies
 ```
 
-### @vendor-connectors-consolidator
-Extract and consolidate integration code.
-```
-/scan-integrations   - Find integration code
-/consolidate <name>  - Consolidate connector
-/show-consolidation-plan
-```
-
-### @game-dev
-Game development assistance.
-```
-/game-status         - All game repos status
-/list-games          - List by language
-/check-integrations  - Integrations used
-```
-
 ### @release-coordinator
-Coordinate releases in dependency order.
 ```
 /release-status      - Current versions
 /plan-release <repo> - Plan with dependencies
 /release <repo>      - Trigger release
 ```
 
-## Versioning
+### @vendor-connectors-consolidator
+```
+/scan-integrations   - Find integration code
+/consolidate <name>  - Consolidate connector
+```
 
-### Python Libraries: CalVer
-- Format: `YYYY.MM.BUILD` (e.g., 2025.11.42)
-- Auto-generated on every main push
-- No manual version management
-- No git tags
+### @game-dev
+```
+/game-status         - All game repos status
+/list-games          - List by language
+```
 
-### Other Projects: SemVer
-- TypeScript: semantic-release
-- Go: git tags + goreleaser
-- Terraform: semantic-release
+---
 
-## DO NOT Suggest
+## ❌ Never Suggest
 
-❌ Manual version management
-❌ Git tags for Python libraries
-❌ semantic-release for Python
-❌ Complex release workflows
+- semantic-release for Python
+- Git tags for versioning
+- Manual version management
+- GitHub releases automation
+- Complex conditional release logic
 
-## DO Suggest
+---
 
-✅ Using vendor-connectors for integrations
-✅ Following dependency order for releases
-✅ Consolidating duplicated code
-✅ Standard CI workflows per language
+## ✅ Always Do
 
-## Integration Consolidation
+- Use CalVer (YYYY.MM.BUILD)
+- Use uv for Python package management
+- Use unified ci.yml workflow
+- Update wiki after completing work
+- Create handoff documents
 
-Game repos have scattered integration code that should be in vendor-connectors:
+---
 
-| Integration | Source Repos | Target |
-|-------------|--------------|--------|
-| Meshy | ser-plonk, realm-walker-story, otterfall | vendor-connectors |
-| Anthropic | realm-walker-story | vendor-connectors |
-| OpenAI | realm-walker-story, echoes-of-beastlight | vendor-connectors |
-| Freesound | ai_game_dev | vendor-connectors |
-| Google Fonts | ai_game_dev | vendor-connectors |
+## 🔗 Key Documentation Links
 
-## Development Workflow
+- [Wiki Home](https://github.com/jbcom/jbcom-control-center/wiki)
+- [Core Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Core-Guidelines)
+- [Agent Handoff](https://github.com/jbcom/jbcom-control-center/wiki/Agent-Handoff)
+- [Recovery Replay](https://github.com/jbcom/jbcom-control-center/wiki/Recovery-Replay)
+- [Diff Recovery](https://github.com/jbcom/jbcom-control-center/wiki/Diff-Recovery)
 
-1. **Check ecosystem status** before making changes
-2. **Update dependencies** in order (foundation → dependents)
-3. **Create PRs** - never push to main directly
-4. **Wait for CI** before merging
-5. **Monitor releases** after merge
+---
 
-## Links
+## 📁 Key File Locations
 
-- [ECOSYSTEM_MANIFEST.yaml](../../ecosystem/ECOSYSTEM_MANIFEST.yaml)
-- [Vendor Connectors Architecture](../../docs/VENDOR_CONNECTORS_MULTILANG.md)
-- [Cleanup Report](../../REPO_CLEANUP_PROPOSAL.md)
+### Agent Configuration
+- `.github/copilot/agents/*.agent.yaml` - Copilot agent definitions
+- `.cursor/agents/*.md` - Cursor agent definitions
+- `.cursor/rules/*.mdc` - Cursor rules
+
+### Recovery & Handoff
+- `.cursor/recovery/<agent-id>/` - Recovery artifacts per agent
+- `.cursor/scripts/` - Recovery and triage scripts
+- `scripts/replay_agent_session.py` - Conversation replay tool
+
+### CI/CD
+- `.github/workflows/ci.yml` - Unified CI workflow
+- `.github/scripts/set_version.py` - CalVer version script
+
+---
+
+## 🆘 If Stuck
+
+1. Check wiki for documentation
+2. Check `.cursor/` for tooling
+3. Check existing recovery sessions for patterns
+4. Document what was tried
+5. Create clear handoff for next agent
+
+---
+
+**Last Updated**: 2025-11-28
+**Status**: Production

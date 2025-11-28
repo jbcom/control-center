@@ -92,8 +92,30 @@ docker build -t jbcom-cursor-env -f .cursor/Dockerfile .
 
 ---
 
+---
+
+## Recovery Commands
+
+```bash
+# Check for failed agent recovery data
+ls -la .cursor/recovery/
+
+# Replay a recovered session
+python scripts/replay_agent_session.py \
+  --conversation .cursor/recovery/<agent-id>/conversation.json
+
+# Run offline triage
+.cursor/scripts/agent-triage-local <session-id> analyze
+
+# Batch process all recovery sessions
+.cursor/scripts/triage-pipeline
+```
+
+---
+
 **Docs:**
 - `.github/copilot/AGENTS_GUIDE.md`
+- `.github/copilot/RECOVERY_GUIDE.md`
+- `.github/copilot/instructions.md`
 - `.cursor/MCP_CONFIGURATION_GUIDE.md`
-- `.cursor/DOCKERFILE_ANALYSIS.md`
 - `AGENT_FIXES_SUMMARY.md`

@@ -1,0 +1,138 @@
+#!/bin/bash
+# Automated forensic recovery from failed agent session
+
+set -e
+
+FAILED_AGENT_ID="$1"
+export PATH="/root/.local/bin:$PATH"
+
+if [ -z "$FAILED_AGENT_ID" ]; then
+  echo "Usage: agent-recover <failed-agent-id>"
+  echo ""
+  echo "Example: agent-recover bc-2f734412-e52c-4c56-b34d-03cf35ad67f0"
+  exit 1
+fi
+
+echo "=============================================="
+echo "🔍 FORENSIC RECOVERY FOR AGENT"
+echo "=============================================="
+echo "Agent ID: $FAILED_AGENT_ID"
+echo ""
+
+# 1. Get conversation
+echo "📥 Retrieving conversation..."
+cursor-agents conversation $FAILED_AGENT_ID > /tmp/failed_agent_${FAILED_AGENT_ID}.json 2>/dev/null || {
+  echo "❌ Failed to retrieve conversation. Is cursor-agent-manager running?"
+  exit 1
+}
+
+MSG_COUNT=$(jq '.messages | length' /tmp/failed_agent_${FAILED_AGENT_ID}.json)
+echo "   Messages: $MSG_COUNT"
+
+if [ "$MSG_COUNT" -lt 3 ]; then
+  echo ""
+  echo "⚠️  Agent crashed immediately (< 3 messages)"
+  echo "   No significant work to recover"
+  echo ""
+  jq -r '.messages[0].text[0:500]' /tmp/failed_agent_${FAILED_AGENT_ID}.json
+  exit 0
+fi
+
+# 2. Get agent status
+echo ""
+echo "📊 Checking agent status..."
+cursor-agents status $FAILED_AGENT_ID > /tmp/failed_agent_status.json 2>/dev/null
+STATUS=$(jq -r '.status' /tmp/failed_agent_status.json)
+BRANCH=$(jq -r '.target.branchName // "unknown"' /tmp/failed_agent_status.json)
+REPO=$(jq -r '.source.repository // "unknown"' /tmp/failed_agent_status.json)
+
+echo "   Status: $STATUS"
+echo "   Branch: $BRANCH"
+echo "   Repository: $REPO"
+
+# 3. Extract mentioned artifacts
+echo ""
+echo "🔎 Analyzing conversation for artifacts..."
+
+jq -r '.messages[].text' /tmp/failed_agent_${FAILED_AGENT_ID}.json | \
+  grep -oE '\S+\.(py|ts|tsx|js|jsx|md|yml|yaml|toml|json|sh|bash)' | \
+  sort -u > /tmp/files_${FAILED_AGENT_ID}.txt || touch /tmp/files_${FAILED_AGENT_ID}.txt
+
+jq -r '.messages[].text' /tmp/failed_agent_${FAILED_AGENT_ID}.json | \
+  grep -oE '(feat|fix|docs|refactor|chore)/[a-z0-9-]+' | \
+  sort -u > /tmp/branches_${FAILED_AGENT_ID}.txt || touch /tmp/branches_${FAILED_AGENT_ID}.txt
+
+jq -r '.messages[].text' /tmp/failed_agent_${FAILED_AGENT_ID}.json | \
+  grep -oE '#[0-9]+' | \
+  sort -u > /tmp/prs_${FAILED_AGENT_ID}.txt || touch /tmp/prs_${FAILED_AGENT_ID}.txt
+
+FILE_COUNT=$(wc -l < /tmp/files_${FAILED_AGENT_ID}.txt)
+BRANCH_COUNT=$(wc -l < /tmp/branches_${FAILED_AGENT_ID}.txt)
+PR_COUNT=$(wc -l < /tmp/prs_${FAILED_AGENT_ID}.txt)
+
+echo "   Files mentioned: $FILE_COUNT"
+echo "   Branches mentioned: $BRANCH_COUNT"
+echo "   PRs mentioned: $PR_COUNT"
+
+# 4. Show last 5 messages for context
+echo ""
+echo "📝 Last 5 messages from agent:"
+echo "----------------------------------------"
+jq -r '.messages[-5:] | .[] | "[\(.type)] \(.text[0:200])..."' \
+  /tmp/failed_agent_${FAILED_AGENT_ID}.json
+echo "----------------------------------------"
+
+# 5. Generate aider prompt
+echo ""
+echo "🤖 Running aider forensic analysis..."
+
+AIDER_PROMPT="FORENSIC RECOVERY ANALYSIS
+
+Agent ID: $FAILED_AGENT_ID
+Status: $STATUS
+Messages: $MSG_COUNT
+Branch: $BRANCH
+Repository: $REPO
+
+Files mentioned in conversation: $(cat /tmp/files_${FAILED_AGENT_ID}.txt | tr '\n' ', ' | sed 's/,$//')
+Branches mentioned: $(cat /tmp/branches_${FAILED_AGENT_ID}.txt | tr '\n' ', ' | sed 's/,$//')
+PRs mentioned: $(cat /tmp/prs_${FAILED_AGENT_ID}.txt | tr '\n' ', ' | sed 's/,$//')
+
+TASK:
+For each artifact mentioned above:
+1. Check if it exists in the current repository
+2. If file: Check git log for recent changes
+3. If branch: Check if it exists locally or remotely
+4. If PR: Use gh CLI to check status
+
+Provide a structured report:
+✅ COMPLETED: Artifacts that exist and match expected state
+⚠️ PARTIAL: Artifacts that exist but may be incomplete
+❌ LOST: Artifacts mentioned but not found
+🔧 RECOVERY PLAN: Specific steps to restore or complete work
+
+Be concise and actionable."
+
+# Run aider (requires ANTHROPIC_API_KEY)
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+  echo "⚠️  ANTHROPIC_API_KEY not set, skipping aider analysis"
+  echo "   Set it to enable AI-powered forensic analysis"
+  exit 0
+fi
+
+cd /workspace
+
+aider \
+  --model claude-opus-4-20250514 \
+  --no-auto-commits \
+  --yes \
+  --message "$AIDER_PROMPT" \
+  2>&1 | tee /tmp/aider_recovery_${FAILED_AGENT_ID}.log
+
+echo ""
+echo "=============================================="
+echo "✅ Recovery analysis complete"
+echo "=============================================="
+echo "Full conversation: /tmp/failed_agent_${FAILED_AGENT_ID}.json"
+echo "Aider log: /tmp/aider_recovery_${FAILED_AGENT_ID}.log"
+echo ""

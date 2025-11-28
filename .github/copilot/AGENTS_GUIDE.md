@@ -212,6 +212,29 @@ When adding/updating agents:
 
 ---
 
-**Last Updated:** 2025-11-27
+---
+
+## Agent Recovery
+
+When agents fail, see **[RECOVERY_GUIDE.md](RECOVERY_GUIDE.md)** for:
+- How to recover from Cursor agent URLs
+- How to use `replay_agent_session.py`
+- How to create handoffs from recovery
+
+### Quick Recovery Commands
+```bash
+# Check for existing recovery
+ls -la .cursor/recovery/
+
+# Replay a session
+python scripts/replay_agent_session.py --conversation .cursor/recovery/<id>/conversation.json
+
+# Run triage pipeline
+.cursor/scripts/triage-pipeline
+```
+
+---
+
+**Last Updated:** 2025-11-28
 **Agent Count:** 6 Copilot, 7 Cursor (includes cursor-environment-triage)
 **Status:** Production
