@@ -4,7 +4,7 @@ This package provides utilities for managing application lifecycle logs, includi
 configurable logging for console and file outputs, and clean exit functionality.
 """
 
-__version__ = "202511.4.0"
+__version__ = "202511.5.0"
 
 from .logging import ExitRunError, KeyTransform, Logging
 
