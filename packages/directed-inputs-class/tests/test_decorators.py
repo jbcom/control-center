@@ -44,9 +44,7 @@ def test_required_input_uses_custom_source() -> None:
 
 
 def test_missing_required_input_raises_error() -> None:
-    service = ExampleService(
-        _directed_inputs_config={"inputs": {"domain": "acme.io"}}
-    )
+    service = ExampleService(_directed_inputs_config={"inputs": {"domain": "acme.io"}})
     with pytest.raises(RuntimeError):
         service.secure_call()
 
@@ -59,9 +57,7 @@ def test_decode_from_json_input_config() -> None:
 
 
 def test_method_default_used_when_input_missing() -> None:
-    service = ExampleService(
-        _directed_inputs_config={"inputs": {"domain": "acme.io"}}
-    )
+    service = ExampleService(_directed_inputs_config={"inputs": {"domain": "acme.io"}})
     assert service.greet() == "hello"
 
 

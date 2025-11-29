@@ -16,14 +16,19 @@ python-terraform-bridge) to instantiate the classes safely.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import functools
 import inspect
-from typing import Any, Callable, Mapping, MutableMapping
+
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Any, Callable
 
 from directed_inputs_class.__main__ import DirectedInputsClass
 
-__all__ = ["directed_inputs", "input_config", "InputConfig", "DirectedInputsMetadata"]
+
+if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
+
+__all__ = ["DirectedInputsMetadata", "InputConfig", "directed_inputs", "input_config"]
 
 # Sentinel object used to differentiate between "no default provided" and
 # "explicitly default to None".
@@ -34,6 +39,12 @@ _MISSING = object()
 _CONFIG_KWARG = "_directed_inputs_config"
 _RUNTIME_LOGGING_KWARG = "_directed_inputs_runtime_logging"
 _RUNTIME_SETTINGS_KWARG = "_directed_inputs_runtime_settings"
+
+# Error messages
+_ERR_CONTEXT_NOT_INITIALIZED = (
+    "directed_inputs decorator not initialized on this instance"
+)
+_ERR_CONTEXT_MISSING = "directed_inputs context missing on instance"
 
 
 @dataclass(frozen=True)
@@ -56,16 +67,11 @@ class InputConfig:
 
     def resolve(self, provider: DirectedInputsClass) -> Any | object:
         """Resolve a value from the provided DirectedInputsClass instance."""
-
         key = self.source_name or self.parameter_name
         default_value = None if self.default is _MISSING else self.default
         source_present = key in provider.inputs
 
-        if (
-            self.decode_from_json
-            or self.decode_from_yaml
-            or self.decode_from_base64
-        ):
+        if self.decode_from_json or self.decode_from_yaml or self.decode_from_base64:
             value = provider.decode_input(
                 key,
                 default=default_value,
@@ -128,25 +134,21 @@ class InputContext:
 
     def refresh(self, **overrides: Any) -> None:
         """Refresh the context with new DirectedInputsClass options."""
-
         self._options.update(overrides)
         self._instance = None
 
     @property
     def options(self) -> dict[str, Any]:
         """Current configuration (copy) used for instantiation."""
-
         return dict(self._options)
 
     def resolve(self, config: InputConfig) -> Any | object:
         """Resolve a parameter value using the provided configuration."""
-
         return config.resolve(self._ensure_instance())
 
     @property
     def directed_inputs(self) -> DirectedInputsClass:
         """Return the lazily-instantiated DirectedInputsClass instance."""
-
         return self._ensure_instance()
 
     def _ensure_instance(self) -> DirectedInputsClass:
@@ -156,9 +158,10 @@ class InputContext:
         return self._instance
 
 
-def input_config(parameter_name: str, **config_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+def input_config(
+    parameter_name: str, **config_kwargs: Any
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Configure how a method parameter is populated from inputs."""
-
     default_value = config_kwargs.pop("default", _MISSING)
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
@@ -170,7 +173,7 @@ def input_config(parameter_name: str, **config_kwargs: Any) -> Callable[[Callabl
             default=default_value,
             **config_kwargs,
         )
-        setattr(func, "_directed_inputs_configs", config_map)
+        func._directed_inputs_configs = config_map  # noqa: SLF001
         return func
 
     return decorator
@@ -185,7 +188,6 @@ def directed_inputs(
     strip_env_prefix: bool = False,
 ) -> Callable[[type[Any]], type[Any]]:
     """Class decorator that injects DirectedInputsClass behavior."""
-
     base_options = {
         "inputs": inputs,
         "from_environment": from_environment,
@@ -201,8 +203,8 @@ def directed_inputs(
         metadata = DirectedInputsMetadata(
             options={k: v for k, v in base_options.items() if v is not None}
         )
-        setattr(cls, "__directed_inputs_enabled__", True)
-        setattr(cls, "__directed_inputs_metadata__", metadata)
+        cls.__directed_inputs_enabled__ = True
+        cls.__directed_inputs_metadata__ = metadata
 
         original_init = cls.__init__
 
@@ -213,9 +215,7 @@ def directed_inputs(
             overrides = kwargs.pop(_CONFIG_KWARG, None) or {}
 
             merged_options = dict(base_options)
-            merged_options.update(
-                {k: v for k, v in overrides.items() if v is not None}
-            )
+            merged_options.update({k: v for k, v in overrides.items() if v is not None})
 
             self._directed_inputs_context = InputContext(**merged_options)
             self._directed_inputs_runtime_settings = runtime_settings
@@ -242,9 +242,7 @@ def _inject_proxies(cls: type[Any]) -> None:
     def _get_context(self: Any) -> InputContext:
         context = getattr(self, "_directed_inputs_context", None)
         if context is None:
-            raise AttributeError(
-                "directed_inputs decorator not initialized on this instance"
-            )
+            raise AttributeError(_ERR_CONTEXT_NOT_INITIALIZED)
         return context
 
     if not hasattr(cls, "directed_inputs"):
@@ -253,19 +251,18 @@ def _inject_proxies(cls: type[Any]) -> None:
         def directed_inputs(self: Any) -> DirectedInputsClass:
             return _get_context(self).directed_inputs
 
-        setattr(cls, "directed_inputs", directed_inputs)
+        cls.directed_inputs = directed_inputs
 
     if not hasattr(cls, "refresh_inputs"):
 
         def refresh_inputs(self: Any, **overrides: Any) -> None:
             _get_context(self).refresh(**overrides)
 
-        setattr(cls, "refresh_inputs", refresh_inputs)
+        cls.refresh_inputs = refresh_inputs
 
 
 def _wrap_instance_methods(cls: type[Any]) -> None:
     """Wrap instance methods so missing parameters are auto-populated."""
-
     for name, attribute in list(cls.__dict__.items()):
         if _should_skip_method(name, attribute):
             continue
@@ -299,9 +296,7 @@ def _wrap_instance_methods(cls: type[Any]) -> None:
                     )
                     context = getattr(instance, "_directed_inputs_context", None)
                     if context is None:
-                        raise AttributeError(
-                            "directed_inputs context missing on instance"
-                        )
+                        raise AttributeError(_ERR_CONTEXT_MISSING)
                     value = context.resolve(config)
                     if value is _MISSING:
                         continue
@@ -332,7 +327,6 @@ def _wrap_instance_methods(cls: type[Any]) -> None:
 
 def _should_skip_method(name: str, attribute: Any) -> bool:
     """Determine whether an attribute should be wrapped."""
-
     if name.startswith("_"):
         return True
 

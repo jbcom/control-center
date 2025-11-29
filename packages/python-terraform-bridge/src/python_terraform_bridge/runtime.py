@@ -17,7 +17,7 @@ import secrets
 import sys
 from typing import TYPE_CHECKING, Any
 
-from directed_inputs_class import DirectedInputsClass  # noqa: TC002 - needed at runtime
+from directed_inputs_class import DirectedInputsClass
 from extended_data_types import get_available_methods
 from lifecyclelogging import Logging
 
@@ -243,26 +243,10 @@ class TerraformRuntime:
         """Return sanitized error payload suitable for Terraform consumers."""
 
         return {
-            "error": "Terraform bridge execution failed. Refer to logs with the provided reference.",
+            "error": "Terraform bridge execution failed. "
+            "Refer to logs with the provided reference.",
             "reference": error_id,
         }
-
-        help_txt += "Data Sources:\n"
-        for name, docs in self._data_source_methods.items():
-            if name.startswith("_") or (docs and "NOPARSE" in docs):
-                continue
-            desc = docs.splitlines()[0] if docs else ""
-            help_txt += f"  {name}: {desc}\n"
-
-        if self._null_resource_methods:
-            help_txt += "\nNull Resources:\n"
-            for name, docs in self._null_resource_methods.items():
-                if name.startswith("_"):
-                    continue
-                desc = docs.splitlines()[0] if docs else ""
-                help_txt += f"  {name}: {desc}\n"
-
-        print(help_txt)
 
 
 def invoke_method_with_kwargs(
@@ -332,7 +316,7 @@ def lambda_handler_factory(
         )
         logger = logging.logger
 
-        logger.info("Lambda invoked", extra={"keys": sorted(list(event.keys()))})
+        logger.info("Lambda invoked", extra={"keys": sorted(event.keys())})
 
         try:
             method_name = event.get("method")
@@ -348,9 +332,7 @@ def lambda_handler_factory(
                 }
 
             kwargs = event.get("kwargs", {})
-            logger.info(
-                "Invoking %s with %d kwargs keys", method_name, len(kwargs)
-            )
+            logger.info("Invoking %s with %d kwargs keys", method_name, len(kwargs))
 
             result = runtime.invoke(
                 method_name,

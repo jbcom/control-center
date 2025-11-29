@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from directed_inputs_class import directed_inputs
-
 from python_terraform_bridge.runtime import TerraformRuntime
 
 

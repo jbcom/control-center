@@ -11,7 +11,8 @@ import json
 import time
 from copy import deepcopy
 from pathlib import Path
-from shlex import quote as shlex_quote, split as shlex_split
+from shlex import quote as shlex_quote
+from shlex import split as shlex_split
 from typing import Any
 
 from extended_data_types import is_nothing, strtobool
