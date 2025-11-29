@@ -204,3 +204,20 @@ class TestAWSConnector:
                 ),
             ]
         )
+
+    def test_list_secrets_rejects_path_traversal(self, base_connector_kwargs):
+        """Ensure list_secrets rejects path traversal in name_prefix."""
+        import pytest
+
+        connector = AWSConnector(**base_connector_kwargs)
+
+        # Should reject path traversal attempts
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="../../../etc/passwd")
+
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="secrets/../admin")
+
+        # Should reject null bytes
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="secrets\x00admin")

@@ -184,8 +184,15 @@ class AWSConnector(DirectedInputsClass):
 
         Returns:
             Dict mapping secret names to either ARNs (if get_secret_values=False) or secret values.
+
+        Raises:
+            ValueError: If name_prefix contains path traversal sequences.
         """
         self.logger.info("Listing AWS Secrets Manager secrets")
+
+        # Validate name_prefix to prevent path traversal
+        if name_prefix and (".." in name_prefix or "\x00" in name_prefix):
+            raise ValueError("name_prefix contains invalid characters")
 
         if skip_empty_secrets:
             get_secret_values = True

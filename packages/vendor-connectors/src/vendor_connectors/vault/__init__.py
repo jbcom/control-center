@@ -155,7 +155,14 @@ class VaultConnector(DirectedInputsClass):
 
         Returns:
             Dict mapping secret paths to their data.
+
+        Raises:
+            ValueError: If root_path contains path traversal sequences.
         """
+        # Validate root_path to prevent path traversal attacks
+        if root_path and (".." in root_path or "\x00" in root_path):
+            raise ValueError("root_path contains invalid characters")
+
         display_root = root_path if root_path not in (None, "", "/") else "/"
         self.logger.info(f"Listing Vault secrets from {mount_point}{display_root}")
 

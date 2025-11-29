@@ -134,3 +134,22 @@ class TestVaultConnector:
             path="does/not/exist",
             mount_point="secret",
         )
+
+    def test_list_secrets_rejects_path_traversal(self, base_connector_kwargs):
+        """Ensure list_secrets rejects path traversal in root_path."""
+        import pytest
+
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        # Should reject path traversal attempts
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(root_path="../../../etc/passwd")
+
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(root_path="secrets/../admin")
+
+        # Should reject null bytes
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(root_path="secrets\x00admin")
