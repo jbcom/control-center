@@ -221,3 +221,149 @@ class TestAWSConnector:
         # Should reject null bytes
         with pytest.raises(ValueError, match="invalid characters"):
             connector.list_secrets(name_prefix="secrets\x00admin")
+
+    def test_create_secret_with_tags_and_description(self, base_connector_kwargs):
+        """Ensure create_secret builds payload and sends to AWS."""
+        connector = AWSConnector(**base_connector_kwargs)
+        mock_client = MagicMock()
+        mock_client.create_secret.return_value = {"ARN": "arn:secret:test"}
+        connector.get_aws_client = MagicMock(return_value=mock_client)
+
+        response = connector.create_secret(
+            name="/vendors/test",
+            secret_value="super-secret",
+            description="Test secret",
+            tags={"env": "dev", "team": "platform"},
+            execution_role_arn="arn:role:override",
+        )
+
+        assert response == {"ARN": "arn:secret:test"}
+        connector.get_aws_client.assert_called_once_with(
+            client_name="secretsmanager",
+            execution_role_arn="arn:role:override",
+        )
+        mock_client.create_secret.assert_called_once()
+        assert mock_client.create_secret.call_args.kwargs["Name"] == "/vendors/test"
+        assert mock_client.create_secret.call_args.kwargs["SecretString"] == "super-secret"
+        assert mock_client.create_secret.call_args.kwargs["Description"] == "Test secret"
+        assert mock_client.create_secret.call_args.kwargs["Tags"] == [
+            {"Key": "env", "Value": "dev"},
+            {"Key": "team", "Value": "platform"},
+        ]
+
+    def test_create_secret_requires_name(self, base_connector_kwargs):
+        """Ensure create_secret validates required parameters."""
+        connector = AWSConnector(**base_connector_kwargs)
+
+        with pytest.raises(ValueError, match="name is required"):
+            connector.create_secret(name="", secret_value="value")
+
+    def test_update_secret_calls_aws(self, base_connector_kwargs):
+        """Ensure update_secret forwards call to boto3 client."""
+        connector = AWSConnector(**base_connector_kwargs)
+        mock_client = MagicMock()
+        mock_client.update_secret.return_value = {"ARN": "arn:secret:test"}
+        connector.get_aws_client = MagicMock(return_value=mock_client)
+
+        response = connector.update_secret(
+            secret_id="arn:secret:test",
+            secret_value="updated",
+            execution_role_arn="arn:role:override",
+        )
+
+        assert response == {"ARN": "arn:secret:test"}
+        connector.get_aws_client.assert_called_once_with(
+            client_name="secretsmanager",
+            execution_role_arn="arn:role:override",
+        )
+        mock_client.update_secret.assert_called_once_with(SecretId="arn:secret:test", SecretString="updated")
+
+    def test_delete_secret_with_recovery_window(self, base_connector_kwargs):
+        """Ensure delete_secret honors recovery windows."""
+        connector = AWSConnector(**base_connector_kwargs)
+        mock_client = MagicMock()
+        mock_client.delete_secret.return_value = {"ARN": "arn:secret:test"}
+        connector.get_aws_client = MagicMock(return_value=mock_client)
+
+        response = connector.delete_secret(
+            secret_id="arn:secret:test",
+            recovery_window_days=10,
+            execution_role_arn="arn:role:override",
+        )
+
+        assert response == {"ARN": "arn:secret:test"}
+        mock_client.delete_secret.assert_called_once_with(SecretId="arn:secret:test", RecoveryWindowInDays=10)
+
+    def test_delete_secret_force_delete(self, base_connector_kwargs):
+        """Ensure delete_secret can force delete without recovery."""
+        connector = AWSConnector(**base_connector_kwargs)
+        mock_client = MagicMock()
+        mock_client.delete_secret.return_value = {"ARN": "arn:secret:test"}
+        connector.get_aws_client = MagicMock(return_value=mock_client)
+
+        connector.delete_secret(secret_id="arn:secret:test", force_delete=True)
+
+        mock_client.delete_secret.assert_called_once_with(
+            SecretId="arn:secret:test",
+            ForceDeleteWithoutRecovery=True,
+        )
+
+    def test_delete_secret_invalid_recovery_window(self, base_connector_kwargs):
+        """Ensure invalid recovery window raises error."""
+        connector = AWSConnector(**base_connector_kwargs)
+
+        with pytest.raises(ValueError, match="recovery_window_days"):
+            connector.delete_secret(secret_id="arn:secret:test", recovery_window_days=60)
+
+    def test_delete_secrets_matching_dry_run(self, base_connector_kwargs):
+        """Ensure delete_secrets_matching can run dry without deletions."""
+        connector = AWSConnector(**base_connector_kwargs)
+        connector.list_secrets = MagicMock(return_value={"secret/a": "arn:a", "secret/b": "arn:b"})
+        connector.delete_secret = MagicMock()
+
+        to_delete = connector.delete_secrets_matching(
+            name_prefix="/vendors/",
+            dry_run=True,
+            force_delete=False,
+            execution_role_arn="arn:role:override",
+        )
+
+        assert to_delete == ["arn:a", "arn:b"]
+        connector.delete_secret.assert_not_called()
+        connector.list_secrets.assert_called_once_with(
+            name_prefix="/vendors/",
+            execution_role_arn="arn:role:override",
+        )
+
+    def test_delete_secrets_matching_executes_delete(self, base_connector_kwargs):
+        """Ensure delete_secrets_matching deletes secrets when not dry run."""
+        connector = AWSConnector(**base_connector_kwargs)
+        connector.list_secrets = MagicMock(return_value={"secret/a": "arn:a", "secret/b": "arn:b"})
+        connector.delete_secret = MagicMock(
+            side_effect=[{"ARN": "arn:a"}, {"ARN": "arn:b"}],
+        )
+
+        deleted = connector.delete_secrets_matching(
+            name_prefix="/vendors/",
+            dry_run=False,
+            force_delete=True,
+            execution_role_arn="arn:role:override",
+        )
+
+        assert deleted == ["arn:a", "arn:b"]
+        connector.delete_secret.assert_has_calls(
+            [
+                call(
+                    secret_id="arn:a",
+                    force_delete=True,
+                    recovery_window_days=30,
+                    execution_role_arn="arn:role:override",
+                ),
+                call(
+                    secret_id="arn:b",
+                    force_delete=True,
+                    recovery_window_days=30,
+                    execution_role_arn="arn:role:override",
+                ),
+            ]
+        )
