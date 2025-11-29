@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from typing import Any, Optional
 
 from directed_inputs_class import DirectedInputsClass
@@ -14,7 +15,10 @@ from lifecyclelogging import Logging
 DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
     "https://www.googleapis.com/auth/admin.directory.user",
+    "https://www.googleapis.com/auth/admin.directory.user.readonly",
     "https://www.googleapis.com/auth/admin.directory.group",
+    "https://www.googleapis.com/auth/admin.directory.group.readonly",
+    "https://www.googleapis.com/auth/admin.directory.orgunit.readonly",
 ]
 
 
@@ -83,7 +87,181 @@ class GoogleConnector(DirectedInputsClass):
         """Get the IAM API service."""
         return self.get_service("iam", "v1")
 
-    def list_users(self, domain: Optional[str] = None, max_results: int = 500) -> list[dict[str, Any]]:
+    def _resolve_bool_option(self, explicit: Optional[bool], input_key: str, default: bool) -> bool:
+        """Resolve boolean options from parameters or directed inputs."""
+        if explicit is not None:
+            return explicit
+
+        value = self.get_input(input_key, required=False, default=default, is_bool=True)
+        if value is None:
+            return default
+        return bool(value)
+
+    def _resolve_sequence_option(
+        self,
+        explicit: Sequence[str] | str | None,
+        input_key: str,
+    ) -> list[str] | None:
+        """Resolve list-like options from parameters or directed inputs."""
+        if explicit is not None:
+            return self._normalize_str_sequence(explicit)
+
+        raw_value = self.get_input(input_key, required=False)
+        if isinstance(raw_value, str):
+            candidate = raw_value.strip()
+            if candidate:
+                try:
+                    parsed = json.loads(candidate)
+                except json.JSONDecodeError:
+                    pass
+                else:
+                    return self._normalize_str_sequence(parsed)
+
+        return self._normalize_str_sequence(raw_value)
+
+    @staticmethod
+    def _normalize_str_sequence(value: Sequence[Any] | str | None) -> list[str] | None:
+        """Normalize comma-delimited strings or sequences into clean string lists."""
+        if value is None:
+            return None
+
+        if isinstance(value, str):
+            normalized = [item.strip() for item in value.split(",") if item.strip()]
+            return normalized or None
+
+        normalized: list[str] = []
+        for item in value:
+            if item is None:
+                continue
+            text = str(item).strip()
+            if text:
+                normalized.append(text)
+
+        return normalized or None
+
+    @staticmethod
+    def _normalize_org_unit_path(path: Optional[str]) -> Optional[str]:
+        """Normalize OrgUnit identifiers to leading-slash paths."""
+        if not path:
+            return None
+
+        clean = path.strip()
+        if not clean:
+            return None
+
+        return clean if clean.startswith("/") else f"/{clean}"
+
+    def _normalize_org_unit_list(self, values: list[str] | None) -> list[str] | None:
+        """Normalize org unit inputs and discard empties."""
+        if not values:
+            return None
+
+        normalized: list[str] = []
+        for value in values:
+            normalized_path = self._normalize_org_unit_path(value)
+            if normalized_path:
+                normalized.append(normalized_path)
+
+        return normalized or None
+
+    def _is_org_unit_allowed(
+        self,
+        entry: dict[str, Any],
+        allow_list: list[str] | None,
+        deny_list: list[str] | None,
+    ) -> bool:
+        """Check whether an entry's org unit is permitted by allow/deny lists."""
+        if not allow_list and not deny_list:
+            return True
+
+        entry_path = self._normalize_org_unit_path(entry.get("orgUnitPath"))
+        if entry_path is None:
+            return not allow_list
+
+        if allow_list and entry_path not in allow_list:
+            return False
+
+        if deny_list and entry_path in deny_list:
+            return False
+
+        return True
+
+    @staticmethod
+    def _is_bot_entry(entry: dict[str, Any]) -> bool:
+        """Detect Google Workspace bot/service accounts."""
+        return bool(
+            entry.get("isBot")
+            or entry.get("is_bot")
+            or entry.get("type") in {"BOT", "bot"}
+            or entry.get("kind") == "admin#directory#user#bot"
+        )
+
+    @staticmethod
+    def _flatten_user_name(entry: dict[str, Any]) -> None:
+        """Flatten the nested name structure for easier downstream consumption."""
+        name_block = entry.get("name")
+        if not isinstance(name_block, dict):
+            return
+
+        entry["full_name"] = name_block.get("fullName")
+        entry["given_name"] = name_block.get("givenName")
+        entry["family_name"] = name_block.get("familyName")
+
+    @staticmethod
+    def _key_results_by_email(
+        entries: list[dict[str, Any]],
+        *,
+        primary_field: str,
+        fallback_field: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Convert a list of directory entries into a dictionary keyed by email."""
+        keyed: dict[str, dict[str, Any]] = {}
+        for entry in entries:
+            email = entry.get(primary_field) or (entry.get(fallback_field) if fallback_field else None)
+            if not email:
+                continue
+            keyed[email] = entry
+        return keyed
+
+    def _filter_directory_entries(
+        self,
+        entries: list[dict[str, Any]],
+        *,
+        ou_allow_list: list[str] | None,
+        ou_deny_list: list[str] | None,
+        include_suspended: bool,
+        exclude_bots: bool,
+        flatten_names: bool,
+    ) -> list[dict[str, Any]]:
+        """Apply filtering and optional name flattening to directory results."""
+        filtered: list[dict[str, Any]] = []
+        for entry in entries:
+            if not include_suspended and entry.get("suspended"):
+                continue
+            if exclude_bots and self._is_bot_entry(entry):
+                continue
+            if not self._is_org_unit_allowed(entry, ou_allow_list, ou_deny_list):
+                continue
+
+            processed = dict(entry)
+            if flatten_names:
+                self._flatten_user_name(processed)
+            filtered.append(processed)
+
+        return filtered
+
+    def list_users(
+        self,
+        domain: Optional[str] = None,
+        max_results: int = 500,
+        *,
+        ou_allow_list: Sequence[str] | str | None = None,
+        ou_deny_list: Sequence[str] | str | None = None,
+        include_suspended: Optional[bool] = None,
+        exclude_bots: Optional[bool] = None,
+        flatten_names: Optional[bool] = None,
+        key_by_email: Optional[bool] = None,
+    ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
         """List users from Google Workspace."""
         service = self.get_admin_directory_service()
         users: list[dict[str, Any]] = []
@@ -103,10 +281,45 @@ class GoogleConnector(DirectedInputsClass):
             if not page_token:
                 break
 
-        self.logger.info(f"Retrieved {len(users)} users from Google Workspace")
-        return users
+        ou_allow = self._normalize_org_unit_list(self._resolve_sequence_option(ou_allow_list, "ou_allow_list"))
+        ou_deny = self._normalize_org_unit_list(self._resolve_sequence_option(ou_deny_list, "ou_deny_list"))
+        include_inactive = self._resolve_bool_option(include_suspended, "include_suspended", False)
+        omit_bots = self._resolve_bool_option(exclude_bots, "exclude_bots", True)
+        should_flatten_names = self._resolve_bool_option(flatten_names, "flatten_names", False)
+        return_keyed = self._resolve_bool_option(key_by_email, "key_by_email", False)
 
-    def list_groups(self, domain: Optional[str] = None, max_results: int = 200) -> list[dict[str, Any]]:
+        filtered_users = self._filter_directory_entries(
+            users,
+            ou_allow_list=ou_allow,
+            ou_deny_list=ou_deny,
+            include_suspended=include_inactive,
+            exclude_bots=omit_bots,
+            flatten_names=should_flatten_names,
+        )
+
+        self.logger.info(
+            "Retrieved %d users from Google Workspace (filtered to %d)",
+            len(users),
+            len(filtered_users),
+        )
+
+        if return_keyed:
+            return self._key_results_by_email(filtered_users, primary_field="primaryEmail", fallback_field="email")
+
+        return filtered_users
+
+    def list_groups(
+        self,
+        domain: Optional[str] = None,
+        max_results: int = 200,
+        *,
+        ou_allow_list: Sequence[str] | str | None = None,
+        ou_deny_list: Sequence[str] | str | None = None,
+        include_suspended: Optional[bool] = None,
+        exclude_bots: Optional[bool] = None,
+        flatten_names: Optional[bool] = None,
+        key_by_email: Optional[bool] = None,
+    ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
         """List groups from Google Workspace."""
         service = self.get_admin_directory_service()
         groups: list[dict[str, Any]] = []
@@ -126,5 +339,29 @@ class GoogleConnector(DirectedInputsClass):
             if not page_token:
                 break
 
-        self.logger.info(f"Retrieved {len(groups)} groups from Google Workspace")
-        return groups
+        ou_allow = self._normalize_org_unit_list(self._resolve_sequence_option(ou_allow_list, "ou_allow_list"))
+        ou_deny = self._normalize_org_unit_list(self._resolve_sequence_option(ou_deny_list, "ou_deny_list"))
+        include_inactive = self._resolve_bool_option(include_suspended, "include_suspended", False)
+        omit_bots = self._resolve_bool_option(exclude_bots, "exclude_bots", True)
+        should_flatten_names = self._resolve_bool_option(flatten_names, "flatten_names", False)
+        return_keyed = self._resolve_bool_option(key_by_email, "key_by_email", False)
+
+        filtered_groups = self._filter_directory_entries(
+            groups,
+            ou_allow_list=ou_allow,
+            ou_deny_list=ou_deny,
+            include_suspended=include_inactive,
+            exclude_bots=omit_bots,
+            flatten_names=should_flatten_names,
+        )
+
+        self.logger.info(
+            "Retrieved %d groups from Google Workspace (filtered to %d)",
+            len(groups),
+            len(filtered_groups),
+        )
+
+        if return_keyed:
+            return self._key_results_by_email(filtered_groups, primary_field="email", fallback_field="primaryEmail")
+
+        return filtered_groups
