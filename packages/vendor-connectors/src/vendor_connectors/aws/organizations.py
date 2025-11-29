@@ -286,3 +286,151 @@ class AWSOrganizationsMixin:
 
         self.logger.info(f"Retrieved {len(org_units)} organizational units")
         return org_units
+
+    def label_account(
+        self,
+        account_id: str,
+        labels: dict[str, str],
+        execution_role_arn: Optional[str] = None,
+    ) -> None:
+        """Apply labels (tags) to an AWS account.
+
+        Args:
+            account_id: AWS account ID.
+            labels: Dictionary of label key-value pairs to apply.
+            execution_role_arn: ARN of role to assume for cross-account access.
+        """
+        self.logger.info(f"Labeling AWS account {account_id} with {len(labels)} tags")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        orgs = self.get_aws_client(
+            client_name="organizations",
+            execution_role_arn=role_arn,
+        )
+
+        tags = [{"Key": k, "Value": v} for k, v in labels.items()]
+        orgs.tag_resource(ResourceId=account_id, Tags=tags)
+        self.logger.info(f"Applied {len(labels)} tags to account {account_id}")
+
+    def classify_accounts(
+        self,
+        accounts: Optional[dict[str, dict[str, Any]]] = None,
+        classification_rules: Optional[dict[str, list[str]]] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Classify AWS accounts based on OU paths or tags.
+
+        Default classification rules:
+        - 'production': accounts in OUs containing 'prod' or 'production'
+        - 'staging': accounts in OUs containing 'stage' or 'staging'
+        - 'development': accounts in OUs containing 'dev' or 'development'
+        - 'sandbox': accounts in OUs containing 'sandbox'
+        - 'security': accounts in OUs containing 'security'
+
+        Args:
+            accounts: Pre-fetched accounts dict. Fetched if not provided.
+            classification_rules: Custom rules mapping classification -> OU patterns.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Accounts dict with added 'classification' field.
+        """
+        self.logger.info("Classifying AWS accounts")
+
+        if accounts is None:
+            accounts = self.get_accounts(
+                unhump_accounts=True,
+                execution_role_arn=execution_role_arn,
+            )
+
+        default_rules = {
+            "production": ["prod", "production"],
+            "staging": ["stage", "staging"],
+            "development": ["dev", "development"],
+            "sandbox": ["sandbox"],
+            "security": ["security"],
+            "shared": ["shared", "common"],
+            "workloads": ["workloads", "workload"],
+        }
+        rules = classification_rules or default_rules
+
+        for account_id, account_data in accounts.items():
+            ou_name = account_data.get("ou_name", "").lower()
+            ou_path = account_data.get("path", "").lower() if "path" in account_data else ""
+            tags = account_data.get("tags", {})
+
+            classification = "unclassified"
+            for class_name, patterns in rules.items():
+                for pattern in patterns:
+                    if pattern in ou_name or pattern in ou_path:
+                        classification = class_name
+                        break
+                    # Also check tags
+                    env_tag = tags.get("Environment", "").lower()
+                    if pattern in env_tag:
+                        classification = class_name
+                        break
+                if classification != "unclassified":
+                    break
+
+            accounts[account_id]["classification"] = classification
+
+        self.logger.info(f"Classified {len(accounts)} accounts")
+        return accounts
+
+    def preprocess_organization(
+        self,
+        include_tags: bool = True,
+        include_classification: bool = True,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Preprocess AWS Organization data for terraform consumption.
+
+        Returns a structured dict suitable for terraform data sources.
+
+        Args:
+            include_tags: Include account tags. Defaults to True.
+            include_classification: Include account classification. Defaults to True.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary with 'accounts', 'organizational_units', and 'root_id'.
+        """
+        self.logger.info("Preprocessing AWS Organization data")
+
+        accounts = self.get_accounts(
+            unhump_accounts=True,
+            include_controltower=True,
+            execution_role_arn=execution_role_arn,
+        )
+
+        if include_classification:
+            accounts = self.classify_accounts(
+                accounts=accounts,
+                execution_role_arn=execution_role_arn,
+            )
+
+        org_units = self.get_organization_units(
+            unhump_units=True,
+            execution_role_arn=execution_role_arn,
+        )
+
+        # Get root ID
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+        orgs = self.get_aws_client(
+            client_name="organizations",
+            execution_role_arn=role_arn,
+        )
+        roots = orgs.list_roots()
+        root_id = roots["Roots"][0]["Id"]
+
+        result = {
+            "root_id": root_id,
+            "accounts": accounts,
+            "organizational_units": org_units,
+            "account_count": len(accounts),
+            "ou_count": len(org_units),
+        }
+
+        self.logger.info(f"Preprocessed org: {len(accounts)} accounts, {len(org_units)} OUs")
+        return result

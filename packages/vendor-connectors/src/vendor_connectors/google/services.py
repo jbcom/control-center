@@ -645,3 +645,132 @@ class GoogleServicesMixin:
 
         self.logger.info(f"Project {project_id} appears to be empty")
         return True
+
+    def get_project_iam_users(
+        self,
+        project_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Get IAM users (members) with access to a project.
+
+        Args:
+            project_id: The project ID.
+
+        Returns:
+            Dictionary mapping member identifiers to their roles.
+        """
+        self.logger.info(f"Getting IAM users for project {project_id}")
+        service = self.get_cloud_resource_manager_service()
+
+        response = service.projects().getIamPolicy(resource=f"projects/{project_id}", body={}).execute()
+
+        users: dict[str, dict[str, Any]] = {}
+        for binding in response.get("bindings", []):
+            role = binding.get("role", "")
+            for member in binding.get("members", []):
+                if member not in users:
+                    users[member] = {"roles": [], "member_type": member.split(":")[0]}
+                users[member]["roles"].append(role)
+
+        self.logger.info(f"Found {len(users)} IAM members for project {project_id}")
+        return users
+
+    def get_pubsub_resources_for_project(
+        self,
+        project_id: str,
+        include_subscriptions: bool = True,
+        unhump_resources: bool = False,
+    ) -> dict[str, Any]:
+        """Get all Pub/Sub topics and subscriptions for a project.
+
+        Args:
+            project_id: The project ID.
+            include_subscriptions: Include subscription details. Defaults to True.
+            unhump_resources: Convert keys to snake_case. Defaults to False.
+
+        Returns:
+            Dictionary with 'topics' and 'subscriptions' lists.
+        """
+        self.logger.info(f"Getting Pub/Sub resources for project {project_id}")
+
+        topics = self.list_pubsub_topics(project_id)
+        result: dict[str, Any] = {
+            "topics": topics,
+            "topic_count": len(topics),
+        }
+
+        if include_subscriptions:
+            subscriptions = self.list_pubsub_subscriptions(project_id)
+            result["subscriptions"] = subscriptions
+            result["subscription_count"] = len(subscriptions)
+
+        if unhump_resources:
+            if result.get("topics"):
+                result["topics"] = [unhump_map(t) for t in result["topics"]]
+            if result.get("subscriptions"):
+                result["subscriptions"] = [unhump_map(s) for s in result["subscriptions"]]
+
+        self.logger.info(
+            f"Found {result['topic_count']} topics"
+            + (f", {result.get('subscription_count', 0)} subscriptions" if include_subscriptions else "")
+        )
+        return result
+
+    def find_inactive_projects(
+        self,
+        projects: Optional[dict[str, dict[str, Any]]] = None,
+        check_resources: bool = True,
+        days_since_activity: int = 90,
+    ) -> list[dict[str, Any]]:
+        """Find projects that appear to be inactive or dead.
+
+        A project is considered inactive if:
+        - It has no resources (compute, GKE, storage, etc.)
+        - Its lifecycle state is not ACTIVE
+
+        Args:
+            projects: Pre-fetched projects dict. Fetched if not provided.
+            check_resources: Check if projects have resources. Defaults to True.
+            days_since_activity: Days threshold for activity (not implemented yet).
+
+        Returns:
+            List of inactive project dictionaries.
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info("Finding inactive projects")
+
+        if projects is None:
+            # Get projects from cloud module - requires GoogleCloudMixin
+            if hasattr(self, "list_projects"):
+                projects = {p["projectId"]: p for p in self.list_projects()}
+            else:
+                self.logger.warning("list_projects not available, cannot find inactive projects")
+                return []
+
+        inactive: list[dict[str, Any]] = []
+
+        for project_id, project_data in projects.items():
+            lifecycle_state = project_data.get("lifecycleState", "ACTIVE")
+
+            # Non-active projects are definitely inactive
+            if lifecycle_state != "ACTIVE":
+                project_data["inactive_reason"] = f"lifecycle_state={lifecycle_state}"
+                inactive.append(project_data)
+                continue
+
+            # Check if project has resources
+            if check_resources:
+                try:
+                    is_empty = self.is_project_empty(project_id)
+                    if is_empty:
+                        project_data["inactive_reason"] = "no_resources"
+                        inactive.append(project_data)
+                except HttpError as e:
+                    if e.resp.status == 403:
+                        # Can't check, skip
+                        self.logger.debug(f"Cannot check resources for {project_id}: {e}")
+                    else:
+                        raise
+
+        self.logger.info(f"Found {len(inactive)} inactive projects out of {len(projects)}")
+        return inactive

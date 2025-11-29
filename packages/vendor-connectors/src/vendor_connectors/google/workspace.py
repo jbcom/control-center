@@ -536,3 +536,117 @@ class GoogleWorkspaceMixin:
         result = service.groups().insert(body=group_body).execute()
         self.logger.info(f"Created group: {email}")
         return result
+
+    def list_available_licenses(
+        self,
+        customer_id: str = "my_customer",
+        product_id: Optional[str] = None,
+        subject: Optional[str] = None,
+    ) -> list[dict[str, Any]]:
+        """List available Google Workspace licenses.
+
+        Args:
+            customer_id: Customer ID. Defaults to 'my_customer'.
+            product_id: Filter by product (e.g., 'Google-Apps', 'Google-Vault').
+            subject: Email to impersonate for domain-wide delegation.
+
+        Returns:
+            List of license dictionaries.
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info("Listing available Google Workspace licenses")
+
+        # Get licensing service
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        credentials = service_account.Credentials.from_service_account_info(
+            self.service_account_info,
+            scopes=["https://www.googleapis.com/auth/apps.licensing"],
+        )
+
+        if subject:
+            credentials = credentials.with_subject(subject)
+
+        service = build("licensing", "v1", credentials=credentials, cache_discovery=False)
+
+        licenses: list[dict[str, Any]] = []
+
+        # Common product IDs to check
+        product_ids = (
+            [product_id]
+            if product_id
+            else [
+                "Google-Apps",
+                "101031",  # Google Workspace Enterprise Plus
+                "101034",  # Google Workspace Business Starter
+                "101037",  # Google Workspace Business Standard
+                "101038",  # Google Workspace Business Plus
+                "Google-Vault",
+            ]
+        )
+
+        for prod_id in product_ids:
+            try:
+                page_token = None
+                while True:
+                    params: dict[str, Any] = {
+                        "productId": prod_id,
+                        "customerId": customer_id,
+                    }
+                    if page_token:
+                        params["pageToken"] = page_token
+
+                    response = service.licenseAssignments().listForProduct(**params).execute()
+
+                    for item in response.get("items", []):
+                        item["productId"] = prod_id
+                        licenses.append(item)
+
+                    page_token = response.get("nextPageToken")
+                    if not page_token:
+                        break
+
+            except HttpError as e:
+                if e.resp.status == 404:
+                    # Product not available
+                    self.logger.debug(f"Product {prod_id} not available")
+                elif e.resp.status == 403:
+                    self.logger.debug(f"No access to product {prod_id}")
+                else:
+                    self.logger.warning(f"Error listing licenses for {prod_id}: {e}")
+
+        self.logger.info(f"Retrieved {len(licenses)} license assignments")
+        return licenses
+
+    def get_license_summary(
+        self,
+        customer_id: str = "my_customer",
+        subject: Optional[str] = None,
+    ) -> dict[str, dict[str, int]]:
+        """Get a summary of license usage by product.
+
+        Args:
+            customer_id: Customer ID. Defaults to 'my_customer'.
+            subject: Email to impersonate for domain-wide delegation.
+
+        Returns:
+            Dictionary mapping product IDs to usage counts.
+        """
+        licenses = self.list_available_licenses(
+            customer_id=customer_id,
+            subject=subject,
+        )
+
+        summary: dict[str, dict[str, int]] = {}
+        for lic in licenses:
+            product = lic.get("productId", "unknown")
+            sku = lic.get("skuId", "unknown")
+            key = f"{product}/{sku}"
+
+            if key not in summary:
+                summary[key] = {"assigned": 0}
+            summary[key]["assigned"] += 1
+
+        return summary

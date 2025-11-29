@@ -634,3 +634,90 @@ class AWSS3Mixin:
             Tagging={"TagSet": tag_set},
         )
         self.logger.info(f"Set tags on bucket: {bucket_name}")
+
+    def get_bucket_sizes(
+        self,
+        bucket_names: Optional[list[str]] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Get sizes of S3 buckets using CloudWatch metrics.
+
+        Args:
+            bucket_names: Specific buckets to check. All buckets if None.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary mapping bucket names to size info (bytes, object_count).
+        """
+        from datetime import datetime, timedelta
+
+        self.logger.info("Getting S3 bucket sizes from CloudWatch")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        cloudwatch = self.get_aws_client(
+            client_name="cloudwatch",
+            execution_role_arn=role_arn,
+        )
+
+        if bucket_names is None:
+            buckets = self.list_s3_buckets(
+                unhump_buckets=False,
+                execution_role_arn=role_arn,
+            )
+            bucket_names = list(buckets.keys())
+
+        end_time = datetime.utcnow()
+        start_time = end_time - timedelta(days=2)
+
+        bucket_sizes: dict[str, dict[str, Any]] = {}
+
+        for bucket_name in bucket_names:
+            size_bytes = 0
+            object_count = 0
+
+            # Get bucket size
+            try:
+                size_response = cloudwatch.get_metric_statistics(
+                    Namespace="AWS/S3",
+                    MetricName="BucketSizeBytes",
+                    Dimensions=[
+                        {"Name": "BucketName", "Value": bucket_name},
+                        {"Name": "StorageType", "Value": "StandardStorage"},
+                    ],
+                    StartTime=start_time,
+                    EndTime=end_time,
+                    Period=86400,
+                    Statistics=["Average"],
+                )
+                if size_response.get("Datapoints"):
+                    size_bytes = int(max(size_response["Datapoints"], key=lambda x: x["Timestamp"])["Average"])
+            except Exception as e:
+                self.logger.debug(f"Could not get size for {bucket_name}: {e}")
+
+            # Get object count
+            try:
+                count_response = cloudwatch.get_metric_statistics(
+                    Namespace="AWS/S3",
+                    MetricName="NumberOfObjects",
+                    Dimensions=[
+                        {"Name": "BucketName", "Value": bucket_name},
+                        {"Name": "StorageType", "Value": "AllStorageTypes"},
+                    ],
+                    StartTime=start_time,
+                    EndTime=end_time,
+                    Period=86400,
+                    Statistics=["Average"],
+                )
+                if count_response.get("Datapoints"):
+                    object_count = int(max(count_response["Datapoints"], key=lambda x: x["Timestamp"])["Average"])
+            except Exception as e:
+                self.logger.debug(f"Could not get count for {bucket_name}: {e}")
+
+            bucket_sizes[bucket_name] = {
+                "size_bytes": size_bytes,
+                "size_gb": round(size_bytes / (1024**3), 2),
+                "object_count": object_count,
+            }
+
+        self.logger.info(f"Retrieved sizes for {len(bucket_sizes)} buckets")
+        return bucket_sizes
