@@ -479,8 +479,94 @@ class AWSConnector(DirectedInputsClass):
         self.logger.info(f"Deleted {len(deleted_arns)} secrets for prefix {name_prefix}")
         return deleted_arns
 
+    def copy_secrets_to_s3(
+        self,
+        secrets: dict[str, str | dict],
+        bucket: str,
+        key: str,
+        execution_role_arn: Optional[str] = None,
+        role_session_name: Optional[str] = None,
+    ) -> str:
+        """Copy secrets dictionary to S3 as JSON.
+
+        Args:
+            secrets: Dictionary of secrets to upload.
+            bucket: S3 bucket name.
+            key: S3 object key.
+            execution_role_arn: ARN of role to assume for S3 access.
+            role_session_name: Session name for assumed role.
+
+        Returns:
+            S3 URI of uploaded object.
+        """
+        import json as json_module
+
+        self.logger.info(f"Copying {len(secrets)} secrets to s3://{bucket}/{key}")
+
+        s3_client = self.get_aws_client(
+            client_name="s3",
+            execution_role_arn=execution_role_arn or self.execution_role_arn,
+            role_session_name=role_session_name,
+        )
+
+        body = json_module.dumps(secrets)
+        s3_client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=body.encode("utf-8"),
+            ContentType="application/json",
+        )
+
+        s3_uri = f"s3://{bucket}/{key}"
+        self.logger.info(f"Uploaded secrets to {s3_uri}")
+        return s3_uri
+
+    @staticmethod
+    def load_vendors_from_asm(prefix: str = "/vendors/") -> dict[str, str]:
+        """Load vendor secrets from AWS Secrets Manager.
+
+        This is used in Lambda environments where vendor credentials are stored
+        in ASM under a common prefix (e.g., /vendors/).
+
+        Args:
+            prefix: The prefix path for vendor secrets (default: /vendors/)
+
+        Returns:
+            Dictionary mapping secret keys (with prefix removed) to their values.
+        """
+        import os
+
+        vendors: dict[str, str] = {}
+        prefix = os.getenv("TM_VENDORS_PREFIX", prefix)
+
+        try:
+            session = boto3.Session()
+            secretsmanager = session.client("secretsmanager")
+
+            # List secrets with the prefix
+            paginator = secretsmanager.get_paginator("list_secrets")
+            for page in paginator.paginate(Filters=[{"Key": "name", "Values": [prefix]}]):
+                for secret in page.get("SecretList", []):
+                    secret_name = secret["Name"]
+                    if secret_name.startswith(prefix):
+                        try:
+                            response = secretsmanager.get_secret_value(SecretId=secret_name)
+                            secret_value = response.get("SecretString", "")
+                            # Remove prefix from key name
+                            key = secret_name.removeprefix(prefix).upper()
+                            vendors[key] = secret_value
+                        except ClientError:
+                            # Skip secrets we can't read
+                            pass
+        except ClientError:
+            # Return empty dict if we can't access Secrets Manager
+            pass
+
+        return vendors
+
 
 # Import submodule operations to make them available
+from vendor_connectors.aws.codedeploy import create_codedeploy_deployment, get_aws_codedeploy_deployments
 from vendor_connectors.aws.organizations import AWSOrganizationsMixin
 from vendor_connectors.aws.s3 import AWSS3Mixin
 from vendor_connectors.aws.sso import AWSSSOixin
@@ -502,4 +588,6 @@ __all__ = [
     "AWSOrganizationsMixin",
     "AWSSSOixin",
     "AWSS3Mixin",
+    "get_aws_codedeploy_deployments",
+    "create_codedeploy_deployment",
 ]

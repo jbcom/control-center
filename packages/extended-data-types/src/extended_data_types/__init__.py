@@ -105,7 +105,7 @@ from .type_utils import (
 from .yaml_utils import decode_yaml, encode_yaml, is_yaml_data
 
 
-__version__ = "202511.4.0"
+__version__ = "202511.5.0"
 
 __all__ = [
     "FilePath",

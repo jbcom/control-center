@@ -842,7 +842,7 @@ wheels = [
 
 [[package]]
 name = "extended-data-types"
-version = "202511.4.0"
+version = "202511.5.0"
 source = { editable = "packages/extended-data-types" }
 dependencies = [
     { name = "deepmerge" },
