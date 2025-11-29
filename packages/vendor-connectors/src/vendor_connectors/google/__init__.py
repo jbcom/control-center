@@ -121,6 +121,33 @@ class GoogleConnector(DirectedInputsClass):
             scopes=self.scopes,
         ).with_subject(subject)
 
+    def get_connector_for_user(
+        self,
+        primary_email: str,
+        scopes: Optional[list[str]] = None,
+    ) -> GoogleConnector:
+        """Get a connector instance impersonating a specific user.
+
+        This is useful for terraform-style operations where you need to perform
+        actions as a specific user rather than the service account.
+
+        Args:
+            primary_email: Email address of the user to impersonate.
+            scopes: Optional custom scopes. Defaults to current connector's scopes.
+
+        Returns:
+            A new GoogleConnector instance configured to impersonate the user.
+        """
+        return GoogleConnector(
+            service_account_info=self.service_account_info,
+            scopes=scopes or self.scopes,
+            subject=primary_email,
+            logger=self.logging,
+            inputs=self.inputs,
+            from_environment=False,
+            from_stdin=False,
+        )
+
     # =========================================================================
     # Service Client Creation
     # =========================================================================
@@ -508,6 +535,15 @@ class GoogleConnector(DirectedInputsClass):
 # Import submodule operations
 from vendor_connectors.google.billing import GoogleBillingMixin
 from vendor_connectors.google.cloud import GoogleCloudMixin
+from vendor_connectors.google.constants import (
+    DEFAULT_DOMAIN,
+    DEFAULT_USER_OUS,
+    GCP_KMS,
+    GCP_REQUIRED_APIS,
+    GCP_REQUIRED_ORGANIZATION_ROLES,
+    GCP_REQUIRED_ROLES,
+    GCP_SECURITY_PROJECT,
+)
 from vendor_connectors.google.services import GoogleServicesMixin
 from vendor_connectors.google.workspace import GoogleWorkspaceMixin
 
@@ -526,11 +562,21 @@ class GoogleConnectorFull(
 
 
 __all__ = [
+    # Core connector classes
     "GoogleConnector",
     "GoogleConnectorFull",
+    # Mixins
     "GoogleWorkspaceMixin",
     "GoogleCloudMixin",
     "GoogleBillingMixin",
     "GoogleServicesMixin",
+    # Constants
     "DEFAULT_SCOPES",
+    "DEFAULT_DOMAIN",
+    "DEFAULT_USER_OUS",
+    "GCP_SECURITY_PROJECT",
+    "GCP_KMS",
+    "GCP_REQUIRED_APIS",
+    "GCP_REQUIRED_ORGANIZATION_ROLES",
+    "GCP_REQUIRED_ROLES",
 ]
