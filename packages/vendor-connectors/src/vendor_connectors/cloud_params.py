@@ -2,6 +2,11 @@
 
 These utilities help build properly formatted parameter dictionaries for
 various cloud provider APIs (AWS, Google Cloud, etc.).
+
+The functions handle common patterns like:
+- Pagination limits (MaxResults/maxResults)
+- Key casing transformations (PascalCase for AWS, camelCase for Google)
+- Null/empty value filtering
 """
 
 from __future__ import annotations
