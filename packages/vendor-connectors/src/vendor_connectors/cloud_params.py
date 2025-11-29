@@ -81,9 +81,7 @@ def get_aws_call_params(max_results: int | None = 100, **kwargs: Any) -> dict[st
         >>> get_aws_call_params(max_results=50, IdentityStoreId="d-123")
         {'MaxResults': 50, 'IdentityStoreId': 'd-123'}
     """
-    return get_cloud_call_params(
-        max_results=max_results, first_letter_to_upper=True, **kwargs
-    )
+    return get_cloud_call_params(max_results=max_results, first_letter_to_upper=True, **kwargs)
 
 
 def get_google_call_params(
