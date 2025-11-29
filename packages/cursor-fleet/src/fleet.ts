@@ -328,4 +328,102 @@ export class Fleet {
 
     return { success: false, error: `Timeout waiting for agent ${agentId}` };
   }
+
+  // ============================================
+  // Fleet Monitoring / Watch
+  // ============================================
+
+  /**
+   * Watch fleet and trigger callbacks on state changes
+   */
+  async watch(options: {
+    pollInterval?: number;
+    onAgentFinished?: (agent: Agent) => Promise<void>;
+    onAgentFailed?: (agent: Agent) => Promise<void>;
+    onAgentStalled?: (agent: Agent, runtime: number) => Promise<void>;
+    stallThreshold?: number; // ms before considering agent stalled
+    maxIterations?: number; // for non-daemon mode
+  }): Promise<void> {
+    const pollInterval = options.pollInterval ?? 30000; // 30 seconds
+    const stallThreshold = options.stallThreshold ?? 600000; // 10 minutes
+    const maxIterations = options.maxIterations ?? Infinity;
+    
+    const agentStates = new Map<string, { status: AgentStatus; lastSeen: number }>();
+    let iterations = 0;
+
+    while (iterations < maxIterations) {
+      iterations++;
+      
+      const result = await this.list();
+      if (!result.success) {
+        console.error(`Watch error: ${result.error}`);
+        await new Promise(r => setTimeout(r, pollInterval));
+        continue;
+      }
+
+      const now = Date.now();
+      
+      for (const agent of result.data ?? []) {
+        const prev = agentStates.get(agent.id);
+        
+        // New agent or status changed
+        if (!prev || prev.status !== agent.status) {
+          agentStates.set(agent.id, { status: agent.status, lastSeen: now });
+          
+          // Trigger callbacks
+          if (agent.status === "FINISHED" && prev?.status === "RUNNING") {
+            await options.onAgentFinished?.(agent);
+          } else if (agent.status === "FAILED" && prev?.status === "RUNNING") {
+            await options.onAgentFailed?.(agent);
+          }
+        }
+        
+        // Check for stalled agents
+        if (agent.status === "RUNNING" && prev) {
+          const runtime = now - new Date(agent.createdAt ?? now).getTime();
+          if (runtime > stallThreshold) {
+            await options.onAgentStalled?.(agent, runtime);
+          }
+        }
+      }
+
+      await new Promise(r => setTimeout(r, pollInterval));
+    }
+  }
+
+  /**
+   * Monitor specific agents until all complete
+   */
+  async monitorAgents(agentIds: string[], options?: {
+    pollInterval?: number;
+    onProgress?: (status: Map<string, AgentStatus>) => void;
+  }): Promise<Map<string, Agent>> {
+    const pollInterval = options?.pollInterval ?? 15000;
+    const results = new Map<string, Agent>();
+    const pending = new Set(agentIds);
+
+    while (pending.size > 0) {
+      const statusMap = new Map<string, AgentStatus>();
+      
+      for (const id of pending) {
+        const result = await this.status(id);
+        if (result.success && result.data) {
+          statusMap.set(id, result.data.status);
+          
+          if (result.data.status !== "RUNNING") {
+            results.set(id, result.data);
+            pending.delete(id);
+          }
+        }
+      }
+
+      options?.onProgress?.(statusMap);
+      
+      if (pending.size > 0) {
+        await new Promise(r => setTimeout(r, pollInterval));
+      }
+    }
+
+    return results;
+  }
 }
