@@ -81,7 +81,7 @@ After all agents complete:
 
 ---
 
-## Fleet Status Summary (Last Updated: 2025-11-29 10:05 UTC)
+## Fleet Status Summary (Last Updated: 2025-11-29 10:15 UTC)
 
 ### Sub-Agent PRs Status - ALL MERGED ✅
 | PR | Title | Status |
@@ -93,21 +93,44 @@ After all agents complete:
 | [#240](https://github.com/jbcom/jbcom-control-center/pull/240) | AWS QC | ✅ MERGED |
 | [#241](https://github.com/jbcom/jbcom-control-center/pull/241) | Google Workspace Remediation | ✅ MERGED |
 
-### Integration PR
-| PR | Description | Status |
-|----|-------------|--------|
-| [#229](https://github.com/jbcom/jbcom-control-center/pull/229) | Integration branch with ALL migrations | 🔄 AI Reviews Requested |
+---
 
-AI Reviews requested:
-- /q review (Amazon Q)
-- @cursor review
-- /gemini review  
-- @copilot review
+## 🚨 ALL OPEN PRs - MERGE ORDER PLAN
 
-### Final Summary
-- **ALL 6** sub-agent PRs merged to main ✅
-- **74 tests passing**, lint clean
-- Integration branch ([PR #229](https://github.com/jbcom/jbcom-control-center/pull/229)) contains:
-  - All terraform-modules migrations (AWS, Google, GitHub)
-  - All sub-agent enhancements (Secrets, Slack, CodeDeploy, Vault, Google filtering)
-- Ready for final AI QA review
+### PR Merge Order (CRITICAL)
+| Order | PR | Title | Status | Action |
+|-------|-----|-------|--------|--------|
+| 1 | [#220](https://github.com/jbcom/jbcom-control-center/pull/220) | FSC Counterparty Awareness | MERGEABLE | Fix version format, merge first |
+| 2 | [#222](https://github.com/jbcom/jbcom-control-center/pull/222) | cursor-fleet package | CONFLICTING | Resolve conflicts, merge second |
+| 3 | [#242](https://github.com/jbcom/jbcom-control-center/pull/242) | Copilot sub-PR of #229 | MERGEABLE | Close (duplicate work) |
+| 4 | [#229](https://github.com/jbcom/jbcom-control-center/pull/229) | Integration branch | MERGEABLE | **MERGE LAST** after all fixes |
+
+### PR #229 Review Feedback (Must Fix Before Merge)
+From Amazon Q and Gemini reviews:
+
+1. **AWSSSOixin → AWSSSOmixin** - ✅ FIXED - Naming typo in multiple files
+2. **Google customer parameter** - ✅ FIXED - Added `customer="my_customer"` to list_users/list_groups
+3. **JSON parsing in S3** - 🔄 TODO - Add error handling for malformed JSON
+4. **Password exposure in Google** - 🔄 TODO - Sanitize password after user creation
+5. **Organizations error handling** - 🔄 TODO - Add try/except for root lookup
+
+### PR #220 Review Feedback
+From Amazon Q:
+- Version format uses `X.Y.Z` instead of CalVer `YYYYMM.MINOR.PATCH`
+
+From Gemini:
+- Broken link in wiki page
+- Template consistency issues
+
+### PR #222 Issues
+- Has merge conflicts - needs resolution before merge
+
+---
+
+## Current Working Branch
+`cursor/replay-agent-activity-for-terraform-modules-migration-claude-4.5-opus-high-thinking-cede`
+
+This branch (PR #229) must be merged LAST after:
+1. All review feedback addressed
+2. All other PRs merged first
+3. Final rebase/merge from main
