@@ -25,7 +25,7 @@ Usage:
         pass
 """
 
-__version__ = "202511.8.0"
+__version__ = "202511.9.0"
 
 from vendor_connectors.aws import (
     AWSConnector,
