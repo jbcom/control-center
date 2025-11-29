@@ -94,7 +94,7 @@ def list_users(...):
 - [x] Created `packages/vendor-connectors/MIGRATION_STATUS.md`
   - Maps terraform-modules functions → vendor-connectors methods
   - Tracks completed migrations by PR (PRs #220, #222, #229, #236-#241)
-  - Lists 11 remaining functions to migrate
+  - Lists 4 remaining functions to migrate
   - Documents 7 functions NOT migrating (FSC-specific business logic)
 - [x] Updated wiki/Active-Context.md with current state
 

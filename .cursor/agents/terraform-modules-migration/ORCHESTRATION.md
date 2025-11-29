@@ -111,26 +111,7 @@ class MyService:
 
 ## PR Plan
 
-### PR #1: directed-inputs-class Decorator API
-**Branch**: `feat/directed-inputs-decorator-api`
-**Files**:
-- `packages/directed-inputs-class/src/directed_inputs_class/decorators.py` (NEW)
-- `packages/directed-inputs-class/src/directed_inputs_class/__init__.py` (MODIFIED)
-- `packages/directed-inputs-class/tests/test_decorators.py` (NEW)
-
-**Summary**: Add decorator-based input handling as modern alternative to inheritance.
-
-### PR #2: python-terraform-bridge Package
-**Branch**: `feat/python-terraform-bridge`
-**Files**:
-- `packages/python-terraform-bridge/` (NEW package)
-- `pyproject.toml` (add to workspace)
-
-**Summary**: New OSS package for Terraform ↔ Python bridging.
-
-### PR #3: Integration (depends on PR #1 and #2)
-**Branch**: `feat/terraform-bridge-integration`
-**Purpose**: Update python-terraform-bridge to use directed-inputs decorators.
+See [`PR_PLAN.md`](./PR_PLAN.md) for the complete PR dependency chain and handoff protocol.
 
 ---
 
@@ -162,7 +143,7 @@ Input Handling (directed-inputs-class):
 | Function | Source | Notes |
 |----------|--------|-------|
 | `label_aws_account` | terraform_data_source.py | Terraform preprocessing |
-| `classify_aws_accounts` | terraform_data_source.py | Depends on label_account |
+| `classify_aws_accounts` | terraform_data_source.py | Depends on label_aws_account |
 | `preprocess_aws_organization` | terraform_data_source.py | Terraform preprocessing |
 | `build_github_actions_workflow` | terraform_data_source.py | Complex YAML builder |
 

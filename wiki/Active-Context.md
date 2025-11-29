@@ -131,24 +131,7 @@ Input Handling (directed-inputs-class):
 
 ## PR Plan
 
-### PR #1: directed-inputs-class Decorator API
-**Branch**: `feat/directed-inputs-decorator-api`  
-**Scope**: Add decorator-based input handling
-**Files**:
-- `packages/directed-inputs-class/src/directed_inputs_class/decorators.py` (NEW)
-- `packages/directed-inputs-class/src/directed_inputs_class/__init__.py` (MODIFIED)
-- `packages/directed-inputs-class/tests/test_decorators.py` (NEW)
-
-### PR #2: python-terraform-bridge Package
-**Branch**: `feat/python-terraform-bridge`  
-**Scope**: New OSS package for Terraform ↔ Python bridging
-**Files**:
-- `packages/python-terraform-bridge/` (NEW package)
-- `pyproject.toml` (add to workspace)
-
-### PR #3: Integration (depends on PR #1 and #2)
-**Branch**: `feat/terraform-bridge-integration`  
-**Scope**: Update terraform bridge to use directed-inputs decorators
+See [`.cursor/agents/terraform-modules-migration/PR_PLAN.md`](/.cursor/agents/terraform-modules-migration/PR_PLAN.md) for the complete PR dependency chain and handoff protocol.
 
 ## Documentation
 
