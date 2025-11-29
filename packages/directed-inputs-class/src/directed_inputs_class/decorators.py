@@ -1,543 +1,342 @@
-"""Decorator-based input handling for Python classes.
+"""Decorator-based input handling for DirectedInputsClass consumers.
 
-This module provides a modern, composable approach to input handling
-using decorators instead of inheritance.
+This module provides two decorators:
 
-Example:
-    from directed_inputs_class import directed_inputs
+1. ``@directed_inputs`` - class decorator that wires DirectedInputsClass style
+   input loading (environment variables, stdin, explicit mappings) into plain
+   Python classes without requiring inheritance.
+2. ``@input_config`` - method decorator that allows fine-grained control over
+   how individual parameters are resolved from the input context
+   (renaming, decoding, required flags, etc.).
 
-    @directed_inputs(from_stdin=True)
-    class MyService:
-        def list_users(self, domain: str | None = None) -> dict:
-            # domain is automatically populated from stdin/env
-            return {"users": [...]}
-
-    # Or with explicit configuration:
-    @directed_inputs
-    class MyService:
-        @input_config(source="env", name="API_DOMAIN", required=True)
-        def list_users(self, domain: str) -> dict:
-            return {"users": [...]}
+The decorated classes automatically receive lazily-evaluated input contexts and
+runtime metadata that can be consumed by other packages (e.g.
+python-terraform-bridge) to instantiate the classes safely.
 """
 
 from __future__ import annotations
 
+from dataclasses import dataclass, field
 import functools
 import inspect
-import json
-import os
-import sys
-import types
-import typing
+from typing import Any, Callable, Mapping, MutableMapping
 
-from dataclasses import dataclass, field
-from datetime import datetime
-from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeVar, Union, get_args, get_origin, overload
+from directed_inputs_class.__main__ import DirectedInputsClass
 
-from case_insensitive_dict import CaseInsensitiveDict
-from deepmerge import Merger
-from extended_data_types import (
-    base64_decode,
-    decode_json,
-    is_nothing,
-    strtobool,
-    strtodatetime,
-    strtofloat,
-    strtoint,
-    strtopath,
-)
+__all__ = ["directed_inputs", "input_config", "InputConfig", "DirectedInputsMetadata"]
+
+# Sentinel object used to differentiate between "no default provided" and
+# "explicitly default to None".
+_MISSING = object()
+
+# Reserved keyword arguments consumed by the decorator wrapper. The names are
+# intentionally obscure to avoid collisions with user-defined parameters.
+_CONFIG_KWARG = "_directed_inputs_config"
+_RUNTIME_LOGGING_KWARG = "_directed_inputs_runtime_logging"
+_RUNTIME_SETTINGS_KWARG = "_directed_inputs_runtime_settings"
 
 
-if TYPE_CHECKING:
-    from collections.abc import Callable, Mapping
-
-C = TypeVar("C", bound=type)
-F = TypeVar("F", bound="Callable[..., Any]")
-
-
-@dataclass
+@dataclass(frozen=True)
 class InputConfig:
-    """Configuration for a single input parameter.
+    """Configuration for resolving a single method parameter from inputs."""
 
-    Attributes:
-        name: The parameter name.
-        source_name: Name to look up in inputs (defaults to parameter name).
-        aliases: Alternative names to search for.
-        required: Whether the input is required.
-        default: Default value if not found.
-        decode_base64: Decode from base64.
-        decode_json: Parse as JSON.
-        decode_yaml: Parse as YAML.
-        coerce_type: Target type for coercion (inferred from type hint).
-    """
-
-    name: str
+    parameter_name: str
     source_name: str | None = None
-    aliases: list[str] = field(default_factory=list)
     required: bool = False
-    default: Any = None
-    decode_base64: bool = False
-    decode_json: bool = False
-    decode_yaml: bool = False
-    coerce_type: type | None = None
+    default: Any = _MISSING
+    decode_from_json: bool = False
+    decode_from_yaml: bool = False
+    decode_from_base64: bool = False
+    allow_none: bool = True
+    is_bool: bool = False
+    is_integer: bool = False
+    is_float: bool = False
+    is_path: bool = False
+    is_datetime: bool = False
 
+    def resolve(self, provider: DirectedInputsClass) -> Any | object:
+        """Resolve a value from the provided DirectedInputsClass instance."""
 
-@dataclass
-class InputContext:
-    """Runtime context for input handling.
+        key = self.source_name or self.parameter_name
+        default_value = None if self.default is _MISSING else self.default
+        source_present = key in provider.inputs
 
-    This is attached to decorated class instances and manages
-    the input dictionary and configuration.
-    """
-
-    inputs: CaseInsensitiveDict[str, Any] = field(
-        default_factory=lambda: CaseInsensitiveDict()
-    )
-    frozen_inputs: CaseInsensitiveDict[str, Any] = field(
-        default_factory=lambda: CaseInsensitiveDict()
-    )
-    from_stdin: bool = False
-    from_env: bool = True
-    env_prefix: str | None = None
-    strip_env_prefix: bool = False
-
-    _merger: Merger = field(
-        default_factory=lambda: Merger(
-            [(list, ["append"]), (dict, ["merge"]), (set, ["union"])],
-            ["override"],
-            ["override"],
-        )
-    )
-
-    def get(
-        self,
-        key: str,
-        default: Any = None,
-        aliases: list[str] | None = None,
-        required: bool = False,
-    ) -> Any:
-        """Get a value from inputs, checking aliases."""
-        keys_to_check = [key]
-        if aliases:
-            keys_to_check.extend(aliases)
-
-        for k in keys_to_check:
-            value = self.inputs.get(k)
-            if not is_nothing(value):
-                return value
-
-        if required and is_nothing(default):
-            msg = f"Required input '{key}' not found in inputs"
-            raise ValueError(msg)
-
-        return default
-
-    def merge(self, new_inputs: Mapping[str, Any]) -> None:
-        """Merge new inputs into current inputs."""
-        merged = self._merger.merge(dict(self.inputs), dict(new_inputs))
-        self.inputs = CaseInsensitiveDict(merged)
-
-
-# Maximum stdin size (1MB) to prevent DoS attacks
-_MAX_STDIN_SIZE = 1024 * 1024
-
-
-def _load_stdin() -> dict[str, Any]:
-    """Load inputs from stdin as JSON.
-
-    Limited to 1MB to prevent denial-of-service attacks.
-    """
-    if strtobool(os.getenv("OVERRIDE_STDIN", "False")):
-        return {}
-
-    try:
-        stdin_data = sys.stdin.read(_MAX_STDIN_SIZE)
-        if is_nothing(stdin_data):
-            return {}
-        if len(stdin_data) >= _MAX_STDIN_SIZE:
-            msg = f"Stdin input exceeds maximum size limit ({_MAX_STDIN_SIZE} bytes)"
-            raise ValueError(msg)
-        return json.loads(stdin_data)
-    except json.JSONDecodeError:
-        return {}
-
-
-def _load_env(prefix: str | None = None, strip_prefix: bool = False) -> dict[str, str]:
-    """Load inputs from environment variables."""
-    env = dict(os.environ)
-    if prefix is None:
-        return env
-
-    return {
-        (k[len(prefix) :] if strip_prefix else k): v
-        for k, v in env.items()
-        if k.startswith(prefix)
-    }
-
-
-def _is_union_type(target_type: Any) -> bool:
-    """Check if type is a Union (works on Python 3.9+)."""
-    # Python 3.10+ has types.UnionType for X | Y syntax
-    if hasattr(types, "UnionType") and isinstance(target_type, types.UnionType):
-        return True
-    # typing.Union works on all Python versions
-    return get_origin(target_type) is Union
-
-
-def _coerce_value(value: Any, target_type: type | None) -> Any:
-    """Coerce a value to the target type."""
-    if target_type is None or value is None:
-        return value
-
-    # Handle Union types (including X | None via types.UnionType on 3.10+)
-    if _is_union_type(target_type):
-        args = get_args(target_type)
-        non_none_types = [t for t in args if t is not type(None)]
-        if non_none_types:
-            target_type = non_none_types[0]
+        if (
+            self.decode_from_json
+            or self.decode_from_yaml
+            or self.decode_from_base64
+        ):
+            value = provider.decode_input(
+                key,
+                default=default_value,
+                required=self.required,
+                decode_from_json=self.decode_from_json,
+                decode_from_yaml=self.decode_from_yaml,
+                decode_from_base64=self.decode_from_base64,
+                allow_none=self.allow_none,
+            )
         else:
-            return value
-
-    # Type coercion - do this BEFORE isinstance check to handle string -> other type
-    # Wrap in try/except to handle conversion failures gracefully
-    try:
-        if target_type is bool and not isinstance(value, bool):
-            return strtobool(value)
-        if target_type is int and not isinstance(value, int):
-            return strtoint(value)
-        if target_type is float and not isinstance(value, float):
-            return strtofloat(str(value))
-        if target_type is Path and not isinstance(value, Path):
-            return strtopath(str(value))
-        if target_type is datetime and not isinstance(value, datetime):
-            return strtodatetime(str(value))
-        if target_type is dict and isinstance(value, str):
-            return decode_json(value)
-        if target_type is list and isinstance(value, str):
-            return decode_json(value)
-    except (ValueError, TypeError):
-        # Coercion failed, return original value
-        return value
-
-    # Now check if already correct type (safely)
-    try:
-        if isinstance(value, target_type):
-            return value
-    except TypeError:
-        # target_type isn't a valid type for isinstance, skip
-        pass
-
-    # Final fallback - try to coerce to string if that's the target
-    if target_type is str:
-        return str(value)
-
-    return value
-
-
-def _decode_value(
-    value: Any,
-    *,
-    do_decode_base64: bool = False,
-    do_decode_json: bool = False,
-    do_decode_yaml: bool = False,
-) -> Any:
-    """Decode a value from various formats."""
-    if value is None or not isinstance(value, str):
-        return value
-
-    if do_decode_base64:
-        value = base64_decode(
-            value,
-            unwrap_raw_data=do_decode_json or do_decode_yaml,
-            encoding="json" if do_decode_json else ("yaml" if do_decode_yaml else None),
-        )
-
-    # Note: YAML decoding not implemented - use decode_json for now
-    # as most YAML is JSON-compatible
-    if do_decode_yaml or do_decode_json:
-        value = decode_json(value)
-
-    return value
-
-
-def _get_param_config(
-    param: inspect.Parameter,
-    type_hints: dict[str, Any],
-    method_configs: dict[str, InputConfig],
-) -> InputConfig:
-    """Build InputConfig for a parameter from hints and explicit config."""
-    name = param.name
-
-    # Check for explicit configuration
-    if name in method_configs:
-        config = method_configs[name]
-        # Fill in type from hints if not set
-        if config.coerce_type is None and name in type_hints:
-            config.coerce_type = type_hints[name]
-        return config
-
-    # Build from type hints and defaults
-    type_hint = type_hints.get(name)
-    has_default = param.default is not inspect.Parameter.empty
-    default = param.default if has_default else None
-
-    return InputConfig(
-        name=name,
-        required=not has_default,
-        default=default,
-        coerce_type=type_hint,
-    )
-
-
-def _wrap_method(
-    method: Callable[..., Any],
-    method_configs: dict[str, InputConfig],
-) -> Callable[..., Any]:
-    """Wrap a method to auto-populate arguments from inputs."""
-    sig = inspect.signature(method)
-
-    # Use get_type_hints to properly resolve string annotations
-    try:
-        type_hints = typing.get_type_hints(method)
-    except (NameError, AttributeError, TypeError):
-        # Fallback to raw annotations if get_type_hints fails
-        type_hints = getattr(method, "__annotations__", {})
-
-    @functools.wraps(method)
-    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
-        # Get the input context from the instance
-        ctx: InputContext = getattr(self, "_input_context", None)
-        if ctx is None:
-            # No context, call method directly
-            return method(self, *args, **kwargs)
-
-        # Build kwargs from inputs for parameters not already provided
-        # First bind without defaults to see what was explicitly provided
-        bound = sig.bind_partial(self, *args, **kwargs)
-        explicitly_provided = set(bound.arguments.keys())
-        bound.apply_defaults()
-
-        for param_name, param in sig.parameters.items():
-            if param_name == "self":
-                continue
-            # Skip parameters explicitly provided (positionally or as kwargs)
-            if param_name in explicitly_provided:
-                continue
-
-            config = _get_param_config(param, type_hints, method_configs)
-
-            # Get value from inputs
-            value = ctx.get(
-                config.source_name or config.name,
-                default=config.default,
-                aliases=config.aliases,
-                required=False,  # We'll check required after coercion
+            value = provider.get_input(
+                key,
+                default=default_value,
+                required=self.required,
+                is_bool=self.is_bool,
+                is_integer=self.is_integer,
+                is_float=self.is_float,
+                is_path=self.is_path,
+                is_datetime=self.is_datetime,
             )
 
-            # Decode if configured
-            if value is not None:
-                value = _decode_value(
-                    value,
-                    do_decode_base64=config.decode_base64,
-                    do_decode_json=config.decode_json,
-                    do_decode_yaml=config.decode_yaml,
-                )
+        if (
+            value is None
+            and not source_present
+            and self.default is _MISSING
+            and not self.required
+        ):
+            return _MISSING
 
-            # Coerce to target type
-            value = _coerce_value(value, config.coerce_type)
-
-            # Check required after coercion
-            if config.required and is_nothing(value):
-                msg = f"Required input '{config.name}' not found"
-                raise ValueError(msg)
-
-            # Only set if we got a value (or it's required)
-            if value is not None or config.required:
-                bound.arguments[param_name] = value
-
-        return method(*bound.args, **bound.kwargs)
-
-    # Preserve original for introspection
-    wrapper.__wrapped__ = method  # type: ignore[attr-defined]
-    return wrapper
+        return value
 
 
-# Storage for method-level configurations
-_METHOD_CONFIGS: dict[int, dict[str, InputConfig]] = {}
+@dataclass(frozen=True)
+class DirectedInputsMetadata:
+    """Metadata exposed on decorated classes for runtime integrations."""
+
+    options: dict[str, Any] = field(default_factory=dict)
 
 
-def input_config(
-    name: str | None = None,
-    *,
-    source_name: str | None = None,
-    aliases: list[str] | None = None,
-    required: bool = False,
-    default: Any = None,
-    decode_base64: bool = False,
-    decode_json: bool = False,
-    decode_yaml: bool = False,
-) -> Callable[[F], F]:
-    """Decorator to configure input handling for a specific parameter.
+class InputContext:
+    """Lightweight wrapper around DirectedInputsClass instantiation."""
 
-    Can be stacked multiple times for different parameters.
+    def __init__(
+        self,
+        *,
+        inputs: Mapping[str, Any] | None = None,
+        from_environment: bool = True,
+        from_stdin: bool = False,
+        env_prefix: str | None = None,
+        strip_env_prefix: bool = False,
+    ):
+        self._options: dict[str, Any] = {
+            "inputs": dict(inputs) if inputs else None,
+            "from_environment": from_environment,
+            "from_stdin": from_stdin,
+            "env_prefix": env_prefix,
+            "strip_env_prefix": strip_env_prefix,
+        }
+        self._instance: DirectedInputsClass | None = None
 
-    Args:
-        name: Parameter name to configure. If None, applies to first parameter.
-        source_name: Name to look up in inputs.
-        aliases: Alternative names to search for.
-        required: Whether the input is required.
-        default: Default value.
-        decode_base64: Decode from base64.
-        decode_json: Parse as JSON.
-        decode_yaml: Parse as YAML.
+    def refresh(self, **overrides: Any) -> None:
+        """Refresh the context with new DirectedInputsClass options."""
 
-    Example:
-        @input_config("domain", source_name="API_DOMAIN", required=True)
-        @input_config("limit", default=100)
-        def list_users(self, domain: str, limit: int = 100) -> dict:
-            ...
-    """
+        self._options.update(overrides)
+        self._instance = None
 
-    def decorator(func: F) -> F:
-        method_id = id(func)
-        if method_id not in _METHOD_CONFIGS:
-            _METHOD_CONFIGS[method_id] = {}
+    @property
+    def options(self) -> dict[str, Any]:
+        """Current configuration (copy) used for instantiation."""
 
-        # If no name specified, we'll resolve it later
-        param_name = name or "_default_"
-        _METHOD_CONFIGS[method_id][param_name] = InputConfig(
-            name=param_name,
-            source_name=source_name,
-            aliases=aliases or [],
-            required=required,
-            default=default,
-            decode_base64=decode_base64,
-            decode_json=decode_json,
-            decode_yaml=decode_yaml,
+        return dict(self._options)
+
+    def resolve(self, config: InputConfig) -> Any | object:
+        """Resolve a parameter value using the provided configuration."""
+
+        return config.resolve(self._ensure_instance())
+
+    @property
+    def directed_inputs(self) -> DirectedInputsClass:
+        """Return the lazily-instantiated DirectedInputsClass instance."""
+
+        return self._ensure_instance()
+
+    def _ensure_instance(self) -> DirectedInputsClass:
+        if self._instance is None:
+            kwargs = {k: v for k, v in self._options.items() if v is not None}
+            self._instance = DirectedInputsClass(**kwargs)
+        return self._instance
+
+
+def input_config(parameter_name: str, **config_kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Configure how a method parameter is populated from inputs."""
+
+    default_value = config_kwargs.pop("default", _MISSING)
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        config_map: MutableMapping[str, InputConfig] = getattr(
+            func, "_directed_inputs_configs", {}
+        ).copy()
+        config_map[parameter_name] = InputConfig(
+            parameter_name=parameter_name,
+            default=default_value,
+            **config_kwargs,
         )
-
+        setattr(func, "_directed_inputs_configs", config_map)
         return func
 
     return decorator
 
 
-@overload
-def directed_inputs(cls: C) -> C: ...
-
-
-@overload
 def directed_inputs(
     *,
+    inputs: Mapping[str, Any] | None = None,
+    from_environment: bool = True,
     from_stdin: bool = False,
-    from_env: bool = True,
     env_prefix: str | None = None,
     strip_env_prefix: bool = False,
-) -> Callable[[C], C]: ...
+) -> Callable[[type[Any]], type[Any]]:
+    """Class decorator that injects DirectedInputsClass behavior."""
 
+    base_options = {
+        "inputs": inputs,
+        "from_environment": from_environment,
+        "from_stdin": from_stdin,
+        "env_prefix": env_prefix,
+        "strip_env_prefix": strip_env_prefix,
+    }
 
-def directed_inputs(
-    cls: C | None = None,
-    *,
-    from_stdin: bool = False,
-    from_env: bool = True,
-    env_prefix: str | None = None,
-    strip_env_prefix: bool = False,
-) -> C | Callable[[C], C]:
-    """Class decorator that enables automatic input handling.
+    def decorator(cls: type[Any]) -> type[Any]:
+        if getattr(cls, "__directed_inputs_enabled__", False):
+            return cls
 
-    When applied to a class, all methods automatically receive their
-    arguments populated from stdin/environment variables based on
-    parameter names and type hints.
+        metadata = DirectedInputsMetadata(
+            options={k: v for k, v in base_options.items() if v is not None}
+        )
+        setattr(cls, "__directed_inputs_enabled__", True)
+        setattr(cls, "__directed_inputs_metadata__", metadata)
 
-    Args:
-        cls: The class to decorate (when used without parentheses).
-        from_stdin: Load inputs from stdin (JSON).
-        from_env: Load inputs from environment variables.
-        env_prefix: Only load env vars with this prefix.
-        strip_env_prefix: Remove prefix from env var names.
-
-    Returns:
-        Decorated class with automatic input handling.
-
-    Example:
-        @directed_inputs(from_stdin=True)
-        class MyService:
-            def list_users(self, domain: str | None = None) -> dict:
-                # domain is auto-populated from inputs
-                return {}
-
-        # Use without parentheses for defaults
-        @directed_inputs
-        class MyService:
-            ...
-    """
-
-    def decorator(cls: C) -> C:
         original_init = cls.__init__
 
         @functools.wraps(original_init)
-        def new_init(self: Any, *args: Any, **kwargs: Any) -> None:
-            # Create input context
-            inputs: dict[str, Any] = {}
+        def wrapped_init(self: Any, *args: Any, **kwargs: Any) -> None:
+            runtime_logging = kwargs.pop(_RUNTIME_LOGGING_KWARG, None)
+            runtime_settings = kwargs.pop(_RUNTIME_SETTINGS_KWARG, None)
+            overrides = kwargs.pop(_CONFIG_KWARG, None) or {}
 
-            if from_env:
-                inputs.update(_load_env(env_prefix, strip_env_prefix))
-
-            if from_stdin:
-                inputs.update(_load_stdin())
-
-            # Allow passing inputs directly
-            if "inputs" in kwargs:
-                extra_inputs = kwargs.pop("inputs")
-                if extra_inputs:
-                    inputs.update(extra_inputs)
-
-            ctx = InputContext(
-                inputs=CaseInsensitiveDict(inputs),
-                from_stdin=from_stdin,
-                from_env=from_env,
-                env_prefix=env_prefix,
-                strip_env_prefix=strip_env_prefix,
+            merged_options = dict(base_options)
+            merged_options.update(
+                {k: v for k, v in overrides.items() if v is not None}
             )
-            self._input_context = ctx
 
-            # Call original init
+            self._directed_inputs_context = InputContext(**merged_options)
+            self._directed_inputs_runtime_settings = runtime_settings
+
+            if runtime_logging and not hasattr(self, "logging"):
+                self.logging = runtime_logging
+                self.logger = runtime_logging.logger
+
             original_init(self, *args, **kwargs)
 
-        cls.__init__ = new_init  # type: ignore[method-assign]
+        cls.__init__ = wrapped_init  # type: ignore[assignment]
 
-        # Wrap all public methods
-        for attr_name in dir(cls):
-            if attr_name.startswith("_"):
-                continue
-
-            attr = getattr(cls, attr_name)
-            if not callable(attr) or isinstance(attr, type):
-                continue
-
-            # Get method-level configs
-            method_id = id(attr)
-            method_configs = _METHOD_CONFIGS.get(method_id, {})
-
-            # Wrap the method
-            wrapped = _wrap_method(attr, method_configs)
-            setattr(cls, attr_name, wrapped)
+        _inject_proxies(cls)
+        _wrap_instance_methods(cls)
 
         return cls
 
-    if cls is not None:
-        # Called without parentheses: @directed_inputs
-        return decorator(cls)
-
-    # Called with parentheses: @directed_inputs(...)
     return decorator
 
 
-# Convenience re-exports
-__all__ = [
-    "InputConfig",
-    "InputContext",
-    "directed_inputs",
-    "input_config",
-]
+def _inject_proxies(cls: type[Any]) -> None:
+    """Inject helper properties/methods for interacting with the context."""
+
+    def _get_context(self: Any) -> InputContext:
+        context = getattr(self, "_directed_inputs_context", None)
+        if context is None:
+            raise AttributeError(
+                "directed_inputs decorator not initialized on this instance"
+            )
+        return context
+
+    if not hasattr(cls, "directed_inputs"):
+
+        @property
+        def directed_inputs(self: Any) -> DirectedInputsClass:
+            return _get_context(self).directed_inputs
+
+        setattr(cls, "directed_inputs", directed_inputs)
+
+    if not hasattr(cls, "refresh_inputs"):
+
+        def refresh_inputs(self: Any, **overrides: Any) -> None:
+            _get_context(self).refresh(**overrides)
+
+        setattr(cls, "refresh_inputs", refresh_inputs)
+
+
+def _wrap_instance_methods(cls: type[Any]) -> None:
+    """Wrap instance methods so missing parameters are auto-populated."""
+
+    for name, attribute in list(cls.__dict__.items()):
+        if _should_skip_method(name, attribute):
+            continue
+
+        function = attribute
+        configs = getattr(function, "_directed_inputs_configs", {})
+        signature = inspect.signature(function)
+        is_coroutine = inspect.iscoroutinefunction(function)
+
+        def _create_wrapper(
+            fn: Callable[..., Any],
+            sig: inspect.Signature,
+            fn_configs: dict[str, InputConfig],
+            coroutine: bool,
+        ) -> Callable[..., Any]:
+            def _prepare_bound(
+                instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+            ) -> inspect.BoundArguments:
+                bound = sig.bind_partial(instance, *args, **kwargs)
+                for param_name, parameter in sig.parameters.items():
+                    if param_name == "self" or param_name in bound.arguments:
+                        continue
+                    if parameter.kind in (
+                        inspect.Parameter.VAR_POSITIONAL,
+                        inspect.Parameter.VAR_KEYWORD,
+                    ):
+                        continue
+
+                    config = fn_configs.get(param_name) or InputConfig(
+                        parameter_name=param_name
+                    )
+                    context = getattr(instance, "_directed_inputs_context", None)
+                    if context is None:
+                        raise AttributeError(
+                            "directed_inputs context missing on instance"
+                        )
+                    value = context.resolve(config)
+                    if value is _MISSING:
+                        continue
+                    bound.arguments[param_name] = value
+
+                bound.apply_defaults()
+                return bound
+
+            if coroutine:
+
+                @functools.wraps(fn)
+                async def async_wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+                    bound = _prepare_bound(self, args, kwargs)
+                    return await fn(*bound.args, **bound.kwargs)
+
+                return async_wrapper
+
+            @functools.wraps(fn)
+            def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+                bound = _prepare_bound(self, args, kwargs)
+                return fn(*bound.args, **bound.kwargs)
+
+            return wrapper
+
+        wrapped = _create_wrapper(function, signature, configs, is_coroutine)
+        setattr(cls, name, wrapped)
+
+
+def _should_skip_method(name: str, attribute: Any) -> bool:
+    """Determine whether an attribute should be wrapped."""
+
+    if name.startswith("_"):
+        return True
+
+    if isinstance(attribute, (staticmethod, classmethod, property)):
+        return True
+
+    return not inspect.isfunction(attribute)
