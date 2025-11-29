@@ -1,4 +1,18 @@
-"""AWS Connector using jbcom ecosystem packages."""
+"""AWS Connector using jbcom ecosystem packages.
+
+This package provides AWS operations organized into submodules:
+- organizations: AWS Organizations and Control Tower account management
+- sso: IAM Identity Center (SSO) operations
+- s3: S3 bucket and object operations
+- secrets: Secrets Manager operations (in base connector)
+- ecs: ECS cluster and service operations
+
+Usage:
+    from vendor_connectors.aws import AWSConnector
+
+    connector = AWSConnector()
+    accounts = connector.get_accounts()
+"""
 
 from __future__ import annotations
 
@@ -17,7 +31,15 @@ if TYPE_CHECKING:
 
 
 class AWSConnector(DirectedInputsClass):
-    """AWS connector for boto3 client and resource management."""
+    """AWS connector for boto3 client and resource management.
+
+    This is the base connector class providing:
+    - Session management and role assumption
+    - Client/resource creation with retry configuration
+    - Secrets Manager operations
+
+    Higher-level operations are provided via mixin classes from submodules.
+    """
 
     def __init__(
         self,
@@ -32,8 +54,23 @@ class AWSConnector(DirectedInputsClass):
         self.logging = logger or Logging(logger_name="AWSConnector")
         self.logger = self.logging.logger
 
+    # =========================================================================
+    # Session Management
+    # =========================================================================
+
     def assume_role(self, execution_role_arn: str, role_session_name: str) -> boto3.Session:
-        """Assume an AWS IAM role and return a boto3 Session."""
+        """Assume an AWS IAM role and return a boto3 Session.
+
+        Args:
+            execution_role_arn: ARN of the role to assume.
+            role_session_name: Name for the assumed role session.
+
+        Returns:
+            A boto3 Session with the assumed role credentials.
+
+        Raises:
+            RuntimeError: If role assumption fails.
+        """
         self.logger.info(f"Attempting to assume role: {execution_role_arn}")
         sts_client = self.default_aws_session.client("sts")
 
@@ -55,7 +92,15 @@ class AWSConnector(DirectedInputsClass):
         execution_role_arn: Optional[str] = None,
         role_session_name: Optional[str] = None,
     ) -> boto3.Session:
-        """Get a boto3 Session for the specified role."""
+        """Get a boto3 Session, optionally assuming a role.
+
+        Args:
+            execution_role_arn: ARN of role to assume. If None, uses default session.
+            role_session_name: Name for the assumed role session.
+
+        Returns:
+            A boto3 Session.
+        """
         if not execution_role_arn:
             return self.default_aws_session
 
@@ -72,9 +117,20 @@ class AWSConnector(DirectedInputsClass):
 
         return self.aws_sessions[execution_role_arn][role_session_name]
 
+    # =========================================================================
+    # Client/Resource Creation
+    # =========================================================================
+
     @staticmethod
     def create_standard_retry_config(max_attempts: int = 5) -> Config:
-        """Create a standard retry configuration."""
+        """Create a standard retry configuration.
+
+        Args:
+            max_attempts: Maximum retry attempts. Defaults to 5.
+
+        Returns:
+            A botocore Config with retry settings.
+        """
         return Config(retries={"max_attempts": max_attempts, "mode": "standard"})
 
     def get_aws_client(
@@ -85,7 +141,18 @@ class AWSConnector(DirectedInputsClass):
         config: Optional[Config] = None,
         **client_args,
     ) -> boto3.client:
-        """Get a boto3 client for the specified service."""
+        """Get a boto3 client for the specified service.
+
+        Args:
+            client_name: AWS service name (e.g., 's3', 'ec2', 'organizations').
+            execution_role_arn: ARN of role to assume for cross-account access.
+            role_session_name: Name for the assumed role session.
+            config: Optional botocore Config. Defaults to standard retry config.
+            **client_args: Additional arguments passed to boto3 client.
+
+        Returns:
+            A boto3 client for the specified service.
+        """
         session = self.get_aws_session(execution_role_arn, role_session_name)
         if config is None:
             config = self.create_standard_retry_config()
@@ -99,7 +166,21 @@ class AWSConnector(DirectedInputsClass):
         config: Optional[Config] = None,
         **resource_args,
     ) -> ServiceResource:
-        """Get a boto3 resource for the specified service."""
+        """Get a boto3 resource for the specified service.
+
+        Args:
+            service_name: AWS service name (e.g., 's3', 'ec2', 'dynamodb').
+            execution_role_arn: ARN of role to assume for cross-account access.
+            role_session_name: Name for the assumed role session.
+            config: Optional botocore Config. Defaults to standard retry config.
+            **resource_args: Additional arguments passed to boto3 resource.
+
+        Returns:
+            A boto3 resource for the specified service.
+
+        Raises:
+            RuntimeError: If resource creation fails.
+        """
         session = self.get_aws_session(execution_role_arn, role_session_name)
         if config is None:
             config = self.create_standard_retry_config()
@@ -110,6 +191,24 @@ class AWSConnector(DirectedInputsClass):
             self.logger.error(f"Failed to create resource for service: {service_name}", exc_info=True)
             raise RuntimeError(f"Failed to create resource for service {service_name}") from e
 
+    # =========================================================================
+    # Identity Operations
+    # =========================================================================
+
+    def get_caller_account_id(self) -> str:
+        """Get the AWS account ID of the caller.
+
+        Returns:
+            The 12-digit AWS account ID.
+        """
+        sts = self.get_aws_client("sts")
+        identity = sts.get_caller_identity()
+        return identity["Account"]
+
+    # =========================================================================
+    # Secrets Manager Operations
+    # =========================================================================
+
     def get_secret(
         self,
         secret_id: str,
@@ -118,8 +217,6 @@ class AWSConnector(DirectedInputsClass):
         secretsmanager: Optional[boto3.client] = None,
     ) -> Optional[str]:
         """Get a single secret value from AWS Secrets Manager.
-
-        Handles both SecretString and SecretBinary responses.
 
         Args:
             secret_id: The ARN or name of the secret to retrieve.
@@ -131,9 +228,6 @@ class AWSConnector(DirectedInputsClass):
             The secret value as a string, or None if not found.
         """
         self.logger.debug(f"Getting AWS secret: {secret_id}")
-
-        if execution_role_arn:
-            self.logger.debug(f"Using execution role: {execution_role_arn}")
 
         if secretsmanager is None:
             secretsmanager = self.get_aws_client(
@@ -153,15 +247,10 @@ class AWSConnector(DirectedInputsClass):
             self.logger.error(f"Failed to get secret {secret_id}: {e}")
             raise ValueError(f"Failed to get secret for ID '{secret_id}'") from e
 
-        # Handle both SecretString and SecretBinary
         if "SecretString" in response:
-            secret = response["SecretString"]
-            self.logger.debug("Retrieved secret as string")
+            return response["SecretString"]
         else:
-            secret = response["SecretBinary"].decode("utf-8")
-            self.logger.debug("Retrieved and decoded binary secret")
-
-        return secret
+            return response["SecretBinary"].decode("utf-8")
 
     def list_secrets(
         self,
@@ -175,28 +264,26 @@ class AWSConnector(DirectedInputsClass):
         """List secrets from AWS Secrets Manager.
 
         Args:
-            filters: List of filter dicts for list_secrets API (e.g., [{"Key": "description", "Values": ["prod"]}])
-            name_prefix: Optional prefix helper for the AWS-provided "name" filter.
-            get_secret_values: If True, fetch actual secret values, not just ARNs.
-            skip_empty_secrets: If True and get_secret_values is True, skip secrets with empty/null values.
+            filters: List of filter dicts for list_secrets API.
+            name_prefix: Optional prefix for the AWS "name" filter.
+            get_secret_values: If True, fetch actual secret values.
+            skip_empty_secrets: If True, skip secrets with empty values.
             execution_role_arn: ARN of role to assume for cross-account access.
             role_session_name: Session name for assumed role.
 
         Returns:
-            Dict mapping secret names to either ARNs (if get_secret_values=False) or secret values.
+            Dict mapping secret names to ARNs or values.
 
         Raises:
-            ValueError: If name_prefix contains path traversal sequences.
+            ValueError: If name_prefix contains invalid characters.
         """
         self.logger.info("Listing AWS Secrets Manager secrets")
 
-        # Validate name_prefix to prevent path traversal
         if name_prefix and (".." in name_prefix or "\x00" in name_prefix):
             raise ValueError("name_prefix contains invalid characters")
 
         if skip_empty_secrets:
             get_secret_values = True
-            self.logger.debug("Forced get_secret_values to True due to skip_empty_secrets setting")
 
         role_arn = execution_role_arn or self.execution_role_arn
         secretsmanager = self.get_aws_client(
@@ -206,9 +293,6 @@ class AWSConnector(DirectedInputsClass):
         )
 
         secrets: dict[str, str | dict] = {}
-        empty_secret_count = 0
-        page_count = 0
-
         paginator = secretsmanager.get_paginator("list_secrets")
 
         effective_filters: list[dict] = []
@@ -221,20 +305,12 @@ class AWSConnector(DirectedInputsClass):
         if effective_filters:
             paginate_kwargs["Filters"] = effective_filters
 
-        self.logger.debug(f"List secrets parameters: {paginate_kwargs}")
-
         for page in paginator.paginate(**paginate_kwargs):
-            page_count += 1
-            page_secrets = page.get("SecretList", [])
-            self.logger.info(f"Fetching secrets page {page_count}, found {len(page_secrets)} secrets")
-
-            for secret in page_secrets:
+            for secret in page.get("SecretList", []):
                 secret_name = secret["Name"]
                 secret_arn = secret["ARN"]
-                self.logger.debug(f"Processing secret: {secret_name}")
 
                 if get_secret_values:
-                    self.logger.debug(f"Fetching secret data for: {secret_name}")
                     secret_value = self.get_secret(
                         secret_id=secret_arn,
                         execution_role_arn=role_arn,
@@ -243,20 +319,13 @@ class AWSConnector(DirectedInputsClass):
                     )
 
                     if is_nothing(secret_value) and skip_empty_secrets:
-                        self.logger.warning(f"Skipping empty secret: {secret_name} ({secret_arn})")
-                        empty_secret_count += 1
                         continue
 
                     secrets[secret_name] = secret_value
-                    self.logger.debug(f"Stored secret data for: {secret_name}")
                 else:
                     secrets[secret_name] = secret_arn
-                    self.logger.debug(f"Stored secret ARN for: {secret_name}")
 
-        self.logger.info(
-            f"Secret listing complete. Processed {page_count} pages, "
-            f"returned {len(secrets)} secrets, skipped {empty_secret_count} empty"
-        )
+        self.logger.info(f"Retrieved {len(secrets)} secrets")
         return secrets
 
     def create_secret(
@@ -427,7 +496,7 @@ class AWSConnector(DirectedInputsClass):
         Returns:
             S3 URI of uploaded object.
         """
-        import json
+        import json as json_module
 
         self.logger.info(f"Copying {len(secrets)} secrets to s3://{bucket}/{key}")
 
@@ -437,7 +506,7 @@ class AWSConnector(DirectedInputsClass):
             role_session_name=role_session_name,
         )
 
-        body = json.dumps(secrets)
+        body = json_module.dumps(secrets)
         s3_client.put_object(
             Bucket=bucket,
             Key=key,
@@ -493,6 +562,30 @@ class AWSConnector(DirectedInputsClass):
         return vendors
 
 
-from .codedeploy import create_codedeploy_deployment, get_aws_codedeploy_deployments
+# Import submodule operations to make them available
+from vendor_connectors.aws.codedeploy import create_codedeploy_deployment, get_aws_codedeploy_deployments
+from vendor_connectors.aws.organizations import AWSOrganizationsMixin
+from vendor_connectors.aws.s3 import AWSS3Mixin
+from vendor_connectors.aws.sso import AWSSSOmixin
 
-__all__ = ["AWSConnector", "get_aws_codedeploy_deployments", "create_codedeploy_deployment"]
+
+class AWSConnectorFull(AWSConnector, AWSOrganizationsMixin, AWSSSOmixin, AWSS3Mixin):
+    """Full AWS connector with all operations.
+
+    This class combines the base AWSConnector with all operation mixins.
+    Use this for full functionality, or use AWSConnector directly and
+    import specific mixins as needed.
+    """
+
+    pass
+
+
+__all__ = [
+    "AWSConnector",
+    "AWSConnectorFull",
+    "AWSOrganizationsMixin",
+    "AWSSSOmixin",
+    "AWSS3Mixin",
+    "get_aws_codedeploy_deployments",
+    "create_codedeploy_deployment",
+]
