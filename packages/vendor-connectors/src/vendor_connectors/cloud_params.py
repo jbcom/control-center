@@ -1,12 +1,15 @@
 """Cloud API call parameter utilities.
 
-These utilities help build properly formatted parameter dictionaries for
-various cloud provider APIs (AWS, Google Cloud, etc.).
+This module provides utilities for building properly formatted parameter
+dictionaries for various cloud provider APIs (AWS, Google Cloud, etc.).
 
-The functions handle common patterns like:
+Key features:
 - Pagination limits (MaxResults/maxResults)
 - Key casing transformations (PascalCase for AWS, camelCase for Google)
 - Null/empty value filtering
+- Support for custom key transformations
+
+Exported via vendor_connectors package.
 """
 
 from __future__ import annotations
