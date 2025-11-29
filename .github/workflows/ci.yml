@@ -113,54 +113,6 @@ jobs:
       - run: uvx ruff format --check packages/
 
   # ============================================
-  # AI CODE REVIEW (PR only)
-  # ============================================
-  ai-review:
-    name: AI Review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for code changes
-        id: check
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          CHANGED=$(gh pr diff ${{ github.event.pull_request.number }} --name-only)
-          CODE=$(echo "$CHANGED" | grep -vE '^(wiki/|docs/|.*\.md$)' || true)
-          
-          if [ -z "$CODE" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Claude Review
-        if: |
-          steps.check.outputs.skip != 'true' &&
-          !contains(github.event.pull_request.title, '[HOLDING]') &&
-          !contains(github.event.pull_request.labels.*.name, 'no-review')
-        uses: anthropics/claude-code-action@v1
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          use_sticky_comment: true
-          allowed_bots: "cursor,github-actions[bot],dependabot[bot]"
-          prompt: |
-            Review PR #${{ github.event.pull_request.number }} for:
-            - Bugs and logic errors
-            - Security issues  
-            - Type safety
-            - Test coverage
-            
-            Use gh pr comment for summary.
-            Use mcp__github_inline_comment__create_inline_comment for specifics.
-          claude_args: |
-            --max-turns 10
-            --allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr comment:*),Bash(gh pr diff:*),Read,Grep"
-
-  # ============================================
   # REQUIRED CHECKS
   # ============================================
   required-checks-pass:
