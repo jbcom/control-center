@@ -3,6 +3,7 @@
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
+import pytest
 from hvac.exceptions import VaultError
 
 from vendor_connectors.vault import VaultConnector
@@ -137,8 +138,6 @@ class TestVaultConnector:
 
     def test_list_secrets_rejects_path_traversal(self, base_connector_kwargs):
         """Ensure list_secrets rejects path traversal in root_path."""
-        import pytest
-
         connector = VaultConnector(
             vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
         )
@@ -153,3 +152,106 @@ class TestVaultConnector:
         # Should reject null bytes
         with pytest.raises(ValueError, match="invalid characters"):
             connector.list_secrets(root_path="secrets\x00admin")
+
+    def test_list_aws_iam_roles_filters_prefix(self, base_connector_kwargs):
+        """Ensure AWS IAM roles can be listed and filtered by prefix."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.list_roles.return_value = {"data": {"keys": ["prod-sync", "dev-sync"]}}
+
+        roles = connector.list_aws_iam_roles(name_prefix="prod")
+
+        assert roles == ["prod-sync"]
+        mock_client.secrets.aws.list_roles.assert_called_once_with(mount_point="aws")
+
+    def test_list_aws_iam_roles_handles_errors(self, base_connector_kwargs):
+        """Vault errors while listing roles should return an empty list."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.list_roles.side_effect = VaultError("boom")
+
+        roles = connector.list_aws_iam_roles()
+
+        assert roles == []
+
+    def test_get_aws_iam_role_returns_data(self, base_connector_kwargs):
+        """get_aws_iam_role should fetch role metadata."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.read_role.return_value = {"data": {"arn": "arn:aws:iam::123:role/prod"}}
+
+        role_data = connector.get_aws_iam_role(role_name="prod")
+
+        assert role_data == {"arn": "arn:aws:iam::123:role/prod"}
+        mock_client.secrets.aws.read_role.assert_called_once_with(name="prod", mount_point="aws")
+
+    def test_get_aws_iam_role_handles_errors(self, base_connector_kwargs):
+        """Vault failures when fetching role metadata should return None."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.read_role.side_effect = VaultError("missing")
+
+        assert connector.get_aws_iam_role(role_name="missing") is None
+
+    def test_generate_aws_credentials_success(self, base_connector_kwargs):
+        """generate_aws_credentials should return the generated credential payload."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.generate_credentials.return_value = {
+            "data": {"access_key": "AKIA", "secret_key": "SECRET", "security_token": "TOKEN"}
+        }
+
+        credentials = connector.generate_aws_credentials(role_name="prod", ttl="1h", credential_type="sts")
+
+        assert credentials["access_key"] == "AKIA"
+        mock_client.secrets.aws.generate_credentials.assert_called_once_with(
+            name="prod",
+            mount_point="aws",
+            ttl="1h",
+            type="sts",
+        )
+
+    def test_generate_aws_credentials_error(self, base_connector_kwargs):
+        """Vault errors while generating credentials should raise RuntimeError."""
+        connector = VaultConnector(
+            vault_url="https://vault.example.com", vault_token="test-token", **base_connector_kwargs
+        )
+
+        mock_client = MagicMock()
+        connector._vault_client = mock_client
+        connector._vault_token_expiration = datetime(2099, 1, 1, tzinfo=timezone.utc)
+
+        mock_client.secrets.aws.generate_credentials.side_effect = VaultError("boom")
+
+        with pytest.raises(RuntimeError):
+            connector.generate_aws_credentials(role_name="prod")

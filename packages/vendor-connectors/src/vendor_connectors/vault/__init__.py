@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Any, Optional
 
 import hvac
 from directed_inputs_class import DirectedInputsClass
@@ -127,6 +127,12 @@ class VaultConnector(DirectedInputsClass):
         if not self._vault_token_expiration:
             return False
         return datetime.now(timezone.utc) < self._vault_token_expiration
+
+    @staticmethod
+    def _validate_mount_point(mount_point: Optional[str]) -> None:
+        """Ensure Vault mount inputs do not allow traversal or null bytes."""
+        if mount_point and (".." in mount_point or "\x00" in mount_point):
+            raise ValueError("mount_point contains invalid characters")
 
     @classmethod
     def get_vault_client(
@@ -368,3 +374,118 @@ class VaultConnector(DirectedInputsClass):
         except VaultError as e:
             self.logger.error(f"Failed to write secret {path}: {e}")
             return False
+
+    # ---------------------------------------------------------------------
+    # Vault AWS IAM helpers (migrated from terraform-modules)
+    # ---------------------------------------------------------------------
+
+    def list_aws_iam_roles(
+        self,
+        mount_point: str = "aws",
+        name_prefix: Optional[str] = None,
+    ) -> list[str]:
+        """List AWS IAM roles configured in Vault's AWS secrets engine.
+
+        Args:
+            mount_point: AWS secrets engine mount point (default: "aws").
+            name_prefix: Optional prefix filter for role names.
+
+        Returns:
+            List of role names available for credential generation.
+        """
+        self._validate_mount_point(mount_point)
+
+        client = self.vault_client
+        aws_secrets = client.secrets.aws
+
+        try:
+            response = aws_secrets.list_roles(mount_point=mount_point)
+        except VaultError as e:
+            self.logger.warning(f"Failed to list AWS IAM roles from mount {mount_point}: {e}")
+            return []
+
+        role_names = response.get("data", {}).get("keys", []) or []
+        if name_prefix:
+            role_names = [role for role in role_names if role.startswith(name_prefix)]
+
+        self.logger.info(f"Found {len(role_names)} AWS IAM roles under mount {mount_point}")
+        return role_names
+
+    def get_aws_iam_role(
+        self,
+        role_name: str,
+        mount_point: str = "aws",
+    ) -> Optional[dict]:
+        """Retrieve details about a specific AWS IAM role configured in Vault.
+
+        Args:
+            role_name: Name of the role to fetch.
+            mount_point: AWS secrets engine mount point (default: "aws").
+
+        Returns:
+            Dict containing the role configuration, or None if not found.
+        """
+        if is_nothing(role_name):
+            raise ValueError("role_name is required")
+
+        self._validate_mount_point(mount_point)
+
+        try:
+            response = self.vault_client.secrets.aws.read_role(name=role_name, mount_point=mount_point)
+        except VaultError as e:
+            self.logger.warning(f"Failed to read AWS IAM role {role_name}: {e}")
+            return None
+
+        role_data = response.get("data")
+        if is_nothing(role_data):
+            self.logger.warning(f"AWS IAM role {role_name} exists but returned no data")
+            return None
+
+        return role_data
+
+    def generate_aws_credentials(
+        self,
+        role_name: str,
+        mount_point: str = "aws",
+        ttl: Optional[str] = None,
+        credential_type: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Generate AWS credentials via Vault's AWS secrets engine.
+
+        Args:
+            role_name: AWS role configured in Vault.
+            mount_point: AWS secrets engine mount point (default: "aws").
+            ttl: Optional TTL override (e.g., "1h").
+            credential_type: Optional credential type override (e.g., "sts").
+
+        Returns:
+            Dict of generated credential data (e.g., AccessKeyId, SecretAccessKey, SessionToken).
+
+        Raises:
+            ValueError: If role_name is empty or mount_point is invalid.
+            RuntimeError: If Vault fails to return credentials.
+        """
+        if is_nothing(role_name):
+            raise ValueError("role_name is required")
+
+        self._validate_mount_point(mount_point)
+
+        aws_secrets = self.vault_client.secrets.aws
+        generate_kwargs: dict[str, Any] = {}
+        if ttl:
+            generate_kwargs["ttl"] = ttl
+        if credential_type:
+            generate_kwargs["type"] = credential_type
+
+        try:
+            response = aws_secrets.generate_credentials(name=role_name, mount_point=mount_point, **generate_kwargs)
+        except VaultError as e:
+            self.logger.error(f"Failed to generate AWS credentials for role {role_name}: {e}")
+            raise RuntimeError(f"Failed to generate AWS credentials for role {role_name}") from e
+
+        credentials = response.get("data") or {}
+        if not credentials:
+            raise RuntimeError(f"Vault returned empty credentials for role {role_name}")
+
+        self.logger.info(f"Generated AWS credentials for role {role_name}")
+        return credentials
