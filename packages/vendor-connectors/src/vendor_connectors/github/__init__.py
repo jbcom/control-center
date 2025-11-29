@@ -580,3 +580,318 @@ class GithubConnector(DirectedInputsClass):
             variables=variables or {},
             headers=headers,
         )
+
+    # =========================================================================
+    # Enhanced User Operations
+    # =========================================================================
+
+    def get_users_with_verified_emails(
+        self,
+        members: Optional[dict[str, dict[str, Any]]] = None,
+        domain_filter: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Get organization members with their verified emails.
+
+        Uses GraphQL to get verified email addresses for org members.
+
+        Args:
+            members: Pre-fetched members dict. Fetched if not provided.
+            domain_filter: Filter by email domain (e.g., 'company.com').
+
+        Returns:
+            Dictionary mapping usernames to member data with verified emails.
+        """
+        self.logger.info(f"Getting users with verified emails for {self.GITHUB_OWNER}")
+
+        if members is None:
+            members = self.list_org_members()
+
+        # GraphQL query for verified emails
+        query = """
+        query($login: String!) {
+            user(login: $login) {
+                login
+                email
+                organizationVerifiedDomainEmails(login: $login)
+            }
+        }
+        """
+
+        enriched: dict[str, dict[str, Any]] = {}
+
+        for username, member_data in members.items():
+            try:
+                result = self.execute_graphql(query, {"login": username})
+                user_data = result.get("data", {}).get("user", {})
+
+                verified_emails = user_data.get("organizationVerifiedDomainEmails", [])
+                primary_email = user_data.get("email")
+
+                enriched_data = member_data.copy()
+                enriched_data["verified_emails"] = verified_emails
+                enriched_data["primary_email"] = primary_email
+
+                # Apply domain filter
+                if domain_filter:
+                    matching_emails = [e for e in verified_emails if e.endswith(f"@{domain_filter}")]
+                    if not matching_emails:
+                        continue
+                    enriched_data["domain_emails"] = matching_emails
+
+                enriched[username] = enriched_data
+
+            except Exception as e:
+                self.logger.warning(f"Failed to get verified emails for {username}: {e}")
+                enriched[username] = member_data
+
+        self.logger.info(f"Retrieved verified emails for {len(enriched)} users")
+        return enriched
+
+    # =========================================================================
+    # GitHub Actions Workflows
+    # =========================================================================
+
+    def build_workflow(
+        self,
+        name: str,
+        on: dict[str, Any],
+        jobs: dict[str, dict[str, Any]],
+        env: Optional[dict[str, str]] = None,
+        permissions: Optional[dict[str, str]] = None,
+        concurrency: Optional[dict[str, Any]] = None,
+        defaults: Optional[dict[str, Any]] = None,
+    ) -> dict[str, Any]:
+        """Build a GitHub Actions workflow structure.
+
+        Args:
+            name: Workflow name.
+            on: Trigger configuration.
+            jobs: Jobs configuration.
+            env: Global environment variables.
+            permissions: Workflow permissions.
+            concurrency: Concurrency settings.
+            defaults: Default settings for jobs.
+
+        Returns:
+            Workflow configuration dict suitable for YAML export.
+        """
+        workflow: dict[str, Any] = {"name": name}
+
+        if permissions:
+            workflow["permissions"] = permissions
+
+        workflow["on"] = on
+
+        if env:
+            workflow["env"] = env
+
+        if concurrency:
+            workflow["concurrency"] = concurrency
+
+        if defaults:
+            workflow["defaults"] = defaults
+
+        workflow["jobs"] = jobs
+
+        return workflow
+
+    def build_workflow_job(
+        self,
+        runs_on: str = "ubuntu-latest",
+        steps: Optional[list[dict[str, Any]]] = None,
+        needs: Optional[list[str]] = None,
+        if_condition: Optional[str] = None,
+        env: Optional[dict[str, str]] = None,
+        strategy: Optional[dict[str, Any]] = None,
+        timeout_minutes: Optional[int] = None,
+        services: Optional[dict[str, Any]] = None,
+        outputs: Optional[dict[str, str]] = None,
+    ) -> dict[str, Any]:
+        """Build a GitHub Actions workflow job.
+
+        Args:
+            runs_on: Runner label(s).
+            steps: Job steps.
+            needs: Dependencies on other jobs.
+            if_condition: Conditional expression.
+            env: Job environment variables.
+            strategy: Matrix strategy.
+            timeout_minutes: Job timeout.
+            services: Service containers.
+            outputs: Job outputs.
+
+        Returns:
+            Job configuration dict.
+        """
+        job: dict[str, Any] = {"runs-on": runs_on}
+
+        if needs:
+            job["needs"] = needs
+
+        if if_condition:
+            job["if"] = if_condition
+
+        if env:
+            job["env"] = env
+
+        if strategy:
+            job["strategy"] = strategy
+
+        if timeout_minutes:
+            job["timeout-minutes"] = timeout_minutes
+
+        if services:
+            job["services"] = services
+
+        if outputs:
+            job["outputs"] = outputs
+
+        job["steps"] = steps or []
+
+        return job
+
+    def build_workflow_step(
+        self,
+        name: str,
+        uses: Optional[str] = None,
+        run: Optional[str] = None,
+        with_params: Optional[dict[str, Any]] = None,
+        env: Optional[dict[str, str]] = None,
+        if_condition: Optional[str] = None,
+        working_directory: Optional[str] = None,
+        shell: Optional[str] = None,
+        id: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Build a GitHub Actions workflow step.
+
+        Args:
+            name: Step name.
+            uses: Action to use (e.g., 'actions/checkout@v4').
+            run: Shell command(s) to run.
+            with_params: Input parameters for the action.
+            env: Step environment variables.
+            if_condition: Conditional expression.
+            working_directory: Working directory for run commands.
+            shell: Shell to use for run commands.
+            id: Step ID for outputs.
+
+        Returns:
+            Step configuration dict.
+        """
+        step: dict[str, Any] = {"name": name}
+
+        if id:
+            step["id"] = id
+
+        if if_condition:
+            step["if"] = if_condition
+
+        if uses:
+            step["uses"] = uses
+            if with_params:
+                step["with"] = with_params
+        elif run:
+            step["run"] = run
+            if shell:
+                step["shell"] = shell
+            if working_directory:
+                step["working-directory"] = working_directory
+
+        if env:
+            step["env"] = env
+
+        return step
+
+    def create_python_ci_workflow(
+        self,
+        python_versions: Optional[list[str]] = None,
+        test_command: str = "pytest",
+        lint_command: str = "ruff check",
+        format_command: Optional[str] = "ruff format --check",
+        install_command: str = "uv sync --all-packages",
+        working_directory: str = ".",
+    ) -> dict[str, Any]:
+        """Create a standard Python CI workflow.
+
+        Args:
+            python_versions: Python versions to test. Defaults to ['3.12'].
+            test_command: Test command. Defaults to 'pytest'.
+            lint_command: Lint command. Defaults to 'ruff check'.
+            format_command: Format check command. None to skip.
+            install_command: Dependency install command.
+            working_directory: Working directory for commands.
+
+        Returns:
+            Complete workflow configuration.
+        """
+        python_versions = python_versions or ["3.12"]
+
+        setup_steps = [
+            self.build_workflow_step(
+                name="Checkout code",
+                uses="actions/checkout@v4",
+            ),
+            self.build_workflow_step(
+                name="Set up Python",
+                uses="actions/setup-python@v5",
+                with_params={
+                    "python-version": "${{ matrix.python-version }}",
+                },
+            ),
+            self.build_workflow_step(
+                name="Install uv",
+                uses="astral-sh/setup-uv@v4",
+            ),
+            self.build_workflow_step(
+                name="Install dependencies",
+                run=install_command,
+                working_directory=working_directory,
+            ),
+        ]
+
+        test_steps = []
+
+        if lint_command:
+            test_steps.append(
+                self.build_workflow_step(
+                    name="Lint",
+                    run=lint_command,
+                    working_directory=working_directory,
+                )
+            )
+
+        if format_command:
+            test_steps.append(
+                self.build_workflow_step(
+                    name="Format check",
+                    run=format_command,
+                    working_directory=working_directory,
+                )
+            )
+
+        test_steps.append(
+            self.build_workflow_step(
+                name="Run tests",
+                run=test_command,
+                working_directory=working_directory,
+            )
+        )
+
+        test_job = self.build_workflow_job(
+            runs_on="ubuntu-latest",
+            steps=setup_steps + test_steps,
+            strategy={
+                "matrix": {
+                    "python-version": python_versions,
+                },
+            },
+        )
+
+        return self.build_workflow(
+            name="CI",
+            on={
+                "push": {"branches": ["main"]},
+                "pull_request": {"branches": ["main"]},
+            },
+            jobs={"test": test_job},
+        )
