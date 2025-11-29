@@ -1,0 +1,72 @@
+---
+alwaysApply: true
+description: Manual AI code review engagement protocol
+globs: ["**/*"]
+---
+
+# AI Code Review (QA) Engagement
+
+AI code reviews are **manual**, not automatic. Agents decide when to engage QA.
+
+## When to Request Review
+
+Request AI review for:
+- Complex logic changes (algorithms, state machines)
+- Security-sensitive code (auth, secrets, crypto)
+- Breaking API changes
+- Major refactors (>200 lines changed)
+- Unfamiliar codebases (first time contributing)
+
+Skip review for:
+- Documentation-only changes
+- Dependency bumps (Dependabot)
+- Config/formatting changes
+- Simple bug fixes with tests
+- Changes you've thoroughly validated
+
+## How to Request Review
+
+Comment on the PR with one of:
+
+```
+@cursor review       # Cursor's AI review
+/q review            # Amazon Q review
+/gemini review       # Google Gemini review
+@coderabbitai review # CodeRabbit AI review
+```
+
+Or be specific:
+```
+@cursor review security  # Focus on security
+/q review performance    # Focus on performance
+```
+
+## Acting on Feedback
+
+1. **Evaluate critically** - AI reviews can have false positives
+2. **Prioritize blockers** - Fix critical/high severity issues
+3. **Dismiss noise** - Style suggestions without justification
+4. **Document reasoning** - If you disagree, explain why
+
+## As the PR Owner
+
+You own the PR - AI feedback is advisory, not authoritative.
+
+- You decide what to fix
+- You decide when to merge
+- You can dismiss unhelpful feedback
+- You're responsible for the final code
+
+## Cross-Agent Collaboration
+
+When another agent created the PR:
+1. Don't overwrite their decisions without reason
+2. Add your feedback as comments, not force-pushes
+3. Tag them for significant changes: `@cursor what about...`
+4. Respect their ownership
+
+## QA Engagement is Judgment
+
+Use your judgment. Not every PR needs review. When in doubt:
+- Small, tested changes → Skip
+- Complex, critical changes → Request
