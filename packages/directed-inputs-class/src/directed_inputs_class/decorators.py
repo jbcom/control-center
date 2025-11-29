@@ -139,6 +139,98 @@ class InputContext:
         self.inputs = CaseInsensitiveDict(merged)
 
 
+_UNION_TYPE = getattr(types, "UnionType", None)
+
+_STRING_TYPE_ALIASES: dict[str, type] = {
+    "str": str,
+    "builtins.str": str,
+    "int": int,
+    "builtins.int": int,
+    "float": float,
+    "builtins.float": float,
+    "bool": bool,
+    "builtins.bool": bool,
+    "dict": dict,
+    "Dict": dict,
+    "typing.Dict": dict,
+    "list": list,
+    "List": list,
+    "typing.List": list,
+    "Path": Path,
+    "pathlib.Path": Path,
+    "datetime": datetime,
+    "datetime.datetime": datetime,
+}
+
+
+def _normalize_string_type(type_str: str) -> type | None:
+    """Best-effort resolution of type hints represented as strings.
+
+    Python 3.9 stores annotations as strings when using
+    `from __future__ import annotations`, and evaluating expressions like
+    ``str | None`` raises TypeError before 3.10. This helper extracts the
+    underlying concrete type so downstream coercion logic can operate.
+    """
+    cleaned = type_str.strip().strip("\"'")
+    if not cleaned or cleaned in {"None", "NoneType", "type(None)"}:
+        return None
+
+    lowered = cleaned.lower()
+    if lowered.startswith(("typing.optional[", "optional[")):
+        inner = cleaned.split("[", 1)[1].rsplit("]", 1)[0]
+        return _normalize_string_type(inner)
+
+    if "|" in cleaned:
+        parts = [part.strip() for part in cleaned.split("|")]
+        for part in parts:
+            resolved = _normalize_string_type(part)
+            if resolved is not None:
+                return resolved
+        return None
+
+    if "[" in cleaned:
+        cleaned = cleaned.split("[", 1)[0].strip()
+
+    if cleaned in _STRING_TYPE_ALIASES:
+        return _STRING_TYPE_ALIASES[cleaned]
+
+    if "." in cleaned:
+        suffix = cleaned.split(".")[-1]
+        return _STRING_TYPE_ALIASES.get(suffix)
+
+    return None
+
+
+def _resolve_type_hint(target_type: Any) -> type | None:
+    """Resolve various typing representations to a concrete Python type."""
+    if target_type is None or target_type is type(None):
+        return None
+
+    if isinstance(target_type, str):
+        return _normalize_string_type(target_type)
+
+    forward_ref = getattr(typing, "ForwardRef", None)
+    if forward_ref is not None and isinstance(target_type, forward_ref):
+        return _normalize_string_type(target_type.__forward_arg__)  # type: ignore[attr-defined]
+
+    origin = get_origin(target_type)
+    if origin is Union or (_UNION_TYPE is not None and origin is _UNION_TYPE):
+        for arg in get_args(target_type):
+            resolved = _resolve_type_hint(arg)
+            if resolved is not None:
+                return resolved
+        return None
+
+    if _UNION_TYPE is not None and isinstance(target_type, _UNION_TYPE):
+        for arg in getattr(target_type, "__args__", ()):
+            resolved = _resolve_type_hint(arg)
+            if resolved is not None:
+                return resolved
+        return None
+
+    return target_type
+
+
 def _load_stdin() -> dict[str, Any]:
     """Load inputs from stdin as JSON."""
     if strtobool(os.getenv("OVERRIDE_STDIN", "False")):
@@ -168,13 +260,21 @@ def _load_env(prefix: str | None = None, strip_prefix: bool = False) -> dict[str
 
 def _coerce_value(value: Any, target_type: type | None) -> Any:
     """Coerce a value to the target type."""
+    target_type = _resolve_type_hint(target_type)
     if target_type is None or value is None:
         return value
 
     # Handle Union types (including X | None via types.UnionType)
     origin = get_origin(target_type)
-    if origin is Union or isinstance(target_type, types.UnionType):
+    if origin is Union or (_UNION_TYPE is not None and origin is _UNION_TYPE):
         args = get_args(target_type)
+        non_none_types = [t for t in args if t is not type(None)]
+        if non_none_types:
+            target_type = non_none_types[0]
+        else:
+            return value
+    elif _UNION_TYPE is not None and isinstance(target_type, _UNION_TYPE):
+        args = getattr(target_type, "__args__", ())
         non_none_types = [t for t in args if t is not type(None)]
         if non_none_types:
             target_type = non_none_types[0]
