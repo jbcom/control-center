@@ -393,8 +393,8 @@ export class Fleet {
         if (!prev || prev.status !== agent.status) {
           agentStates.set(agent.id, { status: agent.status, lastSeen: now });
           
-          // Trigger callbacks
-          if (agent.status === "FINISHED" && prev?.status === "RUNNING") {
+          // Trigger callbacks - both FINISHED and COMPLETED are successful terminal states
+          if ((agent.status === "FINISHED" || agent.status === "COMPLETED") && prev?.status === "RUNNING") {
             await options.onAgentFinished?.(agent);
           } else if (agent.status === "FAILED" && prev?.status === "RUNNING") {
             await options.onAgentFailed?.(agent);
@@ -425,6 +425,9 @@ export class Fleet {
     const results = new Map<string, Agent>();
     const pending = new Set(agentIds);
 
+    // Non-terminal states - agents still working
+    const nonTerminalStates = new Set<AgentStatus>(["RUNNING", "CREATING", "PENDING"]);
+
     while (pending.size > 0) {
       const statusMap = new Map<string, AgentStatus>();
       
@@ -433,7 +436,8 @@ export class Fleet {
         if (result.success && result.data) {
           statusMap.set(id, result.data.status);
           
-          if (result.data.status !== "RUNNING") {
+          // Check if agent has reached a terminal state
+          if (!nonTerminalStates.has(result.data.status)) {
             results.set(id, result.data);
             pending.delete(id);
           }
@@ -494,7 +498,8 @@ export class Fleet {
         const now = new Date();
         console.log(`\n[OUTBOUND ${now.toISOString()}] Checking ${agentIds.size} agents...`);
 
-        for (const agentId of agentIds) {
+        // Iterate over a copy to avoid race conditions with inbound loop modifications
+        for (const agentId of [...agentIds]) {
           const result = await this.status(agentId);
 
           if (!result.success || !result.data) {
@@ -626,12 +631,13 @@ export class Fleet {
 
   /**
    * Fetch comments from a GitHub PR
+   * GH_TOKEN is read from environment by gh CLI automatically
    */
-  fetchPRComments(repo: string, prNumber: number, githubToken?: string): PRComment[] {
+  fetchPRComments(repo: string, prNumber: number, _githubToken?: string): PRComment[] {
     try {
-      const token = githubToken ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
+      // gh CLI reads GH_TOKEN from environment automatically
       const output = execSync(
-        `GH_TOKEN="${token}" gh api repos/${repo}/issues/${prNumber}/comments --jq '.[] | {id: .id, body: .body, author: .user.login, createdAt: .created_at}'`,
+        `gh api repos/${repo}/issues/${prNumber}/comments --jq '.[] | {id: .id, body: .body, author: .user.login, createdAt: .created_at}'`,
         { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
       );
 
@@ -648,14 +654,14 @@ export class Fleet {
 
   /**
    * Post a comment to a GitHub PR
+   * Uses --body-file - to safely pass body via stdin, avoiding shell injection
    */
-  postPRComment(repo: string, prNumber: number, body: string, githubToken?: string): void {
+  postPRComment(repo: string, prNumber: number, body: string, _githubToken?: string): void {
     try {
-      const token = githubToken ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
-      const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+      // GH_TOKEN is read from environment by gh CLI automatically
       execSync(
-        `GH_TOKEN="${token}" gh pr comment ${prNumber} --repo ${repo} --body "${escapedBody}"`,
-        { stdio: ["pipe", "pipe", "pipe"] }
+        `gh pr comment ${prNumber} --repo ${repo} --body-file -`,
+        { input: body, stdio: ["pipe", "pipe", "pipe"] }
       );
     } catch (err) {
       console.error("Failed to post PR comment:", err);

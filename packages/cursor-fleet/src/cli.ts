@@ -400,7 +400,7 @@ program
       onAgentFinished: async (agent) => {
         console.log(`\n✅ FINISHED: ${agent.id}`);
         console.log(`   Name: ${agent.name}`);
-        console.log(`   Summary: ${agent.summary?.slice(0, 200)}...`);
+        console.log(`   Summary: ${agent.summary?.slice(0, 200) ?? 'No summary available'}`);
         console.log("");
       },
       onAgentFailed: async (agent) => {
@@ -443,7 +443,8 @@ program
 
     console.log("\n\n=== Results ===\n");
     for (const [id, agent] of results) {
-      const status = agent.status === "FINISHED" ? "✅" : "❌";
+      // Both FINISHED and COMPLETED are successful terminal states
+      const status = (agent.status === "FINISHED" || agent.status === "COMPLETED") ? "✅" : "❌";
       console.log(`${status} ${id}: ${agent.status}`);
     }
   });
