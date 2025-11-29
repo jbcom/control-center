@@ -84,7 +84,7 @@ jobs:
           path: |
             ~/.cache/uv
             .tox
-          key: tox-${{ matrix.python-version }}-${{ matrix.package }}-${{ hashFiles('uv.lock', 'tox.ini') }}
+          key: tox-${{ matrix.python-version }}-${{ matrix.package }}-${{ hashFiles('uv.lock', 'tox.ini', format('packages/{0}/**', matrix.package)) }}
 
       - name: Install tox
         run: uv tool install tox --with tox-uv --with tox-gh
