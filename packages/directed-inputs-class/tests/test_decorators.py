@@ -172,10 +172,13 @@ class TestDirectedInputsDecorator:
                 return None
 
         oversized = "x" * (decorators_mod.STDIN_MAX_BYTES + 1)
-        with patch(
-            "directed_inputs_class.decorators.sys.stdin.read",
-            return_value=oversized,
-        ), pytest.raises(ValueError, match=r"exceeds maximum size"):
+        with (
+            patch(
+                "directed_inputs_class.decorators.sys.stdin.read",
+                return_value=oversized,
+            ),
+            pytest.raises(ValueError, match=r"exceeds maximum size"),
+        ):
             MyService()
 
 
