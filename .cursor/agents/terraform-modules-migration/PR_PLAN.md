@@ -1,26 +1,33 @@
 # PR Plan - Terraform Modules Migration
 
 > **Last Updated**: 2025-11-29  
-> **Status**: ✅ All PRs Created  
-> **Agent**: terraform-modules-migration
+> **Status**: ✅ Agents Spawned & Coordinating  
+> **Control Manager**: bc-7f35d6f6-a052-4f88-9dba-252d359b8395
+
+## Active Fleet
+
+| Agent ID | PR | Task |
+|----------|-----|------|
+| `bc-c5f87098` | #247 | directed-inputs-class decorator API |
+| `bc-d21c685f` | #248 | python-terraform-bridge package |
+| `bc-8b1f68c9` | #245 | vendor-connectors migration |
 
 ## PR Dependency Chain
 
 ```
-PR #246: docs/wiki-orchestration-update (merge FIRST)
+PR #246: docs/wiki-orchestration-update ✅ MERGED
     ↓
-PR #247: feat/directed-inputs-decorator-api
-    ↓
-PR #248: feat/python-terraform-bridge (depends on PR #247)
-    ↓
-PR #249: feat/vendor-connectors-migration (depends on PR #248)
+PR #245: feat/complete-terraform-migration-gaps (vendor-connectors)
+PR #247: feat/directed-inputs-decorator-api (independent)
+PR #248: feat/python-terraform-bridge (independent)
 ```
 
 ## PR Links
-- [PR #246](https://github.com/jbcom/jbcom-control-center/pull/246) - Documentation & Wiki Update
+- [PR #246](https://github.com/jbcom/jbcom-control-center/pull/246) - ✅ MERGED
+- [PR #245](https://github.com/jbcom/jbcom-control-center/pull/245) - vendor-connectors Migration (100% parity)
 - [PR #247](https://github.com/jbcom/jbcom-control-center/pull/247) - directed-inputs-class Decorator API
 - [PR #248](https://github.com/jbcom/jbcom-control-center/pull/248) - python-terraform-bridge Package
-- [PR #249](https://github.com/jbcom/jbcom-control-center/pull/249) - vendor-connectors Migration Functions
+- ~~PR #249~~ - CLOSED (redundant with #245)
 
 ---
 
