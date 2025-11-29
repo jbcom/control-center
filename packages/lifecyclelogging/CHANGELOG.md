@@ -2,6 +2,30 @@
 
 <!-- version list -->
 
+## v202511.6.0 (2025-11-29)
+
+### Documentation
+
+- Add FSC Control Center counterparty awareness
+  ([#220](https://github.com/jbcom/jbcom-control-center/pull/220),
+  [`a0e9ff9`](https://github.com/jbcom/jbcom-control-center/commit/a0e9ff96aefd947266753fb8e8f460463eb8dc8f))
+
+- Update orchestration with completion status
+  ([`f0737b5`](https://github.com/jbcom/jbcom-control-center/commit/f0737b52b44300f8ba7d376fc1a32da2ee7035de))
+
+- Update PR_PLAN with agent fleet assignments
+  ([`80845b1`](https://github.com/jbcom/jbcom-control-center/commit/80845b1531f900a81786489ce77c030429d4c362))
+
+- Update wiki and orchestration for architectural evolution
+  ([`8ad2f99`](https://github.com/jbcom/jbcom-control-center/commit/8ad2f997f41dffb1910c07398a779d1d7c2a9302))
+
+### Features
+
+- Add python-terraform-bridge package
+  ([#248](https://github.com/jbcom/jbcom-control-center/pull/248),
+  [`2d3cd6f`](https://github.com/jbcom/jbcom-control-center/commit/2d3cd6f05502fe02c0a0178829d871a955ae6b35))
+
+
 ## v202511.5.0 (2025-11-29)
 
 ### Features
