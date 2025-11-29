@@ -1,7 +1,5 @@
 """Tests for cloud_params module."""
 
-import pytest
-
 from vendor_connectors.cloud_params import (
     get_aws_call_params,
     get_cloud_call_params,
@@ -74,7 +72,7 @@ class TestGetAwsCallParams:
             "IdentityStoreId": "d-123",
             "NextToken": "abc",
         }
-    
+
     def test_snake_case_preserved(self):
         """Snake case keys have first letter uppercased only."""
         params = get_aws_call_params(identity_store_id="d-123")
@@ -107,7 +105,7 @@ class TestGetGoogleCallParams:
         params = get_google_call_params(no_max_results=True, customerId="C123")
         assert "maxResults" not in params
         assert params == {"customerId": "C123"}
-    
+
     def test_snake_case_preserved(self):
         """Snake case keys have first letter lowercased only."""
         params = get_google_call_params(no_max_results=True, Customer_Id="C123")
