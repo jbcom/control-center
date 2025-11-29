@@ -148,36 +148,53 @@ class GoogleConnector(DirectedInputsClass):
     # =========================================================================
 
     def get_admin_directory_service(self, subject: Optional[str] = None) -> Any:
-        """Get the Admin Directory API service.
-
-        Args:
-            subject: Optional email to impersonate.
-
-        Returns:
-            Admin Directory API service client.
-        """
+        """Get the Admin Directory API service."""
         return self.get_service("admin", "directory_v1", subject=subject)
 
     def get_cloud_resource_manager_service(self) -> Any:
-        """Get the Cloud Resource Manager API service.
-
-        Returns:
-            Cloud Resource Manager API service client.
-        """
+        """Get the Cloud Resource Manager API service."""
         return self.get_service("cloudresourcemanager", "v3")
 
     def get_iam_service(self) -> Any:
-        """Get the IAM API service.
-
-        Returns:
-            IAM API service client.
-        """
+        """Get the IAM API service."""
         return self.get_service("iam", "v1")
 
-<<<<<<< HEAD
     def get_billing_service(self) -> Any:
-        """Get the Cloud Billing API service.
-=======
+        """Get the Cloud Billing API service."""
+        return self.get_service("cloudbilling", "v1")
+
+    def get_compute_service(self) -> Any:
+        """Get the Compute Engine API service."""
+        return self.get_service("compute", "v1")
+
+    def get_container_service(self) -> Any:
+        """Get the GKE API service."""
+        return self.get_service("container", "v1")
+
+    def get_storage_service(self) -> Any:
+        """Get the Cloud Storage API service."""
+        return self.get_service("storage", "v1")
+
+    def get_sqladmin_service(self) -> Any:
+        """Get the Cloud SQL Admin API service."""
+        return self.get_service("sqladmin", "v1beta4")
+
+    def get_pubsub_service(self) -> Any:
+        """Get the Pub/Sub API service."""
+        return self.get_service("pubsub", "v1")
+
+    def get_serviceusage_service(self) -> Any:
+        """Get the Service Usage API service."""
+        return self.get_service("serviceusage", "v1")
+
+    def get_cloudkms_service(self) -> Any:
+        """Get the Cloud KMS API service."""
+        return self.get_service("cloudkms", "v1")
+
+    # =========================================================================
+    # Directory Filtering Helpers (from PR #241)
+    # =========================================================================
+
     def _resolve_bool_option(self, explicit: Optional[bool], input_key: str, default: bool) -> bool:
         """Resolve boolean options from parameters or directed inputs."""
         if explicit is not None:
@@ -341,6 +358,10 @@ class GoogleConnector(DirectedInputsClass):
 
         return filtered
 
+    # =========================================================================
+    # Directory Listing with Filtering (from PR #241)
+    # =========================================================================
+
     def list_users(
         self,
         domain: Optional[str] = None,
@@ -353,34 +374,37 @@ class GoogleConnector(DirectedInputsClass):
         flatten_names: Optional[bool] = None,
         key_by_email: Optional[bool] = None,
     ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
-        """List users from Google Workspace."""
+        """List users from Google Workspace with optional filtering.
+
+        Args:
+            domain: Domain to list users from.
+            max_results: Maximum results per page.
+            ou_allow_list: Only include users from these OUs.
+            ou_deny_list: Exclude users from these OUs.
+            include_suspended: Include suspended users (default False).
+            exclude_bots: Exclude service/bot accounts (default True).
+            flatten_names: Flatten nested name structure (default False).
+            key_by_email: Return dict keyed by email instead of list (default False).
+
+        Returns:
+            List of user dicts, or dict keyed by email if key_by_email=True.
+        """
         service = self.get_admin_directory_service()
         users: list[dict[str, Any]] = []
         page_token = None
->>>>>>> origin/main
 
-        Returns:
-            Cloud Billing API service client.
-        """
-        return self.get_service("cloudbilling", "v1")
+        while True:
+            request = service.users().list(
+                domain=domain,
+                maxResults=max_results,
+                pageToken=page_token,
+            )
+            response = request.execute()
+            users.extend(response.get("users", []))
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
-    def get_compute_service(self) -> Any:
-        """Get the Compute Engine API service.
-
-        Returns:
-            Compute Engine API service client.
-        """
-        return self.get_service("compute", "v1")
-
-<<<<<<< HEAD
-    def get_container_service(self) -> Any:
-        """Get the GKE API service.
-
-        Returns:
-            GKE API service client.
-        """
-        return self.get_service("container", "v1")
-=======
         ou_allow = self._normalize_org_unit_list(self._resolve_sequence_option(ou_allow_list, "ou_allow_list"))
         ou_deny = self._normalize_org_unit_list(self._resolve_sequence_option(ou_deny_list, "ou_deny_list"))
         include_inactive = self._resolve_bool_option(include_suspended, "include_suspended", False)
@@ -420,52 +444,63 @@ class GoogleConnector(DirectedInputsClass):
         flatten_names: Optional[bool] = None,
         key_by_email: Optional[bool] = None,
     ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
-        """List groups from Google Workspace."""
+        """List groups from Google Workspace with optional filtering.
+
+        Args:
+            domain: Domain to list groups from.
+            max_results: Maximum results per page.
+            ou_allow_list: Only include groups from these OUs.
+            ou_deny_list: Exclude groups from these OUs.
+            include_suspended: Include suspended groups (default False).
+            exclude_bots: Exclude bot groups (default True).
+            flatten_names: Flatten nested name structure (default False).
+            key_by_email: Return dict keyed by email instead of list (default False).
+
+        Returns:
+            List of group dicts, or dict keyed by email if key_by_email=True.
+        """
         service = self.get_admin_directory_service()
         groups: list[dict[str, Any]] = []
         page_token = None
->>>>>>> origin/main
 
-    def get_storage_service(self) -> Any:
-        """Get the Cloud Storage API service.
+        while True:
+            request = service.groups().list(
+                domain=domain,
+                maxResults=max_results,
+                pageToken=page_token,
+            )
+            response = request.execute()
+            groups.extend(response.get("groups", []))
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
 
-        Returns:
-            Cloud Storage API service client.
-        """
-        return self.get_service("storage", "v1")
+        ou_allow = self._normalize_org_unit_list(self._resolve_sequence_option(ou_allow_list, "ou_allow_list"))
+        ou_deny = self._normalize_org_unit_list(self._resolve_sequence_option(ou_deny_list, "ou_deny_list"))
+        include_inactive = self._resolve_bool_option(include_suspended, "include_suspended", False)
+        omit_bots = self._resolve_bool_option(exclude_bots, "exclude_bots", True)
+        should_flatten_names = self._resolve_bool_option(flatten_names, "flatten_names", False)
+        return_keyed = self._resolve_bool_option(key_by_email, "key_by_email", False)
 
-    def get_sqladmin_service(self) -> Any:
-        """Get the Cloud SQL Admin API service.
+        filtered_groups = self._filter_directory_entries(
+            groups,
+            ou_allow_list=ou_allow,
+            ou_deny_list=ou_deny,
+            include_suspended=include_inactive,
+            exclude_bots=omit_bots,
+            flatten_names=should_flatten_names,
+        )
 
-<<<<<<< HEAD
-        Returns:
-            Cloud SQL Admin API service client.
-        """
-        return self.get_service("sqladmin", "v1beta4")
+        self.logger.info(
+            "Retrieved %d groups from Google Workspace (filtered to %d)",
+            len(groups),
+            len(filtered_groups),
+        )
 
-    def get_pubsub_service(self) -> Any:
-        """Get the Pub/Sub API service.
+        if return_keyed:
+            return self._key_results_by_email(filtered_groups, primary_field="email", fallback_field="primaryEmail")
 
-        Returns:
-            Pub/Sub API service client.
-        """
-        return self.get_service("pubsub", "v1")
-
-    def get_serviceusage_service(self) -> Any:
-        """Get the Service Usage API service.
-
-        Returns:
-            Service Usage API service client.
-        """
-        return self.get_service("serviceusage", "v1")
-
-    def get_cloudkms_service(self) -> Any:
-        """Get the Cloud KMS API service.
-
-        Returns:
-            Cloud KMS API service client.
-        """
-        return self.get_service("cloudkms", "v1")
+        return filtered_groups
 
 
 # Import submodule operations
@@ -494,31 +529,3 @@ __all__ = [
     "GoogleServicesMixin",
     "DEFAULT_SCOPES",
 ]
-=======
-        ou_allow = self._normalize_org_unit_list(self._resolve_sequence_option(ou_allow_list, "ou_allow_list"))
-        ou_deny = self._normalize_org_unit_list(self._resolve_sequence_option(ou_deny_list, "ou_deny_list"))
-        include_inactive = self._resolve_bool_option(include_suspended, "include_suspended", False)
-        omit_bots = self._resolve_bool_option(exclude_bots, "exclude_bots", True)
-        should_flatten_names = self._resolve_bool_option(flatten_names, "flatten_names", False)
-        return_keyed = self._resolve_bool_option(key_by_email, "key_by_email", False)
-
-        filtered_groups = self._filter_directory_entries(
-            groups,
-            ou_allow_list=ou_allow,
-            ou_deny_list=ou_deny,
-            include_suspended=include_inactive,
-            exclude_bots=omit_bots,
-            flatten_names=should_flatten_names,
-        )
-
-        self.logger.info(
-            "Retrieved %d groups from Google Workspace (filtered to %d)",
-            len(groups),
-            len(filtered_groups),
-        )
-
-        if return_keyed:
-            return self._key_results_by_email(filtered_groups, primary_field="email", fallback_field="primaryEmail")
-
-        return filtered_groups
->>>>>>> origin/main
