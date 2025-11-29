@@ -99,9 +99,7 @@ class GoogleBillingMixin:
         service = self.get_billing_service()
 
         try:
-            billing_info = service.projects().getBillingInfo(
-                name=f"projects/{project_id}"
-            ).execute()
+            billing_info = service.projects().getBillingInfo(name=f"projects/{project_id}").execute()
             return billing_info
         except HttpError as e:
             if e.resp.status == 404:
@@ -129,10 +127,14 @@ class GoogleBillingMixin:
         if not billing_account_name.startswith("billingAccounts/"):
             billing_account_name = f"billingAccounts/{billing_account_name}"
 
-        result = service.projects().updateBillingInfo(
-            name=f"projects/{project_id}",
-            body={"billingAccountName": billing_account_name},
-        ).execute()
+        result = (
+            service.projects()
+            .updateBillingInfo(
+                name=f"projects/{project_id}",
+                body={"billingAccountName": billing_account_name},
+            )
+            .execute()
+        )
 
         self.logger.info(f"Linked project {project_id} to billing account")
         return result
@@ -149,10 +151,14 @@ class GoogleBillingMixin:
         self.logger.info(f"Disabling billing for project {project_id}")
         service = self.get_billing_service()
 
-        result = service.projects().updateBillingInfo(
-            name=f"projects/{project_id}",
-            body={"billingAccountName": ""},
-        ).execute()
+        result = (
+            service.projects()
+            .updateBillingInfo(
+                name=f"projects/{project_id}",
+                body={"billingAccountName": ""},
+            )
+            .execute()
+        )
 
         self.logger.info(f"Disabled billing for project {project_id}")
         return result
@@ -242,9 +248,13 @@ class GoogleBillingMixin:
         if not name.startswith("billingAccounts/"):
             name = f"billingAccounts/{billing_account_id}"
 
-        result = service.billingAccounts().setIamPolicy(
-            resource=name,
-            body={"policy": policy},
-        ).execute()
+        result = (
+            service.billingAccounts()
+            .setIamPolicy(
+                resource=name,
+                body={"policy": policy},
+            )
+            .execute()
+        )
 
         return result

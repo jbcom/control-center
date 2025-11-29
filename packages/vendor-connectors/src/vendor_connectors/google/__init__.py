@@ -512,13 +512,16 @@ from vendor_connectors.google.services import GoogleServicesMixin
 from vendor_connectors.google.workspace import GoogleWorkspaceMixin
 
 
-class GoogleConnectorFull(GoogleConnector, GoogleWorkspaceMixin, GoogleCloudMixin, GoogleBillingMixin, GoogleServicesMixin):
+class GoogleConnectorFull(
+    GoogleConnector, GoogleWorkspaceMixin, GoogleCloudMixin, GoogleBillingMixin, GoogleServicesMixin
+):
     """Full Google connector with all operations.
 
     This class combines the base GoogleConnector with all operation mixins.
     Use this for full functionality, or use GoogleConnector directly and
     import specific mixins as needed.
     """
+
     pass
 
 

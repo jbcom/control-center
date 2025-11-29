@@ -54,7 +54,7 @@ class AWSOrganizationsMixin:
         self.logger.info("Getting AWS organization accounts")
 
         org_units: dict[str, dict[str, Any]] = {}
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         orgs = self.get_aws_client(
             client_name="organizations",
@@ -104,9 +104,7 @@ class AWSOrganizationsMixin:
                         org_units[ou_id] = ou_data
 
                     for account_id, account_data in get_accounts_recursive(ou_id).items():
-                        accounts[account_id] = always_merger.merge(
-                            deepcopy(account_data), deepcopy(ou_data)
-                        )
+                        accounts[account_id] = always_merger.merge(deepcopy(account_data), deepcopy(ou_data))
 
             return accounts
 
@@ -122,9 +120,7 @@ class AWSOrganizationsMixin:
 
         if sort_by_name:
             key_field = "name" if unhump_accounts else "Name"
-            aws_accounts = dict(
-                sorted(aws_accounts.items(), key=lambda x: x[1].get(key_field, ""))
-            )
+            aws_accounts = dict(sorted(aws_accounts.items(), key=lambda x: x[1].get(key_field, "")))
 
         self.logger.info(f"Retrieved {len(aws_accounts)} organization accounts")
         return aws_accounts
@@ -150,7 +146,7 @@ class AWSOrganizationsMixin:
         from botocore.exceptions import ClientError
 
         self.logger.info("Getting AWS Control Tower accounts")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         servicecatalog = self.get_aws_client(
             client_name="servicecatalog",
@@ -161,9 +157,7 @@ class AWSOrganizationsMixin:
 
         try:
             sc_paginator = servicecatalog.get_paginator("search_provisioned_products")
-            for page in sc_paginator.paginate(
-                Filters={"SearchQuery": ["productType:CONTROL_TOWER_ACCOUNT"]}
-            ):
+            for page in sc_paginator.paginate(Filters={"SearchQuery": ["productType:CONTROL_TOWER_ACCOUNT"]}):
                 for product in page.get("ProvisionedProducts", []):
                     account_data = {
                         "Name": product.get("Name", ""),
@@ -174,9 +168,7 @@ class AWSOrganizationsMixin:
 
                     if product.get("Id"):
                         try:
-                            outputs = servicecatalog.get_provisioned_product_outputs(
-                                ProvisionedProductId=product["Id"]
-                            )
+                            outputs = servicecatalog.get_provisioned_product_outputs(ProvisionedProductId=product["Id"])
                             for output in outputs.get("Outputs", []):
                                 if output.get("OutputKey") == "AccountId":
                                     account_id = output.get("OutputValue")
@@ -195,9 +187,7 @@ class AWSOrganizationsMixin:
 
         if sort_by_name:
             key_field = "name" if unhump_accounts else "Name"
-            accounts = dict(
-                sorted(accounts.items(), key=lambda x: x[1].get(key_field, ""))
-            )
+            accounts = dict(sorted(accounts.items(), key=lambda x: x[1].get(key_field, "")))
 
         self.logger.info(f"Retrieved {len(accounts)} Control Tower accounts")
         return accounts
@@ -247,9 +237,7 @@ class AWSOrganizationsMixin:
 
         if sort_by_name:
             key_field = "name" if unhump_accounts else "Name"
-            aws_accounts = dict(
-                sorted(aws_accounts.items(), key=lambda x: x[1].get(key_field, ""))
-            )
+            aws_accounts = dict(sorted(aws_accounts.items(), key=lambda x: x[1].get(key_field, "")))
 
         self.logger.info(f"Retrieved {len(aws_accounts)} total AWS accounts")
         return aws_accounts
@@ -269,7 +257,7 @@ class AWSOrganizationsMixin:
             Dictionary mapping OU IDs to OU data.
         """
         self.logger.info("Getting AWS organizational units")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         orgs = self.get_aws_client(
             client_name="organizations",

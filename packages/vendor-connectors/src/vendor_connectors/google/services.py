@@ -435,10 +435,14 @@ class GoogleServicesMixin:
         service = self.get_serviceusage_service()
 
         parent = f"projects/{project_id}"
-        result = service.services().batchEnable(
-            parent=parent,
-            body={"serviceIds": service_names},
-        ).execute()
+        result = (
+            service.services()
+            .batchEnable(
+                parent=parent,
+                body={"serviceIds": service_names},
+            )
+            .execute()
+        )
 
         self.logger.info(f"Batch enabled {len(service_names)} services")
         return result
@@ -509,11 +513,17 @@ class GoogleServicesMixin:
         service = self.get_cloudkms_service()
 
         parent = f"projects/{project_id}/locations/{location}"
-        result = service.projects().locations().keyRings().create(
-            parent=parent,
-            keyRingId=keyring_id,
-            body={},
-        ).execute()
+        result = (
+            service.projects()
+            .locations()
+            .keyRings()
+            .create(
+                parent=parent,
+                keyRingId=keyring_id,
+                body={},
+            )
+            .execute()
+        )
 
         self.logger.info(f"Created key ring {keyring_id}")
         return result
@@ -549,11 +559,18 @@ class GoogleServicesMixin:
         if purpose == "ENCRYPT_DECRYPT":
             body["versionTemplate"] = {"algorithm": algorithm}
 
-        result = service.projects().locations().keyRings().cryptoKeys().create(
-            parent=parent,
-            cryptoKeyId=key_id,
-            body=body,
-        ).execute()
+        result = (
+            service.projects()
+            .locations()
+            .keyRings()
+            .cryptoKeys()
+            .create(
+                parent=parent,
+                cryptoKeyId=key_id,
+                body=body,
+            )
+            .execute()
+        )
 
         self.logger.info(f"Created crypto key {key_id}")
         return result

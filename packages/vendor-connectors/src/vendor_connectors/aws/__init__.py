@@ -75,10 +75,7 @@ class AWSConnector(DirectedInputsClass):
         sts_client = self.default_aws_session.client("sts")
 
         try:
-            response = sts_client.assume_role(
-                RoleArn=execution_role_arn,
-                RoleSessionName=role_session_name
-            )
+            response = sts_client.assume_role(RoleArn=execution_role_arn, RoleSessionName=role_session_name)
             credentials = response["Credentials"]
             self.logger.info(f"Successfully assumed role: {execution_role_arn}")
             return boto3.Session(
@@ -579,6 +576,7 @@ class AWSConnectorFull(AWSConnector, AWSOrganizationsMixin, AWSSSOmixin, AWSS3Mi
     Use this for full functionality, or use AWSConnector directly and
     import specific mixins as needed.
     """
+
     pass
 
 

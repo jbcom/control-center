@@ -198,10 +198,14 @@ class GoogleCloudMixin:
         self.logger.info(f"Moving project {project_id} to {destination_parent}")
         service = self.get_cloud_resource_manager_service()
 
-        result = service.projects().move(
-            name=f"projects/{project_id}",
-            body={"destinationParent": destination_parent},
-        ).execute()
+        result = (
+            service.projects()
+            .move(
+                name=f"projects/{project_id}",
+                body={"destinationParent": destination_parent},
+            )
+            .execute()
+        )
         self.logger.info(f"Moved project {project_id}")
         return result
 
@@ -263,10 +267,14 @@ class GoogleCloudMixin:
         service = self.get_cloud_resource_manager_service()
 
         try:
-            policy = service.organizations().getOrgPolicy(
-                resource=resource,
-                body={"constraint": constraint},
-            ).execute()
+            policy = (
+                service.organizations()
+                .getOrgPolicy(
+                    resource=resource,
+                    body={"constraint": constraint},
+                )
+                .execute()
+            )
             return policy
         except HttpError as e:
             if e.resp.status == 404:
@@ -290,10 +298,14 @@ class GoogleCloudMixin:
         self.logger.info(f"Setting org policy on {resource}")
         service = self.get_cloud_resource_manager_service()
 
-        result = service.organizations().setOrgPolicy(
-            resource=resource,
-            body={"policy": policy},
-        ).execute()
+        result = (
+            service.organizations()
+            .setOrgPolicy(
+                resource=resource,
+                body={"policy": policy},
+            )
+            .execute()
+        )
         return result
 
     def get_iam_policy(
@@ -313,20 +325,32 @@ class GoogleCloudMixin:
         service = self.get_cloud_resource_manager_service()
 
         if resource_type == "projects":
-            result = service.projects().getIamPolicy(
-                resource=f"projects/{resource}",
-                body={},
-            ).execute()
+            result = (
+                service.projects()
+                .getIamPolicy(
+                    resource=f"projects/{resource}",
+                    body={},
+                )
+                .execute()
+            )
         elif resource_type == "folders":
-            result = service.folders().getIamPolicy(
-                resource=f"folders/{resource}",
-                body={},
-            ).execute()
+            result = (
+                service.folders()
+                .getIamPolicy(
+                    resource=f"folders/{resource}",
+                    body={},
+                )
+                .execute()
+            )
         else:  # organizations
-            result = service.organizations().getIamPolicy(
-                resource=f"organizations/{resource}",
-                body={},
-            ).execute()
+            result = (
+                service.organizations()
+                .getIamPolicy(
+                    resource=f"organizations/{resource}",
+                    body={},
+                )
+                .execute()
+            )
 
         return result
 
@@ -352,20 +376,32 @@ class GoogleCloudMixin:
         body = {"policy": policy}
 
         if resource_type == "projects":
-            result = service.projects().setIamPolicy(
-                resource=f"projects/{resource}",
-                body=body,
-            ).execute()
+            result = (
+                service.projects()
+                .setIamPolicy(
+                    resource=f"projects/{resource}",
+                    body=body,
+                )
+                .execute()
+            )
         elif resource_type == "folders":
-            result = service.folders().setIamPolicy(
-                resource=f"folders/{resource}",
-                body=body,
-            ).execute()
+            result = (
+                service.folders()
+                .setIamPolicy(
+                    resource=f"folders/{resource}",
+                    body=body,
+                )
+                .execute()
+            )
         else:  # organizations
-            result = service.organizations().setIamPolicy(
-                resource=f"organizations/{resource}",
-                body=body,
-            ).execute()
+            result = (
+                service.organizations()
+                .setIamPolicy(
+                    resource=f"organizations/{resource}",
+                    body=body,
+                )
+                .execute()
+            )
 
         self.logger.info(f"Set IAM policy on {resource_type}/{resource}")
         return result
@@ -469,16 +505,21 @@ class GoogleCloudMixin:
         self.logger.info(f"Creating service account: {account_id} in {project_id}")
         service = self.get_iam_service()
 
-        result = service.projects().serviceAccounts().create(
-            name=f"projects/{project_id}",
-            body={
-                "accountId": account_id,
-                "serviceAccount": {
-                    "displayName": display_name,
-                    "description": description,
+        result = (
+            service.projects()
+            .serviceAccounts()
+            .create(
+                name=f"projects/{project_id}",
+                body={
+                    "accountId": account_id,
+                    "serviceAccount": {
+                        "displayName": display_name,
+                        "description": description,
+                    },
                 },
-            },
-        ).execute()
+            )
+            .execute()
+        )
 
         self.logger.info(f"Created service account: {result.get('email')}")
         return result

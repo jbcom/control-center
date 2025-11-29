@@ -635,9 +635,7 @@ class AWSSSOmixin:
 
         # Sort if requested
         if sort_by_name:
-            permission_sets = dict(
-                sorted(permission_sets.items(), key=lambda x: x[1].get("Name", ""))
-            )
+            permission_sets = dict(sorted(permission_sets.items(), key=lambda x: x[1].get("Name", "")))
 
         if unhump_sets:
             permission_sets = {k: unhump_map(v) for k, v in permission_sets.items()}
@@ -754,9 +752,7 @@ class AWSSSOmixin:
         Returns:
             Account assignment creation status.
         """
-        self.logger.info(
-            f"Creating account assignment: {principal_type} {principal_id} -> {account_id}"
-        )
+        self.logger.info(f"Creating account assignment: {principal_type} {principal_id} -> {account_id}")
         role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         if not instance_arn:
@@ -800,9 +796,7 @@ class AWSSSOmixin:
         Returns:
             Account assignment deletion status.
         """
-        self.logger.info(
-            f"Deleting account assignment: {principal_type} {principal_id} -> {account_id}"
-        )
+        self.logger.info(f"Deleting account assignment: {principal_type} {principal_id} -> {account_id}")
         role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         if not instance_arn:

@@ -384,11 +384,13 @@ class GithubConnector(DirectedInputsClass):
             if include_branches:
                 branches = []
                 for branch in repo.get_branches():
-                    branches.append({
-                        "name": branch.name,
-                        "protected": branch.protected,
-                        "sha": branch.commit.sha,
-                    })
+                    branches.append(
+                        {
+                            "name": branch.name,
+                            "protected": branch.protected,
+                            "sha": branch.commit.sha,
+                        }
+                    )
                 repo_data["branches"] = branches
 
             repos[repo.name] = repo_data
@@ -463,21 +465,25 @@ class GithubConnector(DirectedInputsClass):
             if include_members:
                 members = []
                 for member in team.get_members():
-                    members.append({
-                        "login": member.login,
-                        "id": member.id,
-                        "name": member.name,
-                    })
+                    members.append(
+                        {
+                            "login": member.login,
+                            "id": member.id,
+                            "name": member.name,
+                        }
+                    )
                 team_data["members"] = members
 
             if include_repos:
                 repos = []
                 for repo in team.get_repos():
-                    repos.append({
-                        "name": repo.name,
-                        "full_name": repo.full_name,
-                        "permission": team.get_repo_permission(repo),
-                    })
+                    repos.append(
+                        {
+                            "name": repo.name,
+                            "full_name": repo.full_name,
+                            "permission": team.get_repo_permission(repo),
+                        }
+                    )
                 team_data["repositories"] = repos
 
             teams[team.slug] = team_data

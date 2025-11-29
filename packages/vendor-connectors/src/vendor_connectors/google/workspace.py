@@ -397,11 +397,15 @@ class GoogleWorkspaceMixin:
         """
         service = self.get_admin_directory_service(subject=subject)
 
-        response = service.orgunits().list(
-            customerId="my_customer",
-            orgUnitPath=org_unit_path,
-            type=org_unit_type,
-        ).execute()
+        response = (
+            service.orgunits()
+            .list(
+                customerId="my_customer",
+                orgUnitPath=org_unit_path,
+                type=org_unit_type,
+            )
+            .execute()
+        )
 
         org_units = response.get("organizationUnits", [])
         self.logger.info(f"Retrieved {len(org_units)} org units")

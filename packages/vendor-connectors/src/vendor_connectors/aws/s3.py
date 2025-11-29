@@ -40,7 +40,7 @@ class AWSS3Mixin:
             Dictionary mapping bucket names to bucket data.
         """
         self.logger.info("Listing S3 buckets")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -75,7 +75,7 @@ class AWSS3Mixin:
             The AWS region where the bucket is located.
         """
         self.logger.debug(f"Getting location for bucket: {bucket_name}")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -105,7 +105,7 @@ class AWSS3Mixin:
             The object contents, or None if not found.
         """
         self.logger.debug(f"Getting S3 object: s3://{bucket}/{key}")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -176,7 +176,7 @@ class AWSS3Mixin:
             The S3 put_object response.
         """
         self.logger.debug(f"Putting S3 object: s3://{bucket}/{key}")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -257,7 +257,7 @@ class AWSS3Mixin:
             The S3 delete_object response.
         """
         self.logger.debug(f"Deleting S3 object: s3://{bucket}/{key}")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -291,7 +291,7 @@ class AWSS3Mixin:
             List of object metadata dictionaries.
         """
         self.logger.debug(f"Listing objects in s3://{bucket}/{prefix or ''}")
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
@@ -343,10 +343,8 @@ class AWSS3Mixin:
         Returns:
             The S3 copy_object response.
         """
-        self.logger.debug(
-            f"Copying s3://{source_bucket}/{source_key} to s3://{dest_bucket}/{dest_key}"
-        )
-        role_arn = execution_role_arn or getattr(self, 'execution_role_arn', None)
+        self.logger.debug(f"Copying s3://{source_bucket}/{source_key} to s3://{dest_bucket}/{dest_key}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
 
         s3 = self.get_aws_client(
             client_name="s3",
