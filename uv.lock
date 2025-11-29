@@ -3455,7 +3455,7 @@ wheels = [
 
 [[package]]
 name = "vendor-connectors"
-version = "202511.8.0"
+version = "202511.9.0"
 source = { editable = "packages/vendor-connectors" }
 dependencies = [
     { name = "boto3" },

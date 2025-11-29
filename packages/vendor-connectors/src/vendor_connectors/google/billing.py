@@ -258,3 +258,73 @@ class GoogleBillingMixin:
         )
 
         return result
+
+    def get_bigquery_billing_dataset(
+        self,
+        project_id: str,
+        dataset_name: str = "billing_dataset",
+        billing_account_name: Optional[str] = None,
+        create_if_missing: bool = True,
+    ) -> str:
+        """Get or create a BigQuery billing export dataset.
+
+        Checks if the billing dataset exists and optionally creates it.
+
+        Args:
+            project_id: The project ID to host the dataset.
+            dataset_name: BigQuery dataset name. Defaults to "billing_dataset".
+            billing_account_name: Display name of the billing account
+                (used for logging only).
+            create_if_missing: Create the dataset if it doesn't exist.
+                Defaults to True.
+
+        Returns:
+            The fully qualified dataset ID (project_id.dataset_name).
+
+        Raises:
+            RuntimeError: If dataset creation fails.
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info(f"Getting BigQuery billing dataset: {project_id}.{dataset_name}")
+
+        bigquery = self.get_service("bigquery", "v2")
+
+        dataset_id = f"{project_id}.{dataset_name}"
+
+        # Check if dataset exists
+        try:
+            bigquery.datasets().get(
+                projectId=project_id, datasetId=dataset_name
+            ).execute()
+            self.logger.info(f"BigQuery dataset '{dataset_id}' exists")
+            return dataset_id
+
+        except HttpError as e:
+            if e.resp.status != 404:
+                self.logger.error(f"Failed to check dataset: {e}")
+                raise
+
+            if not create_if_missing:
+                self.logger.warning(f"Dataset '{dataset_id}' not found")
+                return ""
+
+            # Create the dataset
+            self.logger.info(f"Creating BigQuery dataset '{dataset_id}'...")
+            try:
+                bigquery.datasets().insert(
+                    projectId=project_id,
+                    body={
+                        "datasetReference": {
+                            "projectId": project_id,
+                            "datasetId": dataset_name,
+                        },
+                        "description": "Billing export dataset for cost analysis",
+                    },
+                ).execute()
+                self.logger.info(f"Created BigQuery dataset '{dataset_id}'")
+                return dataset_id
+
+            except HttpError as create_error:
+                self.logger.error(f"Failed to create dataset: {create_error}")
+                raise RuntimeError(f"Failed to create BigQuery dataset '{dataset_id}'") from create_error

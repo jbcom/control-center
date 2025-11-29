@@ -580,3 +580,109 @@ class GithubConnector(DirectedInputsClass):
             variables=variables or {},
             headers=headers,
         )
+
+    def get_users_with_verified_emails(
+        self,
+        key_by_email: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """Get organization members with verified domain emails.
+
+        Uses the GraphQL API to fetch organization-verified domain emails
+        for all members. This provides richer data than list_org_members,
+        including verified emails from the organization's verified domains.
+
+        Args:
+            key_by_email: If True, key results by email instead of login.
+                Defaults to False (key by login).
+
+        Returns:
+            Dictionary mapping login/email to user data:
+            {
+                "username": {
+                    "login": "username",
+                    "name": "Full Name",
+                    "email": "user@verified-domain.com",
+                    "role": "ADMIN|MEMBER",
+                    "primary_email": "user@verified-domain.com",
+                    ...
+                }
+            }
+        """
+        self.logger.info(f"Getting users with verified emails for {self.GITHUB_OWNER}")
+
+        # GraphQL query to fetch members with organization-verified domain emails
+        def make_verified_emails_query(after_cursor: Optional[str] = None) -> str:
+            after_param = f'"{after_cursor}"' if after_cursor else "null"
+            return f"""
+            query {{
+              organization(login: "{self.GITHUB_OWNER}") {{
+                membersWithRole(first: 100, after: {after_param}) {{
+                  pageInfo {{
+                    hasNextPage
+                    endCursor
+                  }}
+                  edges {{
+                    node {{
+                      login
+                      name
+                      email
+                      organizationVerifiedDomainEmails(login: "{self.GITHUB_OWNER}")
+                    }}
+                    role
+                  }}
+                }}
+              }}
+            }}
+            """
+
+        users: dict[str, dict[str, Any]] = {}
+        users_by_email: dict[str, dict[str, Any]] = {}
+
+        has_next_page = True
+        after_cursor = None
+
+        while has_next_page:
+            result = self.execute_graphql(make_verified_emails_query(after_cursor))
+
+            if "errors" in result:
+                self.logger.error(f"GraphQL errors: {result['errors']}")
+                break
+
+            members_data = result.get("data", {}).get("organization", {}).get("membersWithRole", {})
+            edges = members_data.get("edges", [])
+
+            for edge in edges:
+                node = edge.get("node", {})
+                role = edge.get("role", "MEMBER")
+                login = node.get("login")
+
+                if is_nothing(login):
+                    continue
+
+                verified_emails = node.get("organizationVerifiedDomainEmails", [])
+                primary_email = verified_emails[0] if verified_emails else node.get("email")
+
+                user_data = {
+                    "login": login,
+                    "name": node.get("name"),
+                    "email": node.get("email"),
+                    "role": role,
+                    "primary_email": primary_email,
+                    "verified_domain_emails": verified_emails,
+                }
+
+                users[login] = user_data
+
+                if primary_email:
+                    users_by_email[primary_email] = user_data
+                    self.logger.debug(f"Found user {login} with verified email {primary_email}")
+
+            page_info = members_data.get("pageInfo", {})
+            has_next_page = page_info.get("hasNextPage", False)
+            after_cursor = page_info.get("endCursor")
+
+        self.logger.info(f"Retrieved {len(users)} users with verified email data")
+
+        if key_by_email:
+            return users_by_email
+        return users

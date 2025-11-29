@@ -536,3 +536,104 @@ class GoogleWorkspaceMixin:
         result = service.groups().insert(body=group_body).execute()
         self.logger.info(f"Created group: {email}")
         return result
+
+    def list_available_licenses(
+        self,
+        customer_id: str,
+        product_ids: Optional[list[str]] = None,
+        subject: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """List available license products and assignments in Google Workspace.
+
+        Retrieves license assignments for specified products from the Enterprise
+        License Manager API.
+
+        Args:
+            customer_id: The customer domain (e.g., 'example.com').
+            product_ids: List of product IDs to query. If not provided, defaults
+                to common Workspace products:
+                - 101034: Google Workspace Enterprise Plus
+                - 101047: Gemini Enterprise
+                - Google-Apps: G Suite / Workspace core
+            subject: Email to impersonate for domain-wide delegation.
+
+        Returns:
+            Dictionary mapping product IDs to license data:
+            {
+                "product_id": {
+                    "name": "Product Name",
+                    "skus": {
+                        "sku_id": {
+                            "name": "SKU Name",
+                            "assignments": {
+                                "total": int,
+                                "users": [{"user_id": ..., "sku_id": ...}, ...]
+                            }
+                        }
+                    }
+                }
+            }
+        """
+        from googleapiclient.errors import HttpError
+
+        service = self.get_service("licensing", "v1", subject=subject)
+        licenses: dict[str, dict[str, Any]] = {}
+
+        # Default product IDs for common Workspace licenses
+        if product_ids is None:
+            product_ids = [
+                "101034",  # Google Workspace Enterprise Plus
+                "101047",  # Gemini Enterprise
+                "Google-Apps",  # G Suite / Workspace core
+            ]
+
+        product_names = {
+            "101034": "Google Workspace Enterprise Plus",
+            "101047": "Gemini Enterprise",
+            "Google-Apps": "Google Workspace",
+        }
+
+        for product_id in product_ids:
+            product_name = product_names.get(product_id, product_id)
+            self.logger.info(f"Querying licenses for product: {product_name}")
+
+            licenses[product_id] = {"name": product_name, "skus": {}}
+
+            try:
+                response = (
+                    service.licenseAssignments()
+                    .listForProduct(productId=product_id, customerId=customer_id)
+                    .execute()
+                )
+
+                for item in response.get("items", []):
+                    sku_id = item.get("skuId", "")
+                    if not sku_id:
+                        continue
+
+                    if sku_id not in licenses[product_id]["skus"]:
+                        licenses[product_id]["skus"][sku_id] = {
+                            "name": sku_id,
+                            "assignments": {"total": 0, "users": []},
+                        }
+
+                    user_data = {
+                        "user_id": item.get("userId", ""),
+                        "self_link": item.get("selfLink", ""),
+                        "sku_id": sku_id,
+                        "product_id": product_id,
+                    }
+                    licenses[product_id]["skus"][sku_id]["assignments"]["users"].append(user_data)
+                    licenses[product_id]["skus"][sku_id]["assignments"]["total"] += 1
+
+                self.logger.info(f"Found licenses for {product_name}")
+
+            except HttpError as e:
+                if e.resp.status == 404:
+                    self.logger.warning(f"No licenses found for product {product_id}")
+                elif e.resp.status == 403:
+                    self.logger.warning(f"Access denied for product {product_id}")
+                else:
+                    raise
+
+        return licenses

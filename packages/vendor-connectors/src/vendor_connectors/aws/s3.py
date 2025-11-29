@@ -634,3 +634,115 @@ class AWSS3Mixin:
             Tagging={"TagSet": tag_set},
         )
         self.logger.info(f"Set tags on bucket: {bucket_name}")
+
+    # =========================================================================
+    # CloudWatch Metrics
+    # =========================================================================
+
+    # S3 storage types for CloudWatch metrics
+    S3_STORAGE_TYPES = [
+        "StandardStorage",
+        "IntelligentTieringFAStorage",
+        "IntelligentTieringIAStorage",
+        "IntelligentTieringAAStorage",
+        "IntelligentTieringAIAStorage",
+        "IntelligentTieringDAAStorage",
+        "StandardIAStorage",
+        "StandardIASizeOverhead",
+        "StandardIAObjectOverhead",
+        "OneZoneIAStorage",
+        "OneZoneIASizeOverhead",
+        "ReducedRedundancyStorage",
+        "GlacierInstantRetrievalSizeOverhead",
+        "GlacierInstantRetrievalStorage",
+        "GlacierStorage",
+        "GlacierStagingStorage",
+        "GlacierObjectOverhead",
+        "GlacierS3ObjectOverhead",
+        "DeepArchiveStorage",
+        "DeepArchiveObjectOverhead",
+        "DeepArchiveS3ObjectOverhead",
+        "DeepArchiveStagingStorage",
+    ]
+
+    def get_bucket_sizes(
+        self,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, dict[str, float]]:
+        """Get S3 bucket sizes from CloudWatch metrics.
+
+        Queries CloudWatch for BucketSizeBytes metrics across all storage types
+        for each bucket in the account.
+
+        Args:
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary mapping bucket names to storage type sizes:
+            {
+                "my-bucket": {
+                    "StandardStorage": 1234567890.0,
+                    "IntelligentTieringFAStorage": 0.0,
+                    ...
+                }
+            }
+        """
+        from datetime import datetime, timedelta
+
+        from extended_data_types import is_nothing
+
+        self.logger.info("Getting S3 bucket sizes from CloudWatch")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3_resource: ServiceResource = self.get_aws_resource(
+            service_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        cloudwatch = self.get_aws_client(
+            client_name="cloudwatch",
+            execution_role_arn=role_arn,
+        )
+
+        seconds_in_one_day = 86400
+        buckets: dict[str, dict[str, float]] = {}
+
+        def get_avg_for_bucket_storage_type(bucket_name: str, storage_type: str) -> Optional[float]:
+            """Get average size for a bucket/storage type from CloudWatch."""
+            datapoints = cloudwatch.get_metric_statistics(
+                Namespace="AWS/S3",
+                Dimensions=[
+                    {"Name": "BucketName", "Value": bucket_name},
+                    {"Name": "StorageType", "Value": storage_type},
+                ],
+                MetricName="BucketSizeBytes",
+                StartTime=datetime.now() - timedelta(days=7),
+                EndTime=datetime.now(),
+                Period=seconds_in_one_day,
+                Statistics=["Average"],
+                Unit="Bytes",
+            ).get("Datapoints", [])
+
+            for datapoint in datapoints:
+                avg = datapoint.get("Average")
+                if not is_nothing(avg):
+                    return avg
+
+            return None
+
+        for bucket in s3_resource.buckets.all():
+            bucket_name = bucket.name
+            self.logger.info(f"Getting bucket size for {bucket_name}")
+
+            buckets[bucket_name] = {}
+
+            for storage_type in self.S3_STORAGE_TYPES:
+                avg = get_avg_for_bucket_storage_type(bucket_name, storage_type)
+                if avg is not None:
+                    self.logger.debug(
+                        f"Average for {bucket_name} storage type {storage_type}: {avg}"
+                    )
+                    buckets[bucket_name][storage_type] = avg
+
+        self.logger.info(f"Retrieved sizes for {len(buckets)} buckets")
+        return buckets

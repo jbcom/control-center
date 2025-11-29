@@ -645,3 +645,188 @@ class GoogleServicesMixin:
 
         self.logger.info(f"Project {project_id} appears to be empty")
         return True
+
+    # =========================================================================
+    # IAM and Resource Aggregation
+    # =========================================================================
+
+    def get_project_iam_users(
+        self,
+        project_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Get human users (non-service accounts) with IAM bindings on a project.
+
+        Parses the project IAM policy and extracts users with their roles.
+
+        Args:
+            project_id: The project ID.
+
+        Returns:
+            Dictionary mapping user emails to their IAM roles:
+            {
+                "user@example.com": {
+                    "roles": ["roles/viewer", "roles/editor"]
+                }
+            }
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info(f"Retrieving IAM users for project '{project_id}'")
+
+        cloud_resource_manager = self.get_service("cloudresourcemanager", "v1")
+
+        users_map: dict[str, dict[str, Any]] = {}
+
+        try:
+            response = (
+                cloud_resource_manager.projects()
+                .getIamPolicy(resource=project_id, body={})
+                .execute()
+            )
+
+            bindings = response.get("bindings", [])
+            for binding in bindings:
+                role = binding.get("role", "")
+                members = binding.get("members", [])
+                for member in members:
+                    if member.startswith("user:"):
+                        user_email = member.split("user:")[1]
+                        if user_email not in users_map:
+                            users_map[user_email] = {"roles": []}
+                        users_map[user_email]["roles"].append(role)
+
+            self.logger.info(f"Found {len(users_map)} users for project '{project_id}'")
+
+        except HttpError as e:
+            self.logger.warning(f"Error retrieving users for project '{project_id}': {e}")
+
+        return users_map
+
+    def get_pubsub_resources_for_project(
+        self,
+        project_id: str,
+    ) -> dict[str, dict[str, Any]]:
+        """Get all Pub/Sub topics and subscriptions for a project.
+
+        Aggregates topics and subscriptions into a single map.
+
+        Args:
+            project_id: The project ID.
+
+        Returns:
+            Dictionary mapping resource names to their type and details:
+            {
+                "projects/myproject/topics/mytopic": {
+                    "type": "topic",
+                    "details": {...}
+                },
+                "projects/myproject/subscriptions/mysub": {
+                    "type": "subscription",
+                    "details": {...}
+                }
+            }
+        """
+        self.logger.info(f"Retrieving Pub/Sub resources for project '{project_id}'")
+
+        pubsub_map: dict[str, dict[str, Any]] = {}
+
+        # Get topics
+        topics = self.list_pubsub_topics(project_id)
+        for topic in topics:
+            topic_name = topic.get("name", "")
+            if topic_name:
+                pubsub_map[topic_name] = {
+                    "type": "topic",
+                    "details": topic,
+                }
+
+        # Get subscriptions
+        subscriptions = self.list_pubsub_subscriptions(project_id)
+        for subscription in subscriptions:
+            subscription_name = subscription.get("name", "")
+            if subscription_name:
+                pubsub_map[subscription_name] = {
+                    "type": "subscription",
+                    "details": subscription,
+                }
+
+        self.logger.info(
+            f"Found {len(pubsub_map)} Pub/Sub resources for project '{project_id}'"
+        )
+        return pubsub_map
+
+    def find_inactive_projects(
+        self,
+        inactivity_period_days: int = 30,
+        billing_project_id: str = "",
+        billing_dataset_id: str = "billing_dataset",
+    ) -> list[str]:
+        """Find GCP projects with no billing activity in the specified period.
+
+        Uses BigQuery to query billing export data and identify projects
+        with zero or null costs.
+
+        Args:
+            inactivity_period_days: Number of days to check for inactivity.
+                Defaults to 30.
+            billing_project_id: Project ID containing the billing export dataset.
+            billing_dataset_id: BigQuery dataset ID for billing export.
+                Defaults to "billing_dataset".
+
+        Returns:
+            List of project IDs with no billing activity.
+
+        Raises:
+            ValueError: If billing_project_id is not provided.
+        """
+        from googleapiclient.errors import HttpError
+
+        if not billing_project_id:
+            raise ValueError("billing_project_id is required")
+
+        self.logger.info(
+            f"Finding inactive projects (no activity in {inactivity_period_days} days)"
+        )
+
+        bigquery = self.get_service("bigquery", "v2")
+
+        # Construct the query
+        query = f"""
+            SELECT project.id AS project_id, SUM(cost) AS total_cost
+            FROM `{billing_project_id}.{billing_dataset_id}.*`
+            WHERE usage_start_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL {inactivity_period_days} DAY)
+            GROUP BY project.id
+            HAVING total_cost IS NULL OR total_cost = 0
+        """
+
+        try:
+            self.logger.debug(f"Executing BigQuery: {query}")
+
+            results = (
+                bigquery.jobs()
+                .query(
+                    projectId=billing_project_id,
+                    body={"query": query, "useLegacySql": False},
+                )
+                .execute()
+            )
+
+            rows = results.get("rows", [])
+            if not rows:
+                self.logger.info("No inactive projects found")
+                return []
+
+            # Extract project IDs from results
+            projects = []
+            for row in rows:
+                if "f" in row and len(row["f"]) > 0:
+                    project_id = row["f"][0].get("v")
+                    if project_id:
+                        projects.append(project_id)
+
+            self.logger.info(f"Found {len(projects)} inactive projects")
+            return projects
+
+        except HttpError as e:
+            self.logger.error(f"Failed to query for inactive projects: {e}")
+            raise
