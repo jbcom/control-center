@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from directed_inputs_class import InputContext, directed_inputs, input_config
+from directed_inputs_class import decorators as decorators_mod
 
 
 class TestDirectedInputsDecorator:
@@ -161,6 +162,21 @@ class TestDirectedInputsDecorator:
 
             svc = MyService()
             assert svc.get_domain() == "example.com"
+
+    def test_stdin_size_limit(self) -> None:
+        """Ensure oversized stdin payloads raise a clear error."""
+
+        @directed_inputs(from_stdin=True)
+        class MyService:
+            def noop(self) -> None:
+                return None
+
+        oversized = "x" * (decorators_mod.STDIN_MAX_BYTES + 1)
+        with patch(
+            "directed_inputs_class.decorators.sys.stdin.read",
+            return_value=oversized,
+        ), pytest.raises(ValueError, match=r"exceeds maximum size"):
+            MyService()
 
 
 class TestInputConfigDecorator:

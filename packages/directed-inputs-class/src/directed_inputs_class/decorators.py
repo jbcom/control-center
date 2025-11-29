@@ -4,7 +4,7 @@ This module provides a modern, composable approach to input handling
 using decorators instead of inheritance.
 
 Example:
-    from directed_inputs import directed_inputs
+    from directed_inputs_class import directed_inputs
 
     @directed_inputs(from_stdin=True)
     class MyService:
@@ -40,6 +40,7 @@ from deepmerge import Merger
 from extended_data_types import (
     base64_decode,
     decode_json,
+    decode_yaml,
     is_nothing,
     strtobool,
     strtodatetime,
@@ -54,6 +55,8 @@ if TYPE_CHECKING:
 
 C = TypeVar("C", bound=type)
 F = TypeVar("F", bound="Callable[..., Any]")
+
+STDIN_MAX_BYTES = 1024 * 1024  # 1 MiB safety limit for stdin ingestion
 
 
 @dataclass
@@ -237,9 +240,18 @@ def _load_stdin() -> dict[str, Any]:
         return {}
 
     try:
-        stdin_data = sys.stdin.read()
-        if is_nothing(stdin_data):
-            return {}
+        stdin_data = sys.stdin.read(STDIN_MAX_BYTES + 1)
+    except OSError:
+        return {}
+
+    if len(stdin_data) > STDIN_MAX_BYTES:
+        msg = f"Stdin input exceeds maximum size limit ({STDIN_MAX_BYTES} bytes)"
+        raise ValueError(msg)
+
+    if is_nothing(stdin_data):
+        return {}
+
+    try:
         return json.loads(stdin_data)
     except json.JSONDecodeError:
         return {}
@@ -316,8 +328,8 @@ def _decode_value(
     value: Any,
     *,
     decode_base64: bool = False,
-    decode_json: bool = False,
-    decode_yaml: bool = False,
+    decode_from_json: bool = False,
+    decode_from_yaml: bool = False,
 ) -> Any:
     """Decode a value from various formats."""
     if value is None or not isinstance(value, str):
@@ -326,13 +338,15 @@ def _decode_value(
     if decode_base64:
         value = base64_decode(
             value,
-            unwrap_raw_data=decode_json or decode_yaml,
-            encoding="json" if decode_json else ("yaml" if decode_yaml else None),
+            unwrap_raw_data=decode_from_json or decode_from_yaml,
+            encoding="json"
+            if decode_from_json
+            else ("yaml" if decode_from_yaml else None),
         )
 
-    if decode_yaml:
+    if decode_from_yaml:
         value = decode_yaml(value)
-    elif decode_json:
+    elif decode_from_json:
         value = decode_json(value)
 
     return value
@@ -415,8 +429,8 @@ def _wrap_method(
                 value = _decode_value(
                     value,
                     decode_base64=config.decode_base64,
-                    decode_json=config.decode_json,
-                    decode_yaml=config.decode_yaml,
+                    decode_from_json=config.decode_json,
+                    decode_from_yaml=config.decode_yaml,
                 )
 
             # Coerce to target type
