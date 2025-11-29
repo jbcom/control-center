@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v202511.8.0 (2025-11-29)
+
+### Features
+
+- Add cloud_params module with API parameter utilities
+  ([#228](https://github.com/jbcom/jbcom-control-center/pull/228),
+  [`a6cee10`](https://github.com/jbcom/jbcom-control-center/commit/a6cee103952d0ef49333633cea5ad86a689d647f))
+
+
 ## v202511.7.0 (2025-11-29)
 
 ### Features
