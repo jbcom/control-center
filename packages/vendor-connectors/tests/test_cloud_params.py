@@ -27,6 +27,11 @@ class TestGetCloudCallParams:
         params = get_cloud_call_params(no_max_results=True)
         assert "MaxResults" not in params
 
+    def test_max_results_zero(self):
+        """max_results=0 should be included (edge case)."""
+        params = get_cloud_call_params(max_results=0)
+        assert params == {"MaxResults": 0}
+
     def test_kwargs_included(self):
         """Additional kwargs are included."""
         params = get_cloud_call_params(NextToken="abc123")

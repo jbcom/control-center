@@ -45,7 +45,8 @@ def get_cloud_call_params(
     """
     params = {k: v for k, v in kwargs.items() if not is_nothing(v) or not reject_null}
 
-    if max_results and not no_max_results:
+    # Use 'is not None' to handle max_results=0 correctly
+    if max_results is not None and not no_max_results:
         params["MaxResults"] = max_results
 
     if not first_letter_to_lower and not first_letter_to_upper:
@@ -77,7 +78,7 @@ def get_aws_call_params(max_results: int | None = 100, **kwargs: Any) -> dict[st
         >>> get_aws_call_params(NextToken="abc")
         {'MaxResults': 100, 'NextToken': 'abc'}
 
-        >>> get_aws_call_params(max_results=50, identity_store_id="d-123")
+        >>> get_aws_call_params(max_results=50, IdentityStoreId="d-123")
         {'MaxResults': 50, 'IdentityStoreId': 'd-123'}
     """
     return get_cloud_call_params(
