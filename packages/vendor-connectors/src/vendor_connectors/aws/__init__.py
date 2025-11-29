@@ -331,8 +331,6 @@ class AWSConnector(DirectedInputsClass):
         self.logger.info(f"Retrieved {len(secrets)} secrets")
         return secrets
 
-<<<<<<< HEAD
-=======
     def create_secret(
         self,
         name: str,
@@ -481,16 +479,6 @@ class AWSConnector(DirectedInputsClass):
         self.logger.info(f"Deleted {len(deleted_arns)} secrets for prefix {name_prefix}")
         return deleted_arns
 
-    def copy_secrets_to_s3(
-        self,
-        secrets: dict[str, str | dict],
-        bucket: str,
-        key: str,
-        execution_role_arn: Optional[str] = None,
-        role_session_name: Optional[str] = None,
-    ) -> str:
-        """Copy secrets dictionary to S3 as JSON.
->>>>>>> origin/main
 
 # Import submodule operations to make them available
 from vendor_connectors.aws.organizations import AWSOrganizationsMixin
