@@ -258,3 +258,125 @@ class GoogleBillingMixin:
         )
 
         return result
+
+    def get_bigquery_billing_dataset(
+        self,
+        project_id: str,
+        dataset_id: str = "billing_export",
+    ) -> Optional[dict[str, Any]]:
+        """Get BigQuery billing export dataset configuration.
+
+        Args:
+            project_id: The project ID containing the billing dataset.
+            dataset_id: The dataset ID. Defaults to 'billing_export'.
+
+        Returns:
+            Dataset configuration dict or None if not found.
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info(f"Getting BigQuery billing dataset {project_id}.{dataset_id}")
+
+        # Build BigQuery client
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        credentials = service_account.Credentials.from_service_account_info(
+            self.service_account_info,
+            scopes=["https://www.googleapis.com/auth/bigquery.readonly"],
+        )
+
+        service = build("bigquery", "v2", credentials=credentials, cache_discovery=False)
+
+        try:
+            dataset = service.datasets().get(projectId=project_id, datasetId=dataset_id).execute()
+
+            # Get tables in the dataset
+            tables_response = service.tables().list(projectId=project_id, datasetId=dataset_id).execute()
+
+            tables = tables_response.get("tables", [])
+            billing_tables = [
+                t for t in tables if "gcp_billing_export" in t.get("tableReference", {}).get("tableId", "")
+            ]
+
+            return {
+                "dataset": dataset,
+                "tables": tables,
+                "billing_tables": billing_tables,
+                "location": dataset.get("location"),
+                "description": dataset.get("description"),
+            }
+
+        except HttpError as e:
+            if e.resp.status == 404:
+                self.logger.warning(f"Billing dataset not found: {project_id}.{dataset_id}")
+                return None
+            raise
+
+    def setup_billing_export(
+        self,
+        billing_account_id: str,
+        project_id: str,
+        dataset_id: str = "billing_export",
+        location: str = "US",
+    ) -> dict[str, Any]:
+        """Set up BigQuery billing export for a billing account.
+
+        Creates the dataset if it doesn't exist and returns configuration.
+
+        Args:
+            billing_account_id: The billing account ID.
+            project_id: Project to create the export dataset in.
+            dataset_id: Dataset ID to use. Defaults to 'billing_export'.
+            location: Dataset location. Defaults to 'US'.
+
+        Returns:
+            Configuration dict with dataset info.
+        """
+        from googleapiclient.errors import HttpError
+
+        self.logger.info(f"Setting up billing export for {billing_account_id}")
+
+        # Build BigQuery client
+        from google.oauth2 import service_account
+        from googleapiclient.discovery import build
+
+        credentials = service_account.Credentials.from_service_account_info(
+            self.service_account_info,
+            scopes=["https://www.googleapis.com/auth/bigquery"],
+        )
+
+        service = build("bigquery", "v2", credentials=credentials, cache_discovery=False)
+
+        # Check if dataset exists
+        try:
+            dataset = service.datasets().get(projectId=project_id, datasetId=dataset_id).execute()
+            self.logger.info(f"Dataset {dataset_id} already exists")
+        except HttpError as e:
+            if e.resp.status != 404:
+                raise
+
+            # Create dataset
+            dataset_body = {
+                "datasetReference": {
+                    "projectId": project_id,
+                    "datasetId": dataset_id,
+                },
+                "location": location,
+                "description": f"Billing export for account {billing_account_id}",
+                "labels": {
+                    "billing_account": billing_account_id.replace("-", "_"),
+                    "managed_by": "vendor_connectors",
+                },
+            }
+
+            dataset = service.datasets().insert(projectId=project_id, body=dataset_body).execute()
+            self.logger.info(f"Created billing export dataset: {dataset_id}")
+
+        return {
+            "billing_account_id": billing_account_id,
+            "project_id": project_id,
+            "dataset_id": dataset_id,
+            "location": dataset.get("location"),
+            "full_dataset_id": f"{project_id}.{dataset_id}",
+        }
