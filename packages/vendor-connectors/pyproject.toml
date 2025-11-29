@@ -124,7 +124,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["F401"]  # Allow unused imports in __init__.py
+"__init__.py" = ["F401", "E402"]  # Allow unused imports and late imports for circular dependency avoidance
 
 [tool.uv.sources]
 extended-data-types = { workspace = true }
