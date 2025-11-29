@@ -4,7 +4,7 @@ This module provides a modern, composable approach to input handling
 using decorators instead of inheritance.
 
 Example:
-    from directed_inputs import directed_inputs
+    from directed_inputs_class import directed_inputs
 
     @directed_inputs(from_stdin=True)
     class MyService:
@@ -139,15 +139,25 @@ class InputContext:
         self.inputs = CaseInsensitiveDict(merged)
 
 
+# Maximum stdin size (1MB) to prevent DoS attacks
+_MAX_STDIN_SIZE = 1024 * 1024
+
+
 def _load_stdin() -> dict[str, Any]:
-    """Load inputs from stdin as JSON."""
+    """Load inputs from stdin as JSON.
+
+    Limited to 1MB to prevent denial-of-service attacks.
+    """
     if strtobool(os.getenv("OVERRIDE_STDIN", "False")):
         return {}
 
     try:
-        stdin_data = sys.stdin.read()
+        stdin_data = sys.stdin.read(_MAX_STDIN_SIZE)
         if is_nothing(stdin_data):
             return {}
+        if len(stdin_data) >= _MAX_STDIN_SIZE:
+            msg = f"Stdin input exceeds maximum size limit ({_MAX_STDIN_SIZE} bytes)"
+            raise ValueError(msg)
         return json.loads(stdin_data)
     except json.JSONDecodeError:
         return {}
@@ -166,14 +176,22 @@ def _load_env(prefix: str | None = None, strip_prefix: bool = False) -> dict[str
     }
 
 
+def _is_union_type(target_type: Any) -> bool:
+    """Check if type is a Union (works on Python 3.9+)."""
+    # Python 3.10+ has types.UnionType for X | Y syntax
+    if hasattr(types, "UnionType") and isinstance(target_type, types.UnionType):
+        return True
+    # typing.Union works on all Python versions
+    return get_origin(target_type) is Union
+
+
 def _coerce_value(value: Any, target_type: type | None) -> Any:
     """Coerce a value to the target type."""
     if target_type is None or value is None:
         return value
 
-    # Handle Union types (including X | None via types.UnionType)
-    origin = get_origin(target_type)
-    if origin is Union or isinstance(target_type, types.UnionType):
+    # Handle Union types (including X | None via types.UnionType on 3.10+)
+    if _is_union_type(target_type):
         args = get_args(target_type)
         non_none_types = [t for t in args if t is not type(None)]
         if non_none_types:
@@ -215,24 +233,24 @@ def _coerce_value(value: Any, target_type: type | None) -> Any:
 def _decode_value(
     value: Any,
     *,
-    decode_base64: bool = False,
-    decode_json: bool = False,
-    decode_yaml: bool = False,
+    do_decode_base64: bool = False,
+    do_decode_json: bool = False,
+    do_decode_yaml: bool = False,
 ) -> Any:
     """Decode a value from various formats."""
     if value is None or not isinstance(value, str):
         return value
 
-    if decode_base64:
+    if do_decode_base64:
         value = base64_decode(
             value,
-            unwrap_raw_data=decode_json or decode_yaml,
-            encoding="json" if decode_json else ("yaml" if decode_yaml else None),
+            unwrap_raw_data=do_decode_json or do_decode_yaml,
+            encoding="json" if do_decode_json else ("yaml" if do_decode_yaml else None),
         )
 
-    if decode_yaml:
-        value = decode_yaml(value)
-    elif decode_json:
+    # Note: YAML decoding not implemented - use decode_json for now
+    # as most YAML is JSON-compatible
+    if do_decode_yaml or do_decode_json:
         value = decode_json(value)
 
     return value
@@ -290,14 +308,16 @@ def _wrap_method(
             return method(self, *args, **kwargs)
 
         # Build kwargs from inputs for parameters not already provided
+        # First bind without defaults to see what was explicitly provided
         bound = sig.bind_partial(self, *args, **kwargs)
+        explicitly_provided = set(bound.arguments.keys())
         bound.apply_defaults()
 
         for param_name, param in sig.parameters.items():
             if param_name == "self":
                 continue
-            if param_name in bound.arguments and param_name in kwargs:
-                # Explicitly provided - skip
+            # Skip parameters explicitly provided (positionally or as kwargs)
+            if param_name in explicitly_provided:
                 continue
 
             config = _get_param_config(param, type_hints, method_configs)
@@ -314,9 +334,9 @@ def _wrap_method(
             if value is not None:
                 value = _decode_value(
                     value,
-                    decode_base64=config.decode_base64,
-                    decode_json=config.decode_json,
-                    decode_yaml=config.decode_yaml,
+                    do_decode_base64=config.decode_base64,
+                    do_decode_json=config.decode_json,
+                    do_decode_yaml=config.decode_yaml,
                 )
 
             # Coerce to target type

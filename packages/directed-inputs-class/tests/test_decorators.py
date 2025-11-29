@@ -60,6 +60,19 @@ class TestDirectedInputsDecorator:
             svc = MyService()
             assert svc.get_domain(domain="explicit.com") == "explicit.com"
 
+    def test_positional_arg_overrides_env(self) -> None:
+        """Test that positional arguments override environment values."""
+        with patch.dict(os.environ, {"DOMAIN": "from-env.com"}):
+
+            @directed_inputs(from_env=True)
+            class MyService:
+                def get_domain(self, domain: str | None = None) -> str | None:
+                    return domain
+
+            svc = MyService()
+            # Positional arg should NOT be overwritten by env
+            assert svc.get_domain("positional.com") == "positional.com"
+
     def test_default_values(self) -> None:
         """Test that default values work when no input provided."""
 
