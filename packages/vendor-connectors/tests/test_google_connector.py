@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from typing import Any
+from typing import Any, Dict, Tuple
 
 import pytest
 from googleapiclient.errors import HttpError
@@ -375,3 +375,147 @@ class TestGoogleConnector:
 
         assert "https://www.googleapis.com/auth/cloudkms" in connector.scopes
         assert "https://www.googleapis.com/auth/cloud-billing" in connector.scopes
+
+    def test_get_google_projects_enriches_billing_data(
+        self,
+        base_connector_kwargs,
+        google_service_account,
+    ):
+        """Ensure get_google_projects merges billing assignments."""
+
+        connector = GoogleConnector(
+            service_account_info=google_service_account,
+            **base_connector_kwargs,
+        )
+
+        crm = MagicMock()
+        crm_projects = MagicMock()
+        crm.projects.return_value = crm_projects
+        crm_projects.list.return_value.execute.return_value = {
+            "projects": [
+                {
+                    "projectId": "project-1",
+                    "parent": {"type": "organization", "id": "123"},
+                    "lifecycleState": "ACTIVE",
+                }
+            ]
+        }
+        crm_projects.list_next.return_value = None
+
+        billing = MagicMock()
+        billing_accounts = MagicMock()
+        billing.billingAccounts.return_value = billing_accounts
+        billing_accounts.projects.return_value.list.return_value.execute.return_value = {
+            "projectBillingInfo": [{"projectId": "project-1"}]
+        }
+        billing_accounts.projects.return_value.list_next.return_value = None
+
+        service_map: Dict[Tuple[str, str], MagicMock] = {
+            ("cloudresourcemanager", "v1"): crm,
+            ("cloudbilling", "v1"): billing,
+        }
+        connector.get_service = MagicMock(side_effect=lambda name, version: service_map[(name, version)])
+        connector.get_google_organization_id = MagicMock(return_value="123")
+        connector.get_google_billing_accounts = MagicMock(return_value={"acct-1": {}})
+
+        projects = connector.get_google_projects()
+
+        assert "project-1" in projects
+        assert projects["project-1"]["billingAccountID"] == "acct-1"
+
+    def test_get_storage_buckets_handles_pagination(
+        self,
+        base_connector_kwargs,
+        google_service_account,
+    ):
+        """Verify storage buckets aggregation occurs across pages."""
+
+        connector = GoogleConnector(
+            service_account_info=google_service_account,
+            **base_connector_kwargs,
+        )
+
+        storage = MagicMock()
+
+        page1 = MagicMock()
+        page1.execute.return_value = {"items": [{"name": "bucket-a"}]}
+        page2 = MagicMock()
+        page2.execute.return_value = {"items": [{"name": "bucket-b"}]}
+
+        buckets_api = MagicMock()
+        buckets_api.list.side_effect = [page1, page2]
+        buckets_api.list_next.side_effect = [page2, None]
+        storage.buckets.return_value = buckets_api
+
+        connector.get_service = MagicMock(return_value=storage)
+
+        buckets = connector.get_storage_buckets_for_google_project("proj")
+        assert sorted(buckets.keys()) == ["bucket-a", "bucket-b"]
+
+    def test_enable_google_apis_tracks_failures(
+        self,
+        base_connector_kwargs,
+        google_service_account,
+    ):
+        """Ensure enable_google_apis reports both enabled and failed APIs."""
+
+        connector = GoogleConnector(
+            service_account_info=google_service_account,
+            **base_connector_kwargs,
+        )
+
+        service_usage = MagicMock()
+        enable_call = service_usage.services.return_value.enable
+
+        def enable_side_effect(name):
+            if name.endswith("/services/compute.googleapis.com"):
+                raise _http_error(409)
+            if name.endswith("/services/cloudkms.googleapis.com"):
+                raise _http_error(400)
+            return MagicMock()
+
+        enable_call.side_effect = enable_side_effect
+        connector.get_service = MagicMock(return_value=service_usage)
+
+        result = connector.enable_google_apis(
+            "proj",
+            apis=["serviceusage.googleapis.com", "compute.googleapis.com", "cloudkms.googleapis.com"],
+        )
+
+        assert "compute.googleapis.com" in result["enabled"]
+        assert "cloudkms.googleapis.com" in result["failed"]
+
+    def test_assign_google_project_iam_roles_merges_bindings(
+        self,
+        base_connector_kwargs,
+        google_service_account,
+    ):
+        """Ensure IAM helper preserves existing bindings."""
+
+        connector = GoogleConnector(
+            service_account_info=google_service_account,
+            **base_connector_kwargs,
+        )
+
+        crm = MagicMock()
+        existing_policy = {
+            "bindings": [
+                {"role": "roles/viewer", "members": ["user:someone@example.com"]},
+            ]
+        }
+        crm.projects.return_value.getIamPolicy.return_value.execute.return_value = existing_policy
+
+        connector.get_service = MagicMock(return_value=crm)
+
+        connector.assign_google_project_iam_roles(
+            "proj",
+            roles=["roles/viewer", "roles/storage.admin"],
+            service_account_identifier="serviceAccount:svc@example.com",
+        )
+
+        set_body = crm.projects.return_value.setIamPolicy.call_args.kwargs["body"]
+        bindings = set_body["policy"]["bindings"]
+        viewer_binding = next(b for b in bindings if b["role"] == "roles/viewer")
+        assert "serviceAccount:svc@example.com" in viewer_binding["members"]
+        storage_binding = next(b for b in bindings if b["role"] == "roles/storage.admin")
+        assert storage_binding["members"] == ["serviceAccount:svc@example.com"]
