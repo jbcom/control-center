@@ -166,6 +166,7 @@ class AWSConnector(DirectedInputsClass):
     def list_secrets(
         self,
         filters: Optional[list[dict]] = None,
+        name_prefix: Optional[str] = None,
         get_secret_values: bool = False,
         skip_empty_secrets: bool = False,
         execution_role_arn: Optional[str] = None,
@@ -174,7 +175,8 @@ class AWSConnector(DirectedInputsClass):
         """List secrets from AWS Secrets Manager.
 
         Args:
-            filters: List of filter dicts for list_secrets API (e.g., [{"Key": "name", "Values": ["prefix/"]}])
+            filters: List of filter dicts for list_secrets API (e.g., [{"Key": "description", "Values": ["prod"]}])
+            name_prefix: Optional prefix helper for the AWS-provided "name" filter.
             get_secret_values: If True, fetch actual secret values, not just ARNs.
             skip_empty_secrets: If True and get_secret_values is True, skip secrets with empty/null values.
             execution_role_arn: ARN of role to assume for cross-account access.
@@ -182,8 +184,15 @@ class AWSConnector(DirectedInputsClass):
 
         Returns:
             Dict mapping secret names to either ARNs (if get_secret_values=False) or secret values.
+
+        Raises:
+            ValueError: If name_prefix contains path traversal sequences.
         """
         self.logger.info("Listing AWS Secrets Manager secrets")
+
+        # Validate name_prefix to prevent path traversal
+        if name_prefix and (".." in name_prefix or "\x00" in name_prefix):
+            raise ValueError("name_prefix contains invalid characters")
 
         if skip_empty_secrets:
             get_secret_values = True
@@ -202,9 +211,15 @@ class AWSConnector(DirectedInputsClass):
 
         paginator = secretsmanager.get_paginator("list_secrets")
 
-        paginate_kwargs: dict = {"IncludePlannedDeletion": False}
+        effective_filters: list[dict] = []
         if filters:
-            paginate_kwargs["Filters"] = filters
+            effective_filters.extend(filters)
+        if name_prefix:
+            effective_filters.append({"Key": "name", "Values": [name_prefix]})
+
+        paginate_kwargs: dict = {"IncludePlannedDeletion": False}
+        if effective_filters:
+            paginate_kwargs["Filters"] = effective_filters
 
         self.logger.debug(f"List secrets parameters: {paginate_kwargs}")
 

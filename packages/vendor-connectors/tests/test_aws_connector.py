@@ -1,6 +1,6 @@
 """Tests for AWSConnector."""
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, Mock, call, patch
 
 import pytest
 from botocore.exceptions import ClientError
@@ -112,3 +112,112 @@ class TestAWSConnector:
 
         assert resource == mock_resource
         mock_session.resource.assert_called_once()
+
+    def test_list_secrets_returns_arns_with_filters(self, base_connector_kwargs):
+        """Ensure listing secrets returns ARNs when not fetching values."""
+        connector = AWSConnector(**base_connector_kwargs)
+        mock_secretsmanager = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {"Name": "/vendors/foo", "ARN": "arn:foo"},
+                    {"Name": "/vendors/bar", "ARN": "arn:bar"},
+                ]
+            }
+        ]
+        mock_secretsmanager.get_paginator.return_value = mock_paginator
+        connector.get_aws_client = MagicMock(return_value=mock_secretsmanager)
+
+        filters = [{"Key": "description", "Values": ["prod"]}]
+        secrets = connector.list_secrets(filters=filters, name_prefix="/vendors/")
+
+        assert secrets == {"/vendors/foo": "arn:foo", "/vendors/bar": "arn:bar"}
+        connector.get_aws_client.assert_called_once_with(
+            client_name="secretsmanager",
+            execution_role_arn=None,
+            role_session_name=None,
+        )
+        mock_paginator.paginate.assert_called_once_with(
+            IncludePlannedDeletion=False,
+            Filters=[
+                {"Key": "description", "Values": ["prod"]},
+                {"Key": "name", "Values": ["/vendors/"]},
+            ],
+        )
+
+    def test_list_secrets_fetches_values_and_skips_empty(self, base_connector_kwargs):
+        """Ensure fetching secret values respects skip_empty_secrets."""
+        connector = AWSConnector(execution_role_arn="arn:aws:iam::123:role/default", **base_connector_kwargs)
+
+        mock_secretsmanager = MagicMock()
+        mock_paginator = MagicMock()
+        mock_paginator.paginate.return_value = [
+            {
+                "SecretList": [
+                    {"Name": "secret/a", "ARN": "arn:a"},
+                    {"Name": "secret/b", "ARN": "arn:b"},
+                    {"Name": "secret/c", "ARN": "arn:c"},
+                ]
+            }
+        ]
+        mock_secretsmanager.get_paginator.return_value = mock_paginator
+        connector.get_aws_client = MagicMock(return_value=mock_secretsmanager)
+
+        with (
+            patch.object(AWSConnector, "get_secret", side_effect=["value-a", None, "value-c"]) as mock_get_secret,
+            patch("vendor_connectors.aws.is_nothing", side_effect=lambda value: value in (None, "", {})),
+        ):
+            secrets = connector.list_secrets(
+                get_secret_values=True,
+                skip_empty_secrets=True,
+                execution_role_arn="arn:aws:iam::789:role/override",
+                role_session_name="session",
+            )
+
+        assert secrets == {"secret/a": "value-a", "secret/c": "value-c"}
+        connector.get_aws_client.assert_called_once_with(
+            client_name="secretsmanager",
+            execution_role_arn="arn:aws:iam::789:role/override",
+            role_session_name="session",
+        )
+        mock_paginator.paginate.assert_called_once_with(IncludePlannedDeletion=False)
+        mock_get_secret.assert_has_calls(
+            [
+                call(
+                    secret_id="arn:a",
+                    execution_role_arn="arn:aws:iam::789:role/override",
+                    role_session_name="session",
+                    secretsmanager=mock_secretsmanager,
+                ),
+                call(
+                    secret_id="arn:b",
+                    execution_role_arn="arn:aws:iam::789:role/override",
+                    role_session_name="session",
+                    secretsmanager=mock_secretsmanager,
+                ),
+                call(
+                    secret_id="arn:c",
+                    execution_role_arn="arn:aws:iam::789:role/override",
+                    role_session_name="session",
+                    secretsmanager=mock_secretsmanager,
+                ),
+            ]
+        )
+
+    def test_list_secrets_rejects_path_traversal(self, base_connector_kwargs):
+        """Ensure list_secrets rejects path traversal in name_prefix."""
+        import pytest
+
+        connector = AWSConnector(**base_connector_kwargs)
+
+        # Should reject path traversal attempts
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="../../../etc/passwd")
+
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="secrets/../admin")
+
+        # Should reject null bytes
+        with pytest.raises(ValueError, match="invalid characters"):
+            connector.list_secrets(name_prefix="secrets\x00admin")

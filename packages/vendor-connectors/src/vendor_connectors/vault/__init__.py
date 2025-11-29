@@ -155,21 +155,36 @@ class VaultConnector(DirectedInputsClass):
 
         Returns:
             Dict mapping secret paths to their data.
+
+        Raises:
+            ValueError: If root_path contains path traversal sequences.
         """
-        self.logger.info(f"Listing Vault secrets from {mount_point}{root_path}")
+        # Validate root_path to prevent path traversal attacks
+        if root_path and (".." in root_path or "\x00" in root_path):
+            raise ValueError("root_path contains invalid characters")
+
+        display_root = root_path if root_path not in (None, "", "/") else "/"
+        self.logger.info(f"Listing Vault secrets from {mount_point}{display_root}")
 
         secrets: dict[str, dict] = {}
         client = self.vault_client
 
+        normalized_root = (root_path or "").strip("/")
+        list_path = normalized_root.rstrip("/") if normalized_root else ""
+        path_prefix = f"{list_path}/" if list_path else ""
+
         # Initial listing from root_path
         try:
             root_result = client.secrets.kv.v2.list_secrets(
-                path=root_path,
+                path=list_path,
                 mount_point=mount_point,
             )
-            initial_paths = [(key, 0) for key in root_result.get("data", {}).get("keys", [])]
+            initial_paths = [
+                (f"{path_prefix}{key}" if path_prefix else key, 0)
+                for key in root_result.get("data", {}).get("keys", [])
+            ]
         except VaultError as e:
-            self.logger.warning(f"Invalid root path {root_path}: {e}")
+            self.logger.warning(f"Invalid root path {display_root}: {e}")
             return secrets
 
         stack: deque[tuple[str, int]] = deque(initial_paths)
