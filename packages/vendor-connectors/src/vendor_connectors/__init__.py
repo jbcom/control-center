@@ -32,7 +32,7 @@ from vendor_connectors.aws import (
     AWSConnectorFull,
     AWSOrganizationsMixin,
     AWSS3Mixin,
-    AWSSSOixin,
+    AWSSSOmixin,
 )
 from vendor_connectors.cloud_params import (
     get_aws_call_params,

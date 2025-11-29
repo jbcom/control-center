@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     pass
 
 
-class AWSSSOixin:
+class AWSSSOmixin:
     """Mixin providing AWS SSO/Identity Center operations.
 
     This mixin requires the base AWSConnector class to provide:

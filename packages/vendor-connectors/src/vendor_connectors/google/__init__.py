@@ -395,6 +395,7 @@ class GoogleConnector(DirectedInputsClass):
 
         while True:
             request = service.users().list(
+                customer="my_customer",
                 domain=domain,
                 maxResults=max_results,
                 pageToken=page_token,
@@ -465,6 +466,7 @@ class GoogleConnector(DirectedInputsClass):
 
         while True:
             request = service.groups().list(
+                customer="my_customer",
                 domain=domain,
                 maxResults=max_results,
                 pageToken=page_token,

@@ -569,10 +569,10 @@ class AWSConnector(DirectedInputsClass):
 from vendor_connectors.aws.codedeploy import create_codedeploy_deployment, get_aws_codedeploy_deployments
 from vendor_connectors.aws.organizations import AWSOrganizationsMixin
 from vendor_connectors.aws.s3 import AWSS3Mixin
-from vendor_connectors.aws.sso import AWSSSOixin
+from vendor_connectors.aws.sso import AWSSSOmixin
 
 
-class AWSConnectorFull(AWSConnector, AWSOrganizationsMixin, AWSSSOixin, AWSS3Mixin):
+class AWSConnectorFull(AWSConnector, AWSOrganizationsMixin, AWSSSOmixin, AWSS3Mixin):
     """Full AWS connector with all operations.
 
     This class combines the base AWSConnector with all operation mixins.
@@ -586,7 +586,7 @@ __all__ = [
     "AWSConnector",
     "AWSConnectorFull",
     "AWSOrganizationsMixin",
-    "AWSSSOixin",
+    "AWSSSOmixin",
     "AWSS3Mixin",
     "get_aws_codedeploy_deployments",
     "create_codedeploy_deployment",
