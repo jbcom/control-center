@@ -260,6 +260,8 @@ fabric.properties
 /.zed/settings.json.bak
 /AGENTS.md
 /AGENTS.md.bak
+/CLAUDE.md
+/CLAUDE.md.bak
 # END Ruler Generated Files
 external/
 
