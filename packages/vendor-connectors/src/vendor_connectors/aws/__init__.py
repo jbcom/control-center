@@ -343,3 +343,8 @@ class AWSConnector(DirectedInputsClass):
             pass
 
         return vendors
+
+
+from .codedeploy import create_codedeploy_deployment, get_aws_codedeploy_deployments
+
+__all__ = ["AWSConnector", "get_aws_codedeploy_deployments", "create_codedeploy_deployment"]
