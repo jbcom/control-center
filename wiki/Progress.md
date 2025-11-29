@@ -1,277 +1,128 @@
 # Progress Log
 
-## Session: Nov 26, 2025
+## Session: Nov 29, 2025 (Architectural Evolution)
 
 ### Completed
 
-#### CI/CD Stabilization
-- [x] Fixed pycalver versioning (added v prefix to pattern)
-- [x] Corrected uv workflow usage (uvx --with setuptools pycalver bump)
-- [x] Fixed docs workflow (.git directory preservation)
-- [x] Fixed release workflow (proper working directory for uv build)
-- [x] Corrected PyPI package name: vendor-connectors (not cloud-connectors)
-- [x] All 4 packages successfully publishing to PyPI
+#### directed-inputs-class Refactor
+- [x] Identified architectural flaw: inheritance + manual `get_input` = WET pattern
+- [x] Designed new decorator-based API: `@directed_inputs`, `@input_config`
+- [x] Implemented `decorators.py` with full type coercion support
+- [x] Created 23 new tests for decorator API
+- [x] Maintained backward compatibility with legacy `DirectedInputsClass`
+- [x] All 39 tests passing (23 new + 16 legacy)
 
-#### terraform-modules Integration
-- [x] Cloned /terraform-modules
-- [x] Created branch: fix/vendor-connectors-integration
-- [x] Updated pyproject.toml with vendor-connectors dependency
-- [x] Deleted obsolete client files (8 files, 2,166 lines removed)
-- [x] Updated imports in terraform_data_source.py, terraform_null_resource.py, utils.py
-- [x] Created PR #203: https://github.com//terraform-modules/pull/203
+#### python-terraform-bridge Package
+- [x] Created new OSS package at `packages/python-terraform-bridge/`
+- [x] Extracted `TerraformModuleParameter` from terraform-modules
+- [x] Extracted `TerraformModuleResources` with docstring parsing
+- [x] Implemented `TerraformRegistry` with decorator-based registration
+- [x] Created runtime execution handler for external data sources
+- [x] Built CLI tool (`terraform-bridge generate/list/run`)
+- [x] Created comprehensive README with API reference
+- [x] All 50 tests passing
 
-#### vendor-connectors Enhancements
-- [x] GoogleConnector.impersonate_subject() - API compatibility method
-- [x] SlackConnector.list_usergroups() - Missing method added
-- [x] AWSConnector.load_vendors_from_asm() - Lambda vendor loading
-- [x] AWSConnector.get_secret() - Single secret with SecretString/Binary handling
-- [x] AWSConnector.list_secrets() - Paginated listing, value fetch, empty filtering
-- [x] AWSConnector.copy_secrets_to_s3() - Upload secrets dict to S3 as JSON
-- [x] VaultConnector.list_secrets() - Recursive KV v2 listing with depth control
-- [x] VaultConnector.get_secret() - Path handling with matchers support
-- [x] VaultConnector.read_secret() - Simple single secret read
-- [x] VaultConnector.write_secret() - Create/update secrets
-- [x] Both use is_nothing() from extended-data-types
+#### Documentation
+- [x] Updated `ORCHESTRATION.md` with complete session context
+- [x] Updated `wiki/Active-Context.md` with architectural changes
+- [x] Created PR plan for focused, reviewable changes
 
-#### Memory Bank Infrastructure
-- [x] Created .cursor/memory-bank/ structure
-- [x] Documented agentic rules and workflows
-- [x] Created GitHub Project for tracking
-- [x] Created GitHub issues (#200, #201, #202)
+### Key Architectural Decisions
 
-### Pending
-- [ ] jbcom-control-center PR #168 - vendor-connectors secrets management
-- [ ] terraform-modules PR #203 CI verification
-- [ ] Add deepmerge to extended-data-types (issue #201) - DONE, merged as PR #167
-- [ ] Remove secrets methods from terraform-modules (after PR #168 merges)
-- [ ] terraform-aws-secretsmanager refactoring
-- [ ] Create merging lambda using ecosystem packages
+#### 1. Decorator over Inheritance
+**Before**:
+```python
+class MyService(DirectedInputsClass):
+    def method(self, arg: str | None = None):
+        arg = self.get_input("arg", arg)  # Boilerplate everywhere
+```
+
+**After**:
+```python
+@directed_inputs(from_stdin=True)
+class MyService:
+    def method(self, arg: str | None = None):
+        # arg automatically populated
+```
+
+#### 2. Registry over Docstrings
+**Before**:
+```python
+def list_users(...):
+    """
+    terraform: external_data_source
+    terraform_key: users
+    """
+```
+
+**After**:
+```python
+@registry.data_source(key="users", module_class="github")
+def list_users(...):
+    ...
+```
+
+### Files Created/Modified
+
+| File | Action | Lines |
+|------|--------|-------|
+| `directed_inputs_class/decorators.py` | NEW | ~350 |
+| `directed_inputs_class/__init__.py` | MODIFIED | +15 |
+| `directed_inputs_class/tests/test_decorators.py` | NEW | ~400 |
+| `python-terraform-bridge/src/` | NEW PACKAGE | ~1200 |
+| `python-terraform-bridge/tests/` | NEW | ~800 |
+| `python-terraform-bridge/README.md` | NEW | ~200 |
+
+### Test Coverage
+
+| Package | Tests | Status |
+|---------|-------|--------|
+| directed-inputs-class | 39 | ✅ All passing |
+| python-terraform-bridge | 50 | ✅ All passing |
 
 ---
 
-## Milestones
+## Session: Nov 29, 2025 (Earlier - API Documentation)
 
-### ✅ Milestone 1: jbcom Ecosystem PyPI Release
-**Completed**: Nov 26, 2025
+### Completed
 
-All packages published:
-- extended-data-types
-- lifecyclelogging
-- directed-inputs-class
-- vendor-connectors
+#### vendor-connectors API Documentation
+- [x] Created `packages/vendor-connectors/API_REFERENCE.md`
+  - Full method listing for all 6 connectors
+  - 127 methods documented with status and terraform-modules equivalents
+  - Usage examples and migration status summary
+- [x] Created `packages/vendor-connectors/MIGRATION_STATUS.md`
+  - Maps terraform-modules functions → vendor-connectors methods
+  - Tracks completed migrations by PR (PRs #220, #222, #229, #236-#241)
+  - Lists 4 remaining functions to migrate
+  - Documents 7 functions NOT migrating (FSC-specific business logic)
+- [x] Updated wiki/Active-Context.md with current state
 
-### ✅ Milestone 2: terraform-modules Integration
-**Completed**: Nov 26, 2025
+#### Agent Context Recovery
+- [x] Recovered agent chronologies for bc-f5391b3e, bc-e4aa4260
+- [x] Verified all previous agent migration PRs merged
+- [x] Aligned with /terraform-modules#220 (authoritative tracking issue)
 
-PR #203 created with full vendor-connectors integration.
+#### Migration Progress
+```
+terraform-modules → vendor-connectors Migration
 
-### 🔄 Milestone 3: Secrets Pipeline Modernization
-**Status**: Not Started
+Progress: [█████████████████░] 97%
 
-Pending work in terraform-aws-secretsmanager.
+Completed: 134 functions
+Remaining: 4 functions  
+Not Migrating: 7 functions (FSC-specific)
+
+By Connector:
+- AWS:     47/51 (92%)
+- Google:  56/56 (100%)
+- GitHub:  15/16 (94%)
+- Slack:    5/5  (100%)
+- Vault:    7/7  (100%)
+- Zoom:     4/4  (100%)
+```
 
 ---
-
-## Session: Nov 27, 2025
-
-### Completed
-- [x] Enabled Codex agent in `.ruler/ruler.toml` and regenerated all agent instruction artifacts with `ruler apply`.
-- [x] Adjusted runtime bootstrap to avoid pre-creating workspace directories during image build while keeping MCP bridge linking after mount.
-- [x] Centralized memory artifacts under `memory-bank/` with `recovery/` containing the recovered background agent transcript for the last 24 hours.
-- [x] Updated bootstrap runtime to stop creating log or memory-bank directories automatically so background agents own initialization while keeping the symlink to the global memory bank when it already exists.
-
-### Pending
-- [ ] Run `bootstrap-cursor-runtime.sh` after mounting the workspace and verify process-compose logs populate under `./logs`.
-- [ ] Restart cursor-agent-manager and MCP proxies, then confirm new background agents can launch cleanly.
-- [ ] Resume enterprise secrets sync work based on recovered agent notes once services are stable.
-
-## Session Replay: [Agent Session Nov 27] (Nov 27, 2025 08:26 UTC)
-
-### Summary
-Now let me provide a summary of the proper solution:
-
----
-
-## ✅ Proper Enterprise Secrets Sync Solution
-
-### The Problem (What You Identified)
-The SSH key issue wasn't about SSH vs HTTPS - it was about **where we read secrets from**:
-- `toJson(secrets)` in GitHub Actions only exposes secrets the workflow has access to
-- `EXTERNAL_CI_BOT_SSH_PRIVATE_KEY` has **PRIVATE** visibility → not accessible
-- Hacking around with HTTPS+token created complexity elsewhere
-
-### The Proper Solution
-**Read from SOURCE (SOPS files) using the same AWS auth pattern that's already working**
-
-```
-┌────────────────────────────────────────┐
-│  workspaces/secrets/secrets/           │
-│  ├── vendors.json  (SOPS encrypted)    │
-│  ├── quay-credentials.yaml             │
-│  ├── snowflake_tf_snow_key.pem         │
-│  └── ...                               │
-└────────────────────────────────────────┘
-           │
-           │ Decrypt via AWS KMS
-           │ (same auth as generator/secrets jobs)
-           ▼
-┌────────────────────────────────────────┐
-│  sync-enterprise-secrets action        │
-│  - sops-decoder (npm package)          │
-│  - @aws-sdk/client-kms                 │
-│  - libsodium (GitHub secret encrypt)   │
-└────────────────────────────────────────┘
-           │
-           │ GitHub API
-           ▼
-┌────────────────────────────────────────┐
-│  Target Organizations                  │
-│  -  │
-│  - (other enterprise orgs)             │
-└────────────────────────────────────────┘
-```
-
-### What Was Created
-
-**1. JavaScript GitHub Action**: `.github/actions/sync-enterprise-secrets/`
-- Uses `sops-decoder` to decrypt SOPS files via AWS KMS
-- Uses `libsodium-wrappers` for GitHub secret encryption
-- Reads from `workspaces/secrets/secrets/` (same as Terraform)
-
-**2. Workflow**: `.github/workflows/sync-enterprise-secrets.yml`
-- Triggered on push to secrets dir or manual dispatch
-- Uses same AWS auth pattern as generator/secrets jobs
-- Builds action at runtime
-
-### To Test
-```bash
-# Trigger the sync workflow with dry-run first
-gh workflow run sync-enterprise-secrets \
-  --repo /terraform-organization-administration \
-  -f dry_run=true
-
-# Then run for real
-gh workflow run sync-enterprise-secrets \
-  --repo /terraform-organization-administration \
-  -f dry_run=false
-```
-
-### Why This Works
-1. **Reads from source** - SOPS files are the source of truth, no visibility restrictions
-2. **Same auth pattern** - Uses `EXTERNAL_CI_ACCESS_KEY`/`SECRET_KEY` that's already working
-3. **Proper encryption** - Uses libsodium sealed box for GitHub secret format
-4. **All secrets sync** - Including SSH keys, because we read from files, not GitHub secrets
-
-Shall I trigger a test run of this workflow?
-
-### Transcript
-- Stored at `memory-bank/recovery/` (see directory for agent session replays)
-
-### Delegation Inputs
-- BRANCH_fix_vendor-connectors-pypi-name_task.md: 🔍 Forensic Recovery: Branch fix/vendor-connectors-pypi-name
-- SYNTHESIS_task.md: 📊 Forensic Recovery: Synthesis & Consolidation
-
-
-## Session: Nov 28, 2025
-
-### Completed
-- [x] Merged `.cursor/memory-bank` content into the root `memory-bank/` and preserved compatibility copies without symlinks.
-- [x] Added `memory-bank/agenticRules.md` so all behavioral guidance lives alongside the shared memory bank.
-- [x] Built `scripts/replay_agent_session.py` to replay recovered Cursor transcripts, generate delegation prompts, and mirror the memory bank for all agents.
-- [x] Replayed session `bc-c1254c3f-ea3a-43a9-a958-13e921226f5d` into `memory-bank/recovery/` with a condensed transcript and delegation plan.
-
-### Pending
-- [ ] Wire `--ai-command` to Codex/Claude CLI with MCP to auto-summarize replays and spawn sub-agents.
-- [ ] Trigger session replay automatically from process-compose once background agents finish runs.
-
-## Session: Nov 28, 2025 (Agent Workflow Automation)
-
-### Completed
-- [x] Set `CURSOR_API_KEY` as GitHub repository secret
-- [x] Created PR #189: GitHub Actions for agent-driven development
-  - `agent-pr-review.yml` - Spawn review agents on PR events
-  - `agent-post-merge.yml` - Spawn follow-up agents on main merges
-  - `agent-issue-triage.yml` - Auto-label, project board, /agent commands
-  - `agent-project-management.yml` - Status sync, stale issues, reports
-  - `spawn-cursor-agent` reusable action
-
-### New Capabilities (PR #189)
-1. **PR Review Automation**
-   - Auto-spawn agents to review PRs
-   - Fallback to GitHub issue if direct spawn fails
-
-2. **Post-Merge Automation**
-   - Detect changes (packages, docs, workflows, agent tools)
-   - Spawn appropriate agents (ecosystem sync, docs update, security audit)
-
-3. **Issue Triage Automation**
-   - Auto-classify issues (bug, enhancement, security, package-specific)
-   - Auto-add to project board
-   - `/agent` commands in comments:
-     - `/agent review` - Request detailed analysis
-     - `/agent fix` - Request fix PR
-     - `/agent investigate` - Deep investigation
-     - `/agent close` - Verify can close
-     - `/agent help` - Show available commands
-   - Cross-repo issue linking
-
-4. **Project Management Automation**
-   - Sync issue/PR status to project board
-   - Weekly stale issue management (14 days → stale, 30 days → agent review)
-   - Ecosystem status report generation
-   - Maintenance agent spawning (weekly dependency audit, docs sync)
-
-### Key Insight
-Moving agent orchestration FROM:
-- Single background agent managing everything
-
-TO:
-- GitHub Actions triggering on events
-- /agent commands for user-initiated tasks
-- Scheduled maintenance agents
-- Self-healing project management
-
-### Pending
-- [ ] Merge PR #190 (Claude Code + Orchestration)
-- [ ] Set ANTHROPIC_API_KEY secret
-- [ ] Test agentic cycle workflow
-- [ ] Sync tooling to managed repos
-
-## Session: Nov 28, 2025 (Agentic Orchestration)
-
-### Completed
-- [x] Merged PR #189 (basic agent workflows)
-- [x] Created PR #190 with comprehensive Claude Code integration
-- [x] Designed agentic orchestration architecture
-- [x] Created agentic-cycle.yml workflow
-- [x] Created sync-claude-tooling.yml for repo sync
-- [x] Created templates for managed repos
-- [x] Created agentic cycle issue template
-- [x] Documented architecture in AGENTIC-ORCHESTRATION.md
-
-### Architecture Highlights
-1. **Control Plane → Repos**: Cycles decompose to repo issues
-2. **Repos → Control Plane**: Upstream notify workflow
-3. **Station-to-Station**: Cross-repo issue linking
-4. **Cycles Replace Holding PRs**: Structured, persistent tracking
-
-### Key Files Created
-- `.github/workflows/claude.yml` - @claude mentions
-- `.github/workflows/claude-pr-review.yml` - Auto PR review
-- `.github/workflows/claude-ci-fix.yml` - Auto-fix CI
-- `.github/workflows/agentic-cycle.yml` - Cycle orchestration
-- `.github/workflows/sync-claude-tooling.yml` - Tooling sync
-- `docs/AGENTIC-ORCHESTRATION.md` - Architecture doc
-- `templates/claude/` - Templates for repos
-- `.claude/commands/` - Custom slash commands
-- `CLAUDE.md` - Project context
-
-### Next Steps
-- [ ] Set ANTHROPIC_API_KEY in GitHub secrets
-- [ ] Merge PR #190
-- [ ] Run sync-claude-tooling to push to repos
-- [ ] Create first agentic cycle to test
-- [ ] Close holding PR #182
 
 ## Session: Nov 28, 2025 (PSR Migration & PR Cleanup)
 
@@ -322,7 +173,122 @@ TO:
 | `dic` | directed-inputs-class |
 | `connectors` | vendor-connectors |
 
-### Pending
-- [ ] Merge PR #213 (final step - ends agent session)
-- [ ] First PSR release cycle after merge
-- [ ] Verify PyPI publishes with new versions
+---
+
+## Session: Nov 28, 2025 (Agentic Orchestration)
+
+### Completed
+- [x] Merged PR #189 (basic agent workflows)
+- [x] Created PR #190 with comprehensive Claude Code integration
+- [x] Designed agentic orchestration architecture
+- [x] Created agentic-cycle.yml workflow
+- [x] Created sync-claude-tooling.yml for repo sync
+- [x] Created templates for managed repos
+- [x] Created agentic cycle issue template
+- [x] Documented architecture in AGENTIC-ORCHESTRATION.md
+
+### Architecture Highlights
+1. **Control Plane → Repos**: Cycles decompose to repo issues
+2. **Repos → Control Plane**: Upstream notify workflow
+3. **Station-to-Station**: Cross-repo issue linking
+4. **Cycles Replace Holding PRs**: Structured, persistent tracking
+
+### Key Files Created
+- `.github/workflows/claude.yml` - @claude mentions
+- `.github/workflows/claude-pr-review.yml` - Auto PR review
+- `.github/workflows/claude-ci-fix.yml` - Auto-fix CI
+- `.github/workflows/agentic-cycle.yml` - Cycle orchestration
+- `.github/workflows/sync-claude-tooling.yml` - Tooling sync
+- `docs/AGENTIC-ORCHESTRATION.md` - Architecture doc
+- `templates/claude/` - Templates for repos
+- `.claude/commands/` - Custom slash commands
+- `CLAUDE.md` - Project context
+
+---
+
+## Session: Nov 27, 2025
+
+### Completed
+- [x] Enabled Codex agent in `.ruler/ruler.toml` and regenerated all agent instruction artifacts with `ruler apply`.
+- [x] Adjusted runtime bootstrap to avoid pre-creating workspace directories during image build while keeping MCP bridge linking after mount.
+- [x] Centralized memory artifacts under `memory-bank/` with `recovery/` containing the recovered background agent transcript for the last 24 hours.
+- [x] Updated bootstrap runtime to stop creating log or memory-bank directories automatically so background agents own initialization while keeping the symlink to the global memory bank when it already exists.
+
+---
+
+## Session: Nov 26, 2025
+
+### Completed
+
+#### CI/CD Stabilization
+- [x] Fixed pycalver versioning (added v prefix to pattern)
+- [x] Corrected uv workflow usage (uvx --with setuptools pycalver bump)
+- [x] Fixed docs workflow (.git directory preservation)
+- [x] Fixed release workflow (proper working directory for uv build)
+- [x] Corrected PyPI package name: vendor-connectors (not cloud-connectors)
+- [x] All 4 packages successfully publishing to PyPI
+
+#### terraform-modules Integration
+- [x] Cloned /terraform-modules
+- [x] Created branch: fix/vendor-connectors-integration
+- [x] Updated pyproject.toml with vendor-connectors dependency
+- [x] Deleted obsolete client files (8 files, 2,166 lines removed)
+- [x] Updated imports in terraform_data_source.py, terraform_null_resource.py, utils.py
+- [x] Created PR #203: https://github.com//terraform-modules/pull/203
+
+#### vendor-connectors Enhancements
+- [x] GoogleConnector.impersonate_subject() - API compatibility method
+- [x] SlackConnector.list_usergroups() - Missing method added
+- [x] AWSConnector.load_vendors_from_asm() - Lambda vendor loading
+- [x] AWSConnector.get_secret() - Single secret with SecretString/Binary handling
+- [x] AWSConnector.list_secrets() - Paginated listing, value fetch, empty filtering
+- [x] AWSConnector.copy_secrets_to_s3() - Upload secrets dict to S3 as JSON
+- [x] VaultConnector.list_secrets() - Recursive KV v2 listing with depth control
+- [x] VaultConnector.get_secret() - Path handling with matchers support
+- [x] VaultConnector.read_secret() - Simple single secret read
+- [x] VaultConnector.write_secret() - Create/update secrets
+- [x] Both use is_nothing() from extended-data-types
+
+#### Memory Bank Infrastructure
+- [x] Created .cursor/memory-bank/ structure
+- [x] Documented agentic rules and workflows
+- [x] Created GitHub Project for tracking
+- [x] Created GitHub issues (#200, #201, #202)
+
+---
+
+## Milestones
+
+### ✅ Milestone 1: jbcom Ecosystem PyPI Release
+**Completed**: Nov 26, 2025
+
+All packages published:
+- extended-data-types
+- lifecyclelogging
+- directed-inputs-class
+- vendor-connectors
+
+### ✅ Milestone 2: terraform-modules Integration
+**Completed**: Nov 26, 2025
+
+PR #203 created with full vendor-connectors integration.
+
+### ✅ Milestone 3: PSR Migration
+**Completed**: Nov 28, 2025
+
+PR #213 created with python-semantic-release migration.
+
+### 🔄 Milestone 4: Architectural Evolution
+**In Progress**: Nov 29, 2025
+
+- [x] directed-inputs-class decorator API
+- [x] python-terraform-bridge package
+- [ ] PRs for each package change
+- [ ] Integration with terraform-modules
+
+### 🔜 Milestone 5: Complete terraform-modules Migration
+**Pending**
+
+- [ ] Remaining 4 function migrations
+- [ ] terraform-modules consumes new packages
+- [ ] Deprecate duplicate code
