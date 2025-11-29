@@ -60,7 +60,7 @@ def _normalize_statuses(statuses: Sequence[str] | None) -> list[str] | None:
     for status in statuses:
         key = status.replace("-", "_").lower()
         if key not in _DEPLOYMENT_STATUS_MAP:
-            valid = ", ".join(sorted({v for v in _DEPLOYMENT_STATUS_MAP.values()}))
+            valid = ", ".join(sorted(set(_DEPLOYMENT_STATUS_MAP.values())))
             msg = f"Unsupported CodeDeploy status '{status}'. Valid statuses: {valid}"
             raise ValueError(msg)
         normalized.append(_DEPLOYMENT_STATUS_MAP[key])
