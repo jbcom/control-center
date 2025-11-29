@@ -25,27 +25,27 @@ Migration of cloud-specific operations from `FlipsideCrypto/terraform-modules` t
 ### GitHub (✅ DONE)
 - `github/__init__.py` - Extended with members, repos, teams
 
-## Remaining Migrations
+---
 
-### Agent 1: Slack Operations
-- **File**: AGENT_SLACK_OPERATIONS.md
-- **Task**: Extend slack/__init__.py with users, usergroups, conversations
-- **Priority**: HIGH
+## Active Agents (Spawned 2025-11-29)
 
-### Agent 2: Vault Operations  
-- **File**: AGENT_VAULT_OPERATIONS.md
-- **Task**: Extend vault/__init__.py with AWS IAM roles
-- **Priority**: MEDIUM
+### QC Verification Agents
 
-### Agent 3: AWS CodeDeploy
-- **File**: AGENT_AWS_CODEDEPLOY.md
-- **Task**: Create new aws/codedeploy.py module
-- **Priority**: MEDIUM
+| Agent ID | Task | Issue | Branch |
+|----------|------|-------|--------|
+| `bc-09948622-174f-4d77-b79c-afe3cb99db40` | Verify AWS operations 1:1 | [#230](https://github.com/jbcom/jbcom-control-center/issues/230) | `cursor/verify-aws-operations-against-terraform-modules-f7e6` |
+| `bc-f5391b3e-5208-4c16-94f8-ee24601f04be` | Verify Google operations 1:1 | [#231](https://github.com/jbcom/jbcom-control-center/issues/231) | `cursor/verify-google-operations-against-terraform-modules-e499` |
 
-### Agent 4: AWS Secrets Manager
-- **File**: AGENT_AWS_SECRETS.md
-- **Task**: Extend AWSConnector with create/update/delete secrets
-- **Priority**: HIGH
+### Migration Agents
+
+| Agent ID | Task | Issue | Branch |
+|----------|------|-------|--------|
+| `bc-911ea566-1b4b-4205-94ba-e4cb244e4b0e` | Migrate Slack operations | [#232](https://github.com/jbcom/jbcom-control-center/issues/232) | `cursor/migrate-and-refactor-slack-connector-40fe` |
+| `bc-fbdd5365-b399-419c-a5a9-55cd8392b3fd` | Migrate Vault operations | [#233](https://github.com/jbcom/jbcom-control-center/issues/233) | `cursor/migrate-vault-connector-with-aws-iam-methods-934b` |
+| `bc-445d072f-add9-4bab-992a-02f759d8a6ea` | Create AWS CodeDeploy module | [#234](https://github.com/jbcom/jbcom-control-center/issues/234) | `cursor/migrate-aws-codedeploy-to-new-module-af98` |
+| `bc-9393bfef-686c-4274-a5c1-731a854e0d88` | Extend AWS Secrets Manager | [#235](https://github.com/jbcom/jbcom-control-center/issues/235) | `cursor/extend-aws-secrets-manager-operations-d3b2` |
+
+---
 
 ## NOT Migrating (Serverless/SAM candidates)
 These are FlipsideCrypto-specific business logic, not generic connectors:
@@ -53,23 +53,20 @@ These are FlipsideCrypto-specific business logic, not generic connectors:
 - `get_flipsidecrypto_team_*` - Should be SAM function
 - `get_new_aws_controltower_accounts_from_google` - Should be SAM function
 
-## Spawn Commands
+## Monitor Agents
 ```bash
-# Slack
-/workspace/scripts/fleet-manager.sh spawn https://github.com/jbcom/jbcom-control-center "$(cat .cursor/agents/terraform-modules-migration/AGENT_SLACK_OPERATIONS.md)" main
+# List all agents
+/workspace/scripts/fleet-manager.sh list
 
-# Vault
-/workspace/scripts/fleet-manager.sh spawn https://github.com/jbcom/jbcom-control-center "$(cat .cursor/agents/terraform-modules-migration/AGENT_VAULT_OPERATIONS.md)" main
+# Check specific agent status
+/workspace/scripts/fleet-manager.sh status bc-09948622-174f-4d77-b79c-afe3cb99db40
 
-# CodeDeploy
-/workspace/scripts/fleet-manager.sh spawn https://github.com/jbcom/jbcom-control-center "$(cat .cursor/agents/terraform-modules-migration/AGENT_AWS_CODEDEPLOY.md)" main
-
-# Secrets
-/workspace/scripts/fleet-manager.sh spawn https://github.com/jbcom/jbcom-control-center "$(cat .cursor/agents/terraform-modules-migration/AGENT_AWS_SECRETS.md)" main
+# Send followup to agent
+/workspace/scripts/fleet-manager.sh followup bc-09948622-174f-4d77-b79c-afe3cb99db40 "Please also check X"
 ```
 
 ## Verification
 After all agents complete:
 1. Run full test suite: `uv run python -m pytest packages/vendor-connectors/tests -v`
 2. Run linter: `uv run ruff check packages/vendor-connectors/src`
-3. Create consolidated PR
+3. Review and merge PRs from each agent branch
