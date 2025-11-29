@@ -373,4 +373,79 @@ program
     console.log(`✅ Agent finished with status: ${result.data?.status}`);
   });
 
+// ============================================
+// watch
+// ============================================
+program
+  .command("watch")
+  .description("Watch fleet and report status changes")
+  .option("--poll <ms>", "Poll interval in milliseconds", "30000")
+  .option("--iterations <n>", "Max iterations (default: infinite)", "0")
+  .option("--stall <ms>", "Stall threshold in milliseconds", "600000")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    const pollInterval = parseInt(opts.poll, 10);
+    const maxIterations = parseInt(opts.iterations, 10) || Infinity;
+    const stallThreshold = parseInt(opts.stall, 10);
+
+    console.log("=== Fleet Watch Started ===");
+    console.log(`Poll interval: ${pollInterval}ms`);
+    console.log(`Stall threshold: ${stallThreshold}ms`);
+    console.log("");
+
+    await fleet.watch({
+      pollInterval,
+      maxIterations,
+      stallThreshold,
+      onAgentFinished: async (agent) => {
+        console.log(`\n✅ FINISHED: ${agent.id}`);
+        console.log(`   Name: ${agent.name}`);
+        console.log(`   Summary: ${agent.summary?.slice(0, 200)}...`);
+        console.log("");
+      },
+      onAgentFailed: async (agent) => {
+        console.log(`\n❌ FAILED: ${agent.id}`);
+        console.log(`   Name: ${agent.name}`);
+        console.log("");
+      },
+      onAgentStalled: async (agent, runtime) => {
+        const mins = Math.floor(runtime / 60000);
+        console.log(`\n⚠️  STALLED: ${agent.id} (running ${mins}m)`);
+        console.log(`   Name: ${agent.name}`);
+        console.log("");
+      },
+    });
+  });
+
+// ============================================
+// monitor
+// ============================================
+program
+  .command("monitor")
+  .description("Monitor specific agents until completion")
+  .argument("<agent-ids...>", "Agent IDs to monitor")
+  .option("--poll <ms>", "Poll interval in milliseconds", "15000")
+  .action(async (agentIds, opts) => {
+    const fleet = new Fleet();
+    const pollInterval = parseInt(opts.poll, 10);
+
+    console.log(`=== Monitoring ${agentIds.length} agents ===\n`);
+
+    const results = await fleet.monitorAgents(agentIds, {
+      pollInterval,
+      onProgress: (status) => {
+        const line = Array.from(status.entries())
+          .map(([id, s]) => `${id.slice(0, 8)}: ${s}`)
+          .join(" | ");
+        process.stdout.write(`\r${line}    `);
+      },
+    });
+
+    console.log("\n\n=== Results ===\n");
+    for (const [id, agent] of results) {
+      const status = agent.status === "FINISHED" ? "✅" : "❌";
+      console.log(`${status} ${id}: ${agent.status}`);
+    }
+  });
+
 program.parse();

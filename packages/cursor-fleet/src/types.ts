@@ -5,9 +5,12 @@
 export type AgentStatus = 
   | "RUNNING" 
   | "COMPLETED" 
+  | "FINISHED"
   | "FAILED" 
   | "CANCELLED"
-  | "PENDING";
+  | "PENDING"
+  | "EXPIRED"
+  | "CREATING";
 
 export interface AgentSource {
   repository: string;
@@ -27,6 +30,7 @@ export interface Agent {
   target?: AgentTarget;
   createdAt?: string;
   finishedAt?: string;
+  summary?: string;
 }
 
 export interface Message {
