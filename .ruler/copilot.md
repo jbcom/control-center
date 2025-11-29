@@ -4,23 +4,13 @@ Quick reference for GitHub Copilot when working in this template or managed repo
 
 ## Quick Rules - Read First! 🚨
 
-### CalVer-Compatible Semantic Versioning
-✅ Version format: `YYYYMM.MINOR.PATCH` (e.g., 202511.3.0)
-✅ Per-package Git tags track release state
-✅ Conventional commits determine version bumps
-❌ Never suggest: manual versioning, removing Git tags
-
-### Commit Scopes (Required for Python packages)
-| Scope | Package |
-|-------|---------|
-| `edt` | extended-data-types |
-| `logging` | lifecyclelogging |
-| `dic` | directed-inputs-class |
-| `connectors` | vendor-connectors |
+### CalVer Auto-Versioning
+✅ Version is automatic: `YYYY.MM.BUILD`
+❌ Never suggest: semantic-release, git tags, manual versioning
 
 ### Release Process
-✅ Conventional commit → merge to main → PSR bumps version → PyPI release
-❌ Never suggest: non-conventional commits, shared versioning
+✅ Every main push = PyPI release (automatic)
+❌ Never suggest: conditional releases, manual steps
 
 ### Code Quality
 ✅ Type hints required
@@ -246,13 +236,13 @@ def load_file(filepath: str) -> str:
 
 ## Questions?
 
-- Check `wiki/Core-Guidelines.md` for comprehensive guide
-- Check `CONTRIBUTING.md` for commit format requirements
+- Check `.ruler/AGENTS.md` for comprehensive guide
+- Check `TEMPLATE_USAGE.md` for template setup
 - Check `README.md` for project overview
-- Use conventional commits with proper scopes
+- Don't suggest changes to CalVer/versioning approach
 
 ---
 
-**Copilot Instructions Version:** 2.0
+**Copilot Instructions Version:** 1.0
 **Compatible With:** GitHub Copilot, Copilot Chat
-**Last Updated:** 2025-11-28
+**Last Updated:** 2025-11-25

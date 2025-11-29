@@ -225,6 +225,23 @@ processes:
       period_seconds: 10
 
   # =============================================================================
+  # FLEET COORDINATION
+  # =============================================================================
+
+  fleet-coordinator:
+    command: "node /workspace/packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR:-251} --repo jbcom/jbcom-control-center --agents ${AGENT_IDS:-}"
+    availability:
+      restart: "always"
+      backoff_seconds: 30
+    log_location: ./logs/fleet-coordinator.log
+    environment:
+      - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
+      - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+    depends_on:
+      cursor-agent-manager:
+        condition: process_healthy
+
+  # =============================================================================
   # HEALTH MONITORING
   # =============================================================================
 
