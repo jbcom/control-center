@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "vendor-connectors"
-version = "202511.6.1"
+version = "202511.6.2"
 description = "Universal vendor connectors with transparent secret management"
 requires-python = ">=3.9"
 license = { text = "MIT" }
