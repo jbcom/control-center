@@ -10,6 +10,7 @@ members = [
     "packages/lifecyclelogging",
     "packages/directed-inputs-class",
     "packages/vendor-connectors",
+    "packages/python-terraform-bridge",
 ]
 
 [tool.uv.sources]
@@ -17,6 +18,7 @@ extended-data-types = { workspace = true }
 lifecyclelogging = { workspace = true }
 directed-inputs-class = { workspace = true }
 vendor-connectors = { workspace = true }
+python-terraform-bridge = { workspace = true }
 
 [project]
 name = "jbcom-control-center"
@@ -145,6 +147,15 @@ ignore = [
     "S",      # Skip security checks for credential handling patterns
     "B008",   # Function calls in defaults
     "C901",   # Complexity
+]
+# python-terraform-bridge: Python 3.10+, CLI needs print, subprocess for terraform
+"packages/python-terraform-bridge/**/*.py" = [
+    "D",      # Skip docstring requirements during development
+    "T201",   # Print statements required for CLI output
+    "EM101", "EM102",  # Exception message style - match terraform-modules patterns
+]
+"packages/python-terraform-bridge/tests/**/*.py" = [
+    "D103", "S101", "D100", "D104",  # Tests: skip docstrings, use asserts
 ]
 
 [tool.ruff.lint.pydocstyle]
