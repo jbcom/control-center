@@ -1,4 +1,17 @@
-"""Google Connector using jbcom ecosystem packages."""
+"""Google Cloud and Workspace Connector using jbcom ecosystem packages.
+
+This package provides Google operations organized into submodules:
+- workspace: Google Workspace (Admin Directory) user/group operations
+- cloud: Google Cloud Platform resource management
+- billing: Google Cloud Billing operations
+- services: Google Cloud service discovery (GKE, Compute, SQL, etc.)
+
+Usage:
+    from vendor_connectors.google import GoogleConnector
+
+    connector = GoogleConnector(service_account_info=...)
+    users = connector.list_users()
+"""
 
 from __future__ import annotations
 
@@ -14,6 +27,7 @@ from lifecyclelogging import Logging
 # Default Google scopes
 DEFAULT_SCOPES = [
     "https://www.googleapis.com/auth/cloud-platform",
+    "https://www.googleapis.com/auth/cloud-billing",
     "https://www.googleapis.com/auth/admin.directory.user",
     "https://www.googleapis.com/auth/admin.directory.user.readonly",
     "https://www.googleapis.com/auth/admin.directory.group",
@@ -23,7 +37,15 @@ DEFAULT_SCOPES = [
 
 
 class GoogleConnector(DirectedInputsClass):
-    """Google Cloud and Workspace connector."""
+    """Google Cloud and Workspace base connector.
+
+    This is the base connector class providing:
+    - Authentication via service account
+    - Service client creation and caching
+    - Subject impersonation for domain-wide delegation
+
+    Higher-level operations are provided via mixin classes from submodules.
+    """
 
     def __init__(
         self,
@@ -33,6 +55,16 @@ class GoogleConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
+        """Initialize the Google connector.
+
+        Args:
+            service_account_info: Service account JSON as dict or string.
+                If not provided, reads from GOOGLE_SERVICE_ACCOUNT input.
+            scopes: OAuth scopes to request. Defaults to common scopes.
+            subject: Email to impersonate via domain-wide delegation.
+            logger: Optional Logging instance.
+            **kwargs: Additional arguments passed to DirectedInputsClass.
+        """
         super().__init__(**kwargs)
         self.logging = logger or Logging(logger_name="GoogleConnector")
         self.logger = self.logging.logger
@@ -54,9 +86,17 @@ class GoogleConnector(DirectedInputsClass):
 
         self.logger.info("Initialized Google connector")
 
+    # =========================================================================
+    # Authentication
+    # =========================================================================
+
     @property
     def credentials(self) -> service_account.Credentials:
-        """Get or create Google credentials."""
+        """Get or create Google credentials.
+
+        Returns:
+            Authenticated service account credentials.
+        """
         if self._credentials is None:
             self._credentials = service_account.Credentials.from_service_account_info(
                 self.service_account_info,
@@ -67,17 +107,49 @@ class GoogleConnector(DirectedInputsClass):
 
         return self._credentials
 
-    def get_service(self, service_name: str, version: str) -> Any:
-        """Get a Google API service client."""
-        cache_key = f"{service_name}:{version}"
+    def get_credentials_for_subject(self, subject: str) -> service_account.Credentials:
+        """Get credentials impersonating a specific user.
+
+        Args:
+            subject: Email address to impersonate.
+
+        Returns:
+            Credentials with the specified subject.
+        """
+        return service_account.Credentials.from_service_account_info(
+            self.service_account_info,
+            scopes=self.scopes,
+        ).with_subject(subject)
+
+    # =========================================================================
+    # Service Client Creation
+    # =========================================================================
+
+    def get_service(self, service_name: str, version: str, subject: Optional[str] = None) -> Any:
+        """Get a Google API service client.
+
+        Args:
+            service_name: Google API service name (e.g., 'admin', 'cloudresourcemanager').
+            version: API version (e.g., 'v1', 'directory_v1').
+            subject: Optional subject to impersonate for this service.
+
+        Returns:
+            Google API service client.
+        """
+        cache_key = f"{service_name}:{version}:{subject or ''}"
         if cache_key not in self._services:
-            self._services[cache_key] = build(service_name, version, credentials=self.credentials)
-            self.logger.info(f"Created Google service: {service_name} v{version}")
+            creds = self.get_credentials_for_subject(subject) if subject else self.credentials
+            self._services[cache_key] = build(service_name, version, credentials=creds)
+            self.logger.debug(f"Created Google service: {service_name} v{version}")
         return self._services[cache_key]
 
-    def get_admin_directory_service(self) -> Any:
+    # =========================================================================
+    # Convenience Service Getters
+    # =========================================================================
+
+    def get_admin_directory_service(self, subject: Optional[str] = None) -> Any:
         """Get the Admin Directory API service."""
-        return self.get_service("admin", "directory_v1")
+        return self.get_service("admin", "directory_v1", subject=subject)
 
     def get_cloud_resource_manager_service(self) -> Any:
         """Get the Cloud Resource Manager API service."""
@@ -86,6 +158,42 @@ class GoogleConnector(DirectedInputsClass):
     def get_iam_service(self) -> Any:
         """Get the IAM API service."""
         return self.get_service("iam", "v1")
+
+    def get_billing_service(self) -> Any:
+        """Get the Cloud Billing API service."""
+        return self.get_service("cloudbilling", "v1")
+
+    def get_compute_service(self) -> Any:
+        """Get the Compute Engine API service."""
+        return self.get_service("compute", "v1")
+
+    def get_container_service(self) -> Any:
+        """Get the GKE API service."""
+        return self.get_service("container", "v1")
+
+    def get_storage_service(self) -> Any:
+        """Get the Cloud Storage API service."""
+        return self.get_service("storage", "v1")
+
+    def get_sqladmin_service(self) -> Any:
+        """Get the Cloud SQL Admin API service."""
+        return self.get_service("sqladmin", "v1beta4")
+
+    def get_pubsub_service(self) -> Any:
+        """Get the Pub/Sub API service."""
+        return self.get_service("pubsub", "v1")
+
+    def get_serviceusage_service(self) -> Any:
+        """Get the Service Usage API service."""
+        return self.get_service("serviceusage", "v1")
+
+    def get_cloudkms_service(self) -> Any:
+        """Get the Cloud KMS API service."""
+        return self.get_service("cloudkms", "v1")
+
+    # =========================================================================
+    # Directory Filtering Helpers (from PR #241)
+    # =========================================================================
 
     def _resolve_bool_option(self, explicit: Optional[bool], input_key: str, default: bool) -> bool:
         """Resolve boolean options from parameters or directed inputs."""
@@ -250,6 +358,10 @@ class GoogleConnector(DirectedInputsClass):
 
         return filtered
 
+    # =========================================================================
+    # Directory Listing with Filtering (from PR #241)
+    # =========================================================================
+
     def list_users(
         self,
         domain: Optional[str] = None,
@@ -262,21 +374,34 @@ class GoogleConnector(DirectedInputsClass):
         flatten_names: Optional[bool] = None,
         key_by_email: Optional[bool] = None,
     ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
-        """List users from Google Workspace."""
+        """List users from Google Workspace with optional filtering.
+
+        Args:
+            domain: Domain to list users from.
+            max_results: Maximum results per page.
+            ou_allow_list: Only include users from these OUs.
+            ou_deny_list: Exclude users from these OUs.
+            include_suspended: Include suspended users (default False).
+            exclude_bots: Exclude service/bot accounts (default True).
+            flatten_names: Flatten nested name structure (default False).
+            key_by_email: Return dict keyed by email instead of list (default False).
+
+        Returns:
+            List of user dicts, or dict keyed by email if key_by_email=True.
+        """
         service = self.get_admin_directory_service()
         users: list[dict[str, Any]] = []
         page_token = None
 
         while True:
-            params: dict[str, Any] = {"customer": "my_customer", "maxResults": max_results}
-            if domain:
-                params["domain"] = domain
-            if page_token:
-                params["pageToken"] = page_token
-
-            response = service.users().list(**params).execute()
+            request = service.users().list(
+                customer="my_customer",
+                domain=domain,
+                maxResults=max_results,
+                pageToken=page_token,
+            )
+            response = request.execute()
             users.extend(response.get("users", []))
-
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
@@ -320,21 +445,34 @@ class GoogleConnector(DirectedInputsClass):
         flatten_names: Optional[bool] = None,
         key_by_email: Optional[bool] = None,
     ) -> list[dict[str, Any]] | dict[str, dict[str, Any]]:
-        """List groups from Google Workspace."""
+        """List groups from Google Workspace with optional filtering.
+
+        Args:
+            domain: Domain to list groups from.
+            max_results: Maximum results per page.
+            ou_allow_list: Only include groups from these OUs.
+            ou_deny_list: Exclude groups from these OUs.
+            include_suspended: Include suspended groups (default False).
+            exclude_bots: Exclude bot groups (default True).
+            flatten_names: Flatten nested name structure (default False).
+            key_by_email: Return dict keyed by email instead of list (default False).
+
+        Returns:
+            List of group dicts, or dict keyed by email if key_by_email=True.
+        """
         service = self.get_admin_directory_service()
         groups: list[dict[str, Any]] = []
         page_token = None
 
         while True:
-            params: dict[str, Any] = {"customer": "my_customer", "maxResults": max_results}
-            if domain:
-                params["domain"] = domain
-            if page_token:
-                params["pageToken"] = page_token
-
-            response = service.groups().list(**params).execute()
+            request = service.groups().list(
+                customer="my_customer",
+                domain=domain,
+                maxResults=max_results,
+                pageToken=page_token,
+            )
+            response = request.execute()
             groups.extend(response.get("groups", []))
-
             page_token = response.get("nextPageToken")
             if not page_token:
                 break
@@ -365,3 +503,34 @@ class GoogleConnector(DirectedInputsClass):
             return self._key_results_by_email(filtered_groups, primary_field="email", fallback_field="primaryEmail")
 
         return filtered_groups
+
+
+# Import submodule operations
+from vendor_connectors.google.billing import GoogleBillingMixin
+from vendor_connectors.google.cloud import GoogleCloudMixin
+from vendor_connectors.google.services import GoogleServicesMixin
+from vendor_connectors.google.workspace import GoogleWorkspaceMixin
+
+
+class GoogleConnectorFull(
+    GoogleConnector, GoogleWorkspaceMixin, GoogleCloudMixin, GoogleBillingMixin, GoogleServicesMixin
+):
+    """Full Google connector with all operations.
+
+    This class combines the base GoogleConnector with all operation mixins.
+    Use this for full functionality, or use GoogleConnector directly and
+    import specific mixins as needed.
+    """
+
+    pass
+
+
+__all__ = [
+    "GoogleConnector",
+    "GoogleConnectorFull",
+    "GoogleWorkspaceMixin",
+    "GoogleCloudMixin",
+    "GoogleBillingMixin",
+    "GoogleServicesMixin",
+    "DEFAULT_SCOPES",
+]

@@ -257,3 +257,326 @@ class GithubConnector(DirectedInputsClass):
             branch=self.GITHUB_BRANCH,
             sha=sha,
         )
+
+    # =========================================================================
+    # Organization Members
+    # =========================================================================
+
+    def list_org_members(
+        self,
+        role: Optional[str] = None,
+        include_pending: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """List organization members.
+
+        Args:
+            role: Filter by role ('admin', 'member'). None returns all.
+            include_pending: Include pending invitations. Defaults to False.
+
+        Returns:
+            Dictionary mapping usernames to member data.
+        """
+        self.logger.info(f"Listing members for organization: {self.GITHUB_OWNER}")
+
+        members: dict[str, dict[str, Any]] = {}
+
+        # Get active members
+        filter_args = {}
+        if role:
+            filter_args["role"] = role
+
+        for member in self.org.get_members(**filter_args):
+            membership = self.org.get_user_membership(member)
+            members[member.login] = {
+                "id": member.id,
+                "login": member.login,
+                "name": member.name,
+                "email": member.email,
+                "role": membership.role,
+                "state": membership.state,
+                "avatar_url": member.avatar_url,
+                "html_url": member.html_url,
+            }
+
+        # Include pending invitations
+        if include_pending:
+            for invite in self.org.invitations():
+                login = invite.login or invite.email
+                members[login] = {
+                    "id": invite.id,
+                    "login": invite.login,
+                    "email": invite.email,
+                    "role": invite.role,
+                    "state": "pending",
+                    "invited_at": str(invite.created_at) if invite.created_at else None,
+                }
+
+        self.logger.info(f"Retrieved {len(members)} organization members")
+        return members
+
+    def get_org_member(self, username: str) -> Optional[dict[str, Any]]:
+        """Get a specific organization member.
+
+        Args:
+            username: GitHub username.
+
+        Returns:
+            Member data or None if not found.
+        """
+        try:
+            member = self.git.get_user(username)
+            membership = self.org.get_user_membership(member)
+            return {
+                "id": member.id,
+                "login": member.login,
+                "name": member.name,
+                "email": member.email,
+                "role": membership.role,
+                "state": membership.state,
+                "avatar_url": member.avatar_url,
+                "html_url": member.html_url,
+            }
+        except UnknownObjectException:
+            self.logger.warning(f"User not found: {username}")
+            return None
+
+    # =========================================================================
+    # Repositories
+    # =========================================================================
+
+    def list_repositories(
+        self,
+        type_filter: str = "all",
+        include_branches: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """List organization repositories.
+
+        Args:
+            type_filter: Filter type ('all', 'public', 'private', 'forks', 'sources', 'member').
+            include_branches: Include branch information. Defaults to False.
+
+        Returns:
+            Dictionary mapping repo names to repository data.
+        """
+        self.logger.info(f"Listing repositories for organization: {self.GITHUB_OWNER}")
+
+        repos: dict[str, dict[str, Any]] = {}
+
+        for repo in self.org.get_repos(type=type_filter):
+            repo_data = {
+                "id": repo.id,
+                "name": repo.name,
+                "full_name": repo.full_name,
+                "description": repo.description,
+                "private": repo.private,
+                "archived": repo.archived,
+                "default_branch": repo.default_branch,
+                "html_url": repo.html_url,
+                "clone_url": repo.clone_url,
+                "ssh_url": repo.ssh_url,
+                "language": repo.language,
+                "topics": repo.topics,
+                "created_at": str(repo.created_at) if repo.created_at else None,
+                "updated_at": str(repo.updated_at) if repo.updated_at else None,
+                "pushed_at": str(repo.pushed_at) if repo.pushed_at else None,
+            }
+
+            if include_branches:
+                branches = []
+                for branch in repo.get_branches():
+                    branches.append(
+                        {
+                            "name": branch.name,
+                            "protected": branch.protected,
+                            "sha": branch.commit.sha,
+                        }
+                    )
+                repo_data["branches"] = branches
+
+            repos[repo.name] = repo_data
+
+        self.logger.info(f"Retrieved {len(repos)} repositories")
+        return repos
+
+    def get_repository(self, repo_name: str) -> Optional[dict[str, Any]]:
+        """Get a specific repository.
+
+        Args:
+            repo_name: Repository name.
+
+        Returns:
+            Repository data or None if not found.
+        """
+        try:
+            repo = self.git.get_repo(f"{self.GITHUB_OWNER}/{repo_name}")
+            return {
+                "id": repo.id,
+                "name": repo.name,
+                "full_name": repo.full_name,
+                "description": repo.description,
+                "private": repo.private,
+                "archived": repo.archived,
+                "default_branch": repo.default_branch,
+                "html_url": repo.html_url,
+                "clone_url": repo.clone_url,
+                "ssh_url": repo.ssh_url,
+                "language": repo.language,
+                "topics": repo.topics,
+            }
+        except UnknownObjectException:
+            self.logger.warning(f"Repository not found: {repo_name}")
+            return None
+
+    # =========================================================================
+    # Teams
+    # =========================================================================
+
+    def list_teams(
+        self,
+        include_members: bool = False,
+        include_repos: bool = False,
+    ) -> dict[str, dict[str, Any]]:
+        """List organization teams.
+
+        Args:
+            include_members: Include team members. Defaults to False.
+            include_repos: Include team repositories. Defaults to False.
+
+        Returns:
+            Dictionary mapping team slugs to team data.
+        """
+        self.logger.info(f"Listing teams for organization: {self.GITHUB_OWNER}")
+
+        teams: dict[str, dict[str, Any]] = {}
+
+        for team in self.org.get_teams():
+            team_data = {
+                "id": team.id,
+                "name": team.name,
+                "slug": team.slug,
+                "description": team.description,
+                "privacy": team.privacy,
+                "permission": team.permission,
+                "html_url": team.html_url,
+                "members_count": team.members_count,
+                "repos_count": team.repos_count,
+            }
+
+            if include_members:
+                members = []
+                for member in team.get_members():
+                    members.append(
+                        {
+                            "login": member.login,
+                            "id": member.id,
+                            "name": member.name,
+                        }
+                    )
+                team_data["members"] = members
+
+            if include_repos:
+                repos = []
+                for repo in team.get_repos():
+                    repos.append(
+                        {
+                            "name": repo.name,
+                            "full_name": repo.full_name,
+                            "permission": team.get_repo_permission(repo),
+                        }
+                    )
+                team_data["repositories"] = repos
+
+            teams[team.slug] = team_data
+
+        self.logger.info(f"Retrieved {len(teams)} teams")
+        return teams
+
+    def get_team(self, team_slug: str) -> Optional[dict[str, Any]]:
+        """Get a specific team.
+
+        Args:
+            team_slug: Team slug.
+
+        Returns:
+            Team data or None if not found.
+        """
+        try:
+            team = self.org.get_team_by_slug(team_slug)
+            return {
+                "id": team.id,
+                "name": team.name,
+                "slug": team.slug,
+                "description": team.description,
+                "privacy": team.privacy,
+                "permission": team.permission,
+                "html_url": team.html_url,
+                "members_count": team.members_count,
+                "repos_count": team.repos_count,
+            }
+        except UnknownObjectException:
+            self.logger.warning(f"Team not found: {team_slug}")
+            return None
+
+    def add_team_member(self, team_slug: str, username: str, role: str = "member") -> bool:
+        """Add a member to a team.
+
+        Args:
+            team_slug: Team slug.
+            username: GitHub username.
+            role: Role ('member' or 'maintainer'). Defaults to 'member'.
+
+        Returns:
+            True if successful.
+        """
+        self.logger.info(f"Adding {username} to team {team_slug}")
+        try:
+            team = self.org.get_team_by_slug(team_slug)
+            user = self.git.get_user(username)
+            team.add_membership(user, role=role)
+            self.logger.info(f"Added {username} to team {team_slug}")
+            return True
+        except (UnknownObjectException, GithubException) as e:
+            self.logger.error(f"Failed to add {username} to team: {e}")
+            return False
+
+    def remove_team_member(self, team_slug: str, username: str) -> bool:
+        """Remove a member from a team.
+
+        Args:
+            team_slug: Team slug.
+            username: GitHub username.
+
+        Returns:
+            True if successful.
+        """
+        self.logger.info(f"Removing {username} from team {team_slug}")
+        try:
+            team = self.org.get_team_by_slug(team_slug)
+            user = self.git.get_user(username)
+            team.remove_membership(user)
+            self.logger.info(f"Removed {username} from team {team_slug}")
+            return True
+        except (UnknownObjectException, GithubException) as e:
+            self.logger.error(f"Failed to remove {username} from team: {e}")
+            return False
+
+    # =========================================================================
+    # GraphQL Queries
+    # =========================================================================
+
+    def execute_graphql(self, query: str, variables: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+        """Execute a GraphQL query against the GitHub API.
+
+        Args:
+            query: GraphQL query string.
+            variables: Optional query variables.
+
+        Returns:
+            Query response data.
+        """
+        headers = {"Authorization": f"Bearer {self.GITHUB_TOKEN}"}
+        return self.graphql_client.execute(
+            query=query,
+            variables=variables or {},
+            headers=headers,
+        )
