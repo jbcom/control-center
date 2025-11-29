@@ -55,8 +55,8 @@ Will comment when complete.
 ```markdown
 ✅ Complete.
 
-Released in: <package> v<X.Y.Z>
-PyPI: https://pypi.org/project/<package>/<version>
+Released in: <package-name> v<YYYYMM.MINOR.PATCH>
+PyPI: https://pypi.org/project/<package-name>/<YYYYMM.MINOR.PATCH>
 
 FSC can now update dependencies.
 ```
@@ -74,7 +74,7 @@ No human bottleneck required.
 
 ## Full Documentation
 
-See: [docs/FSC-COUNTERPARTY-COORDINATION.md](../docs/FSC-COUNTERPARTY-COORDINATION.md)
+See: [Full Documentation](https://github.com/jbcom/jbcom-control-center/blob/main/docs/FSC-COUNTERPARTY-COORDINATION.md)
 
 ---
 

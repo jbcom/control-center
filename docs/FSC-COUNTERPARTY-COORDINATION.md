@@ -101,8 +101,8 @@ Will comment when complete.
 
 **Released In:**
 - Package: <package-name>
-- Version: <X.Y.Z>
-- PyPI: https://pypi.org/project/<package>/<version>
+- Version: <YYYYMM.MINOR.PATCH>
+- PyPI: https://pypi.org/project/<package-name>/<YYYYMM.MINOR.PATCH>
 
 FSC can now update their dependencies to use this version.
 ```
