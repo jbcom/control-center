@@ -16,7 +16,7 @@ Usage:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 import boto3
 from boto3.resources.base import ServiceResource
@@ -331,6 +331,166 @@ class AWSConnector(DirectedInputsClass):
         self.logger.info(f"Retrieved {len(secrets)} secrets")
         return secrets
 
+<<<<<<< HEAD
+=======
+    def create_secret(
+        self,
+        name: str,
+        secret_value: str,
+        description: str = "",
+        tags: Optional[dict[str, str]] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Create a new secret in AWS Secrets Manager."""
+        if not name:
+            raise ValueError("name is required to create a secret")
+        if is_nothing(secret_value):
+            raise ValueError("secret_value is required to create a secret")
+
+        self.logger.info(f"Creating AWS secret: {name}")
+        role_arn = execution_role_arn or self.execution_role_arn
+        secretsmanager = self.get_aws_client(
+            client_name="secretsmanager",
+            execution_role_arn=role_arn,
+        )
+
+        create_kwargs: dict[str, Any] = {"Name": name, "SecretString": secret_value}
+        if description:
+            create_kwargs["Description"] = description
+        if tags:
+            create_kwargs["Tags"] = [{"Key": key, "Value": value} for key, value in tags.items()]
+
+        try:
+            response = secretsmanager.create_secret(**create_kwargs)
+            self.logger.info(f"Created AWS secret ARN: {response.get('ARN')}")
+            return response
+        except ClientError as exc:
+            self.logger.error(f"Failed to create secret {name}", exc_info=True)
+            raise RuntimeError(f"Failed to create secret '{name}'") from exc
+
+    def update_secret(
+        self,
+        secret_id: str,
+        secret_value: str,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Update an existing secret value."""
+        if not secret_id:
+            raise ValueError("secret_id is required to update a secret")
+        if is_nothing(secret_value):
+            raise ValueError("secret_value is required to update a secret")
+
+        self.logger.info(f"Updating AWS secret: {secret_id}")
+
+        role_arn = execution_role_arn or self.execution_role_arn
+        secretsmanager = self.get_aws_client(
+            client_name="secretsmanager",
+            execution_role_arn=role_arn,
+        )
+
+        try:
+            response = secretsmanager.update_secret(SecretId=secret_id, SecretString=secret_value)
+            self.logger.info(f"Updated AWS secret ARN: {response.get('ARN', secret_id)}")
+            return response
+        except ClientError as exc:
+            self.logger.error(f"Failed to update secret {secret_id}", exc_info=True)
+            raise RuntimeError(f"Failed to update secret '{secret_id}'") from exc
+
+    def delete_secret(
+        self,
+        secret_id: str,
+        force_delete: bool = False,
+        recovery_window_days: int = 30,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Delete a secret from AWS Secrets Manager."""
+        if not secret_id:
+            raise ValueError("secret_id is required to delete a secret")
+
+        if not force_delete and not 7 <= recovery_window_days <= 30:
+            raise ValueError("recovery_window_days must be between 7 and 30 when not forcing deletion")
+
+        self.logger.info(f"Deleting AWS secret: {secret_id}")
+
+        role_arn = execution_role_arn or self.execution_role_arn
+        secretsmanager = self.get_aws_client(
+            client_name="secretsmanager",
+            execution_role_arn=role_arn,
+        )
+
+        delete_kwargs: dict[str, Any] = {"SecretId": secret_id}
+        if force_delete:
+            delete_kwargs["ForceDeleteWithoutRecovery"] = True
+        else:
+            delete_kwargs["RecoveryWindowInDays"] = recovery_window_days
+
+        try:
+            response = secretsmanager.delete_secret(**delete_kwargs)
+            self.logger.info(f"Delete secret request submitted for: {response.get('ARN', secret_id)}")
+            return response
+        except ClientError as exc:
+            self.logger.error(f"Failed to delete secret {secret_id}", exc_info=True)
+            raise RuntimeError(f"Failed to delete secret '{secret_id}'") from exc
+
+    def delete_secrets_matching(
+        self,
+        name_prefix: str,
+        force_delete: bool = False,
+        dry_run: bool = True,
+        execution_role_arn: Optional[str] = None,
+    ) -> list[str]:
+        """Delete all secrets that match the provided name prefix."""
+        if not name_prefix:
+            raise ValueError("name_prefix is required to delete matching secrets")
+
+        self.logger.info(f"Deleting secrets matching prefix: {name_prefix} (dry_run={dry_run})")
+
+        role_arn = execution_role_arn or self.execution_role_arn
+        secrets = self.list_secrets(
+            name_prefix=name_prefix,
+            execution_role_arn=role_arn,
+        )
+
+        secret_arns: list[str] = []
+        for secret_name, value in secrets.items():
+            if isinstance(value, str):
+                secret_arns.append(value)
+            elif isinstance(value, dict) and "ARN" in value:
+                secret_arns.append(value["ARN"])
+            else:
+                self.logger.debug(f"Skipping secret {secret_name} due to missing ARN data")
+
+        if not secret_arns:
+            self.logger.info(f"No secrets found for prefix: {name_prefix}")
+            return []
+
+        if dry_run:
+            self.logger.info(f"Dry run enabled; would delete {len(secret_arns)} secrets for prefix {name_prefix}")
+            return secret_arns
+
+        deleted_arns: list[str] = []
+        for secret_arn in secret_arns:
+            response = self.delete_secret(
+                secret_id=secret_arn,
+                force_delete=force_delete,
+                recovery_window_days=30,
+                execution_role_arn=role_arn,
+            )
+            deleted_arns.append(response.get("ARN", secret_arn))
+
+        self.logger.info(f"Deleted {len(deleted_arns)} secrets for prefix {name_prefix}")
+        return deleted_arns
+
+    def copy_secrets_to_s3(
+        self,
+        secrets: dict[str, str | dict],
+        bucket: str,
+        key: str,
+        execution_role_arn: Optional[str] = None,
+        role_session_name: Optional[str] = None,
+    ) -> str:
+        """Copy secrets dictionary to S3 as JSON.
+>>>>>>> origin/main
 
 # Import submodule operations to make them available
 from vendor_connectors.aws.organizations import AWSOrganizationsMixin
