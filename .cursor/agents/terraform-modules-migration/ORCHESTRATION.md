@@ -81,30 +81,32 @@ After all agents complete:
 
 ---
 
-## Fleet Status Summary (Last Updated: 2025-11-29 09:35 UTC)
+## Fleet Status Summary (Last Updated: 2025-11-29 09:55 UTC)
 
-### Completed PRs Ready for Review
-| PR | Title | Summary |
-|----|-------|---------|
-| [#236](https://github.com/jbcom/jbcom-control-center/pull/236) | AWS Secrets Manager | CRUD operations: create_secret, update_secret, delete_secret, delete_secrets_matching |
-| [#237](https://github.com/jbcom/jbcom-control-center/pull/237) | Slack Connector | list_users, list_usergroups, list_conversations with filtering |
-| [#238](https://github.com/jbcom/jbcom-control-center/pull/238) | AWS CodeDeploy | New module with deployment listing/creation, validation, waiters |
-| [#239](https://github.com/jbcom/jbcom-control-center/pull/239) | Vault IAM Roles | list_aws_iam_roles, get_aws_iam_role, generate_aws_credentials |
-| [#240](https://github.com/jbcom/jbcom-control-center/pull/240) | AWS QC | Dependency updates, documented findings on #230 |
-| [#241](https://github.com/jbcom/jbcom-control-center/pull/241) | Google Workspace Remediation | Added filtering params: ou_allow/deny_list, include_suspended, exclude_bots, flatten_names, key_by_email |
+### Sub-Agent PRs Status
+| PR | Title | Status |
+|----|-------|--------|
+| [#236](https://github.com/jbcom/jbcom-control-center/pull/236) | AWS Secrets Manager | ✅ MERGED |
+| [#237](https://github.com/jbcom/jbcom-control-center/pull/237) | Slack Connector | ✅ MERGED |
+| [#238](https://github.com/jbcom/jbcom-control-center/pull/238) | AWS CodeDeploy | 🔄 CI Running (lint fixed) |
+| [#239](https://github.com/jbcom/jbcom-control-center/pull/239) | Vault IAM Roles | ✅ MERGED |
+| [#240](https://github.com/jbcom/jbcom-control-center/pull/240) | AWS QC | ✅ MERGED |
+| [#241](https://github.com/jbcom/jbcom-control-center/pull/241) | Google Workspace Remediation | ✅ MERGED |
 
-### Completed (All Agents Finished!)
-| Agent | Task | Status | PR |
-|-------|------|--------|-----|
-| `bc-cce7e705-e41a-4a68-9da5-99e1c56f6af6` | Google workspace filtering remediation | ✅ FINISHED | [#241](https://github.com/jbcom/jbcom-control-center/pull/241) |
+### Integration PR
+| PR | Description | Status |
+|----|-------------|--------|
+| [#229](https://github.com/jbcom/jbcom-control-center/pull/229) | Integration branch with ALL migrations | 🔄 AI Reviews Requested |
 
-### Key Observations
-1. **QC Branch Issue**: QC agents started from `main`, not our working branch. The "missing modules" they reported already exist in this branch.
-2. **Actual Gaps**: The real gaps are filtering/shaping logic in workspace.py (OU filtering, bot exclusion, name flattening).
-3. **All Migration PRs Quality**: All migration PRs include tests, proper docstrings, and error handling.
+AI Reviews requested:
+- /q review (Amazon Q)
+- @cursor review
+- /gemini review
+- @copilot review
 
-### Next Steps
-1. Merge this orchestrator's branch with completed AWS/Google/GitHub migrations
-2. Review and merge PRs #236-#240
-3. Complete Google workspace filtering remediation
-4. Final integration testing
+### Summary
+- **5 of 6** sub-agent PRs merged to main
+- **PR #238** (CodeDeploy) lint fixed, awaiting CI
+- **PR #229** (Integration) has merged all sub-agent work
+- **69 tests passing**, lint clean
+- Integration branch ready for final QA review
