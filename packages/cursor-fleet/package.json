@@ -1,0 +1,60 @@
+{
+  "name": "@jbcom/cursor-fleet",
+  "version": "0.1.0",
+  "description": "Unified Cursor Background Agent fleet management for control centers",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "cursor-fleet": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cli": {
+      "types": "./dist/cli.d.ts",
+      "import": "./dist/cli.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint src/",
+    "test": "node --test dist/**/*.test.js",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "peerDependencies": {
+    "cursor-background-agent-mcp-server": "^1.0.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "keywords": [
+    "cursor",
+    "agent",
+    "fleet",
+    "mcp",
+    "orchestration",
+    "ai"
+  ],
+  "author": "jbcom",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jbcom/jbcom-control-center.git",
+    "directory": "packages/cursor-fleet"
+  }
+}
