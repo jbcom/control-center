@@ -2,49 +2,57 @@
 
 **This is the DEFINITIVE Python library template** for the jbcom ecosystem. All configuration, workflows, and agent instructions here represent the consolidated best practices from multiple production deployments.
 
-## 🚨 MANDATORY FIRST: KNOW YOUR OWN TOOLING
-
-**YOU HAVE COMPREHENSIVE TOOLING. READ IT. USE IT. NEVER ASK THE USER ABOUT IT.**
+## 🚨 MANDATORY FIRST: SESSION START
 
 ### Session Start Checklist (DO THIS FIRST):
 ```bash
-# 1. Memory Bank State
-cat memory-bank/activeContext.md
-cat memory-bank/progress.md
-cat memory-bank/agenticRules.md
+# 1. Read core agent rules
+cat .ruler/AGENTS.md
+cat .ruler/fleet-coordination.md
 
-# 2. YOUR Tooling Documentation
-cat docs/CURSOR-AGENT-MANAGEMENT.md   # How to spawn sub-agents
-cat docs/AGENTIC-DIFF-RECOVERY.md     # Forensic recovery with aider
-cat docs/AGENT-TO-AGENT-HANDOFF.md    # Station-to-station handoffs
+# 2. Check active GitHub Issues for context
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue list --label "agent-session" --state open
 
-# 3. YOUR Scripts
-ls -la .cursor/scripts/               # Available tooling scripts
+# 3. Check your fleet tooling
+cursor-fleet list --running
 ```
 
-### Your Tools (USE THEM):
+### Your Tools:
 | Tool | Command | Purpose |
 |------|---------|---------|
-| Sub-agent management | `cursor-agents list/create/status` | Spawn opus 4.5 agents for parallel work |
-| Offline triage | `agent-triage-local analyze/decompose` | Process conversations without MCP |
-| Swarm orchestrator | `agent-swarm-orchestrator` | Spawn multiple recovery agents |
-| Batch pipeline | `triage-pipeline` | Automated session recovery |
-| AI forensics | `aider --message "..."` | Code analysis and recovery |
-| Memory replay | `python scripts/replay_agent_session.py` | Update memory bank |
+| Fleet management | `cursor-fleet list/spawn/followup` | Manage Cursor background agents |
+| Fleet coordination | `cursor-fleet coordinate --pr N` | Bidirectional agent coordination |
+| Sub-agent spawn | `cursor-fleet spawn --repo R --task T` | Spawn agents in repos |
+
+### Session Tracking (USE GITHUB ISSUES):
+```bash
+# Create session context issue
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create \
+  --label "agent-session" \
+  --title "🤖 Agent Session: $(date +%Y-%m-%d)" \
+  --body "## Context
+
+## Progress
+
+## Blockers"
+
+# Update session progress
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue comment <NUMBER> --body "## Update: ..."
+
+# Close when done
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue close <NUMBER>
+```
 
 ### Spawn Sub-Agents (DO THIS FOR PARALLEL WORK):
 ```bash
-# Spawn background agents for tasks
-cursor-agents create "🤖 Review and merge PR #203 in terraform-modules"
-cursor-agents create "🤖 Fix CI failures in vendor-connectors repo"
+# Via cursor-fleet
+cursor-fleet spawn --repo jbcom/vendor-connectors --task "Fix CI failures"
 
 # Or create GitHub issues for async agent pickup
-gh issue create --repo FlipsideCrypto/terraform-modules \
-  --title "🤖 Agent Task: Merge PR #203" \
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create \
+  --title "🤖 Agent Task: Fix CI" \
   --body "Background agent task..."
 ```
-
-**IF YOU ASK THE USER ABOUT YOUR OWN TOOLING, YOU HAVE FAILED.**
 
 ---
 
