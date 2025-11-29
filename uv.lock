@@ -733,7 +733,7 @@ wheels = [
 
 [[package]]
 name = "directed-inputs-class"
-version = "202511.3.0"
+version = "202511.4.0"
 source = { editable = "packages/directed-inputs-class" }
 dependencies = [
     { name = "case-insensitive-dictionary" },
@@ -3455,7 +3455,7 @@ wheels = [
 
 [[package]]
 name = "vendor-connectors"
-version = "202511.6.1"
+version = "202511.8.0"
 source = { editable = "packages/vendor-connectors" }
 dependencies = [
     { name = "boto3" },
