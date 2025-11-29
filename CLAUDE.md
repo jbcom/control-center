@@ -1,6 +1,6 @@
 # Claude Code Project Instructions
 
-> **📚 Full documentation**: https://github.com/jbcom/jbcom-control-center/wiki/Agent-Instructions-Claude
+> **📚 Full documentation**: `.ruler/AGENTS.md`
 
 ## Quick Reference
 
@@ -20,17 +20,15 @@
 | `dic` | directed-inputs-class |
 | `connectors` | vendor-connectors |
 
-## Wiki Access
+## Session Context
 
+Use GitHub Issues for session tracking:
 ```bash
-# Read current context
-wiki-cli read "Memory-Bank-Active-Context"
+# Check active work
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue list --label "agent-session"
 
-# Read guidelines
-wiki-cli read "Agentic-Rules-Core-Guidelines"
-
-# Update progress
-wiki-cli append "Memory-Bank-Progress" "## Update"
+# Create session context
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create --label "agent-session" --title "🤖 Agent Session: ..."
 ```
 
 ## GitHub Auth
@@ -39,4 +37,12 @@ wiki-cli append "Memory-Bank-Progress" "## Update"
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
 ```
 
-For full instructions, see the [wiki](https://github.com/jbcom/jbcom-control-center/wiki/Agent-Instructions-Claude).
+## Agent Rules
+
+All rules are in `.ruler/`:
+- `AGENTS.md` - Core guidelines
+- `cursor.md` - Cursor-specific
+- `fleet-coordination.md` - Multi-agent coordination
+- `ruler.toml` - MCP server config
+
+Run `ruler apply` to regenerate agent instruction files.
