@@ -164,8 +164,9 @@ class TestAWSConnector:
         mock_secretsmanager.get_paginator.return_value = mock_paginator
         connector.get_aws_client = MagicMock(return_value=mock_secretsmanager)
 
-        with patch.object(AWSConnector, "get_secret", side_effect=["value-a", None, "value-c"]) as mock_get_secret, patch(
-            "vendor_connectors.aws.is_nothing", side_effect=lambda value: value in (None, "", {})
+        with (
+            patch.object(AWSConnector, "get_secret", side_effect=["value-a", None, "value-c"]) as mock_get_secret,
+            patch("vendor_connectors.aws.is_nothing", side_effect=lambda value: value in (None, "", {})),
         ):
             secrets = connector.list_secrets(
                 get_secret_values=True,
