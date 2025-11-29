@@ -38,18 +38,43 @@ class SlackAPIError(RuntimeError):
         super().__init__(f"Slack API error: {response}")
 
 
-def get_divider():
+def get_divider() -> dict[str, str]:
+    """Return a Slack divider block.
+
+    Returns:
+        dict[str, str]: Slack block definition for a divider element.
+    """
+
     return {"type": "divider"}
 
 
-def get_header_block(field_title: str):
+def get_header_block(field_title: str) -> list[dict[str, Any]]:
+    """Return header and divider blocks for a section title.
+
+    Args:
+        field_title: Title text to render in the header block.
+
+    Returns:
+        list[dict[str, Any]]: Header block followed by a divider.
+    """
+
     return [
         {"type": "header", "text": {"type": "plain_text", "text": field_title}},
         get_divider(),
     ]
 
 
-def get_field_context_message_blocks(field_name: str, context_data: Mapping):
+def get_field_context_message_blocks(field_name: str, context_data: Mapping) -> list[dict[str, Any]]:
+    """Build header and context blocks for detailed field data.
+
+    Args:
+        field_name: Name rendered in the header section.
+        context_data: Mapping of key/value pairs rendered inside context blocks.
+
+    Returns:
+        list[dict[str, Any]]: Blocks describing the field data.
+    """
+
     field_title = field_name.title()
     blocks = [
         {"type": "header", "text": {"type": "plain_text", "text": field_title}},
@@ -72,16 +97,44 @@ def get_field_context_message_blocks(field_name: str, context_data: Mapping):
     return blocks
 
 
-def get_key_value_blocks(k: str, v: Any):
+def get_key_value_blocks(k: str, v: Any) -> list[dict[str, Any]]:
+    """Format a key/value pair into Slack section blocks.
+
+    Args:
+        k: Human-readable field label.
+        v: Value to render. Mappings are encoded to Slack-safe text.
+
+    Returns:
+        list[dict[str, Any]]: Section block followed by a divider.
+    """
+
     k = k.title()
     if isinstance(v, Mapping):
         v = wrap_raw_data_for_export(v, allow_encoding=True)
     if not isinstance(v, str):
         v = str(v)
+
     return [{"type": "section", "text": {"type": "mrkdwn", "text": f"*{k}*: {v}"}}, get_divider()]
 
 
-def get_rich_text_blocks(lines: list[str], bold: bool = False, italic: bool = False, strike: bool = False):
+def get_rich_text_blocks(
+    lines: list[str],
+    bold: bool = False,
+    italic: bool = False,
+    strike: bool = False,
+) -> list[dict[str, Any]]:
+    """Build a rich text block for multiline messages.
+
+    Args:
+        lines: Message lines inserted as separate rich-text elements.
+        bold: Whether to render text in bold.
+        italic: Whether to render text in italics.
+        strike: Whether to strike through the text.
+
+    Returns:
+        list[dict[str, Any]]: Rich-text block followed by a divider.
+    """
+
     style = {}
     if bold:
         style["bold"] = True
@@ -101,7 +154,7 @@ def get_rich_text_blocks(lines: list[str], bold: bool = False, italic: bool = Fa
 
 
 class SlackConnector(DirectedInputsClass):
-    """Slack connector for messaging and channel management."""
+    """Slack connector for messaging, directory, and channel management."""
 
     def __init__(
         self,
@@ -110,12 +163,44 @@ class SlackConnector(DirectedInputsClass):
         logger: Optional[Logging] = None,
         **kwargs,
     ):
+        """Initialize the Slack connector.
+
+        Args:
+            token: Slack user token with directory scopes.
+            bot_token: Bot token used for posting messages.
+            logger: Optional shared logger instance.
+            **kwargs: Extra keyword arguments forwarded to DirectedInputsClass.
+        """
         super().__init__(**kwargs)
         self.logging = logger or Logging(logger_name="SlackConnector")
         self.logger = self.logging.logger
 
         self.web_client = WebClient(token)
         self.bot_web_client = WebClient(bot_token)
+
+    @staticmethod
+    def _normalize_identifier_filter(
+        identifiers: Optional[Union[str, Sequence[str]]],
+    ) -> Optional[set[str]]:
+        """Normalize comma-separated or iterable identifiers into a set.
+
+        Args:
+            identifiers: Identifiers passed as a string or iterable.
+
+        Returns:
+            Optional[set[str]]: Unique identifier set, or None when not provided.
+        """
+
+        if is_nothing(identifiers):
+            return None
+
+        if isinstance(identifiers, str):
+            raw_values = (value.strip() for value in identifiers.split(","))
+        else:
+            raw_values = (str(value).strip() for value in identifiers)
+
+        normalized = {value for value in raw_values if value}
+        return normalized or None
 
     def send_message(
         self,
@@ -129,7 +214,26 @@ class SlackConnector(DirectedInputsClass):
         thread_id: Optional[str] = None,
         raise_on_api_error: bool = True,
     ):
-        """Send a message to a Slack channel."""
+        """Send a message to a Slack channel using the bot token.
+
+        Args:
+            channel_name: Human-readable channel name (without #).
+            text: Plain text fallback for the message body.
+            blocks: Optional structured block payload to include.
+            lines: Convenience helper to render rich-text lines.
+            bold: Whether to bold the rendered lines.
+            italic: Whether to italicize the rendered lines.
+            strike: Whether to strike-through the rendered lines.
+            thread_id: Optional thread timestamp to reply within a thread.
+            raise_on_api_error: When True, raise `SlackAPIError` on API failures.
+
+        Returns:
+            str | Any: Timestamp string for the posted message or the Slack API response.
+
+        Raises:
+            RuntimeError: If the bot is not a member of the channel.
+            SlackAPIError: When Slack returns an error and `raise_on_api_error` is True.
+        """
         if blocks is None:
             blocks = []
 
@@ -157,8 +261,15 @@ class SlackConnector(DirectedInputsClass):
                 raise SlackAPIError(exc.response)
             return exc.response
 
-    def get_bot_channels(self):
-        """Get channels the bot is a member of."""
+    def get_bot_channels(self) -> dict[str, dict]:
+        """Return channels the bot account is a member of.
+
+        Returns:
+            dict[str, dict]: Mapping of channel name to channel metadata.
+
+        Raises:
+            SlackAPIError: If Slack returns an error.
+        """
         try:
             return {channel["name"]: channel for channel in self.bot_web_client.users_conversations()["channels"]}
         except SlackApiError as exc:
@@ -173,8 +284,21 @@ class SlackConnector(DirectedInputsClass):
         include_bots: Optional[bool] = None,
         include_app_users: Optional[bool] = None,
         **kwargs,
-    ):
-        """List Slack users with filtering options."""
+    ) -> dict[str, dict[str, Any]]:
+        """List Slack users with optional filtering flags.
+
+        Args:
+            include_locale: When True, include the locale for each user.
+            limit: Maximum number of users per API call.
+            team_id: Optional team/workspace ID.
+            include_deleted: Include deactivated accounts when True.
+            include_bots: Include bot accounts when True.
+            include_app_users: Include app users when True.
+            **kwargs: Additional keyword arguments forwarded to `users_list`.
+
+        Returns:
+            dict[str, dict[str, Any]]: Filtered mapping of user IDs to user profiles.
+        """
         if include_locale is None:
             include_locale = self.get_input("include_locale", required=False, is_bool=True)
         if limit is None:
@@ -212,6 +336,57 @@ class SlackConnector(DirectedInputsClass):
 
         return filtered
 
+    def list_usergroups(
+        self,
+        include_disabled: Optional[bool] = None,
+        include_count: Optional[bool] = None,
+        include_users: Optional[bool] = None,
+        team_id: Optional[str] = None,
+        usergroup_ids: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> dict[str, dict[str, Any]]:
+        """List Slack user groups with optional filtering.
+
+        Args:
+            include_disabled: Include disabled user groups when True.
+            include_count: Include member counts when True.
+            include_users: Include member lists when True.
+            team_id: Optional workspace/team identifier.
+            usergroup_ids: Comma-separated string or iterable of user group IDs to return.
+            **kwargs: Extra keyword arguments forwarded to `usergroups_list`.
+
+        Returns:
+            dict[str, dict[str, Any]]: Mapping of user group IDs to metadata.
+        """
+        if include_disabled is None:
+            include_disabled = self.get_input("include_disabled", required=False, default=False, is_bool=True)
+        if include_count is None:
+            include_count = self.get_input("include_count", required=False, default=False, is_bool=True)
+        if include_users is None:
+            include_users = self.get_input("include_users", required=False, default=False, is_bool=True)
+        if team_id is None:
+            team_id = self.get_input("team_id", required=False)
+
+        identifier_filter = (
+            usergroup_ids if usergroup_ids is not None else self.get_input("usergroup_ids", required=False)
+        )
+        normalized_ids = self._normalize_identifier_filter(identifier_filter)
+
+        response = self._call_api(
+            "usergroups_list",
+            group_by="usergroups",
+            include_disabled=include_disabled,
+            include_count=include_count,
+            include_users=include_users,
+            team_id=team_id,
+            **kwargs,
+        )
+
+        if not normalized_ids:
+            return response
+
+        return {gid: gdata for gid, gdata in response.items() if gid in normalized_ids}
+
     def list_conversations(
         self,
         exclude_archived: Optional[bool] = None,
@@ -221,8 +396,21 @@ class SlackConnector(DirectedInputsClass):
         get_members: Optional[bool] = None,
         channels_only: Optional[bool] = None,
         **kwargs,
-    ):
-        """List Slack conversations."""
+    ) -> dict[str, dict[str, Any]]:
+        """List Slack conversations with optional filtering.
+
+        Args:
+            exclude_archived: Exclude archived conversations when True.
+            limit: Maximum number of conversations to request.
+            team_id: Optional workspace/team identifier.
+            types: Slack channel type(s) (public_channel, private_channel, im, mpim).
+            get_members: Include member lists when True.
+            channels_only: Return only channel-type conversations when True.
+            **kwargs: Extra keyword arguments forwarded to `conversations_list`.
+
+        Returns:
+            dict[str, dict[str, Any]]: Mapping of conversation IDs to metadata.
+        """
         if exclude_archived is None:
             exclude_archived = self.get_input("exclude_archived", required=False, is_bool=True)
         if limit is None:
@@ -234,6 +422,14 @@ class SlackConnector(DirectedInputsClass):
         if channels_only is None:
             channels_only = self.get_input("channels_only", required=False, default=False, is_bool=True)
 
+        normalized_types: Optional[str]
+        if types is None or isinstance(types, str):
+            normalized_types = types
+        else:
+            normalized_types = ",".join(
+                sorted({str(channel_type).strip() for channel_type in types if str(channel_type).strip()})
+            )
+
         self.logger.info("Getting Slack conversations")
         response = self._call_api(
             "conversations_list",
@@ -241,7 +437,7 @@ class SlackConnector(DirectedInputsClass):
             exclude_archived=exclude_archived,
             limit=limit,
             team_id=team_id,
-            types=types,
+            types=normalized_types,
             **kwargs,
         )
 
@@ -256,8 +452,23 @@ class SlackConnector(DirectedInputsClass):
         group_by: Optional[str] = None,
         id_field_name: str = "id",
         **kwargs,
-    ):
-        """Call a Slack API method with retry logic."""
+    ) -> Any:
+        """Call a Slack WebClient method with retry and grouping support.
+
+        Args:
+            method: Slack WebClient method name to invoke.
+            group_by: Optional response field containing a list to re-index by ID.
+            id_field_name: Field used as the dictionary key when grouping results.
+            **kwargs: Keyword arguments forwarded to the Slack API method.
+
+        Returns:
+            Any: Raw Slack response or grouped mapping when `group_by` is provided.
+
+        Raises:
+            AttributeError: If the requested method is not implemented by WebClient.
+            SlackAPIError: When Slack returns an error other than rate limiting.
+            TimeoutError: If rate-limited retries exceed `MAX_RETRY_TIMEOUT_SECONDS`.
+        """
         call = getattr(self.web_client, method, None)
         if call is None:
             raise AttributeError(f"{method} is not supported by the Slack WebClient")
