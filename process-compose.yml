@@ -229,17 +229,12 @@ processes:
   # =============================================================================
 
   fleet-coordinator:
-    command: "cd /workspace/packages/cursor-fleet && npx ts-node src/coordinator.ts"
+    command: "node /workspace/packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR:-251} --repo jbcom/jbcom-control-center --agents ${AGENT_IDS:-}"
     availability:
       restart: "always"
       backoff_seconds: 30
     log_location: ./logs/fleet-coordinator.log
     environment:
-      - "COORDINATION_PR=${COORDINATION_PR:-251}"
-      - "REPO=jbcom/jbcom-control-center"
-      - "OUTBOUND_INTERVAL=60000"
-      - "INBOUND_INTERVAL=15000"
-      - "AGENT_IDS=${AGENT_IDS:-}"
       - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
       - "CURSOR_API_KEY=${CURSOR_API_KEY}"
     depends_on:

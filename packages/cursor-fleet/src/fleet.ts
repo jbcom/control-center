@@ -11,6 +11,7 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import { execSync } from "node:child_process";
 import { MCPClient } from "./mcp-client.js";
 import type {
   Agent,
@@ -22,6 +23,28 @@ import type {
   Repository,
   SpawnContext,
 } from "./types.js";
+
+export interface CoordinationConfig {
+  /** PR number for coordination channel */
+  coordinationPr: number;
+  /** Repository in owner/repo format */
+  repo: string;
+  /** Outbound poll interval (ms) - check agents */
+  outboundInterval?: number;
+  /** Inbound poll interval (ms) - check PR comments */
+  inboundInterval?: number;
+  /** Agent IDs to monitor */
+  agentIds?: string[];
+  /** GitHub token (defaults to GITHUB_JBCOM_TOKEN env var) */
+  githubToken?: string;
+}
+
+export interface PRComment {
+  id: string;
+  body: string;
+  author: string;
+  createdAt: string;
+}
 
 export class Fleet {
   private client: MCPClient;
@@ -425,5 +448,231 @@ export class Fleet {
     }
 
     return results;
+  }
+
+  // ============================================
+  // Fleet Coordination (Bidirectional)
+  // ============================================
+
+  /**
+   * Run bidirectional coordination loop
+   * 
+   * OUTBOUND: Periodically check sub-agents and send status requests
+   * INBOUND: Poll coordination PR for @cursor mentions and process
+   */
+  async coordinate(config: CoordinationConfig): Promise<void> {
+    const outboundInterval = config.outboundInterval ?? 60000;
+    const inboundInterval = config.inboundInterval ?? 15000;
+    const agentIds = new Set(config.agentIds ?? []);
+    const processedCommentIds = new Set<string>();
+    const githubToken = config.githubToken ?? process.env.GITHUB_JBCOM_TOKEN;
+
+    console.log("=== Fleet Coordinator Started ===");
+    console.log(`Coordination PR: #${config.coordinationPr}`);
+    console.log(`Monitoring ${agentIds.size} agents`);
+    console.log(`Outbound interval: ${outboundInterval}ms`);
+    console.log(`Inbound interval: ${inboundInterval}ms`);
+    console.log("");
+
+    // Run both loops concurrently
+    await Promise.all([
+      this.outboundLoop(config, agentIds, outboundInterval),
+      this.inboundLoop(config, agentIds, processedCommentIds, inboundInterval, githubToken),
+    ]);
+  }
+
+  /**
+   * OUTBOUND: Fan-out status checks to sub-agents
+   */
+  private async outboundLoop(
+    config: CoordinationConfig,
+    agentIds: Set<string>,
+    interval: number
+  ): Promise<void> {
+    while (true) {
+      try {
+        const now = new Date();
+        console.log(`\n[OUTBOUND ${now.toISOString()}] Checking ${agentIds.size} agents...`);
+
+        for (const agentId of agentIds) {
+          const result = await this.status(agentId);
+
+          if (!result.success || !result.data) {
+            console.log(`  ⚠️ ${agentId.slice(0, 12)}: Unable to fetch status`);
+            continue;
+          }
+
+          const agent = result.data;
+          const emoji = this.statusEmoji(agent.status);
+          console.log(`  ${emoji} ${agentId.slice(0, 12)}: ${agent.status}`);
+
+          // If still running, send periodic check-in request
+          if (agent.status === "RUNNING") {
+            const message = [
+              "📊 STATUS CHECK from Fleet Coordinator",
+              "",
+              "Report progress by commenting on the coordination PR:",
+              `https://github.com/${config.repo}/pull/${config.coordinationPr}`,
+              "",
+              "Formats:",
+              `- @cursor ✅ DONE: ${agentId.slice(0, 12)} [summary]`,
+              `- @cursor ⚠️ BLOCKED: ${agentId.slice(0, 12)} [issue]`,
+              `- @cursor 📊 STATUS: ${agentId.slice(0, 12)} [update]`,
+            ].join("\n");
+
+            await this.followup(agentId, message);
+          } else {
+            // Agent finished - remove from monitoring
+            agentIds.delete(agentId);
+          }
+        }
+      } catch (err) {
+        console.error("[OUTBOUND ERROR]", err);
+      }
+
+      await new Promise(r => setTimeout(r, interval));
+    }
+  }
+
+  /**
+   * INBOUND: Poll coordination PR for new comments
+   */
+  private async inboundLoop(
+    config: CoordinationConfig,
+    agentIds: Set<string>,
+    processedIds: Set<string>,
+    interval: number,
+    githubToken?: string
+  ): Promise<void> {
+    while (true) {
+      try {
+        const comments = this.fetchPRComments(config.repo, config.coordinationPr, githubToken);
+
+        for (const comment of comments) {
+          if (processedIds.has(comment.id)) continue;
+
+          // Check for @cursor mentions
+          if (comment.body.includes("@cursor")) {
+            console.log(`\n[INBOUND] New @cursor mention from ${comment.author}`);
+            await this.processCoordinationComment(config, agentIds, comment, githubToken);
+          }
+
+          processedIds.add(comment.id);
+        }
+      } catch (err) {
+        console.error("[INBOUND ERROR]", err);
+      }
+
+      await new Promise(r => setTimeout(r, interval));
+    }
+  }
+
+  /**
+   * Process an incoming @cursor comment
+   */
+  private async processCoordinationComment(
+    config: CoordinationConfig,
+    agentIds: Set<string>,
+    comment: PRComment,
+    githubToken?: string
+  ): Promise<void> {
+    const body = comment.body;
+
+    if (body.includes("✅ DONE:")) {
+      const match = body.match(/✅ DONE:\s*(bc-[\w-]+)\s*(.*)/);
+      if (match) {
+        const [, agentId, summary] = match;
+        console.log(`  ✅ Agent ${agentId} completed: ${summary}`);
+        agentIds.delete(agentId);
+        this.postPRComment(
+          config.repo, 
+          config.coordinationPr, 
+          `✅ Acknowledged completion from ${agentId.slice(0, 12)}. Summary: ${summary}`,
+          githubToken
+        );
+      }
+    } else if (body.includes("⚠️ BLOCKED:")) {
+      const match = body.match(/⚠️ BLOCKED:\s*(bc-[\w-]+)\s*(.*)/);
+      if (match) {
+        const [, agentId, issue] = match;
+        console.log(`  ⚠️ Agent ${agentId} blocked: ${issue}`);
+        this.postPRComment(
+          config.repo,
+          config.coordinationPr,
+          `⚠️ Agent ${agentId.slice(0, 12)} blocked: ${issue}\n\n@jbcom - Manual intervention may be required.`,
+          githubToken
+        );
+      }
+    } else if (body.includes("📊 STATUS:")) {
+      const match = body.match(/📊 STATUS:\s*(bc-[\w-]+)\s*(.*)/);
+      if (match) {
+        const [, agentId, update] = match;
+        console.log(`  📊 Agent ${agentId} update: ${update}`);
+      }
+    } else if (body.includes("🔄 HANDOFF:")) {
+      const match = body.match(/🔄 HANDOFF:\s*(bc-[\w-]+)\s*(.*)/);
+      if (match) {
+        const [, agentId, info] = match;
+        console.log(`  🔄 Agent ${agentId} handoff: ${info}`);
+        this.postPRComment(
+          config.repo,
+          config.coordinationPr,
+          `🔄 Handoff acknowledged from ${agentId.slice(0, 12)}: ${info}`,
+          githubToken
+        );
+      }
+    }
+  }
+
+  /**
+   * Fetch comments from a GitHub PR
+   */
+  fetchPRComments(repo: string, prNumber: number, githubToken?: string): PRComment[] {
+    try {
+      const token = githubToken ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
+      const output = execSync(
+        `GH_TOKEN="${token}" gh api repos/${repo}/issues/${prNumber}/comments --jq '.[] | {id: .id, body: .body, author: .user.login, createdAt: .created_at}'`,
+        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] }
+      );
+
+      // Parse JSONL output
+      return output
+        .trim()
+        .split("\n")
+        .filter(Boolean)
+        .map(line => JSON.parse(line) as PRComment);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Post a comment to a GitHub PR
+   */
+  postPRComment(repo: string, prNumber: number, body: string, githubToken?: string): void {
+    try {
+      const token = githubToken ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
+      const escapedBody = body.replace(/"/g, '\\"').replace(/\n/g, '\\n');
+      execSync(
+        `GH_TOKEN="${token}" gh pr comment ${prNumber} --repo ${repo} --body "${escapedBody}"`,
+        { stdio: ["pipe", "pipe", "pipe"] }
+      );
+    } catch (err) {
+      console.error("Failed to post PR comment:", err);
+    }
+  }
+
+  /**
+   * Get emoji for agent status
+   */
+  private statusEmoji(status: AgentStatus): string {
+    switch (status) {
+      case "RUNNING": return "🔄";
+      case "FINISHED":
+      case "COMPLETED": return "✅";
+      case "FAILED": return "❌";
+      case "EXPIRED": return "⏰";
+      default: return "❓";
+    }
   }
 }

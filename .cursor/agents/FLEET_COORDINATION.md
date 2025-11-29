@@ -57,10 +57,32 @@ Sub-agents report by commenting on the coordination PR:
 ## Running the Coordinator
 
 ```bash
-# Start the coordination loop
-cd /workspace/packages/cursor-fleet
-npx ts-node src/coordinator.ts
+# Via CLI
+cursor-fleet coordinate --pr 251 --agents bc-d28321ca,bc-8e620589
 
 # Or via process-compose
-process-compose up fleet-coordinator
+COORDINATION_PR=251 AGENT_IDS=bc-d28321ca,bc-8e620589 process-compose up fleet-coordinator
+```
+
+## API
+
+The coordination is built into the `Fleet` class:
+
+```typescript
+import { Fleet } from "@jbcom/cursor-fleet";
+
+const fleet = new Fleet();
+
+// Run bidirectional coordination
+await fleet.coordinate({
+  coordinationPr: 251,
+  repo: "jbcom/jbcom-control-center",
+  outboundInterval: 60000,  // Check agents every 60s
+  inboundInterval: 15000,   // Poll PR comments every 15s
+  agentIds: ["bc-d28321ca", "bc-8e620589"],
+});
+
+// Or use individual methods
+const comments = fleet.fetchPRComments("jbcom/jbcom-control-center", 251);
+fleet.postPRComment("jbcom/jbcom-control-center", 251, "Hello from coordinator!");
 ```

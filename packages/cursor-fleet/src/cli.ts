@@ -448,4 +448,27 @@ program
     }
   });
 
+// ============================================
+// coordinate
+// ============================================
+program
+  .command("coordinate")
+  .description("Run the bidirectional fleet coordinator")
+  .requiredOption("--pr <number>", "Coordination PR number")
+  .option("--repo <owner/name>", "Repository", "jbcom/jbcom-control-center")
+  .option("--outbound <ms>", "Outbound poll interval (ms)", "60000")
+  .option("--inbound <ms>", "Inbound poll interval (ms)", "15000")
+  .option("--agents <ids>", "Comma-separated agent IDs to monitor", "")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    
+    await fleet.coordinate({
+      coordinationPr: parseInt(opts.pr, 10),
+      repo: opts.repo,
+      outboundInterval: parseInt(opts.outbound, 10),
+      inboundInterval: parseInt(opts.inbound, 10),
+      agentIds: opts.agents ? opts.agents.split(",").filter(Boolean) : [],
+    });
+  });
+
 program.parse();
