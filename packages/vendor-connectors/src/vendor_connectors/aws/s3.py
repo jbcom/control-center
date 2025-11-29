@@ -12,7 +12,7 @@ from botocore.exceptions import ClientError
 from extended_data_types import unhump_map
 
 if TYPE_CHECKING:
-    pass
+    from boto3.resources.base import ServiceResource
 
 
 class AWSS3Mixin:
@@ -360,3 +360,279 @@ class AWSS3Mixin:
         )
         self.logger.debug(f"Copied object to s3://{dest_bucket}/{dest_key}")
         return response
+
+    # =========================================================================
+    # Bucket Features and Configuration
+    # =========================================================================
+
+    def get_bucket_features(
+        self,
+        bucket_name: str,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Get bucket configuration features (logging, versioning, lifecycle, policy).
+
+        Args:
+            bucket_name: S3 bucket name.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary with logging, versioning, lifecycle_rules, and policy.
+        """
+        self.logger.debug(f"Getting features for bucket: {bucket_name}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3_resource: ServiceResource = self.get_aws_resource(
+            service_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        bucket = s3_resource.Bucket(bucket_name)
+
+        # Check if bucket exists
+        if not bucket.creation_date:
+            self.logger.warning(f"Bucket does not exist: {bucket_name}")
+            return {}
+
+        features: dict[str, Any] = {}
+
+        # Logging
+        try:
+            logging_config = bucket.Logging()
+            features["logging"] = logging_config.logging_enabled
+        except ClientError:
+            self.logger.debug("No logging configuration for bucket")
+            features["logging"] = None
+
+        # Versioning
+        try:
+            versioning = bucket.Versioning()
+            features["versioning"] = versioning.status
+        except ClientError:
+            self.logger.debug("No versioning configuration for bucket")
+            features["versioning"] = None
+
+        # Lifecycle rules
+        try:
+            lifecycle = bucket.LifecycleConfiguration()
+            features["lifecycle_rules"] = lifecycle.rules
+        except ClientError:
+            self.logger.debug("No lifecycle configuration for bucket")
+            features["lifecycle_rules"] = None
+
+        # Bucket policy
+        try:
+            policy = bucket.Policy()
+            features["policy"] = policy.policy
+        except ClientError:
+            self.logger.debug("No policy for bucket")
+            features["policy"] = None
+
+        return features
+
+    def find_buckets_by_name(
+        self,
+        name_contains: str,
+        include_features: bool = False,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Find S3 buckets with names containing a string.
+
+        Args:
+            name_contains: Substring to search for in bucket names.
+            include_features: Include bucket features for each match. Defaults to False.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary mapping bucket names to bucket data/features.
+        """
+        self.logger.info(f"Finding S3 buckets containing: {name_contains}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3_resource: ServiceResource = self.get_aws_resource(
+            service_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        buckets: dict[str, dict[str, Any]] = {}
+
+        for bucket in s3_resource.buckets.all():
+            if name_contains in bucket.name:
+                self.logger.debug(f"Found matching bucket: {bucket.name}")
+
+                if include_features:
+                    buckets[bucket.name] = self.get_bucket_features(
+                        bucket_name=bucket.name,
+                        execution_role_arn=role_arn,
+                    )
+                else:
+                    buckets[bucket.name] = {
+                        "name": bucket.name,
+                        "creation_date": str(bucket.creation_date) if bucket.creation_date else None,
+                    }
+
+        self.logger.info(f"Found {len(buckets)} matching buckets")
+        return buckets
+
+    def create_bucket(
+        self,
+        bucket_name: str,
+        region: Optional[str] = None,
+        acl: str = "private",
+        enable_versioning: bool = False,
+        tags: Optional[dict[str, str]] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Create an S3 bucket.
+
+        Args:
+            bucket_name: Bucket name (must be globally unique).
+            region: AWS region. Uses default if not specified.
+            acl: Bucket ACL. Defaults to 'private'.
+            enable_versioning: Enable versioning. Defaults to False.
+            tags: Optional tags to apply.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Create bucket response.
+        """
+        self.logger.info(f"Creating S3 bucket: {bucket_name}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3 = self.get_aws_client(
+            client_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        create_args: dict[str, Any] = {
+            "Bucket": bucket_name,
+            "ACL": acl,
+        }
+
+        # LocationConstraint required for non-us-east-1
+        if region and region != "us-east-1":
+            create_args["CreateBucketConfiguration"] = {
+                "LocationConstraint": region,
+            }
+
+        result = s3.create_bucket(**create_args)
+        self.logger.info(f"Created bucket: {bucket_name}")
+
+        # Enable versioning if requested
+        if enable_versioning:
+            s3.put_bucket_versioning(
+                Bucket=bucket_name,
+                VersioningConfiguration={"Status": "Enabled"},
+            )
+            self.logger.info(f"Enabled versioning for bucket: {bucket_name}")
+
+        # Apply tags if provided
+        if tags:
+            tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
+            s3.put_bucket_tagging(
+                Bucket=bucket_name,
+                Tagging={"TagSet": tag_set},
+            )
+            self.logger.info(f"Applied {len(tags)} tags to bucket: {bucket_name}")
+
+        return result
+
+    def delete_bucket(
+        self,
+        bucket_name: str,
+        force: bool = False,
+        execution_role_arn: Optional[str] = None,
+    ) -> None:
+        """Delete an S3 bucket.
+
+        Args:
+            bucket_name: Bucket name.
+            force: Delete all objects first. Defaults to False.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Raises:
+            ClientError: If bucket not empty and force=False.
+        """
+        self.logger.info(f"Deleting S3 bucket: {bucket_name}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        if force:
+            s3_resource: ServiceResource = self.get_aws_resource(
+                service_name="s3",
+                execution_role_arn=role_arn,
+            )
+            bucket = s3_resource.Bucket(bucket_name)
+
+            # Delete all objects
+            self.logger.info(f"Deleting all objects in bucket: {bucket_name}")
+            bucket.objects.all().delete()
+
+            # Delete all versions
+            self.logger.info(f"Deleting all versions in bucket: {bucket_name}")
+            bucket.object_versions.all().delete()
+
+        s3 = self.get_aws_client(
+            client_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        s3.delete_bucket(Bucket=bucket_name)
+        self.logger.info(f"Deleted bucket: {bucket_name}")
+
+    def get_bucket_tags(
+        self,
+        bucket_name: str,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, str]:
+        """Get tags for an S3 bucket.
+
+        Args:
+            bucket_name: Bucket name.
+            execution_role_arn: ARN of role to assume for cross-account access.
+
+        Returns:
+            Dictionary of tag key-value pairs.
+        """
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3 = self.get_aws_client(
+            client_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        try:
+            response = s3.get_bucket_tagging(Bucket=bucket_name)
+            tags = {tag["Key"]: tag["Value"] for tag in response.get("TagSet", [])}
+            return tags
+        except ClientError as e:
+            if e.response.get("Error", {}).get("Code") == "NoSuchTagSet":
+                return {}
+            raise
+
+    def set_bucket_tags(
+        self,
+        bucket_name: str,
+        tags: dict[str, str],
+        execution_role_arn: Optional[str] = None,
+    ) -> None:
+        """Set tags for an S3 bucket.
+
+        Args:
+            bucket_name: Bucket name.
+            tags: Dictionary of tag key-value pairs.
+            execution_role_arn: ARN of role to assume for cross-account access.
+        """
+        self.logger.info(f"Setting {len(tags)} tags on bucket: {bucket_name}")
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+
+        s3 = self.get_aws_client(
+            client_name="s3",
+            execution_role_arn=role_arn,
+        )
+
+        tag_set = [{"Key": k, "Value": v} for k, v in tags.items()]
+        s3.put_bucket_tagging(
+            Bucket=bucket_name,
+            Tagging={"TagSet": tag_set},
+        )
+        self.logger.info(f"Set tags on bucket: {bucket_name}")
