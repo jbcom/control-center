@@ -1,28 +1,35 @@
 # PR Plan - Terraform Modules Migration
 
 > **Last Updated**: 2025-11-29  
-> **Status**: Creating focused PRs  
+> **Status**: ✅ All PRs Created  
 > **Agent**: terraform-modules-migration
 
 ## PR Dependency Chain
 
 ```
-PR #1: docs/wiki-orchestration-update (THIS PR - merge FIRST)
+PR #246: docs/wiki-orchestration-update (merge FIRST)
     ↓
-PR #2: feat/directed-inputs-decorator-api
+PR #247: feat/directed-inputs-decorator-api
     ↓
-PR #3: feat/python-terraform-bridge (depends on PR #2)
+PR #248: feat/python-terraform-bridge (depends on PR #247)
     ↓
-PR #4: feat/vendor-connectors-migration (depends on PR #3)
+PR #249: feat/vendor-connectors-migration (depends on PR #248)
 ```
+
+## PR Links
+- [PR #246](https://github.com/jbcom/jbcom-control-center/pull/246) - Documentation & Wiki Update
+- [PR #247](https://github.com/jbcom/jbcom-control-center/pull/247) - directed-inputs-class Decorator API
+- [PR #248](https://github.com/jbcom/jbcom-control-center/pull/248) - python-terraform-bridge Package
+- [PR #249](https://github.com/jbcom/jbcom-control-center/pull/249) - vendor-connectors Migration Functions
 
 ---
 
-## PR #1: Documentation & Wiki Update
+## PR #246: Documentation & Wiki Update
 
 **Branch**: `docs/wiki-orchestration-update`  
 **Base**: `main`  
-**Priority**: MERGE FIRST
+**Priority**: MERGE FIRST  
+**URL**: https://github.com/jbcom/jbcom-control-center/pull/246
 
 ### Purpose
 Update wiki and orchestration documentation to reflect architectural changes. This establishes the context for subsequent PRs.
@@ -38,11 +45,12 @@ After merge, @cursor should create PR #2 following instructions in ORCHESTRATION
 
 ---
 
-## PR #2: directed-inputs-class Decorator API
+## PR #247: directed-inputs-class Decorator API
 
 **Branch**: `feat/directed-inputs-decorator-api`  
-**Base**: `main` (after PR #1 merges)  
-**Depends On**: PR #1
+**Base**: `main` (after PR #246 merges)  
+**Depends On**: PR #246  
+**URL**: https://github.com/jbcom/jbcom-control-center/pull/247
 
 ### Purpose
 Add decorator-based input handling as modern alternative to inheritance.
@@ -74,11 +82,12 @@ After merge:
 
 ---
 
-## PR #3: python-terraform-bridge Package
+## PR #248: python-terraform-bridge Package
 
 **Branch**: `feat/python-terraform-bridge`  
-**Base**: `main` (after PR #2 merges)  
-**Depends On**: PR #2 (directed-inputs-class)
+**Base**: `main` (after PR #247 merges)  
+**Depends On**: PR #247 (directed-inputs-class)  
+**URL**: https://github.com/jbcom/jbcom-control-center/pull/248
 
 ### Purpose
 New OSS package for Terraform ↔ Python bridging with decorator-based registration.
@@ -111,11 +120,12 @@ After merge:
 
 ---
 
-## PR #4: vendor-connectors Migration Functions
+## PR #249: vendor-connectors Migration Functions
 
 **Branch**: `feat/vendor-connectors-migration`  
-**Base**: `main` (after PR #3 merges)  
-**Depends On**: PR #3 (python-terraform-bridge)
+**Base**: `main` (after PR #248 merges)  
+**Depends On**: PR #248 (python-terraform-bridge)  
+**URL**: https://github.com/jbcom/jbcom-control-center/pull/249
 
 ### Purpose
 Complete migration of remaining functions from terraform-modules.
@@ -151,9 +161,9 @@ Each PR should include in the body:
 1. Read ORCHESTRATION.md for full context
 2. This PR is part of the terraform-modules migration
 3. After merge, create the next PR in the chain:
-   - PR #1 → Create PR #2 (directed-inputs-class)
-   - PR #2 → Create PR #3 (python-terraform-bridge)
-   - PR #3 → Create PR #4 (vendor-connectors)
+   - PR #246 → Merge PR #247 (directed-inputs-class)
+   - PR #247 → Merge PR #248 (python-terraform-bridge)
+   - PR #248 → Merge PR #249 (vendor-connectors)
 4. Run tests before marking complete
 5. Update wiki/Progress.md with session notes
 
