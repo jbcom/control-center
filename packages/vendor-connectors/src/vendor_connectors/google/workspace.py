@@ -410,3 +410,129 @@ class GoogleWorkspaceMixin:
         org_units = response.get("organizationUnits", [])
         self.logger.info(f"Retrieved {len(org_units)} org units")
         return org_units
+
+    def create_or_update_user(
+        self,
+        primary_email: str,
+        given_name: str,
+        family_name: str,
+        password: Optional[str] = None,
+        update_if_exists: bool = False,
+        change_password_at_next_login: bool = True,
+        org_unit_path: str = "/",
+        subject: Optional[str] = None,
+        **additional_fields,
+    ) -> dict[str, Any]:
+        """Create or update a user in Google Workspace.
+
+        This method provides terraform-style idempotent user management.
+        If update_if_exists is True and the user exists, it updates instead of failing.
+
+        Args:
+            primary_email: Primary email address.
+            given_name: First name.
+            family_name: Last name.
+            password: Initial password. Generated if not provided.
+            update_if_exists: If True, update existing user instead of failing.
+            change_password_at_next_login: Force password change. Defaults to True.
+            org_unit_path: Organizational unit path. Defaults to '/'.
+            subject: Email to impersonate for domain-wide delegation.
+            **additional_fields: Additional user fields.
+
+        Returns:
+            Created or updated user dictionary.
+        """
+        import secrets
+
+        from googleapiclient.errors import HttpError
+
+        service = self.get_admin_directory_service(subject=subject)
+
+        if not password:
+            password = secrets.token_urlsafe(16)
+
+        user_body: dict[str, Any] = {
+            "primaryEmail": primary_email,
+            "name": {
+                "givenName": given_name,
+                "familyName": family_name,
+            },
+            "password": password,
+            "changePasswordAtNextLogin": change_password_at_next_login,
+            "orgUnitPath": org_unit_path,
+            **additional_fields,
+        }
+
+        # Check if user exists
+        try:
+            existing = service.users().get(userKey=primary_email).execute()
+            if update_if_exists:
+                # Update existing user
+                result = service.users().update(userKey=primary_email, body=user_body).execute()
+                self.logger.info(f"Updated existing user: {primary_email}")
+                return result
+            self.logger.info(f"User already exists: {primary_email}")
+            return existing
+        except HttpError as e:
+            if e.resp.status != 404:
+                raise
+            # User doesn't exist, create new
+
+        result = service.users().insert(body=user_body).execute()
+        self.logger.info(f"Created user: {primary_email}")
+        return result
+
+    def create_or_update_group(
+        self,
+        email: str,
+        name: str,
+        description: str = "",
+        update_if_exists: bool = False,
+        subject: Optional[str] = None,
+        **additional_fields,
+    ) -> dict[str, Any]:
+        """Create or update a group in Google Workspace.
+
+        This method provides terraform-style idempotent group management.
+        If update_if_exists is True and the group exists, it updates instead of failing.
+
+        Args:
+            email: Group email address.
+            name: Display name.
+            description: Group description.
+            update_if_exists: If True, update existing group instead of failing.
+            subject: Email to impersonate for domain-wide delegation.
+            **additional_fields: Additional group fields.
+
+        Returns:
+            Created or updated group dictionary.
+        """
+        from googleapiclient.errors import HttpError
+
+        service = self.get_admin_directory_service(subject=subject)
+
+        group_body: dict[str, Any] = {
+            "email": email,
+            "name": name,
+            "description": description,
+            **additional_fields,
+        }
+
+        # Check if group exists
+        try:
+            existing = service.groups().get(groupKey=email).execute()
+            if update_if_exists:
+                # Update existing group
+                result = service.groups().update(groupKey=email, body=group_body).execute()
+                self.logger.info(f"Updated existing group: {email}")
+                return result
+            self.logger.info(f"Group already exists: {email}")
+            return existing
+        except HttpError as e:
+            if e.resp.status != 404:
+                raise
+            # Group doesn't exist, create new
+
+        result = service.groups().insert(body=group_body).execute()
+        self.logger.info(f"Created group: {email}")
+        return result

@@ -2,9 +2,15 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# UV Workspace - manages all packages in packages/
+# UV Workspace - manages Python packages in packages/
+# Note: cursor-fleet is a TypeScript package (has package.json, not pyproject.toml)
 [tool.uv.workspace]
-members = ["packages/*"]
+members = [
+    "packages/extended-data-types",
+    "packages/lifecyclelogging",
+    "packages/directed-inputs-class",
+    "packages/vendor-connectors",
+]
 
 [tool.uv.sources]
 extended-data-types = { workspace = true }
