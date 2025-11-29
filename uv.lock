@@ -15,6 +15,7 @@ members = [
     "extended-data-types",
     "jbcom-control-center",
     "lifecyclelogging",
+    "python-terraform-bridge",
     "vendor-connectors",
 ]
 
@@ -2736,6 +2737,41 @@ wheels = [
 ]
 
 [[package]]
+name = "python-terraform-bridge"
+version = "202511.1.0"
+source = { editable = "packages/python-terraform-bridge" }
+dependencies = [
+    { name = "directed-inputs-class" },
+    { name = "extended-data-types" },
+    { name = "lifecyclelogging" },
+    { name = "tssplit" },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "directed-inputs-class", editable = "packages/directed-inputs-class" },
+    { name = "extended-data-types", editable = "packages/extended-data-types" },
+    { name = "lifecyclelogging", editable = "packages/lifecyclelogging" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0.0" },
+    { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=4.1.0" },
+    { name = "python-terraform-bridge", extras = ["test"], marker = "extra == 'dev'", editable = "packages/python-terraform-bridge" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.8.0" },
+    { name = "tssplit", specifier = ">=0.1.1" },
+]
+provides-extras = ["test", "dev"]
+
+[[package]]
 name = "pyyaml"
 version = "6.0.3"
 source = { registry = "https://pypi.org/simple" }
@@ -3385,6 +3421,15 @@ wheels = [
 ]
 
 [[package]]
+name = "tssplit"
+version = "1.0.9"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/ea/ce705a18347a87a7a22dba4f0dd100ba1cc6fca0b3ad4b0613461bfcc90b/tssplit-1.0.9.tar.gz", hash = "sha256:8e58973e1d69c21fd9b4deeaa757fb6ab8f17b4fa7469387a120f0e99bde8e22", size = 3570, upload-time = "2024-12-25T17:31:59.596Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/3d/d1/6b624a6e44a299427615dee45fbb19e2f8d3babeaaac78635d2eca4e7370/tssplit-1.0.9-py3-none-any.whl", hash = "sha256:4f23f0cb3c7a27c7ed8bb2b3e7ca06606ee268044fc78a20419b9673beb85683", size = 4234, upload-time = "2024-12-25T17:31:57.572Z" },
+]
+
+[[package]]
 name = "types-pyyaml"
 version = "6.0.12.20250915"
 source = { registry = "https://pypi.org/simple" }
@@ -3455,7 +3500,7 @@ wheels = [
 
 [[package]]
 name = "vendor-connectors"
-version = "202511.8.0"
+version = "202511.9.0"
 source = { editable = "packages/vendor-connectors" }
 dependencies = [
     { name = "boto3" },
