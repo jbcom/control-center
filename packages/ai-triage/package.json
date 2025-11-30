@@ -1,7 +1,7 @@
 {
   "name": "@jbcom/ai-triage",
   "version": "0.1.0",
-  "description": "AI-powered PR and issue triage with automated resolution",
+  "description": "AI-powered PR and issue triage with automated resolution via MCP integration",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^1.2.12",
+    "@ai-sdk/mcp": "^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.23.0",
     "@octokit/rest": "^21.1.1",
     "ai": "^4.3.16",
     "commander": "^13.1.0",
@@ -31,5 +33,15 @@
   ],
   "engines": {
     "node": ">=20"
-  }
+  },
+  "keywords": [
+    "ai",
+    "triage",
+    "github",
+    "pr",
+    "mcp",
+    "vercel-ai",
+    "anthropic",
+    "context7"
+  ]
 }
