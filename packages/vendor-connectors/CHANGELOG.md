@@ -2,6 +2,20 @@
 
 <!-- version list -->
 
+## v202511.11.0 (2025-11-30)
+
+### Documentation
+
+- Align instructions with SemVer ([#263](https://github.com/jbcom/jbcom-control-center/pull/263),
+  [`1d3d830`](https://github.com/jbcom/jbcom-control-center/commit/1d3d83033aaf2d0b16b7355559dbda208ee20dd7))
+
+### Features
+
+- Migrate remaining terraform helpers
+  ([#264](https://github.com/jbcom/jbcom-control-center/pull/264),
+  [`f52e41d`](https://github.com/jbcom/jbcom-control-center/commit/f52e41dad26a44b9f5a2ee2e59d02d4942c481ac))
+
+
 ## v202511.10.0 (2025-11-30)
 
 ### Documentation
