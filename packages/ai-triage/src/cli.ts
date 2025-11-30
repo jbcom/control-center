@@ -14,15 +14,23 @@ import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.j
 import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
 
 /**
- * Get the first defined environment variable from a list of fallback names.
+ * Normalized environment with COPILOT_MCP_* fallbacks resolved.
+ * Define once, use everywhere.
  */
-function getEnvWithFallbacks(...names: string[]): string | undefined {
-  for (const name of names) {
-    const value = env.get(name).asString();
-    if (value) return value;
-  }
-  return undefined;
-}
+const mcpEnv = env.from({
+  ...process.env,
+  // Normalize: COPILOT_MCP_* prefix takes precedence over standard names
+  CURSOR_API_KEY: process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY,
+  GITHUB_TOKEN: process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN,
+  CONTEXT7_API_KEY: process.env.COPILOT_MCP_CONTEXT7_API_KEY || process.env.CONTEXT7_API_KEY,
+});
+
+/** MCP server configuration - resolved once at startup */
+const mcpConfig = {
+  cursorApiKey: mcpEnv.get("CURSOR_API_KEY").asString(),
+  githubToken: mcpEnv.get("GITHUB_TOKEN").asString(),
+  context7ApiKey: mcpEnv.get("CONTEXT7_API_KEY").asString(),
+};
 
 const program = new Command();
 
