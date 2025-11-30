@@ -78,8 +78,8 @@ Coordinate releases in dependency order.
 
 ## Versioning
 
-### Python Libraries: CalVer-Compatible SemVer
-- Format: `YYYYMM.MINOR.PATCH` (e.g., 202511.3.0)
+### Python Libraries: SemVer via python-semantic-release
+- Format: `MAJOR.MINOR.PATCH`
 - Uses python-semantic-release with monorepo parser
 - Per-package Git tags track release state
 - Conventional commits determine version bumps

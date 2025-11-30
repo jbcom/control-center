@@ -48,12 +48,12 @@ packages/
 
 ### How Releases Actually Work
 
-**This repo uses Python Semantic Release (PSR) with CalVer versioning.**
+**This repo uses Python Semantic Release (PSR) with SemVer (`MAJOR.MINOR.PATCH`).**
 
 #### Version Format
-- Format: `YYYYMM.MINOR.PATCH` (e.g., `202511.7.0`)
+- Format: `MAJOR.MINOR.PATCH` (standard SemVer)
 - Driven by conventional commits with package scopes
-- Each package has its own version and git tag
+- Each package has its own independent version and tag
 
 #### Conventional Commit Scopes
 | Scope | Package |
@@ -196,5 +196,5 @@ node packages/cursor-fleet/dist/cli.js coordinate --pr 251 --repo jbcom/jbcom-co
 ---
 
 **Last Updated:** 2025-11-30
-**Versioning:** CalVer (YYYYMM.MINOR.PATCH) via Python Semantic Release
+**Versioning:** SemVer via python-semantic-release (per-package)
 **Status:** Production monorepo for jbcom ecosystem

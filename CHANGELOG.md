@@ -5,14 +5,14 @@ All notable changes to the jbcom control center.
 ## 2025-11-26
 
 ### Changed
-- Converted to uv workspace with pycalver at root level
+- Converted to uv workspace with python-semantic-release-driven SemVer at root level
 - Added `GITHUB_JBCOM_TOKEN` auth instructions to all agent configs
 - Cleaned up obsolete files (ecosystem/, tools/, old workflows)
 
 ### Added
 - `uv.lock` for reproducible installs
-- pycalver config in root `pyproject.toml`
-- Workspace-level versioning (bumps all packages)
+- python-semantic-release config in root `pyproject.toml`
+- Workspace-level release automation (per-package detection)
 
 ### Removed
 - `ecosystem/ECOSYSTEM_STATE.json` (replaced by `packages/ECOSYSTEM.toml`)

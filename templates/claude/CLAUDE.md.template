@@ -11,10 +11,10 @@ This is **${PACKAGE_NAME}** - part of the jbcom Python library ecosystem.
 ## Key Rules
 
 ### 1. Versioning (CRITICAL)
-- **CalVer**: `YYYY.MM.BUILD` (e.g., `2025.11.164`)
-- **Automatic**: Versions are auto-generated on CI push to main
+- **SemVer**: `MAJOR.MINOR.PATCH`
+- **Automation**: python-semantic-release runs on CI merges to main
 - **NEVER manually edit** `__version__` in `__init__.py`
-- **NEVER suggest** semantic-release, git tags, or manual versioning
+- **NEVER suggest** alternative versioning systems or manual bumps
 
 ### 2. Release Process
 - Every push to main = automatic PyPI release

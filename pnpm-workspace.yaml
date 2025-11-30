@@ -3,7 +3,9 @@
 # See: https://pnpm.io/workspaces
 
 packages:
+  # Include the repository root so shared tooling installs correctly
+  - '.'
   # Future Node.js packages would go here
-  # - 'packages/*'
-  # - 'tools/*'
-  # - '!**/test/**'
+  - 'packages/*'
+  - 'tools/*'
+  - '!**/test/**'

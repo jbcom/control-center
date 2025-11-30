@@ -797,15 +797,29 @@ handoffCmd
   .argument("<predecessor-id>", "Predecessor agent ID")
   .argument("<pr-number>", "Predecessor PR number to merge")
   .argument("<new-branch>", "Your new branch name")
-  .action(async (predecessorId, prNumber, newBranch) => {
+  .option("--admin", "Use admin privileges to bypass branch protection")
+  .option("--auto", "Enable GitHub auto-merge to respect policy requirements")
+  .option("--merge-method <method>", "Merge strategy (merge|squash|rebase)", "squash")
+  .option("--keep-branch", "Do not delete predecessor branch after merge")
+  .action(async (predecessorId, prNumber, newBranch, opts) => {
     const manager = new HandoffManager();
+    const allowedMethods = ["merge", "squash", "rebase"] as const;
+    const mergeMethod = allowedMethods.includes(opts.mergeMethod as any)
+      ? (opts.mergeMethod as (typeof allowedMethods)[number])
+      : "squash";
     
     console.log("🔄 Taking over from predecessor...\n");
     
     const result = await manager.takeover(
       predecessorId,
       parseInt(prNumber, 10),
-      newBranch
+      newBranch,
+      {
+        admin: Boolean(opts.admin),
+        auto: Boolean(opts.auto),
+        mergeMethod,
+        deleteBranch: !opts.keepBranch,
+      }
     );
 
     if (!result.success) {

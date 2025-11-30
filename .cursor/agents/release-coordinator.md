@@ -8,11 +8,11 @@ You have access to GitHub, Git, and Filesystem MCP servers. Use them instead of 
 
 ## Versioning Strategies
 
-### Python Libraries (CalVer)
-Format: `YYYY.MM.BUILD` (e.g., 2025.11.42)
-- Auto-generated on every main branch push
+### Python Libraries (SemVer via python-semantic-release)
+Format: `MAJOR.MINOR.PATCH`
+- Auto-generated when main receives conventional commits
 - No manual version management
-- No git tags needed
+- Git tags created per package
 - PyPI is source of truth
 
 **Repos**: extended-data-types, lifecyclelogging, directed-inputs-class, vendor-connectors
@@ -114,11 +114,11 @@ Check PyPI availability.
 - [ ] Dependents can install new version
 - [ ] No breaking changes unexpected
 
-## Python Release Process (CalVer)
+## Python Release Process (SemVer)
 
 1. **Merge to main** - triggers CI
 2. **CI runs tests** - must pass
-3. **Version generated** - YYYY.MM.BUILD
+3. **Version generated** - MAJOR.MINOR.PATCH
 4. **Package built** - wheel + sdist
 5. **Published to PyPI** - trusted publishing
 6. **Done** - no tags, no manual steps
@@ -130,10 +130,10 @@ When `extended-data-types` has a new feature:
 ```
 Day 1:
   10:00 - Merge extended-data-types PR
-  10:05 - PyPI: extended-data-types 2025.11.100 available
-  10:10 - Update lifecyclelogging to require >=2025.11.100
+  10:05 - PyPI: extended-data-types 5.12.0 available
+  10:10 - Update lifecyclelogging to require >=5.12.0
   10:15 - Merge lifecyclelogging PR
-  10:20 - PyPI: lifecyclelogging 2025.11.50 available
+  10:20 - PyPI: lifecyclelogging 4.9.1 available
   10:25 - Update directed-inputs-class
   10:30 - Merge directed-inputs-class PR
   10:35 - PyPI: directed-inputs-class available

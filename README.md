@@ -53,11 +53,11 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix: something" --body "Det
 
 ## Versioning
 
-Uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) with per-package configuration:
-- Format: `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
-- Major version (`202511`) maintains CalVer backward compatibility
-- Minor/patch follow SemVer semantics based on conventional commits
+Uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) with per-package SemVer:
+- Format: `MAJOR.MINOR.PATCH`
+- Conventional commits (with scopes) drive version detection
 - Each package has independent versioning tracked via Git tags
+- Never edit `__version__` or pyproject versions manually—PSR handles it
 
 ### Commit Message Format
 
@@ -74,7 +74,7 @@ Examples:
 ```bash
 feat(edt): add new utility function     # → extended-data-types minor bump
 fix(logging): handle edge case          # → lifecyclelogging patch bump
-feat!: breaking change                  # → major bump (new CalVer month)
+feat(edt)!: breaking change             # → major bump
 ```
 
 ## Authentication

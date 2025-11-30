@@ -3,8 +3,8 @@
 
 name: release-coordinator
 description: >
-  Coordinates releases across the jbcom ecosystem using CalVer for Python
-  libraries and semantic versioning for other projects. Ensures releases
+  Coordinates releases across the jbcom ecosystem using python-semantic-release
+  SemVer for Python libraries (and SemVer for other projects). Ensures releases
   happen in the correct dependency order.
 
 model: gpt-4
@@ -18,11 +18,11 @@ system_prompt: |
 
   ## Versioning Strategies
 
-  ### Python Libraries (CalVer)
-  Format: `YYYY.MM.BUILD` (e.g., 2025.11.42)
-  - Auto-generated on every main branch push
-  - No manual version management
-  - No git tags needed
+  ### Python Libraries (SemVer via PSR)
+  Format: `MAJOR.MINOR.PATCH`
+  - Driven by python-semantic-release on main branch merges
+  - Conventional commits determine bump type
+  - Git tags track releases per package
   - PyPI is source of truth
 
   **Repos**: extended-data-types, lifecyclelogging, directed-inputs-class, vendor-connectors
@@ -96,11 +96,11 @@ system_prompt: |
   - [ ] Dependents can install new version
   - [ ] No breaking changes unexpected
 
-  ## Python Release Process (CalVer)
+  ## Python Release Process (SemVer)
 
   1. **Merge to main** - triggers CI
   2. **CI runs tests** - must pass
-  3. **Version generated** - YYYY.MM.BUILD
+  3. **Version generated** - MAJOR.MINOR.PATCH via python-semantic-release
   4. **Package built** - wheel + sdist
   5. **Published to PyPI** - trusted publishing
   6. **Done** - no tags, no manual steps
@@ -112,10 +112,10 @@ system_prompt: |
   ```
   Day 1:
     10:00 - Merge extended-data-types PR
-    10:05 - PyPI: extended-data-types 2025.11.100 available
-    10:10 - Update lifecyclelogging to require >=2025.11.100
+    10:05 - PyPI: extended-data-types 5.12.0 available
+    10:10 - Update lifecyclelogging to require >=5.12.0
     10:15 - Merge lifecyclelogging PR
-    10:20 - PyPI: lifecyclelogging 2025.11.50 available
+    10:20 - PyPI: lifecyclelogging 4.9.1 available
     10:25 - Update directed-inputs-class
     10:30 - Merge directed-inputs-class PR
     10:35 - PyPI: directed-inputs-class available

@@ -53,12 +53,12 @@ packages/
 
 ### How Releases Actually Work
 
-**This repo uses Python Semantic Release (PSR) with CalVer versioning.**
+**This repo uses Python Semantic Release (PSR) with SemVer (`MAJOR.MINOR.PATCH`).**
 
 #### Version Format
-- Format: `YYYYMM.MINOR.PATCH` (e.g., `202511.7.0`)
+- Format: `MAJOR.MINOR.PATCH` (standard SemVer)
 - Driven by conventional commits with package scopes
-- Each package has its own version and git tag
+- Each package has its own independent version and tag
 
 #### Conventional Commit Scopes
 | Scope | Package |
@@ -201,7 +201,7 @@ node packages/cursor-fleet/dist/cli.js coordinate --pr 251 --repo jbcom/jbcom-co
 ---
 
 **Last Updated:** 2025-11-30
-**Versioning:** CalVer (YYYYMM.MINOR.PATCH) via Python Semantic Release
+**Versioning:** SemVer via python-semantic-release (per-package)
 **Status:** Production monorepo for jbcom ecosystem
 
 
@@ -631,14 +631,16 @@ When you receive an issue labeled `copilot`:
 5. **Run verification**: `ruff check . && pytest`
 6. **Create PR** linking to the issue
 
-### CalVer Auto-Versioning
-✅ Version is automatic: `YYYY.MM.BUILD`
-❌ **NEVER** suggest: semantic-release, git tags, manual versioning
-❌ **NEVER** modify `__version__` manually
+### Versioning & Releases
+✅ Each package uses python-semantic-release (SemVer `MAJOR.MINOR.PATCH`)
+✅ Conventional commits with scopes drive version bumps
+❌ **NEVER** edit `__version__` or pyproject versions manually
+❌ **NEVER** reintroduce alternative versioning schemes, git tag workflows, or manual bump scripts
 
 ### Release Process
-✅ Every push to main = automatic PyPI release
-❌ **NEVER** suggest: conditional releases, manual steps, changelog updates
+✅ PSR determines if a release is needed when main is updated
+✅ Approved commits trigger: version bump → tag → PyPI publish → repo sync
+❌ **NEVER** suggest conditional/manual release steps outside PSR
 
 ## Working with Auto-Generated Issues
 
@@ -1069,7 +1071,7 @@ When reviewing code in PRs:
 - Check type safety
 - Verify test coverage
 - Look for security issues
-- Don't suggest CalVer/versioning changes
+- Don't propose manual version bumps or deviations from python-semantic-release
 
 ### Maintenance Mode
 For routine maintenance tasks:
@@ -2062,7 +2064,7 @@ Ruler processes files in this order:
 2. Remaining `.md` files in sorted order
 
 Current files:
-1. **AGENTS.md** - Core guidelines (CalVer, PR workflow, common misconceptions)
+1. **AGENTS.md** - Core guidelines (SemVer/PSR workflow, common misconceptions)
 2. **copilot.md** - Copilot-specific patterns and quick reference
 3. **cursor.md** - Cursor agent modes, prompts, and workflows
 4. **ecosystem.md** - Repository coordination and management
@@ -2139,8 +2141,8 @@ output_path_instructions = "AGENTS.md"
 ### AGENTS.md
 **Primary audience:** All AI agents
 **Content:**
-- CalVer philosophy and rationale
-- Why NOT to use semantic-release
+- python-semantic-release (PSR) workflow and rationale
+- Why manual versioning is prohibited
 - PR and release workflows
 - Common agent misconceptions
 - Development workflows

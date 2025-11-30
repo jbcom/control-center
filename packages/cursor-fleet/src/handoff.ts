@@ -65,6 +65,15 @@ export interface HandoffResult {
 /**
  * Manages station-to-station handoff between agents
  */
+export type MergeMethod = "merge" | "squash" | "rebase";
+
+export interface TakeoverOptions {
+  admin?: boolean;
+  auto?: boolean;
+  mergeMethod?: MergeMethod;
+  deleteBranch?: boolean;
+}
+
 export class HandoffManager {
   private api: CursorAPI;
   private analyzer: AIAnalyzer;
@@ -224,15 +233,39 @@ Thank you for your work!
   async takeover(
     predecessorId: string,
     predecessorPr: number,
-    newBranchName: string
+    newBranchName: string,
+    options?: TakeoverOptions
   ): Promise<{ success: boolean; error?: string }> {
     console.log("=== Successor Takeover ===\n");
+
+    if (options?.admin && options?.auto) {
+      return { success: false, error: "Cannot use --admin and --auto simultaneously" };
+    }
 
     // 1. Merge predecessor's PR
     console.log(`📥 Merging predecessor PR #${predecessorPr}...`);
     try {
+      const mergeMethod = options?.mergeMethod ?? "squash";
+      const deleteBranch = options?.deleteBranch !== false;
+      const mergeArgs = [
+        `gh pr merge ${predecessorPr}`,
+        `--${mergeMethod}`,
+        "--repo",
+        this.repo,
+      ];
+
+      if (deleteBranch) {
+        mergeArgs.splice(2, 0, "--delete-branch");
+      }
+
+      if (options?.admin) {
+        mergeArgs.push("--admin");
+      } else if (options?.auto) {
+        mergeArgs.push("--auto");
+      }
+
       execSync(
-        `gh pr merge ${predecessorPr} --squash --delete-branch --repo ${this.repo}`,
+        mergeArgs.join(" "),
         { 
           encoding: "utf-8",
           env: { ...process.env, GH_TOKEN: this.githubToken },

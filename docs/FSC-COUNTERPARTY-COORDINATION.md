@@ -41,7 +41,7 @@ FSC Control Center creates issues with these patterns:
 FSC contributes PRs with:
 - **Branch pattern**: `feat/fsc-*` or `fix/fsc-*`
 - **Body contains**: `Contributed by FSC Control Center`
-- **Follows**: jbcom conventions (conventional commits, CalVer)
+- **Follows**: jbcom conventions (conventional commits, SemVer via PSR)
 
 ### FSC Handoffs
 
@@ -101,8 +101,8 @@ Will comment when complete.
 
 **Released In:**
 - Package: <package-name>
-- Version: <YYYYMM.MINOR.PATCH>
-- PyPI: https://pypi.org/project/<package-name>/<YYYYMM.MINOR.PATCH>
+- Version: <MAJOR.MINOR.PATCH>
+- PyPI: https://pypi.org/project/<package-name>/<MAJOR.MINOR.PATCH>
 
 FSC can now update their dependencies to use this version.
 ```

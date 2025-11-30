@@ -86,10 +86,10 @@ git commit -m "docs: update README examples"
 
 ## Versioning
 
-We use python-semantic-release with CalVer-compatible format (`YYYYMM.MINOR.PATCH`):
+We use python-semantic-release with standard SemVer (`MAJOR.MINOR.PATCH`):
 - Version bumps happen automatically based on conventional commits
 - Each package is versioned independently via Git tags
-- Never edit `__version__` manually - PSR handles it
+- Never edit `__version__` or pyproject versions manually—PSR handles it
 
 ## Pull Requests
 

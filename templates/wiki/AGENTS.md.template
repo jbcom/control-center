@@ -11,9 +11,9 @@
 ## Critical Rules
 
 ### Versioning
-- **CalVer**: `YYYY.MM.BUILD` (e.g., 2025.11.164)
-- **Automatic**: Never manually edit `__version__`
-- **No git tags**: PyPI is source of truth
+- **SemVer**: `MAJOR.MINOR.PATCH`
+- **Automatic**: python-semantic-release handles version bumps
+- **No manual edits**: Never change `__version__` or pyproject versions
 
 ### Authentication
 ```bash
