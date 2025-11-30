@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v202511.7.0 (2025-11-30)
+
+### Features
+
+- Add decorator-based input handling API
+  ([#247](https://github.com/jbcom/jbcom-control-center/pull/247),
+  [`f340a9e`](https://github.com/jbcom/jbcom-control-center/commit/f340a9e0384189d8cfeeb47fbfe3789ec86b4a64))
+
+
 ## v202511.6.0 (2025-11-29)
 
 ### Documentation
