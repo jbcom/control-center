@@ -82,7 +82,8 @@ export class AIAnalyzer {
   private repo?: string;
 
   constructor(options: AnalyzerOptions = {}) {
-    const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
+    // Check for Anthropic API key: options, COPILOT_MCP_ANTHROPIC_API_KEY (testing), ANTHROPIC_API_KEY
+    const apiKey = options.apiKey ?? process.env.COPILOT_MCP_ANTHROPIC_API_KEY ?? process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {
       throw new Error("ANTHROPIC_API_KEY is required");
     }
@@ -90,7 +91,8 @@ export class AIAnalyzer {
     this.anthropic = createAnthropic({ apiKey });
     // Use claude-sonnet-4-20250514 for good balance of speed and quality
     this.model = options.model ?? "claude-sonnet-4-20250514";
-    this.githubToken = options.githubToken ?? process.env.GITHUB_JBCOM_TOKEN;
+    // Check for GitHub token: options, COPILOT_MCP_GITHUB_TOKEN (testing), GITHUB_JBCOM_TOKEN
+    this.githubToken = options.githubToken ?? process.env.COPILOT_MCP_GITHUB_TOKEN ?? process.env.GITHUB_JBCOM_TOKEN;
     this.repo = options.repo ?? "jbcom/jbcom-control-center";
   }
 

@@ -20,7 +20,8 @@ export class MCPClient {
   private proxyAvailable: boolean | null = null;
 
   constructor(config: FleetConfig = {}) {
-    this.apiKey = config.apiKey ?? process.env.CURSOR_API_KEY ?? "";
+    // Prioritize COPILOT_MCP_CURSOR_API_KEY for testing, then fall back to CURSOR_API_KEY
+    this.apiKey = config.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? process.env.CURSOR_API_KEY ?? "";
     this.proxyUrl = config.proxyUrl ?? process.env.MCP_PROXY_CURSOR_AGENTS_URL ?? DEFAULT_PROXY_URL;
     this.timeout = config.timeout ?? DEFAULT_TIMEOUT;
 
