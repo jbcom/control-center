@@ -130,16 +130,18 @@ The `.github/workflows/ci.yml` has these jobs:
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot
+@cursor review       # Cursor AI
 @coderabbitai review # CodeRabbit AI review
 ```
 
 **Automatic** (via repo settings):
-- Copilot - Enable in Settings > Code security
+- Copilot - Enable in Settings > Code security and analysis
 - Cursor Bugbot - Automatic on all PRs
 
 ### Scope
 - **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
-- **Optional**: Pure documentation changes (README, comments only), whitespace/formatting-only, automated Dependabot bumps with no code changes
+- **Not Required**: Pure documentation changes (README, comments only), whitespace/formatting-only, automated Dependabot bumps with no code changes
 
 ### Merge Checklist
 
