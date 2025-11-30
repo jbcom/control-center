@@ -2,189 +2,336 @@
 
 Unified Cursor Background Agent fleet management for control centers.
 
+## Features
+
+- **Agent Discovery** - List, filter, and find agents by status
+- **Agent Spawning** - Launch new agents with coordination context
+- **Agent Communication** - Send follow-ups and broadcast messages
+- **Conversation Management** - Archive and split large conversations
+- **Diamond Pattern** - Coordinate multiple agents across repos
+- **Fleet Monitoring** - Watch, monitor, and coordinate agent fleets
+- **Bidirectional Coordination** - PR-based communication with sub-agents
+
 ## Installation
 
 ```bash
-pnpm add @jbcom/cursor-fleet
-# or
 npm install @jbcom/cursor-fleet
+# or
+pnpm add @jbcom/cursor-fleet
 ```
 
-Requires `cursor-background-agent-mcp-server` as a peer dependency:
+## Environment Variables
 
-```bash
-pnpm add -D cursor-background-agent-mcp-server
-```
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `CURSOR_API_KEY` | Yes* | Cursor API key for direct API access |
+| `CURSOR_API_BASE_URL` | No | Override API base URL (testing) |
+| `GITHUB_JBCOM_TOKEN` | For coordination | GitHub token for PR operations |
 
-## Environment
-
-```bash
-export CURSOR_API_KEY="your-cursor-api-key"
-
-# Optional: if running mcp-proxy
-export MCP_PROXY_CURSOR_AGENTS_URL="http://localhost:3011"
-```
+*If not set, falls back to MCP client which requires `mcp-proxy` running.
 
 ## CLI Usage
 
 ```bash
 # List all agents
 cursor-fleet list
-cursor-fleet list --running
-cursor-fleet list --json
+cursor-fleet list --running --json
 
-# Spawn an agent
-cursor-fleet spawn https://github.com/org/repo "Fix the authentication bug"
-cursor-fleet spawn https://github.com/org/repo "Update dependencies" --ref feature-branch
+# Spawn new agent
+cursor-fleet spawn https://github.com/org/repo "Fix the bug" --ref main
+
+# Agent status
+cursor-fleet status bc-xxx-xxx
 
 # Send follow-up
-cursor-fleet followup bc-xxxx "Also check the test coverage"
+cursor-fleet followup bc-xxx-xxx "How is progress?"
 
 # Broadcast to all running agents
-cursor-fleet broadcast "Status update: PR merged" --running
+cursor-fleet broadcast "Status check" --running
 
 # Get conversation
-cursor-fleet conversation bc-xxxx
-cursor-fleet conversation bc-xxxx --json --last 50
+cursor-fleet conversation bc-xxx-xxx --last 50
 
-# Archive before expiration
-cursor-fleet archive bc-xxxx
-cursor-fleet archive bc-xxxx --output ./recovery/important-session.json
+# Split conversation into readable files
+cursor-fleet split bc-xxx-xxx --output ./recovery
+
+# Archive conversation
+cursor-fleet archive bc-xxx-xxx -o ./archive.json
 
 # Fleet summary
 cursor-fleet summary
 
-# Diamond pattern orchestration
-cursor-fleet diamond \
-  --targets '[{"repository":"https://github.com/org/repo1","task":"Update package"},{"repository":"https://github.com/org/repo2","task":"Update package"}]' \
-  --counterparty '{"repository":"https://github.com/jbcom/jbcom-control-center","task":"Coordinate updates"}' \
-  --control-center "FSC Control Center"
+# Watch fleet (daemon mode)
+cursor-fleet watch --poll 30000 --stall 600000
 
-# Wait for agent completion
-cursor-fleet wait bc-xxxx --timeout 600000
+# Monitor specific agents until done
+cursor-fleet monitor bc-xxx bc-yyy bc-zzz
+
+# Run bidirectional coordinator
+cursor-fleet coordinate --pr 123 --agents bc-xxx,bc-yyy
 ```
 
-## Programmatic Usage
+## API Usage
 
 ```typescript
-import { Fleet } from "@jbcom/cursor-fleet";
+import { Fleet, CursorAPI, splitConversation } from "@jbcom/cursor-fleet";
 
-const fleet = new Fleet({
-  // Optional configuration
-  apiKey: process.env.CURSOR_API_KEY,
-  archivePath: "./memory-bank/recovery",
-});
+// High-level Fleet API
+const fleet = new Fleet();
 
 // List agents
 const agents = await fleet.list();
 const running = await fleet.running();
 
-// Spawn with context
+// Spawn new agent
 const result = await fleet.spawn({
-  repository: "https://github.com/FlipsideCrypto/terraform-modules",
-  task: "Add secrets wrapper for new provider",
+  repository: "https://github.com/org/repo",
+  task: "Fix authentication bug",
   ref: "main",
   context: {
-    controlManagerId: "bc-my-agent-id",
-    controlCenter: "FSC Control Center",
-    relatedAgents: ["bc-other-agent"],
-    metadata: { priority: "high" },
+    controlManagerId: "bc-my-agent",
+    controlCenter: "jbcom Control Center",
   },
 });
 
-if (result.success) {
-  console.log(`Spawned: ${result.data.id}`);
-}
+// Send follow-up
+await fleet.followup("bc-xxx", "Status update?");
 
-// Follow-up communication
-await fleet.followup(result.data.id, "Remember to add tests");
+// Get and split conversation
+const splitResult = await fleet.split("bc-xxx", "./output");
 
-// Broadcast to multiple
-await fleet.broadcast(
-  ["bc-agent-1", "bc-agent-2"],
-  "Dependency update complete, please rebase"
-);
-
-// Archive before expiration (CRITICAL!)
-await fleet.archive(result.data.id);
-
-// Diamond pattern for counterparty coordination
-const diamond = await fleet.createDiamond({
-  targetRepos: [
-    { repository: "https://github.com/org/repo1", task: "Update X" },
-    { repository: "https://github.com/org/repo2", task: "Update Y" },
-  ],
-  counterparty: {
-    repository: "https://github.com/jbcom/jbcom-control-center",
-    task: "Coordinate ecosystem package release",
-  },
-  controlCenter: "FSC Control Center",
-});
-
-// Wait for completion
-const final = await fleet.waitFor(diamond.data.counterpartyAgent.id, {
-  timeout: 300000,
-  pollInterval: 15000,
-});
+// Direct API access (lower level)
+const api = new CursorAPI({ apiKey: "your-key" });
+const conversation = await api.getAgentConversation("bc-xxx");
 ```
 
 ## Architecture
 
-### MCP Communication
-
-The package communicates with Cursor's agent API via the Model Context Protocol (MCP):
-
-1. **Proxy mode** (preferred): If `mcp-proxy` is running, uses HTTP
-2. **Direct mode** (fallback): Spawns `cursor-background-agent-mcp-server` via stdio
-
-### Diamond Pattern
-
-For cross-organization coordination:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Control Manager                          │
-│                  (FSC Control Center)                       │
-└──────────────┬────────────────────────┬────────────────────┘
-               │                        │
-               ▼                        ▼
-┌──────────────────────┐  ┌──────────────────────────────────┐
-│   Target Agents      │  │      Counterparty Agent          │
-│  (terraform-modules, │  │   (jbcom-control-center)         │
-│   other FSC repos)   │  │                                  │
-└──────────────────────┘  └───────────────┬──────────────────┘
-                                          │
-                                          ▼
-                          ┌──────────────────────────────────┐
-                          │   Counterparty's Sub-Agents      │
-                          │  (vendor-connectors, etc.)       │
-                          └──────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph "cursor-fleet Package"
+        CLI[CLI - commander]
+        Fleet[Fleet Class]
+        API[CursorAPI]
+        MCP[MCPClient]
+        Splitter[ConversationSplitter]
+    end
+    
+    CLI --> Fleet
+    Fleet --> API
+    Fleet --> MCP
+    Fleet --> Splitter
+    
+    API -->|HTTP| CursorCloud[Cursor Cloud API]
+    MCP -->|stdio| MCPProxy[MCP Proxy]
+    
+    subgraph "External"
+        CursorCloud
+        MCPProxy
+        GitHub[GitHub API]
+    end
+    
+    Fleet -->|gh cli| GitHub
 ```
 
-The counterparty agent receives IDs of target agents and can communicate directly with them.
+## Coordination System
 
-## Critical Limitations
+### Hold-Open PR Pattern
 
-⚠️ **Conversation Expiration**: Agent conversations are purged after ~24-48 hours. Archive important sessions promptly!
+For long-running sessions that need to manage multiple merges:
+
+```mermaid
+sequenceDiagram
+    participant CM as Control Manager
+    participant HP as Holding PR
+    participant IP as Interim PRs
+    participant Main as main branch
+    
+    CM->>HP: Create holding branch
+    CM->>HP: Open draft PR (holds session)
+    
+    loop For each fix
+        CM->>IP: Create interim branch from main
+        CM->>IP: Make fix, push
+        CM->>IP: Open PR, get CI green
+        CM->>Main: Merge interim PR
+        CM->>Main: Watch main CI
+        alt CI Fails
+            CM->>IP: Create new interim PR
+        end
+    end
+    
+    CM->>HP: Close holding PR (session complete)
+```
+
+### Bidirectional Coordination
+
+The coordinator runs two concurrent loops:
+
+```mermaid
+graph LR
+    subgraph "OUTBOUND Loop (60s)"
+        O1[Check agent status]
+        O2[Send follow-up if running]
+        O3[Remove finished agents]
+        O1 --> O2 --> O3 --> O1
+    end
+    
+    subgraph "INBOUND Loop (15s)"
+        I1[Poll PR comments]
+        I2[Parse @cursor mentions]
+        I3[Dispatch actions]
+        I1 --> I2 --> I3 --> I1
+    end
+    
+    O2 -.->|"Status check"| SubAgent[Sub-Agent]
+    SubAgent -.->|"@cursor ✅ DONE"| I2
+```
+
+### Coordination Protocol
+
+Sub-agents report status by commenting on the coordination PR:
+
+| Format | Meaning |
+|--------|---------|
+| `@cursor ✅ DONE: [agent-id] [summary]` | Task completed |
+| `@cursor ⚠️ BLOCKED: [agent-id] [issue]` | Needs intervention |
+| `@cursor 📊 STATUS: [agent-id] [progress]` | Progress update |
+| `@cursor 🔄 HANDOFF: [agent-id] [info]` | Ready for next step |
+
+## Diamond Pattern
+
+For coordinating work across multiple repositories:
+
+```mermaid
+graph TB
+    CM[Control Manager]
+    
+    subgraph "Target Repos"
+        T1[Agent 1: repo-a]
+        T2[Agent 2: repo-b]
+        T3[Agent 3: repo-c]
+    end
+    
+    CP[Counterparty Agent]
+    
+    CM -->|spawn| T1
+    CM -->|spawn| T2
+    CM -->|spawn| T3
+    CM -->|spawn + relatedAgents| CP
+    
+    CP -.->|coordinate| T1
+    CP -.->|coordinate| T2
+    CP -.->|coordinate| T3
+```
+
+## process-compose Integration
+
+Add to `process-compose.yml`:
+
+```yaml
+fleet-coordinator:
+  command: >
+    node packages/cursor-fleet/dist/cli.js coordinate 
+    --pr ${COORDINATION_PR} 
+    --agents ${AGENT_IDS}
+    --repo jbcom/jbcom-control-center
+  environment:
+    - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
+    - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+  disabled: true  # Enable when needed
+
+fleet-watcher:
+  command: >
+    node packages/cursor-fleet/dist/cli.js watch 
+    --poll 30000 
+    --stall 600000
+  disabled: true
+```
+
+Run with:
+```bash
+COORDINATION_PR=123 AGENT_IDS=bc-xxx,bc-yyy process-compose up fleet-coordinator
+```
+
+## Conversation Splitting
+
+Large conversations can be split for analysis:
 
 ```typescript
-// Archive your own session periodically
-const myId = (await fleet.running()).data?.[0]?.id;
-if (myId) {
-  await fleet.archive(myId);
-}
+import { splitConversation } from "@jbcom/cursor-fleet";
+
+const result = await splitConversation(conversation, {
+  outputDir: "./recovery/bc-xxx",
+  batchSize: 50,
+  prettyPrint: true,
+});
+
+// Creates:
+// ./recovery/bc-xxx/
+// ├── metadata.json         # Agent info, message count
+// ├── conversation.txt      # Full readable transcript
+// ├── original.json         # Original JSON
+// ├── messages/
+// │   ├── 0001_user.json
+// │   ├── 0001_user.txt
+// │   ├── 0002_assistant.json
+// │   └── ...
+// └── batches/
+//     ├── batch_001.json
+//     ├── batch_001.txt
+//     └── ...
 ```
 
-## Integration with Control Centers
+## API Reference
 
-Both FSC and jbcom control centers should use this package as their single source of truth for agent management. This eliminates duplicate shell scripts and ensures consistent behavior.
+### Fleet Class
 
-```typescript
-// In FSC control center
-import { Fleet } from "@jbcom/cursor-fleet";
+| Method | Description |
+|--------|-------------|
+| `list()` | List all agents |
+| `running()` | List running agents |
+| `status(agentId)` | Get agent status |
+| `spawn(options)` | Launch new agent |
+| `followup(agentId, message)` | Send follow-up |
+| `broadcast(agentIds, message)` | Broadcast to agents |
+| `conversation(agentId)` | Get conversation |
+| `split(agentId, outputDir?)` | Split conversation |
+| `archive(agentId, path?)` | Archive to disk |
+| `repositories()` | List available repos |
+| `summary()` | Get fleet summary |
+| `waitFor(agentId, options?)` | Wait for completion |
+| `watch(options)` | Watch fleet status |
+| `monitorAgents(agentIds, options?)` | Monitor until done |
+| `coordinate(config)` | Run coordination loop |
+| `createDiamond(options)` | Diamond orchestration |
 
-// In jbcom control center  
-import { Fleet } from "@jbcom/cursor-fleet";
+### CursorAPI Class
 
-// Same API, same behavior, coordinated fleet management
-```
+| Method | Description |
+|--------|-------------|
+| `listAgents()` | List all agents |
+| `getAgentStatus(agentId)` | Get agent status |
+| `getAgentConversation(agentId)` | Get conversation |
+| `launchAgent(options)` | Launch new agent |
+| `addFollowup(agentId, prompt)` | Send follow-up |
+| `listRepositories()` | List repositories |
+
+## Security
+
+- API keys are never logged in error messages
+- All user inputs are validated before API calls
+- Agent IDs are URL-encoded to prevent injection
+- Error messages are sanitized to remove tokens
+
+## Related
+
+- [Fleet Coordination Guide](../../.ruler/fleet-coordination.md)
+- [Hold-Open PR Pattern](../../.ruler/cursor.md)
+- [Agent Instructions](../../.ruler/AGENTS.md)
+
+---
+
+**Package**: `@jbcom/cursor-fleet`
+**Version**: 0.1.0
+**License**: MIT
