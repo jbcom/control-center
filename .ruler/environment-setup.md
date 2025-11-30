@@ -129,12 +129,14 @@ Our CI workflows follow this pattern:
 # Set up pnpm (for Node.js)
 - run: corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# Install dependencies
-- run: uv sync --extra dev
+# Install tox for testing
+- run: uv tool install tox --with tox-uv --with tox-gh
+
+# Install Node.js dependencies
 - run: pnpm install
 
-# Now workspace tools are available
-- run: uv run pytest
+# Run tests (per-package in CI matrix)
+- run: tox -e ${{ matrix.package }}
 - run: pnpm exec ruler apply
 ```
 
@@ -233,20 +235,25 @@ pnpm exec ruler --version
 
 **Cursor Docker:**
 ```bash
-# Python tests
-uv sync --extra dev
-uv run pytest
+# Install tox with uv backend
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 
-# If you have JS tests
-pnpm install
-pnpm test
+# Run all package tests
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
+
+# Run single package
+tox -e extended-data-types
+
+# Run lint
+tox -e lint
 ```
 
 **GitHub Actions:**
 ```yaml
 - uses: astral-sh/setup-uv@v7
-- run: uv sync --extra dev  
-- run: uv run pytest
+- run: uv tool install tox --with tox-uv --with tox-gh
+- run: tox -e ${{ matrix.package }}
 ```
 
 ### Installing Playwright
@@ -392,25 +399,33 @@ These are set in:
 ### Cursor Docker Environment
 ```bash
 # Setup
-uv sync --extra dev
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 pnpm install
 
-# Common commands
-uv run pytest
+# Run tests (all packages)
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
+
+# Run single package tests
+tox -e extended-data-types
+
+# Lint
+tox -e lint
+
+# Other tools
 pnpm exec ruler apply
-uv run ruff check .
-pnpm exec playwright test
 ```
 
 ### GitHub Actions
 ```yaml
 # Setup
 - uses: astral-sh/setup-uv@v7
+- run: uv tool install tox --with tox-uv --with tox-gh
 - run: corepack enable && corepack prepare pnpm@9.15.0 --activate
-- run: uv sync --extra dev && pnpm install
+- run: pnpm install
 
 # Use
-- run: uv run pytest
+- run: tox -e ${{ matrix.package }}
 - run: pnpm exec ruler apply
 ```
 

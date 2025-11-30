@@ -125,6 +125,63 @@ The `.github/workflows/ci.yml` has these jobs:
 - Resolve AI-to-AI conflicts yourself
 - Merge when CI passes and feedback addressed
 
+## 🔍 MANDATORY: AI QA Review Before Merge
+
+**NEVER merge without engaging AI reviewers and addressing ALL feedback.**
+
+### How to Request Review
+
+**Comment-triggered** (post as PR comment):
+```
+/gemini review       # Google Gemini Code Assist
+/q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot
+@cursor review       # Cursor AI
+@coderabbitai review # CodeRabbit AI review
+```
+
+**Automatic** (via repo settings):
+- Copilot - Enable in Settings > Code security and analysis
+- Cursor Bugbot - Automatic on all PRs
+
+### Scope
+- **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
+- **Not Required**: Pure documentation changes (README, comments only), whitespace/formatting-only, automated Dependabot bumps with no code changes
+
+### Merge Checklist
+
+Before merging ANY PR:
+- [ ] CI is green (all checks pass)
+- [ ] At least ONE AI review requested and completed
+- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
+- [ ] ALL medium items resolved or justified with technical reasoning
+- [ ] Responses posted to ALL feedback items
+- [ ] All review threads addressed
+- [ ] AI-to-AI conflicts resolved and documented
+
+### Addressing Feedback by Severity
+
+- 🛑 **Critical/High** - MUST be resolved before merge (fix OR document false positive)
+- ⚠️ **Medium** - Should be resolved or provide strong justification
+- 💡 **Low/Info** - Consider, document if skipping
+
+Actions:
+1. **Fix** the issue, OR
+2. **Reply** with technical justification for disagreeing
+3. **NEVER** ignore or dismiss without response
+4. **Re-request** review after significant changes
+
+### Resolving AI Conflicts
+When AI reviewers disagree:
+- Evaluate both positions for technical merit
+- Apply project conventions as tiebreaker
+- Document your decision and reasoning
+- Prefer security/correctness when in doubt
+- Escalate to team lead if genuinely ambiguous
+
+### Automatic AI Review (Repo Settings)
+Enable in **Settings > Code security and analysis > Copilot code review** for automatic Copilot reviews on all PRs. See `.cursor/rules/15-ai-qa-engagement.mdc` for full setup guide
+
 ## 📝 Making Changes
 
 ### Adding a New Package to CI
@@ -141,16 +198,18 @@ To add a package to CI releases:
 
 ### Local Development
 ```bash
-# Install with uv
-uv sync
+# Install tox (CI-consistent testing)
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 
 # Run tests for a package
-cd packages/directed-inputs-class
-uv run pytest tests/ -v
+tox -e directed-inputs-class
+
+# Run all package tests
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
 
 # Run lint
-uv run ruff check packages/
-uv run ruff format --check packages/
+tox -e lint
 ```
 
 ### Creating PRs
@@ -1619,12 +1678,14 @@ Our CI workflows follow this pattern:
 # Set up pnpm (for Node.js)
 - run: corepack enable && corepack prepare pnpm@9.15.0 --activate
 
-# Install dependencies
-- run: uv sync --extra dev
+# Install tox for testing
+- run: uv tool install tox --with tox-uv --with tox-gh
+
+# Install Node.js dependencies
 - run: pnpm install
 
-# Now workspace tools are available
-- run: uv run pytest
+# Run tests (per-package in CI matrix)
+- run: tox -e ${{ matrix.package }}
 - run: pnpm exec ruler apply
 ```
 
@@ -1723,20 +1784,25 @@ pnpm exec ruler --version
 
 **Cursor Docker:**
 ```bash
-# Python tests
-uv sync --extra dev
-uv run pytest
+# Install tox with uv backend
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 
-# If you have JS tests
-pnpm install
-pnpm test
+# Run all package tests
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
+
+# Run single package
+tox -e extended-data-types
+
+# Run lint
+tox -e lint
 ```
 
 **GitHub Actions:**
 ```yaml
 - uses: astral-sh/setup-uv@v7
-- run: uv sync --extra dev  
-- run: uv run pytest
+- run: uv tool install tox --with tox-uv --with tox-gh
+- run: tox -e ${{ matrix.package }}
 ```
 
 ### Installing Playwright
@@ -1882,25 +1948,33 @@ These are set in:
 ### Cursor Docker Environment
 ```bash
 # Setup
-uv sync --extra dev
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 pnpm install
 
-# Common commands
-uv run pytest
+# Run tests (all packages)
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
+
+# Run single package tests
+tox -e extended-data-types
+
+# Lint
+tox -e lint
+
+# Other tools
 pnpm exec ruler apply
-uv run ruff check .
-pnpm exec playwright test
 ```
 
 ### GitHub Actions
 ```yaml
 # Setup
 - uses: astral-sh/setup-uv@v7
+- run: uv tool install tox --with tox-uv --with tox-gh
 - run: corepack enable && corepack prepare pnpm@9.15.0 --activate
-- run: uv sync --extra dev && pnpm install
+- run: pnpm install
 
 # Use
-- run: uv run pytest
+- run: tox -e ${{ matrix.package }}
 - run: pnpm exec ruler apply
 ```
 

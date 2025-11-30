@@ -193,16 +193,18 @@ To add a package to CI releases:
 
 ### Local Development
 ```bash
-# Install with uv
-uv sync
+# Install tox (CI-consistent testing)
+uv tool install tox --with tox-uv --with tox-gh
+export PATH="/root/.local/bin:$PATH"
 
 # Run tests for a package
-cd packages/directed-inputs-class
-uv run pytest tests/ -v
+tox -e directed-inputs-class
+
+# Run all package tests
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
 
 # Run lint
-uv run ruff check packages/
-uv run ruff format --check packages/
+tox -e lint
 ```
 
 ### Creating PRs
