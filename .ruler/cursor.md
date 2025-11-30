@@ -123,7 +123,7 @@ When reviewing code in PRs:
 - Check type safety
 - Verify test coverage
 - Look for security issues
-- Don't suggest CalVer/versioning changes
+- Don't propose manual version bumps or deviations from python-semantic-release
 
 ### Maintenance Mode
 For routine maintenance tasks:

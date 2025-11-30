@@ -41,7 +41,7 @@ This document analyzes the Dockerfile and development environment for optimal ba
 
 **Package Management** (⚠️ Partial)
 - poetry (for projects not using uv)
-- pycalver (for versioning)
+- python-semantic-release CLI (for versioning)
 
 **Agent Frameworks** (❌ Missing)
 - crewai + crewai-tools

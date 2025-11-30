@@ -198,7 +198,7 @@ conport get_progress --status IN_PROGRESS
 5. **Package Release Coordination**
    - Release `extended-data-types` first (foundation)
    - Then `lifecyclelogging`, `directed-inputs-class`, `vendor-connectors`
-   - Use CalVer (YYYY.MM.BUILD) - already configured
+   - Versioning is handled by python-semantic-release (SemVer) – no manual bumps
 
 6. **Ecosystem Health Monitoring**
    ```bash
@@ -261,7 +261,7 @@ conport get_progress --status IN_PROGRESS
 ### Previous Agent (bc-c1254c3f)
 - Multiple PRs for CI/CD fixes
 - Terraform secrets sync work
-- CalVer implementation
+- Modernized release automation (now powered by python-semantic-release)
 
 ### Future Work
 - Secrets sync completion
@@ -343,7 +343,7 @@ You should now be able to **autonomously continue** without needing the user to 
 ### From Previous Agent (bc-c1254c3f)
 1. **Hold-open PR pattern**: Create long-running "holding" PR, use interim PRs for fixes
 2. **Don't merge too early**: Merging closes your session, plan accordingly
-3. **CalVer is simple**: Don't overcomplicate with semantic versioning
+3. **Let PSR drive releases**: don't bypass python-semantic-release automation
 4. **Read from source**: SOPS files, not GitHub secrets (visibility issues)
 5. **Comprehensive fixes**: Don't fix one issue at a time, understand the whole system
 

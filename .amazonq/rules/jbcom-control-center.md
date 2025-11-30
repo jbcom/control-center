@@ -6,12 +6,11 @@ This is the jbcom-control-center, managing the Python library ecosystem via mono
 
 ## Core Principles
 
-### 1. CalVer-Compatible Semantic Versioning
-- **NEVER** manually edit `__version__` in `__init__.py`
-- Versions use format: `YYYYMM.MINOR.PATCH` (e.g., `202511.3.0`)
-- Major version (`YYYYMM`) maintains CalVer backward compatibility
-- Minor/patch follow SemVer semantics based on conventional commits
-- Each package versioned independently via Git tags
+### 1. SemVer via python-semantic-release
+- **NEVER** manually edit `__version__` or pyproject versions
+- Versions use format: `MAJOR.MINOR.PATCH`
+- Conventional commits drive version changes
+- Each package is versioned independently via Git tags
 
 ### 2. Release Philosophy
 - Uses python-semantic-release (PSR) for automated versioning

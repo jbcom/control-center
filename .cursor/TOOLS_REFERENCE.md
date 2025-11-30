@@ -114,7 +114,7 @@ pre-commit run --all-files          # Run all hooks
 pre-commit install                   # Install git hooks
 
 # Versioning
-pycalver bump                        # Bump CalVer version
+uv run semantic-release version --noop  # Preview SemVer bump (no changes)
 ```
 
 ## Node.js Development
