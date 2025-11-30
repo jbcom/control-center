@@ -16,12 +16,18 @@ concurrency:
   cancel-in-progress: true
 
 # Workflow-level permissions
+# NOTE: Using PYPI_TOKEN for PyPI publishing (not Trusted Publishing/OIDC)
+# Therefore id-token and attestations permissions are NOT needed
+# To migrate to Trusted Publishing:
+#   - Remove PYPI_TOKEN secret usage from workflow
+#   - Add id-token: write and attestations: write permissions
+#   - Set attestations: true in pypi-publish step
+#   - Set attest-build-provenance-github: true in build step
+#   - Configure trusted publisher on PyPI for this repo/workflow
 permissions:
   contents: read
   pull-requests: write
-  id-token: write
   pages: write
-  attestations: write
 
 jobs:
   # ============================================
@@ -50,6 +56,9 @@ jobs:
         with:
           path: packages/${{ matrix.package }}
           upload-name-suffix: -${{ matrix.package }}
+          # Attestations require id-token:write permission (Trusted Publishing)
+          # Since we use PYPI_TOKEN, disable attestations
+          attest-build-provenance-github: false
 
   # ============================================
   # TESTS (using tox-uv like original)
@@ -139,7 +148,8 @@ jobs:
 
     permissions:
       contents: write
-      id-token: write
+      # NOTE: id-token NOT needed when using PYPI_TOKEN (API token auth)
+      # id-token: write is only needed for Trusted Publishing (OIDC)
 
     strategy:
       fail-fast: false
@@ -210,6 +220,9 @@ jobs:
         with:
           password: ${{ secrets.PYPI_TOKEN }}
           skip-existing: true
+          # Attestations require Trusted Publishing (OIDC), not API tokens
+          # Since we use PYPI_TOKEN, attestations must be disabled
+          attestations: false
 
       - name: Create GitHub Release
         if: steps.check.outputs.should_release == 'true'
@@ -272,7 +285,7 @@ jobs:
         run: |
           PKG="packages/${{ matrix.package }}"
           mkdir -p "$PKG/docs/_build"
-          
+
           if [ -f "$PKG/docs/conf.py" ]; then
             cd "$PKG" && uv sync --extra docs || uv sync
             uv run sphinx-build -b html docs docs/_build || true

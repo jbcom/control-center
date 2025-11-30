@@ -16,7 +16,6 @@
     "test": "echo 'No tests configured yet'"
   },
   "devDependencies": {
-    "@intellectronica/ruler": "^0.3.16",
     "mcp-proxy": "^5.11.2",
     "cursor-background-agent-mcp-server": "^1.0.3",
     "playwright": "^1.49.0"
