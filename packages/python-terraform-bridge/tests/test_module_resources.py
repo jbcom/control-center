@@ -327,6 +327,29 @@ class TestTerraformModuleResources:
         assert resources.binary_name == "terraform-modules"
         assert resources.call == "terraform-modules test"
 
+    def test_external_data_program_is_tokenized(self) -> None:
+        """Program list should preserve python -m arguments safely."""
+
+        resources = TerraformModuleResources(
+            module_name="list_users",
+            docstring="Doc.\n\ngenerator=key: users",
+        )
+
+        module_json = resources.get_external_data()
+        program = module_json["data"]["external"]["default"]["program"]
+
+        assert program == ["python", "-m", "python_terraform_bridge", "list_users"]
+
+    def test_command_string_is_shell_safe(self) -> None:
+        """Ensure command injection via method name is mitigated."""
+
+        resources = TerraformModuleResources(
+            module_name="dangerous; rm -rf /",
+            docstring="Doc.\n\ngenerator=key: data",
+        )
+
+        assert resources.call.endswith("'dangerous; rm -rf /'")
+
     def test_empty_docstring(self) -> None:
         """Test handling of empty docstring."""
         resources = TerraformModuleResources(

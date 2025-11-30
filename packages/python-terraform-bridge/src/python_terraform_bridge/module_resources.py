@@ -11,6 +11,7 @@ import json
 import time
 from copy import deepcopy
 from pathlib import Path
+from shlex import quote as shlex_quote
 from shlex import split as shlex_split
 from typing import Any
 
@@ -134,11 +135,18 @@ class TerraformModuleResources:
         self.generation_forbidden: bool = False
         self.foreach_bind_log_file_name_to_key: bool = False
 
-        self.call = f"{self.binary_name} {self.module_name}"
+        self._program_args = self._build_program_args()
+        self.call = " ".join(shlex_quote(part) for part in self._program_args)
 
         self.get_module_config()
         self.set_module_params(module_params)
         self.set_required_module_params()
+
+    def _build_program_args(self) -> list[str]:
+        """Return a shell-safe argv list for invoking the runtime."""
+
+        binary_parts = shlex_split(self.binary_name)
+        return [*binary_parts, str(self.module_name)]
 
     def get_module_config(self) -> None:
         """Parse docstring to extract module configuration."""
@@ -451,7 +459,7 @@ class TerraformModuleResources:
         for env_name in self.sensitive_env_variables:
             query[env_name] = f"${{data.env_sensitive.{env_name}.value}}"
 
-        external_data = {"program": shlex_split(self.call), "query": query}
+        external_data = {"program": list(self._program_args), "query": query}
 
         data_blocks = drop_empty_blocks(
             {
