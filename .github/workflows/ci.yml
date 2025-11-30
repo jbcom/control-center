@@ -38,6 +38,7 @@ jobs:
           - extended-data-types
           - lifecyclelogging
           - directed-inputs-class
+          - python-terraform-bridge
           - vendor-connectors
 
     steps:
@@ -65,6 +66,7 @@ jobs:
           - extended-data-types
           - lifecyclelogging
           - directed-inputs-class
+          - python-terraform-bridge
           - vendor-connectors
         python-version: ["3.9", "3.13"]
 
@@ -152,6 +154,8 @@ jobs:
             repo: jbcom/lifecyclelogging
           - package: directed-inputs-class
             repo: jbcom/directed-inputs-class
+          - package: python-terraform-bridge
+            repo: jbcom/python-terraform-bridge
           - package: vendor-connectors
             repo: jbcom/vendor-connectors
 
@@ -239,6 +243,8 @@ jobs:
             repo: jbcom/lifecyclelogging
           - package: directed-inputs-class
             repo: jbcom/directed-inputs-class
+          - package: python-terraform-bridge
+            repo: jbcom/python-terraform-bridge
           - package: vendor-connectors
             repo: jbcom/vendor-connectors
 
