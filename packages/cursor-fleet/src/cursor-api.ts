@@ -172,9 +172,14 @@ export class CursorAPI {
 
   /**
    * List all agents
+   * 
+   * The Cursor API returns { agents: Agent[], nextCursor?: string }
+   * but we normalize this to just return the agents array.
    */
   async listAgents(): Promise<FleetResult<Agent[]>> {
-    return this.request<Agent[]>("/agents");
+    const result = await this.request<{ agents: Agent[]; nextCursor?: string }>("/agents");
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result.data?.agents ?? [] };
   }
 
   /**
@@ -230,8 +235,13 @@ export class CursorAPI {
 
   /**
    * List available repositories
+   * 
+   * The Cursor API returns { repositories: Repository[] }
+   * but we normalize this to just return the repositories array.
    */
   async listRepositories(): Promise<FleetResult<Repository[]>> {
-    return this.request<Repository[]>("/repositories");
+    const result = await this.request<{ repositories: Repository[] }>("/repositories");
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result.data?.repositories ?? [] };
   }
 }
