@@ -292,6 +292,41 @@ When possible avoid:
 - Large output dumps
 - Polling for status
 
+## 🚫 Anti-Patterns: Validation Theater
+
+**STOP doing unnecessary "verification" steps.** These waste time and often fail due to missing dependencies:
+
+### ❌ DON'T DO THIS
+```bash
+# Trying to validate YAML/JSON by importing Python modules
+python -c "import yaml; yaml.safe_load(open('file.yml'))"
+python -c "import json; json.load(open('file.json'))"
+
+# Running lint after trivial changes
+uvx ruff check .  # after adding one line
+
+# "Verifying" edits by re-reading files you just wrote
+cat file.txt  # immediately after editing it
+
+# Installing tools just to validate something
+pip install pyyaml && python -c "import yaml..."
+```
+
+### ✅ DO THIS INSTEAD
+- **Trust your edits** - You made the change, you know it's correct
+- **Let CI validate** - That's what CI is for
+- **Only verify when uncertain** - Complex refactors, unfamiliar syntax
+- **Use tools already available** - Don't install new ones for one-off checks
+
+### When Verification IS Appropriate
+- After complex multi-file refactors
+- When you're genuinely unsure about syntax
+- Before creating a PR (run the actual test suite, not ad-hoc checks)
+- When the user explicitly asks for validation
+
+### The Rule
+**If you just made a straightforward edit (added a config key, fixed a typo, added a section), the edit is done. Move on.**
+
 ## Communication Style
 
 ### With User
