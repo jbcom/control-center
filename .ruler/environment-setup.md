@@ -1,5 +1,24 @@
 # Development Environment Setup Guide for Agents
 
+## 🚨 CRITICAL: Use uvx for Python Tools
+
+**NEVER try to import Python packages directly in the shell. Use `uvx` instead.**
+
+```bash
+# ❌ WRONG - Will fail with ModuleNotFoundError
+python -c "import yaml; ..."
+
+# ✅ CORRECT - Use uvx to run Python tools
+uvx yamllint file.yml
+uvx ruff check .
+uvx black --check .
+uvx mypy .
+```
+
+`uvx` automatically installs and runs Python tools in isolated environments. This is the ONLY way to run Python tools in this workspace.
+
+---
+
 ## Overview
 
 This workspace can run in **TWO DIFFERENT ENVIRONMENTS**:
