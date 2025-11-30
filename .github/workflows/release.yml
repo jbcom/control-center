@@ -344,7 +344,7 @@ jobs:
             uv pip install -e ".[docs]" 2>/dev/null || uv pip install -e .
             uv pip install sphinx sphinx-rtd-theme myst-parser
 
-            .venv/bin/sphinx-build -n -b html docs docs/_build/html || true
+            .venv/bin/sphinx-build -n -b html docs docs/_build/html
           else
             cat > docs/_build/html/index.html << EOF
           <!DOCTYPE html>
