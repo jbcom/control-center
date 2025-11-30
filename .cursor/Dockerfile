@@ -62,9 +62,41 @@ RUN corepack enable && \
 RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -b /usr/local/bin && \
     process-compose version
 
-# AI CLI Tools
+# ============================================
+# Global Node.js CLI Tools
+# These are installed globally via pnpm for all future agents
+# ============================================
+
+# Ruler - AI agent instruction management
+# Used to regenerate .cursorrules, copilot-instructions.md, etc. from .ruler/ sources
+RUN pnpm add -g @intellectronica/ruler && \
+    ruler --version
+
+# Claude Code - Anthropic's AI coding assistant CLI
+# Requires ANTHROPIC_API_KEY environment variable at runtime
+RUN npm install -g @anthropic-ai/claude-code && \
+    claude --version || echo "Claude installed (requires API key for full verification)"
+
+# ============================================
+# AI CLI Tools (Python-based)
+# ============================================
+
 # aider requires Python 3.12 (not 3.13) - use uv's managed Python
 # See: https://github.com/Aider-AI/aider/issues/3037
 ENV PATH="/root/.local/bin:$PATH"
 RUN uv tool install --python python3.12 aider-chat==0.86.1 && \
     aider --version
+
+# ============================================
+# Verification - Ensure all tools are available
+# ============================================
+RUN echo "=== Tool Verification ===" && \
+    echo "Node.js: $(node --version)" && \
+    echo "Python: $(python --version)" && \
+    echo "pnpm: $(pnpm --version)" && \
+    echo "uv: $(uv --version)" && \
+    echo "gh: $(gh --version | head -1)" && \
+    echo "ruler: $(ruler --version 2>&1 | head -1)" && \
+    echo "aider: $(aider --version 2>&1 | head -1)" && \
+    echo "process-compose: $(process-compose version 2>&1 | head -1)" && \
+    echo "=== Verification Complete ==="
