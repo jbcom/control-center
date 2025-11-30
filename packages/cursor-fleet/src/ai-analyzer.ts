@@ -14,18 +14,19 @@ import { execSync } from "node:child_process";
 import type { Conversation, Message } from "./types.js";
 
 // Schemas for structured output
+// Note: Using .nullable().optional() to handle AI returning null instead of omitting fields
 const TaskAnalysisSchema = z.object({
   completedTasks: z.array(z.object({
     title: z.string(),
     description: z.string(),
     evidence: z.string(),
-    prNumber: z.number().optional(),
+    prNumber: z.number().nullable().optional(),
   })),
   outstandingTasks: z.array(z.object({
     title: z.string(),
     description: z.string(),
     priority: z.enum(["critical", "high", "medium", "low"]),
-    blockedBy: z.string().optional(),
+    blockedBy: z.string().nullable().optional(),
     suggestedLabels: z.array(z.string()),
   })),
   blockers: z.array(z.object({
@@ -36,7 +37,7 @@ const TaskAnalysisSchema = z.object({
   decisions: z.array(z.object({
     decision: z.string(),
     rationale: z.string(),
-    alternatives: z.array(z.string()).optional(),
+    alternatives: z.array(z.string()).nullable().optional(),
   })),
   summary: z.string(),
 });
