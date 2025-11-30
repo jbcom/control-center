@@ -42,6 +42,27 @@
 
 export { Fleet } from "./fleet.js";
 export { MCPClient } from "./mcp-client.js";
+export { CursorAPI, type CursorAPIOptions } from "./cursor-api.js";
+export { 
+  splitConversation, 
+  quickSplit, 
+  type SplitOptions, 
+  type SplitResult 
+} from "./conversation-splitter.js";
+export {
+  AIAnalyzer,
+  analyzeAndReport,
+  type TaskAnalysis,
+  type CodeReview,
+  type AnalyzerOptions,
+} from "./ai-analyzer.js";
+export {
+  HandoffManager,
+  initiateHandoff,
+  type HandoffContext,
+  type HandoffOptions,
+  type HandoffResult,
+} from "./handoff.js";
 export type {
   Agent,
   AgentStatus,

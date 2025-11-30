@@ -7,7 +7,10 @@
  */
 
 import { Command } from "commander";
+import { writeFileSync } from "node:fs";
 import { Fleet } from "./fleet.js";
+import { AIAnalyzer } from "./ai-analyzer.js";
+import { HandoffManager } from "./handoff.js";
 import type { Agent } from "./types.js";
 
 const program = new Command();
@@ -245,6 +248,29 @@ program
   });
 
 // ============================================
+// split
+// ============================================
+program
+  .command("split")
+  .description("Split conversation into readable files")
+  .argument("<agent-id>", "Agent ID")
+  .option("-o, --output <dir>", "Output directory")
+  .action(async (agentId, opts) => {
+    const fleet = new Fleet();
+    const result = await fleet.split(agentId, opts.output);
+
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log(`✅ Split conversation for ${agentId}`);
+    console.log(`   Messages: ${result.data?.totalMessages}`);
+    console.log(`   Batches: ${result.data?.batchFiles}`);
+    console.log(`   Output: ${result.data?.outputDir}`);
+  });
+
+// ============================================
 // repos
 // ============================================
 program
@@ -470,6 +496,357 @@ program
       inboundInterval: parseInt(opts.inbound, 10),
       agentIds: opts.agents ? opts.agents.split(",").filter(Boolean) : [],
     });
+  });
+
+// ============================================
+// analyze - AI-powered conversation analysis
+// ============================================
+program
+  .command("analyze")
+  .description("AI-powered analysis of agent conversation")
+  .argument("<agent-id>", "Agent ID to analyze")
+  .option("-o, --output <path>", "Output report path")
+  .option("--create-issues", "Create GitHub issues from outstanding tasks")
+  .option("--dry-run", "Show what issues would be created without creating them")
+  .option("--no-copilot", "Don't add copilot label to issues")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (agentId, opts) => {
+    const fleet = new Fleet();
+    const analyzer = new AIAnalyzer({ model: opts.model });
+
+    console.log(`🔍 Fetching conversation for ${agentId}...`);
+    const conv = await fleet.conversation(agentId);
+    
+    if (!conv.success || !conv.data) {
+      console.error(`❌ ${conv.error}`);
+      process.exit(1);
+    }
+
+    console.log(`📊 Analyzing ${conv.data.messages?.length ?? 0} messages with Claude ${opts.model}...`);
+    
+    try {
+      const analysis = await analyzer.analyzeConversation(conv.data);
+      
+      console.log("\n=== Analysis Summary ===\n");
+      console.log(analysis.summary);
+      
+      console.log(`\n✅ Completed Tasks: ${analysis.completedTasks.length}`);
+      for (const task of analysis.completedTasks) {
+        console.log(`   - ${task.title}`);
+      }
+      
+      console.log(`\n📋 Outstanding Tasks: ${analysis.outstandingTasks.length}`);
+      for (const task of analysis.outstandingTasks) {
+        console.log(`   [${task.priority.toUpperCase()}] ${task.title}`);
+      }
+      
+      console.log(`\n⚠️  Blockers: ${analysis.blockers.length}`);
+      for (const blocker of analysis.blockers) {
+        console.log(`   [${blocker.severity}] ${blocker.issue}`);
+      }
+
+      // Generate full report
+      const report = await analyzer.generateReport(conv.data);
+      
+      if (opts.output) {
+        writeFileSync(opts.output, report);
+        console.log(`\n📝 Report saved to ${opts.output}`);
+      }
+
+      // Create issues if requested
+      if (opts.createIssues || opts.dryRun) {
+        console.log("\n🎫 Creating GitHub Issues...");
+        if (opts.copilot !== false) {
+          console.log("   (Adding 'copilot' label for automatic PR creation)");
+        }
+        const issues = await analyzer.createIssuesFromAnalysis(analysis, { 
+          dryRun: opts.dryRun,
+          assignCopilot: opts.copilot !== false,
+        });
+        console.log(`Created ${issues.length} issues`);
+      }
+    } catch (err) {
+      console.error("❌ Analysis failed:", err);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// triage - Quick AI triage of input
+// ============================================
+program
+  .command("triage")
+  .description("Quick AI triage of text input")
+  .argument("<input>", "Text to triage (or - for stdin)")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (input, opts) => {
+    let text = input;
+    if (input === "-") {
+      // Read from stdin
+      text = "";
+      process.stdin.setEncoding("utf8");
+      for await (const chunk of process.stdin) {
+        text += chunk;
+      }
+    }
+
+    const analyzer = new AIAnalyzer({ model: opts.model });
+    
+    try {
+      const result = await analyzer.quickTriage(text);
+      
+      console.log("\n=== Triage Result ===\n");
+      console.log(`Priority:  ${result.priority.toUpperCase()}`);
+      console.log(`Category:  ${result.category}`);
+      console.log(`Summary:   ${result.summary}`);
+      console.log(`Action:    ${result.suggestedAction}`);
+    } catch (err) {
+      console.error("❌ Triage failed:", err);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// review - AI code review
+// ============================================
+program
+  .command("review")
+  .description("AI-powered code review of git diff")
+  .option("--base <ref>", "Base ref for diff", "main")
+  .option("--head <ref>", "Head ref for diff", "HEAD")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (opts) => {
+    const { execSync } = await import("node:child_process");
+    
+    const diff = execSync(`git diff ${opts.base}...${opts.head}`, { encoding: "utf-8" });
+    
+    if (!diff.trim()) {
+      console.log("No changes to review");
+      return;
+    }
+
+    const analyzer = new AIAnalyzer({ model: opts.model });
+    
+    console.log(`🔍 Reviewing diff ${opts.base}...${opts.head}...`);
+    
+    try {
+      const review = await analyzer.reviewCode(diff);
+      
+      console.log("\n=== Code Review ===\n");
+      console.log(`Ready to merge: ${review.readyToMerge ? "✅ YES" : "❌ NO"}`);
+      
+      if (review.mergeBlockers.length > 0) {
+        console.log("\n🚫 Merge Blockers:");
+        for (const blocker of review.mergeBlockers) {
+          console.log(`   - ${blocker}`);
+        }
+      }
+      
+      console.log(`\n📋 Issues (${review.issues.length}):`);
+      for (const issue of review.issues) {
+        const icon = issue.severity === "critical" ? "🔴" : 
+                     issue.severity === "high" ? "🟠" :
+                     issue.severity === "medium" ? "🟡" : "⚪";
+        console.log(`   ${icon} [${issue.category}] ${issue.file}${issue.line ? `:${issue.line}` : ""}`);
+        console.log(`      ${issue.description}`);
+        if (issue.suggestedFix) {
+          console.log(`      💡 ${issue.suggestedFix}`);
+        }
+      }
+      
+      console.log(`\n💡 Improvements (${review.improvements.length}):`);
+      for (const imp of review.improvements) {
+        console.log(`   [${imp.effort}] ${imp.area}: ${imp.suggestion}`);
+      }
+      
+      console.log("\n📝 Overall Assessment:");
+      console.log(`   ${review.overallAssessment}`);
+    } catch (err) {
+      console.error("❌ Review failed:", err);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// self - Identify current agent
+// ============================================
+program
+  .command("self")
+  .description("Identify the current running agent (yourself)")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    const { execSync } = await import("node:child_process");
+    
+    // Get current branch
+    const currentBranch = execSync("git branch --show-current", { encoding: "utf-8" }).trim();
+    
+    // List all running agents
+    const result = await fleet.list();
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      process.exit(1);
+    }
+
+    // Handle both array and {agents: []} response formats
+    const agents = Array.isArray(result.data) 
+      ? result.data 
+      : (result.data as any)?.agents ?? [];
+    
+    // Find agent matching current branch
+    const runningAgents = agents.filter((a: Agent) => a.status === "RUNNING");
+    const self = runningAgents.find((a: Agent) => 
+      a.target?.branchName === currentBranch ||
+      currentBranch.includes(a.id.slice(0, 8))
+    );
+
+    // Also check by repo match if branch doesn't match
+    const possibleSelf = self ?? runningAgents.find((a: Agent) =>
+      a.source?.repository?.includes("jbcom-control-center")
+    );
+
+    if (opts.json) {
+      console.log(JSON.stringify({ 
+        currentBranch,
+        self: possibleSelf ?? null,
+        allRunning: runningAgents 
+      }, null, 2));
+    } else {
+      console.log("=== Self Identification ===\n");
+      console.log(`Current Branch: ${currentBranch}`);
+      
+      if (possibleSelf) {
+        console.log(`\n✅ Found matching agent:`);
+        console.log(`   ID:     ${possibleSelf.id}`);
+        console.log(`   Status: ${possibleSelf.status}`);
+        console.log(`   Name:   ${possibleSelf.name}`);
+        console.log(`   Branch: ${possibleSelf.target?.branchName}`);
+        console.log(`   PR:     ${possibleSelf.target?.prUrl ?? possibleSelf.target?.url ?? "N/A"}`);
+      } else {
+        console.log("\n⚠️ Could not identify current agent");
+        console.log(`   Running agents: ${runningAgents.length}`);
+        for (const a of runningAgents) {
+          console.log(`   - ${a.id}: ${a.target?.branchName}`);
+        }
+      }
+    }
+  });
+
+// ============================================
+// handoff - Station-to-station handoff
+// ============================================
+const handoffCmd = program
+  .command("handoff")
+  .description("Station-to-station agent handoff commands");
+
+handoffCmd
+  .command("initiate")
+  .description("Initiate handoff to successor agent")
+  .argument("<predecessor-id>", "Your agent ID (predecessor)")
+  .requiredOption("--pr <number>", "Your current PR number")
+  .requiredOption("--branch <name>", "Your current branch name")
+  .option("--repo <url>", "Repository URL for successor", "https://github.com/jbcom/jbcom-control-center")
+  .option("--ref <ref>", "Git ref for successor", "main")
+  .option("--tasks <tasks>", "Comma-separated tasks for successor", "")
+  .option("--timeout <ms>", "Health check timeout", "300000")
+  .action(async (predecessorId, opts) => {
+    const manager = new HandoffManager();
+    
+    console.log("🤝 Initiating station-to-station handoff...\n");
+    
+    const result = await manager.initiateHandoff(predecessorId, {
+      repository: opts.repo,
+      ref: opts.ref,
+      currentPr: parseInt(opts.pr, 10),
+      currentBranch: opts.branch,
+      tasks: opts.tasks ? opts.tasks.split(",").map((t: string) => t.trim()) : [],
+      healthCheckTimeout: parseInt(opts.timeout, 10),
+    });
+
+    if (!result.success) {
+      console.error(`❌ Handoff failed: ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log(`\n✅ Handoff initiated`);
+    console.log(`   Successor: ${result.successorId}`);
+    console.log(`   Healthy: ${result.successorHealthy ? "Yes" : "Pending confirmation"}`);
+  });
+
+handoffCmd
+  .command("confirm")
+  .description("Confirm health as successor agent")
+  .argument("<predecessor-id>", "Predecessor agent ID to confirm to")
+  .action(async (predecessorId) => {
+    const manager = new HandoffManager();
+    
+    // Get our own agent ID from environment or infer
+    const successorId = process.env.CURSOR_AGENT_ID || "successor-agent";
+    
+    console.log(`🤝 Confirming health to predecessor ${predecessorId}...`);
+    await manager.confirmHealthAndBegin(successorId, predecessorId);
+    console.log("✅ Health confirmation sent");
+    console.log("\nNext steps:");
+    console.log("  1. Review .cursor/handoff/${predecessorId}/ for context");
+    console.log("  2. Run: cursor-fleet handoff takeover <predecessor-id> <pr-number> <new-branch>");
+  });
+
+handoffCmd
+  .command("takeover")
+  .description("Merge predecessor PR and take over")
+  .argument("<predecessor-id>", "Predecessor agent ID")
+  .argument("<pr-number>", "Predecessor PR number to merge")
+  .argument("<new-branch>", "Your new branch name")
+  .action(async (predecessorId, prNumber, newBranch) => {
+    const manager = new HandoffManager();
+    
+    console.log("🔄 Taking over from predecessor...\n");
+    
+    const result = await manager.takeover(
+      predecessorId,
+      parseInt(prNumber, 10),
+      newBranch
+    );
+
+    if (!result.success) {
+      console.error(`❌ Takeover failed: ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log("✅ Takeover complete!");
+    console.log("\nYou are now the active agent.");
+    console.log("Next steps:");
+    console.log("  1. Create your hold-open PR");
+    console.log("  2. Review outstanding tasks");
+    console.log("  3. Continue the work");
+  });
+
+handoffCmd
+  .command("status")
+  .description("Check handoff status")
+  .argument("<agent-id>", "Agent ID to check")
+  .action(async (agentId) => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    
+    const handoffDir = join(".cursor", "handoff", agentId);
+    const contextPath = join(handoffDir, "context.json");
+    
+    if (!existsSync(contextPath)) {
+      console.log(`No handoff context found for ${agentId}`);
+      return;
+    }
+
+    const context = JSON.parse(readFileSync(contextPath, "utf-8"));
+    
+    console.log("=== Handoff Context ===\n");
+    console.log(`Predecessor: ${context.predecessorId}`);
+    console.log(`PR: #${context.predecessorPr}`);
+    console.log(`Branch: ${context.predecessorBranch}`);
+    console.log(`Time: ${context.handoffTime}`);
+    console.log(`\nCompleted Work: ${context.completedWork.length} items`);
+    console.log(`Outstanding Tasks: ${context.outstandingTasks.length} items`);
+    console.log(`Decisions: ${context.decisions.length} items`);
   });
 
 program.parse();
