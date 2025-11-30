@@ -126,7 +126,7 @@ The `.github/workflows/ci.yml` has these jobs:
 
 ### How to Request Review
 
-Post these commands as PR comments:
+Post these commands as PR comments (all are valid QA agents):
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
@@ -136,30 +136,34 @@ Post these commands as PR comments:
 ```
 
 ### Scope
-- **Required**: All code changes, bug fixes, features, refactors, API changes
+- **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
 - **Optional**: Pure docs (README only), whitespace-only, Dependabot with no code changes
 
 ### Merge Checklist
 
 Before merging ANY PR:
 - [ ] CI is green (all checks pass)
-- [ ] At least ONE AI review requested
-- [ ] AI review completed (not pending)
-- [ ] ALL critical/high severity items fixed
-- [ ] ALL medium items fixed or justified with technical reasoning
+- [ ] At least ONE AI review requested and completed
+- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
+- [ ] ALL medium items resolved or justified with technical reasoning
 - [ ] Responses posted to ALL feedback items
-- [ ] No unresolved threads
+- [ ] All review threads addressed
 - [ ] AI-to-AI conflicts resolved and documented
 
-### Addressing Feedback
+### Addressing Feedback by Severity
 
+- 🛑 **Critical/High** - MUST be resolved before merge (fix OR document false positive)
+- ⚠️ **Medium** - Should be resolved or provide strong justification
+- 💡 **Low/Info** - Consider, document if skipping
+
+Actions:
 1. **Fix** the issue, OR
 2. **Reply** with technical justification for disagreeing
 3. **NEVER** ignore or dismiss without response
 4. **Re-request** review after significant changes
 
 ### Resolving AI Conflicts
-When AI reviewers disagree: evaluate both, apply project conventions, document your decision, prefer security/correctness
+When AI reviewers disagree: evaluate both, apply project conventions, document your decision, prefer security/correctness. Escalate to team lead if genuinely ambiguous
 
 ## 📝 Making Changes
 
