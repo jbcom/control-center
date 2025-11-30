@@ -7,7 +7,7 @@
  */
 
 import { Command } from "commander";
-import { Fleet } from "./fleet.js";
+import { Fleet, type TaskAnalysis } from "./fleet.js";
 import type { Agent } from "./types.js";
 
 const program = new Command();
@@ -242,7 +242,170 @@ program
     }
 
     console.log(`✅ Archived to ${result.data}`);
+    fleet.close();
   });
+
+// ============================================
+// replay
+// ============================================
+program
+  .command("replay")
+  .description("Replay agent conversation chronologically and analyze tasks")
+  .argument("<agent-id>", "Agent ID")
+  .option("-o, --output <dir>", "Output directory")
+  .option("-v, --verbose", "Verbose output")
+  .option("--json", "Output analysis as JSON")
+  .option("--print", "Print full conversation to stdout")
+  .option("--limit <n>", "Limit messages when printing", "50")
+  .option("--filter <type>", "Filter messages: user, assistant, all", "all")
+  .action(async (agentId, opts) => {
+    const fleet = new Fleet({ timeout: 120000 }); // 2 min timeout for large conversations
+    
+    console.log(`\n🔄 Replaying agent ${agentId}...\n`);
+    
+    const result = await fleet.replay(agentId, {
+      outputDir: opts.output,
+      verbose: opts.verbose ?? true,
+    });
+
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      fleet.close();
+      process.exit(1);
+    }
+
+    const { agent, conversation, archivePath, analysis } = result.data!;
+
+    if (opts.json) {
+      output(analysis, true);
+    } else if (opts.print) {
+      fleet.printReplay(conversation, {
+        limit: parseInt(opts.limit, 10),
+        filter: opts.filter as "user" | "assistant" | "all",
+      });
+    } else {
+      printAnalysis(agent, analysis, archivePath);
+    }
+
+    fleet.close();
+  });
+
+// ============================================
+// load-replay
+// ============================================
+program
+  .command("load-replay")
+  .description("Load a previously archived replay from disk")
+  .argument("<archive-dir>", "Path to archive directory")
+  .option("--json", "Output analysis as JSON")
+  .option("--print", "Print full conversation to stdout")
+  .option("--limit <n>", "Limit messages when printing", "50")
+  .action(async (archiveDir, opts) => {
+    const fleet = new Fleet();
+    
+    const result = await fleet.loadReplay(archiveDir);
+
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      process.exit(1);
+    }
+
+    const { agent, conversation, archivePath, analysis } = result.data!;
+
+    if (opts.json) {
+      output(analysis, true);
+    } else if (opts.print) {
+      fleet.printReplay(conversation, {
+        limit: parseInt(opts.limit, 10),
+      });
+    } else {
+      printAnalysis(agent, analysis, archivePath);
+    }
+  });
+
+/**
+ * Print analysis results in a readable format
+ */
+function printAnalysis(agent: Agent, analysis: TaskAnalysis, archivePath: string): void {
+  console.log(`\n${"═".repeat(70)}`);
+  console.log(`  AGENT REPLAY ANALYSIS`);
+  console.log(`${"═".repeat(70)}\n`);
+
+  console.log(`📋 Agent: ${agent.name ?? "Unknown"}`);
+  console.log(`🆔 ID: ${agent.id}`);
+  console.log(`📊 Status: ${agent.status}`);
+  console.log(`🕐 Duration: ${analysis.duration}`);
+  console.log(`💬 Messages: ${analysis.messageCount}`);
+  console.log(`📁 Archive: ${archivePath}`);
+  
+  console.log(`\n${"─".repeat(70)}`);
+  console.log(`  SESSION SUMMARY`);
+  console.log(`${"─".repeat(70)}\n`);
+  console.log(analysis.sessionSummary);
+
+  console.log(`\n${"─".repeat(70)}`);
+  console.log(`  PRs (${analysis.prsCreated.length} created, ${analysis.prsMerged.length} merged)`);
+  console.log(`${"─".repeat(70)}\n`);
+  
+  if (analysis.prsCreated.length > 0) {
+    for (const pr of analysis.prsCreated) {
+      const icon = pr.status === "merged" ? "✅" : pr.status === "closed" ? "❌" : "⏳";
+      console.log(`  ${icon} #${pr.number}: ${pr.title}`);
+    }
+  } else {
+    console.log("  (No PRs detected)");
+  }
+
+  console.log(`\n${"─".repeat(70)}`);
+  console.log(`  COMPLETED TASKS (${analysis.completed.length})`);
+  console.log(`${"─".repeat(70)}\n`);
+  
+  if (analysis.completed.length > 0) {
+    for (const task of analysis.completed) {
+      console.log(`  ✅ ${task.description}`);
+    }
+  } else {
+    console.log("  (No explicitly marked completed tasks)");
+  }
+
+  console.log(`\n${"─".repeat(70)}`);
+  console.log(`  OUTSTANDING TASKS (${analysis.outstanding.length})`);
+  console.log(`${"─".repeat(70)}\n`);
+  
+  if (analysis.outstanding.length > 0) {
+    for (const task of analysis.outstanding) {
+      console.log(`  ⏳ ${task.description}`);
+    }
+  } else {
+    console.log("  (No explicitly marked outstanding tasks)");
+  }
+
+  if (analysis.blockers.length > 0) {
+    console.log(`\n${"─".repeat(70)}`);
+    console.log(`  BLOCKERS (${analysis.blockers.length})`);
+    console.log(`${"─".repeat(70)}\n`);
+    for (const blocker of analysis.blockers) {
+      console.log(`  ❌ ${blocker}`);
+    }
+  }
+
+  if (analysis.keyDecisions.length > 0) {
+    console.log(`\n${"─".repeat(70)}`);
+    console.log(`  KEY DECISIONS (${analysis.keyDecisions.length})`);
+    console.log(`${"─".repeat(70)}\n`);
+    for (const decision of analysis.keyDecisions) {
+      console.log(`  📌 ${decision}`);
+    }
+  }
+
+  console.log(`\n${"═".repeat(70)}`);
+  console.log(`  Files saved to: ${archivePath}`);
+  console.log(`  - conversation.json`);
+  console.log(`  - agent.json`);
+  console.log(`  - analysis.json`);
+  console.log(`  - REPLAY_SUMMARY.md`);
+  console.log(`${"═".repeat(70)}\n`);
+}
 
 // ============================================
 // repos

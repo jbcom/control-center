@@ -9,7 +9,7 @@
  * - Diamond pattern orchestration
  */
 
-import { writeFile, mkdir } from "node:fs/promises";
+import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { execSync } from "node:child_process";
 import { MCPClient } from "./mcp-client.js";
@@ -20,9 +20,51 @@ import type {
   FleetConfig,
   FleetResult,
   LaunchOptions,
+  Message,
   Repository,
   SpawnContext,
 } from "./types.js";
+
+export interface ReplayResult {
+  agent: Agent;
+  conversation: Conversation;
+  archivePath: string;
+  analysis: TaskAnalysis;
+}
+
+export interface TaskAnalysis {
+  /** Tasks that were completed based on conversation */
+  completed: TaskItem[];
+  /** Tasks that remain outstanding/in progress */
+  outstanding: TaskItem[];
+  /** PRs created during this session */
+  prsCreated: PRInfo[];
+  /** PRs merged during this session */
+  prsMerged: PRInfo[];
+  /** Key decisions made */
+  keyDecisions: string[];
+  /** Blockers encountered */
+  blockers: string[];
+  /** Summary of the session */
+  sessionSummary: string;
+  /** Total messages in conversation */
+  messageCount: number;
+  /** Session duration */
+  duration: string;
+}
+
+export interface TaskItem {
+  description: string;
+  status: "completed" | "in_progress" | "blocked" | "pending";
+  context?: string;
+}
+
+export interface PRInfo {
+  number: number;
+  title: string;
+  url?: string;
+  status: "open" | "merged" | "closed";
+}
 
 export interface CoordinationConfig {
   /** PR number for coordination channel */
@@ -680,5 +722,404 @@ export class Fleet {
       case "EXPIRED": return "⏰";
       default: return "❓";
     }
+  }
+
+  // ============================================
+  // Replay & Analysis
+  // ============================================
+
+  /**
+   * Replay an agent's conversation chronologically and analyze tasks
+   * 
+   * This is the core recovery function - retrieves the full conversation,
+   * archives it to disk, and performs comprehensive task analysis.
+   */
+  async replay(agentId: string, options?: {
+    outputDir?: string;
+    verbose?: boolean;
+  }): Promise<FleetResult<ReplayResult>> {
+    const outputDir = options?.outputDir ?? join(this.archivePath, agentId);
+    const verbose = options?.verbose ?? false;
+
+    // 1. Get agent status
+    if (verbose) console.log(`📡 Fetching agent status for ${agentId}...`);
+    const statusResult = await this.status(agentId);
+    if (!statusResult.success || !statusResult.data) {
+      return { success: false, error: `Failed to get agent status: ${statusResult.error}` };
+    }
+    const agent = statusResult.data;
+
+    // 2. Get conversation
+    if (verbose) console.log(`💬 Fetching conversation (this may take a moment)...`);
+    const convResult = await this.conversation(agentId);
+    if (!convResult.success || !convResult.data) {
+      return { success: false, error: `Failed to get conversation: ${convResult.error}` };
+    }
+    const conversation = convResult.data;
+
+    // 3. Archive to disk
+    if (verbose) console.log(`💾 Archiving to ${outputDir}...`);
+    try {
+      await mkdir(outputDir, { recursive: true });
+      
+      // Save raw conversation
+      const convPath = join(outputDir, "conversation.json");
+      await writeFile(convPath, JSON.stringify(conversation, null, 2));
+      
+      // Save agent status
+      const statusPath = join(outputDir, "agent.json");
+      await writeFile(statusPath, JSON.stringify(agent, null, 2));
+      
+    } catch (error) {
+      return { success: false, error: `Failed to archive: ${error}` };
+    }
+
+    // 4. Analyze conversation
+    if (verbose) console.log(`🔍 Analyzing ${conversation.messages.length} messages...`);
+    const analysis = this.analyzeConversation(agent, conversation);
+
+    // 5. Save analysis
+    const analysisPath = join(outputDir, "analysis.json");
+    await writeFile(analysisPath, JSON.stringify(analysis, null, 2));
+
+    // 6. Generate markdown summary
+    const summaryPath = join(outputDir, "REPLAY_SUMMARY.md");
+    const summary = this.generateReplaySummary(agent, conversation, analysis);
+    await writeFile(summaryPath, summary);
+
+    return {
+      success: true,
+      data: {
+        agent,
+        conversation,
+        archivePath: outputDir,
+        analysis,
+      },
+    };
+  }
+
+  /**
+   * Load a previously archived replay
+   */
+  async loadReplay(archiveDir: string): Promise<FleetResult<ReplayResult>> {
+    try {
+      const agentPath = join(archiveDir, "agent.json");
+      const convPath = join(archiveDir, "conversation.json");
+      const analysisPath = join(archiveDir, "analysis.json");
+
+      const agent = JSON.parse(await readFile(agentPath, "utf-8")) as Agent;
+      const conversation = JSON.parse(await readFile(convPath, "utf-8")) as Conversation;
+      const analysis = JSON.parse(await readFile(analysisPath, "utf-8")) as TaskAnalysis;
+
+      return {
+        success: true,
+        data: {
+          agent,
+          conversation,
+          archivePath: archiveDir,
+          analysis,
+        },
+      };
+    } catch (error) {
+      return { success: false, error: `Failed to load replay: ${error}` };
+    }
+  }
+
+  /**
+   * Analyze a conversation to extract tasks, PRs, and status
+   */
+  private analyzeConversation(agent: Agent, conversation: Conversation): TaskAnalysis {
+    const messages = conversation.messages;
+    const completed: TaskItem[] = [];
+    const outstanding: TaskItem[] = [];
+    const prsCreated: PRInfo[] = [];
+    const prsMerged: PRInfo[] = [];
+    const keyDecisions: string[] = [];
+    const blockers: string[] = [];
+
+    // Patterns to match
+    const prCreatePattern = /(?:created|opened)\s+(?:PR|pull request)\s*#?(\d+)/gi;
+    const prMergePattern = /(?:merged|merge)\s+(?:PR|pull request)\s*#?(\d+)/gi;
+    const prUrlPattern = /https:\/\/github\.com\/[\w-]+\/[\w-]+\/pull\/(\d+)/g;
+    const todoPattern = /(?:TODO|REMAINING|OUTSTANDING|PENDING):\s*(.+)/gi;
+    const completedPattern = /(?:✅|DONE|COMPLETED|FINISHED):\s*(.+)/gi;
+    const blockerPattern = /(?:❌|BLOCKED|BLOCKER|ERROR):\s*(.+)/gi;
+    const decisionPattern = /(?:DECISION|DECIDED|CHOOSING|CHOSE):\s*(.+)/gi;
+
+    // Track seen PRs to avoid duplicates
+    const seenPRs = new Set<number>();
+
+    for (const msg of messages) {
+      const text = msg.text;
+
+      // Extract PRs created
+      let match;
+      while ((match = prCreatePattern.exec(text)) !== null) {
+        const prNum = parseInt(match[1], 10);
+        if (!seenPRs.has(prNum)) {
+          seenPRs.add(prNum);
+          prsCreated.push({
+            number: prNum,
+            title: this.extractPRTitle(text, prNum),
+            status: "open",
+          });
+        }
+      }
+
+      // Extract PRs merged
+      while ((match = prMergePattern.exec(text)) !== null) {
+        const prNum = parseInt(match[1], 10);
+        const existing = prsCreated.find(p => p.number === prNum);
+        if (existing) {
+          existing.status = "merged";
+          prsMerged.push(existing);
+        } else if (!seenPRs.has(prNum)) {
+          seenPRs.add(prNum);
+          prsMerged.push({
+            number: prNum,
+            title: this.extractPRTitle(text, prNum),
+            status: "merged",
+          });
+        }
+      }
+
+      // Extract PR URLs
+      while ((match = prUrlPattern.exec(text)) !== null) {
+        const prNum = parseInt(match[1], 10);
+        const existing = prsCreated.find(p => p.number === prNum);
+        if (existing) {
+          existing.url = match[0];
+        }
+      }
+
+      // Extract TODOs/outstanding items
+      while ((match = todoPattern.exec(text)) !== null) {
+        const desc = match[1].trim();
+        if (desc.length > 10 && !outstanding.some(t => t.description.includes(desc.slice(0, 30)))) {
+          outstanding.push({ description: desc, status: "pending" });
+        }
+      }
+
+      // Extract completed items
+      while ((match = completedPattern.exec(text)) !== null) {
+        const desc = match[1].trim();
+        if (desc.length > 10 && !completed.some(t => t.description.includes(desc.slice(0, 30)))) {
+          completed.push({ description: desc, status: "completed" });
+        }
+      }
+
+      // Extract blockers
+      while ((match = blockerPattern.exec(text)) !== null) {
+        const desc = match[1].trim();
+        if (desc.length > 10 && !blockers.includes(desc)) {
+          blockers.push(desc);
+        }
+      }
+
+      // Extract key decisions
+      while ((match = decisionPattern.exec(text)) !== null) {
+        const desc = match[1].trim();
+        if (desc.length > 10 && !keyDecisions.includes(desc)) {
+          keyDecisions.push(desc);
+        }
+      }
+    }
+
+    // Calculate session duration
+    const startTime = agent.createdAt ? new Date(agent.createdAt).getTime() : Date.now();
+    const endTime = agent.finishedAt ? new Date(agent.finishedAt).getTime() : Date.now();
+    const durationMs = endTime - startTime;
+    const hours = Math.floor(durationMs / 3600000);
+    const minutes = Math.floor((durationMs % 3600000) / 60000);
+    const duration = hours > 0 ? `${hours}h ${minutes}m` : `${minutes}m`;
+
+    return {
+      completed,
+      outstanding,
+      prsCreated,
+      prsMerged,
+      keyDecisions,
+      blockers,
+      sessionSummary: agent.summary ?? "No summary available",
+      messageCount: messages.length,
+      duration,
+    };
+  }
+
+  /**
+   * Extract PR title from context
+   */
+  private extractPRTitle(text: string, prNum: number): string {
+    // Try to find title near PR number
+    const patterns = [
+      new RegExp(`#${prNum}[:\\s]+["']?([^"'\\n]{10,80})["']?`, "i"),
+      new RegExp(`PR\\s*#?${prNum}[:\\s]+(.{10,80})`, "i"),
+      new RegExp(`title[:\\s]+["']([^"'\\n]{10,80})["']`, "i"),
+    ];
+
+    for (const pattern of patterns) {
+      const match = pattern.exec(text);
+      if (match) {
+        return match[1].trim();
+      }
+    }
+
+    return `PR #${prNum}`;
+  }
+
+  /**
+   * Generate markdown summary of the replay
+   */
+  private generateReplaySummary(agent: Agent, conversation: Conversation, analysis: TaskAnalysis): string {
+    const lines: string[] = [
+      `# Agent Replay Summary: ${agent.id}`,
+      "",
+      `**Name**: ${agent.name ?? "Unknown"}`,
+      `**Status**: ${agent.status}`,
+      `**Repository**: ${agent.source.repository}`,
+      `**Branch**: ${agent.target?.branchName ?? "N/A"}`,
+      `**Created**: ${agent.createdAt ?? "Unknown"}`,
+      `**Duration**: ${analysis.duration}`,
+      `**Messages**: ${analysis.messageCount}`,
+      "",
+      "---",
+      "",
+      "## Session Summary",
+      "",
+      analysis.sessionSummary,
+      "",
+      "---",
+      "",
+      "## PRs Created",
+      "",
+    ];
+
+    if (analysis.prsCreated.length > 0) {
+      for (const pr of analysis.prsCreated) {
+        const status = pr.status === "merged" ? "✅ MERGED" : pr.status === "closed" ? "❌ CLOSED" : "⏳ OPEN";
+        lines.push(`- **#${pr.number}**: ${pr.title} [${status}]`);
+        if (pr.url) lines.push(`  - ${pr.url}`);
+      }
+    } else {
+      lines.push("_No PRs detected_");
+    }
+
+    lines.push("", "## Completed Tasks", "");
+
+    if (analysis.completed.length > 0) {
+      for (const task of analysis.completed) {
+        lines.push(`- ✅ ${task.description}`);
+      }
+    } else {
+      lines.push("_No explicitly marked completed tasks detected_");
+    }
+
+    lines.push("", "## Outstanding Tasks", "");
+
+    if (analysis.outstanding.length > 0) {
+      for (const task of analysis.outstanding) {
+        lines.push(`- ⏳ ${task.description}`);
+      }
+    } else {
+      lines.push("_No explicitly marked outstanding tasks detected_");
+    }
+
+    if (analysis.blockers.length > 0) {
+      lines.push("", "## Blockers Encountered", "");
+      for (const blocker of analysis.blockers) {
+        lines.push(`- ❌ ${blocker}`);
+      }
+    }
+
+    if (analysis.keyDecisions.length > 0) {
+      lines.push("", "## Key Decisions", "");
+      for (const decision of analysis.keyDecisions) {
+        lines.push(`- 📌 ${decision}`);
+      }
+    }
+
+    lines.push(
+      "",
+      "---",
+      "",
+      "## Conversation Chronology",
+      "",
+      "| # | Type | Preview |",
+      "|---|------|---------|",
+    );
+
+    // Show first 20 and last 10 messages
+    const messages = conversation.messages;
+    const toShow = messages.length <= 30 
+      ? messages 
+      : [...messages.slice(0, 20), ...messages.slice(-10)];
+
+    let idx = 0;
+    for (const msg of toShow) {
+      if (idx === 20 && messages.length > 30) {
+        lines.push(`| ... | ... | _${messages.length - 30} messages omitted_ |`);
+      }
+      const role = msg.type === "user_message" ? "👤 USER" : "🤖 ASST";
+      const preview = msg.text
+        .replace(/\n/g, " ")
+        .replace(/\|/g, "\\|")
+        .slice(0, 100);
+      const actualIdx = idx < 20 ? idx + 1 : messages.length - (toShow.length - idx) + 1;
+      lines.push(`| ${actualIdx} | ${role} | ${preview}${msg.text.length > 100 ? "..." : ""} |`);
+      idx++;
+    }
+
+    lines.push(
+      "",
+      "---",
+      "",
+      `_Generated by cursor-fleet replay at ${new Date().toISOString()}_`,
+    );
+
+    return lines.join("\n");
+  }
+
+  /**
+   * Print a chronological replay to console
+   */
+  printReplay(conversation: Conversation, options?: {
+    limit?: number;
+    filter?: "user" | "assistant" | "all";
+  }): void {
+    const limit = options?.limit ?? conversation.messages.length;
+    const filter = options?.filter ?? "all";
+
+    const messages = conversation.messages
+      .filter(m => filter === "all" || 
+        (filter === "user" && m.type === "user_message") ||
+        (filter === "assistant" && m.type === "assistant_message"))
+      .slice(0, limit);
+
+    console.log(`\n${"=".repeat(80)}`);
+    console.log(`CONVERSATION REPLAY (${messages.length}/${conversation.messages.length} messages)`);
+    console.log(`${"=".repeat(80)}\n`);
+
+    for (let i = 0; i < messages.length; i++) {
+      const msg = messages[i];
+      const role = msg.type === "user_message" ? "👤 USER" : "🤖 ASSISTANT";
+      const divider = msg.type === "user_message" ? "─" : "━";
+      
+      console.log(`${divider.repeat(60)}`);
+      console.log(`[${i + 1}/${messages.length}] ${role}`);
+      console.log(`${divider.repeat(60)}`);
+      console.log(msg.text);
+      console.log("");
+    }
+
+    console.log(`${"=".repeat(80)}`);
+    console.log(`END OF REPLAY`);
+    console.log(`${"=".repeat(80)}\n`);
+  }
+
+  /**
+   * Close the MCP client connection
+   */
+  close(): void {
+    this.client.close();
   }
 }
