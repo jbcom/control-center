@@ -23,7 +23,8 @@ on:
           - python-terraform-bridge
           - vendor-connectors
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: docs-${{ github.ref }}
