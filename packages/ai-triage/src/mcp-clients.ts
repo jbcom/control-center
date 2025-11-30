@@ -1,23 +1,36 @@
 /**
- * MCP Client Integration
+ * Unified MCP Client Integration
  * 
- * Connects to MCP servers for enhanced AI capabilities:
+ * Connects to MCP servers for a complete AI-powered development environment:
+ * - Cursor Agent MCP: Manage background agents, spawn tasks, get conversations
  * - GitHub MCP: PR management, issues, code search, repository operations
  * - Context7 MCP: Up-to-date library documentation
  */
 
 import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
+import { Experimental_StdioMCPTransport as StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import type { ToolSet } from "ai";
 
 export interface MCPClientConfig {
+  /** Cursor Background Agent MCP configuration */
+  cursor?: {
+    /** Cursor API key (defaults to CURSOR_API_KEY env) */
+    apiKey?: string;
+    /** Use stdio (local) or HTTP proxy mode */
+    mode?: "stdio" | "proxy";
+    /** Proxy URL if using proxy mode */
+    proxyUrl?: string;
+  };
+  /** GitHub MCP configuration */
   github?: {
-    /** GitHub Personal Access Token or use OAuth */
+    /** GitHub Personal Access Token (defaults to GITHUB_TOKEN env) */
     token?: string;
     /** Use remote server (api.githubcopilot.com) or local */
     remote?: boolean;
     /** Custom host for GitHub Enterprise */
     host?: string;
   };
+  /** Context7 MCP configuration */
   context7?: {
     /** Context7 API key for higher rate limits */
     apiKey?: string;
@@ -25,37 +38,99 @@ export interface MCPClientConfig {
 }
 
 export interface MCPClients {
+  cursor?: Awaited<ReturnType<typeof createMCPClient>>;
   github?: Awaited<ReturnType<typeof createMCPClient>>;
   context7?: Awaited<ReturnType<typeof createMCPClient>>;
 }
 
 /**
- * Initialize MCP clients for GitHub and Context7
+ * Initialize all MCP clients
  */
 export async function initializeMCPClients(
   config: MCPClientConfig = {}
 ): Promise<MCPClients> {
   const clients: MCPClients = {};
 
-  // Initialize GitHub MCP client
-  if (config.github !== undefined || process.env.GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN) {
-    const githubToken = config.github?.token || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN;
-    
+  // ─────────────────────────────────────────────────────────────────
+  // 1. Cursor Background Agent MCP
+  // ─────────────────────────────────────────────────────────────────
+  const cursorApiKey = config.cursor?.apiKey || process.env.CURSOR_API_KEY;
+  
+  if (cursorApiKey) {
     try {
-      // Use remote GitHub MCP server (recommended)
+      const mode = config.cursor?.mode ?? "stdio";
+      
+      if (mode === "proxy") {
+        // HTTP proxy mode (when mcp-proxy is running)
+        const proxyUrl = config.cursor?.proxyUrl || process.env.MCP_PROXY_CURSOR_AGENTS_URL || "http://localhost:3011";
+        clients.cursor = await createMCPClient({
+          transport: {
+            type: "http",
+            url: `${proxyUrl}/mcp`,
+          },
+          name: "cursor-agents-mcp",
+        });
+      } else {
+        // Direct stdio mode - spawns cursor-background-agent-mcp-server
+        clients.cursor = await createMCPClient({
+          transport: new StdioMCPTransport({
+            command: "npx",
+            args: ["-y", "cursor-background-agent-mcp-server"],
+            env: {
+              ...process.env,
+              CURSOR_API_KEY: cursorApiKey,
+            },
+          }),
+          name: "cursor-agents-mcp",
+        });
+      }
+      
+      console.log("✅ Cursor Agent MCP client initialized");
+    } catch (error) {
+      console.warn("⚠️ Failed to initialize Cursor MCP client:", error instanceof Error ? error.message : error);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────
+  // 2. GitHub MCP Server (Official)
+  // ─────────────────────────────────────────────────────────────────
+  const githubToken = config.github?.token || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN;
+  
+  if (githubToken || config.github !== undefined) {
+    try {
       const useRemote = config.github?.remote !== false;
       
       if (useRemote) {
+        // Remote GitHub MCP server (hosted by GitHub)
+        const baseUrl = config.github?.host 
+          ? `https://copilot-api.${config.github.host}/mcp`
+          : "https://api.githubcopilot.com/mcp/";
+          
         clients.github = await createMCPClient({
           transport: {
             type: "http",
-            url: config.github?.host 
-              ? `https://copilot-api.${config.github.host}/mcp`
-              : "https://api.githubcopilot.com/mcp/",
+            url: baseUrl,
             headers: githubToken ? {
               Authorization: `Bearer ${githubToken}`,
             } : undefined,
           },
+          name: "github-mcp",
+        });
+      } else {
+        // Local GitHub MCP server via Docker
+        clients.github = await createMCPClient({
+          transport: new StdioMCPTransport({
+            command: "docker",
+            args: [
+              "run", "-i", "--rm",
+              "-e", "GITHUB_PERSONAL_ACCESS_TOKEN",
+              "ghcr.io/github/github-mcp-server",
+            ],
+            env: {
+              ...process.env as Record<string, string>,
+              GITHUB_PERSONAL_ACCESS_TOKEN: githubToken ?? "",
+            },
+          }),
           name: "github-mcp",
         });
       }
@@ -66,10 +141,12 @@ export async function initializeMCPClients(
     }
   }
 
-  // Initialize Context7 MCP client
-  if (config.context7 !== undefined || process.env.CONTEXT7_API_KEY) {
-    const context7ApiKey = config.context7?.apiKey || process.env.CONTEXT7_API_KEY;
-    
+  // ─────────────────────────────────────────────────────────────────
+  // 3. Context7 MCP Server (Documentation)
+  // ─────────────────────────────────────────────────────────────────
+  const context7ApiKey = config.context7?.apiKey || process.env.CONTEXT7_API_KEY;
+  
+  if (context7ApiKey || config.context7 !== undefined) {
     try {
       clients.context7 = await createMCPClient({
         transport: {
@@ -92,75 +169,113 @@ export async function initializeMCPClients(
 }
 
 /**
- * Get tools from all initialized MCP clients
+ * Get all tools from initialized MCP clients
+ * Returns a unified ToolSet that can be passed to Vercel AI SDK
  */
 export async function getMCPTools(clients: MCPClients): Promise<ToolSet> {
   const allTools: ToolSet = {};
+  const toolCounts: Record<string, number> = {};
 
+  // Get Cursor Agent tools
+  if (clients.cursor) {
+    try {
+      const cursorTools = await clients.cursor.tools();
+      Object.assign(allTools, cursorTools);
+      toolCounts.cursor = Object.keys(cursorTools).length;
+    } catch (error) {
+      console.warn("⚠️ Failed to get Cursor MCP tools:", error instanceof Error ? error.message : error);
+    }
+  }
+
+  // Get GitHub tools
   if (clients.github) {
     try {
       const githubTools = await clients.github.tools();
       Object.assign(allTools, githubTools);
-      console.log(`📦 Loaded ${Object.keys(githubTools).length} GitHub MCP tools`);
+      toolCounts.github = Object.keys(githubTools).length;
     } catch (error) {
       console.warn("⚠️ Failed to get GitHub MCP tools:", error instanceof Error ? error.message : error);
     }
   }
 
+  // Get Context7 tools
   if (clients.context7) {
     try {
       const context7Tools = await clients.context7.tools();
       Object.assign(allTools, context7Tools);
-      console.log(`📦 Loaded ${Object.keys(context7Tools).length} Context7 MCP tools`);
+      toolCounts.context7 = Object.keys(context7Tools).length;
     } catch (error) {
       console.warn("⚠️ Failed to get Context7 MCP tools:", error instanceof Error ? error.message : error);
     }
   }
 
+  // Log summary
+  const total = Object.values(toolCounts).reduce((a, b) => a + b, 0);
+  console.log(`📦 Loaded ${total} MCP tools:`, toolCounts);
+
   return allTools;
 }
 
 /**
- * Close all MCP clients
+ * Close all MCP clients gracefully
  */
 export async function closeMCPClients(clients: MCPClients): Promise<void> {
   const closePromises: Promise<void>[] = [];
 
-  if (clients.github) {
-    closePromises.push(clients.github.close());
+  if (clients.cursor) closePromises.push(clients.cursor.close());
+  if (clients.github) closePromises.push(clients.github.close());
+  if (clients.context7) closePromises.push(clients.context7.close());
+
+  await Promise.allSettled(closePromises);
+  console.log("🔌 All MCP clients closed");
+}
+
+/**
+ * List available prompts from MCP servers that support them
+ */
+export async function listMCPPrompts(clients: MCPClients): Promise<{
+  cursor?: unknown[];
+  github?: unknown[];
+  context7?: unknown[];
+}> {
+  const prompts: Record<string, unknown[]> = {};
+
+  for (const [name, client] of Object.entries(clients)) {
+    if (client) {
+      try {
+        const result = await client.listPrompts();
+        if (result.prompts?.length) {
+          prompts[name] = result.prompts;
+        }
+      } catch {
+        // Prompts not supported by this server
+      }
+    }
   }
 
-  if (clients.context7) {
-    closePromises.push(clients.context7.close());
-  }
-
-  await Promise.all(closePromises);
+  return prompts;
 }
 
 /**
  * List available resources from MCP servers
  */
 export async function listMCPResources(clients: MCPClients): Promise<{
+  cursor?: unknown[];
   github?: unknown[];
   context7?: unknown[];
 }> {
-  const resources: { github?: unknown[]; context7?: unknown[] } = {};
+  const resources: Record<string, unknown[]> = {};
 
-  if (clients.github) {
-    try {
-      const result = await clients.github.listResources();
-      resources.github = result.resources;
-    } catch {
-      // Resources not supported or error
-    }
-  }
-
-  if (clients.context7) {
-    try {
-      const result = await clients.context7.listResources();
-      resources.context7 = result.resources;
-    } catch {
-      // Resources not supported or error
+  for (const [name, client] of Object.entries(clients)) {
+    if (client) {
+      try {
+        const result = await client.listResources();
+        if (result.resources?.length) {
+          resources[name] = result.resources;
+        }
+      } catch {
+        // Resources not supported by this server
+      }
     }
   }
 
