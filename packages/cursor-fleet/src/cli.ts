@@ -7,7 +7,9 @@
  */
 
 import { Command } from "commander";
+import { writeFileSync } from "node:fs";
 import { Fleet } from "./fleet.js";
+import { AIAnalyzer } from "./ai-analyzer.js";
 import type { Agent } from "./types.js";
 
 const program = new Command();
@@ -493,6 +495,170 @@ program
       inboundInterval: parseInt(opts.inbound, 10),
       agentIds: opts.agents ? opts.agents.split(",").filter(Boolean) : [],
     });
+  });
+
+// ============================================
+// analyze - AI-powered conversation analysis
+// ============================================
+program
+  .command("analyze")
+  .description("AI-powered analysis of agent conversation")
+  .argument("<agent-id>", "Agent ID to analyze")
+  .option("-o, --output <path>", "Output report path")
+  .option("--create-issues", "Create GitHub issues from outstanding tasks")
+  .option("--dry-run", "Show what issues would be created without creating them")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (agentId, opts) => {
+    const fleet = new Fleet();
+    const analyzer = new AIAnalyzer({ model: opts.model });
+
+    console.log(`🔍 Fetching conversation for ${agentId}...`);
+    const conv = await fleet.conversation(agentId);
+    
+    if (!conv.success || !conv.data) {
+      console.error(`❌ ${conv.error}`);
+      process.exit(1);
+    }
+
+    console.log(`📊 Analyzing ${conv.data.messages?.length ?? 0} messages with Claude ${opts.model}...`);
+    
+    try {
+      const analysis = await analyzer.analyzeConversation(conv.data);
+      
+      console.log("\n=== Analysis Summary ===\n");
+      console.log(analysis.summary);
+      
+      console.log(`\n✅ Completed Tasks: ${analysis.completedTasks.length}`);
+      for (const task of analysis.completedTasks) {
+        console.log(`   - ${task.title}`);
+      }
+      
+      console.log(`\n📋 Outstanding Tasks: ${analysis.outstandingTasks.length}`);
+      for (const task of analysis.outstandingTasks) {
+        console.log(`   [${task.priority.toUpperCase()}] ${task.title}`);
+      }
+      
+      console.log(`\n⚠️  Blockers: ${analysis.blockers.length}`);
+      for (const blocker of analysis.blockers) {
+        console.log(`   [${blocker.severity}] ${blocker.issue}`);
+      }
+
+      // Generate full report
+      const report = await analyzer.generateReport(conv.data);
+      
+      if (opts.output) {
+        writeFileSync(opts.output, report);
+        console.log(`\n📝 Report saved to ${opts.output}`);
+      }
+
+      // Create issues if requested
+      if (opts.createIssues || opts.dryRun) {
+        console.log("\n🎫 Creating GitHub Issues...");
+        const issues = await analyzer.createIssuesFromAnalysis(analysis, { 
+          dryRun: opts.dryRun 
+        });
+        console.log(`Created ${issues.length} issues`);
+      }
+    } catch (err) {
+      console.error("❌ Analysis failed:", err);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// triage - Quick AI triage of input
+// ============================================
+program
+  .command("triage")
+  .description("Quick AI triage of text input")
+  .argument("<input>", "Text to triage (or - for stdin)")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (input, opts) => {
+    let text = input;
+    if (input === "-") {
+      // Read from stdin
+      text = "";
+      process.stdin.setEncoding("utf8");
+      for await (const chunk of process.stdin) {
+        text += chunk;
+      }
+    }
+
+    const analyzer = new AIAnalyzer({ model: opts.model });
+    
+    try {
+      const result = await analyzer.quickTriage(text);
+      
+      console.log("\n=== Triage Result ===\n");
+      console.log(`Priority:  ${result.priority.toUpperCase()}`);
+      console.log(`Category:  ${result.category}`);
+      console.log(`Summary:   ${result.summary}`);
+      console.log(`Action:    ${result.suggestedAction}`);
+    } catch (err) {
+      console.error("❌ Triage failed:", err);
+      process.exit(1);
+    }
+  });
+
+// ============================================
+// review - AI code review
+// ============================================
+program
+  .command("review")
+  .description("AI-powered code review of git diff")
+  .option("--base <ref>", "Base ref for diff", "main")
+  .option("--head <ref>", "Head ref for diff", "HEAD")
+  .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
+  .action(async (opts) => {
+    const { execSync } = await import("node:child_process");
+    
+    const diff = execSync(`git diff ${opts.base}...${opts.head}`, { encoding: "utf-8" });
+    
+    if (!diff.trim()) {
+      console.log("No changes to review");
+      return;
+    }
+
+    const analyzer = new AIAnalyzer({ model: opts.model });
+    
+    console.log(`🔍 Reviewing diff ${opts.base}...${opts.head}...`);
+    
+    try {
+      const review = await analyzer.reviewCode(diff);
+      
+      console.log("\n=== Code Review ===\n");
+      console.log(`Ready to merge: ${review.readyToMerge ? "✅ YES" : "❌ NO"}`);
+      
+      if (review.mergeBlockers.length > 0) {
+        console.log("\n🚫 Merge Blockers:");
+        for (const blocker of review.mergeBlockers) {
+          console.log(`   - ${blocker}`);
+        }
+      }
+      
+      console.log(`\n📋 Issues (${review.issues.length}):`);
+      for (const issue of review.issues) {
+        const icon = issue.severity === "critical" ? "🔴" : 
+                     issue.severity === "high" ? "🟠" :
+                     issue.severity === "medium" ? "🟡" : "⚪";
+        console.log(`   ${icon} [${issue.category}] ${issue.file}${issue.line ? `:${issue.line}` : ""}`);
+        console.log(`      ${issue.description}`);
+        if (issue.suggestedFix) {
+          console.log(`      💡 ${issue.suggestedFix}`);
+        }
+      }
+      
+      console.log(`\n💡 Improvements (${review.improvements.length}):`);
+      for (const imp of review.improvements) {
+        console.log(`   [${imp.effort}] ${imp.area}: ${imp.suggestion}`);
+      }
+      
+      console.log("\n📝 Overall Assessment:");
+      console.log(`   ${review.overallAssessment}`);
+    } catch (err) {
+      console.error("❌ Review failed:", err);
+      process.exit(1);
+    }
   });
 
 program.parse();

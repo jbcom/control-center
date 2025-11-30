@@ -65,8 +65,12 @@ export class Fleet {
         timeout: config.timeout,
       });
       this.useDirectApi = true;
-    } catch {
+    } catch (err) {
       // API key not available, fall back to MCP
+      // Log for debugging but don't fail - MCP fallback is fine
+      if (process.env.DEBUG) {
+        console.warn(`[Fleet] CursorAPI init failed, using MCP fallback: ${err instanceof Error ? err.message : String(err)}`);
+      }
       this.api = null;
       this.useDirectApi = false;
     }

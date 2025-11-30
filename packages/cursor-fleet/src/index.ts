@@ -49,6 +49,13 @@ export {
   type SplitOptions, 
   type SplitResult 
 } from "./conversation-splitter.js";
+export {
+  AIAnalyzer,
+  analyzeAndReport,
+  type TaskAnalysis,
+  type CodeReview,
+  type AnalyzerOptions,
+} from "./ai-analyzer.js";
 export type {
   Agent,
   AgentStatus,
