@@ -1549,6 +1549,49 @@ gh workflow run "Sync Packages to Public Repos" --repo jbcom/jbcom-control-cente
 
 # Development Environment Setup Guide for Agents
 
+## 🚨 CRITICAL: Tool Usage Rules
+
+### Python Tools: Use `uvx`
+
+**NEVER assume Python packages are available. Use `uvx` to run tools in isolated environments.**
+
+```bash
+# ❌ WRONG - Will fail with ModuleNotFoundError
+python -c "import yaml; ..."
+
+# ✅ CORRECT - Use uvx
+uvx yamllint file.yml
+uvx ruff check .
+uvx pre-commit run --files path/to/file.yml
+```
+
+### Node.js Tools: Global Install or npx
+
+**Ruler is a GLOBAL npm package. Run it directly as `ruler`, not via pnpm/npx.**
+
+```bash
+# ✅ CORRECT - ruler is globally installed
+ruler apply
+
+# ❌ WRONG - Don't use pnpm dlx or npx for ruler
+pnpm dlx @intellectronica/ruler apply
+npx @intellectronica/ruler apply
+
+# ❌ WRONG - Don't add ruler to package.json
+# It's a global tool, not a project dependency
+```
+
+### Validation: Use pre-commit
+
+```bash
+# ✅ CORRECT - Validate files with pre-commit
+uvx pre-commit run --files .github/workflows/ci.yml
+uvx pre-commit run yamllint --files .github/workflows/ci.yml
+uvx pre-commit run --all-files
+```
+
+---
+
 ## Overview
 
 This workspace can run in **TWO DIFFERENT ENVIRONMENTS**:
