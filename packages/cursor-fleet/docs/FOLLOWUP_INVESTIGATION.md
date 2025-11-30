@@ -1,6 +1,6 @@
 # Investigation: Cursor API Followup Delivery Reliability
 
-**Issue:** [bug(fleet): followups between agents not reliably delivered](https://github.com/jbcom/jbcom-control-center/issues/XXX)
+**Issue:** [bug(fleet): followups between agents not reliably delivered](https://github.com/jbcom/jbcom-control-center/issues/274)
 
 **Date:** 2025-11-30
 
