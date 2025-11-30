@@ -1,6 +1,8 @@
 {
   "predecessorId": "bc-3248f18e-cea4-41c1-9d39-20c58077309d",
   "predecessorName": "Autonomous agent session management",
+  "predecessorPr": 272,
+  "predecessorBranch": "handoff/bc-3248f18e-to-bc-c34f7797",
   "repo": "jbcom/jbcom-control-center",
   "handoffTime": "2025-11-30T05:55:00.000Z",
   "completedWork": [
@@ -29,7 +31,7 @@
       "branch": "cursor/review-and-rebuild-vendor-connectors-and-terraform-bridge-b2a9"
     }
   ],
-  "keyDecisions": [
+  "decisions": [
     "All CalVer references removed, using SemVer via python-semantic-release",
     "ai-triage package uses AI SDK v5 with Anthropic tools",
     "Security hardening: validatePath() and sanitizeFilename() utilities",
