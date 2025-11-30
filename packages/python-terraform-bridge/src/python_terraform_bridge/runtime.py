@@ -13,10 +13,11 @@ from __future__ import annotations
 
 import base64
 import json
+import secrets
 import sys
 from typing import TYPE_CHECKING, Any
 
-from directed_inputs_class import DirectedInputsClass  # noqa: TC002 - needed at runtime
+from directed_inputs_class import DirectedInputsClass
 from extended_data_types import get_available_methods
 from lifecyclelogging import Logging
 
@@ -43,8 +44,8 @@ class TerraformRuntime:
 
     def __init__(
         self,
-        data_source_class: type[DirectedInputsClass],
-        null_resource_class: type[DirectedInputsClass] | None = None,
+        data_source_class: type[Any],
+        null_resource_class: type[Any] | None = None,
         logging: Logging | None = None,
     ) -> None:
         """Initialize the runtime.
@@ -99,17 +100,18 @@ class TerraformRuntime:
             Method result.
         """
         if method_name in self._data_source_methods:
-            instance = self.data_source_class(
-                to_console=not to_stdout,
-                to_file=True,
+            instance = self._instantiate_target(
+                self.data_source_class,
                 from_stdin=from_stdin,
-                logging=self.logging,
+                to_stdout=to_stdout,
+                resource_type="data_source",
             )
         elif method_name in self._null_resource_methods and self.null_resource_class:
-            instance = self.null_resource_class(
-                to_console=True,
-                to_file=True,
-                logging=self.logging,
+            instance = self._instantiate_target(
+                self.null_resource_class,
+                from_stdin=from_stdin,
+                to_stdout=to_stdout,
+                resource_type="null_resource",
             )
         else:
             available = list(self._data_source_methods.keys()) + list(
@@ -180,9 +182,8 @@ class TerraformRuntime:
         try:
             self.invoke(method_name, from_stdin=True, to_stdout=True)
         except Exception as e:
-            self.logger.error(f"Method {method_name} failed: {e}", exc_info=True)
-            # Output error in Terraform-compatible format
-            print(json.dumps({"error": str(e)}))
+            error_id = self._handle_exception(method_name, e)
+            print(json.dumps(self._format_public_error(error_id)))
             sys.exit(1)
 
     def _print_help(self) -> None:
@@ -207,11 +208,68 @@ class TerraformRuntime:
 
         print(help_txt)
 
+    def _instantiate_target(
+        self,
+        target_class: type[Any],
+        *,
+        from_stdin: bool,
+        to_stdout: bool,
+        resource_type: str,
+    ) -> Any:
+        """Instantiate either a legacy DirectedInputsClass or decorator-based class."""
+
+        if issubclass(target_class, DirectedInputsClass):
+            return target_class(
+                to_console=not to_stdout,
+                to_file=True,
+                from_stdin=from_stdin,
+                logging=self.logging,
+            )
+
+        if getattr(target_class, "__directed_inputs_enabled__", False):
+            return target_class(
+                _directed_inputs_config={"from_stdin": from_stdin},
+                _directed_inputs_runtime_logging=self.logging,
+                _directed_inputs_runtime_settings={
+                    "to_console": not to_stdout,
+                    "to_file": True,
+                    "resource_type": resource_type,
+                },
+            )
+
+        raise TypeError(
+            f"{target_class.__name__} must inherit from DirectedInputsClass "
+            "or be decorated with @directed_inputs"
+        )
+
+    def _handle_exception(self, method_name: str, error: Exception) -> str:
+        """Log exceptions and return a public-safe error reference."""
+
+        error_id = secrets.token_hex(8)
+        self.logger.error(
+            "Method %s failed (error_id=%s): %s",
+            method_name,
+            error_id,
+            error,
+            exc_info=True,
+        )
+        return error_id
+
+    @staticmethod
+    def _format_public_error(error_id: str) -> dict[str, str]:
+        """Return sanitized error payload suitable for Terraform consumers."""
+
+        return {
+            "error": "Terraform bridge execution failed. "
+            "Refer to logs with the provided reference.",
+            "reference": error_id,
+        }
+
 
 def invoke_method_with_kwargs(
-    data_source_class: type[DirectedInputsClass],
+    data_source_class: type[Any],
     method_name: str,
-    null_resource_class: type[DirectedInputsClass] | None = None,
+    null_resource_class: type[Any] | None = None,
     **kwargs: Any,
 ) -> Any:
     """Invoke a method with explicit kwargs (for Lambda/programmatic use).
@@ -239,8 +297,8 @@ def invoke_method_with_kwargs(
 
 
 def lambda_handler_factory(
-    data_source_class: type[DirectedInputsClass],
-    null_resource_class: type[DirectedInputsClass] | None = None,
+    data_source_class: type[Any],
+    null_resource_class: type[Any] | None = None,
 ) -> Callable[[dict[str, Any], Any], dict[str, Any]]:
     """Create an AWS Lambda handler for Terraform bridge methods.
 
@@ -275,7 +333,7 @@ def lambda_handler_factory(
         )
         logger = logging.logger
 
-        logger.info(f"Lambda invoked with event: {json.dumps(event, default=str)}")
+        logger.info("Lambda invoked", extra={"keys": sorted(event.keys())})
 
         try:
             method_name = event.get("method")
@@ -291,7 +349,7 @@ def lambda_handler_factory(
                 }
 
             kwargs = event.get("kwargs", {})
-            logger.info(f"Invoking {method_name} with kwargs: {kwargs}")
+            logger.info("Invoking %s with %d kwargs keys", method_name, len(kwargs))
 
             result = runtime.invoke(
                 method_name,
@@ -306,10 +364,10 @@ def lambda_handler_factory(
             }
 
         except Exception as e:
-            logger.error(f"Lambda execution failed: {e}", exc_info=True)
+            error_id = runtime._handle_exception(method_name or "unknown", e)
             return {
                 "statusCode": 500,
-                "body": json.dumps({"error": str(e), "type": type(e).__name__}),
+                "body": json.dumps(TerraformRuntime._format_public_error(error_id)),
             }
 
     return handler
