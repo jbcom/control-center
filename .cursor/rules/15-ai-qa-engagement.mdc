@@ -16,50 +16,41 @@ globs: ["**/*"]
 
 ## How to Request Review
 
-### Comment-Triggered Reviewers
-Post these commands as PR comments:
+Post these commands as PR comments to engage AI reviewers:
+
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
-@copilot review      # GitHub Copilot (or enable auto-review in settings)
-@cursor review       # Cursor AI
+@copilot review      # GitHub Copilot
+@cursor review       # Cursor AI review
 @coderabbitai review # CodeRabbit AI review
 ```
 
-### Automatic Reviewers (via repo settings)
-These can also review automatically when enabled:
-- **Copilot** - Enable in Settings > Code security and analysis
-- **Cursor Bugbot** - Automatic on all PRs
-
-All of the above are considered valid **QA agents** for this protocol.
-
 ### Focused Reviews
 
-Request specific review types (syntax varies by tool):
+Request specific review types:
 ```
-/gemini review security           # Gemini: append focus area
-/q review performance             # Amazon Q: append focus area
-@copilot focus on test coverage   # Copilot: use natural language
-@coderabbitai review security     # CodeRabbit: append focus area
+/gemini review security     # Security-focused review
+/q review performance       # Performance analysis
+@copilot review tests       # Test coverage review
+@cursor review architecture # Architecture review
 ```
 
-## Scope: When This Protocol Applies
+## When to Request Review
 
 ### ALWAYS Request Review For:
-- New features
+- Any code changes (not just docs)
 - Bug fixes (even "simple" ones)
+- New features
 - Refactors of any size
 - Dependency updates that affect code
 - Security-related changes
 - API changes
-- Infrastructure or configuration changes that affect runtime behavior
 
-### Review NOT Required (explicit exceptions):
-- **Pure documentation changes** (README, comments only) that don't affect code behavior
-- **Whitespace/formatting-only** changes with no functional impact
-- **Automated Dependabot bumps** with no code changes
-
-**Note:** When in doubt, request review. It's better to over-review than under-review.
+### May Skip Review For:
+- Pure documentation changes (README, comments only)
+- Whitespace/formatting-only changes
+- Automated dependency bumps (Dependabot) with no code changes
 
 ## Addressing Feedback
 
@@ -67,8 +58,8 @@ Request specific review types (syntax varies by tool):
 
 1. **Read ALL feedback** - Every comment from every AI reviewer
 2. **Categorize by severity**:
-   - 🛑 **Critical/High** - MUST be resolved before merge (fix the issue OR document why it's a false positive with evidence)
-   - ⚠️ **Medium** - Should be resolved or provide strong technical justification
+   - 🛑 **Critical/High** - MUST fix before merge
+   - ⚠️ **Medium** - Should fix or provide strong justification
    - 💡 **Low/Info** - Consider, document if skipping
 3. **Fix or respond** to EVERY item:
    - Fix the issue, OR
@@ -88,15 +79,7 @@ Request specific review types (syntax varies by tool):
 - Fixing the issue
 - "This is intentional because [technical reason]"
 - "False positive - [explanation with evidence]"
-- "Out of scope for this PR - created issue #X" (Note: NOT valid for critical/high severity items)
-
-## Thread Resolution
-
-A review thread is considered **resolved** when:
-1. The PR author has implemented the suggested fix, OR
-2. The PR author has responded with a clear technical justification for not implementing the suggestion
-
-Threads do NOT need to be manually marked 'Resolved' in the GitHub UI - a documented response satisfies the requirement.
+- "Out of scope for this PR - created issue #X"
 
 ## PR Owner Responsibilities
 
@@ -107,93 +90,50 @@ As PR owner, you MUST:
 - Not merge until feedback is resolved
 - Document your merge decision
 
-## Cross-Agent Collaboration & Conflict Resolution
+## Cross-Agent Collaboration
 
-### When Taking Over Another Agent's PR:
+When taking over another agent's PR:
 1. Request fresh AI review
 2. Don't dismiss previous agent's decisions without justification
 3. Tag original agent if making significant changes
 4. Maintain the feedback resolution record
-5. If conflicts arise, escalate to team lead or create discussion issue
-
-### Resolving AI-to-AI Conflicts:
-When AI reviewers disagree with each other:
-1. **Evaluate both positions** - Consider the technical merit of each
-2. **Apply project conventions** - Use existing codebase patterns as tiebreaker
-3. **Document your decision** - Explain which position you chose and why
-4. **Prefer security/correctness** - When in doubt, choose the safer option
-5. **Escalate if needed** - Tag human reviewer for genuinely ambiguous cases
 
 ## Merge Checklist
 
 Before merging ANY PR:
 
 - [ ] CI is green (all checks pass)
-- [ ] At least ONE AI review requested and completed (`/gemini review`, `/q review`, etc.)
-- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
-- [ ] ALL medium severity items resolved or justified with technical reasoning
-- [ ] Responses posted to ALL feedback items (no ignored comments)
-- [ ] All review threads addressed (response posted to each)
-- [ ] Conflicts between AI reviewers resolved and documented
+- [ ] At least ONE AI review requested (`/gemini review`, `/q review`, etc.)
+- [ ] AI review completed (not pending)
+- [ ] ALL critical/high severity items fixed
+- [ ] ALL medium severity items fixed or justified
+- [ ] Responses posted to ALL feedback items
+- [ ] No unresolved review threads
 
 ## Example Workflow
 
 ```bash
-# 1. Create PR with conventional commit scope
-# Scopes: edt (extended-data-types), dic (directed-inputs-class),
-#         connectors (vendor-connectors), bridge (python-terraform-bridge)
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve API validation bug"
+# 1. Create PR
+gh pr create --title "fix: resolve API bug"
 
 # 2. Request AI reviews (post as PR comment)
 # /gemini review
 # /q review
 
-# 3. Wait for reviews to complete (check PR page)
+# 3. Wait for reviews to complete
 
 # 4. Address each piece of feedback
-# - Fix code issues raised
-# - Reply to every comment with fix or justification
+# - Fix code issues
+# - Reply to comments
 
-# 5. If significant changes made, re-request review
+# 5. If significant changes, re-request review
 # /gemini review
 
-# 6. Verify merge checklist complete
-
-# 7. Only after ALL feedback addressed:
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
+# 6. Only after ALL feedback addressed:
+gh pr merge --squash
 ```
-
-## Repository Settings for Automatic AI Review
-
-To reduce manual effort, configure these GitHub repo settings:
-
-### Enable Copilot Code Review (Recommended)
-1. Go to **Settings > Code security and analysis**
-2. Enable **Copilot code review**
-3. Copilot will automatically review all PRs
-
-### Rulesets for Required AI Reviews
-1. Go to **Settings > Rules > Rulesets**
-2. Create ruleset requiring specific status checks
-3. Add AI reviewer checks (e.g., `Cursor Bugbot`, `amazon-q-developer`)
-
-### CODEOWNERS (Optional)
-Add AI bot accounts to `.github/CODEOWNERS` if they have repo access:
-```
-# Auto-request AI reviews
-* @copilot-pull-request-reviewer
-```
-
-**Note:** Some AI reviewers (Gemini, Amazon Q) are triggered by comments only and cannot be auto-assigned.
 
 ## Enforcement
 
-This is a **MANDATORY** protocol enforced as follows:
-
-1. **Pre-merge gate** - Do not use `--admin` to bypass without AI review completion
-2. **Detection** - PRs without AI review comments are flagged in PR audit
-3. **Audit trail** - All feedback and responses are recorded in PR history
-4. **Revert policy** - PRs merged without proper review will be flagged for review by the team lead and may be reverted if they contain unaddressed critical issues
-5. **Continuous improvement** - Report AI reviewer false positives by creating an issue with label `ai-review-feedback`
-
-The goal is **quality**, not speed. A well-reviewed PR that takes longer is better than a rushed merge that causes production issues.
+This is a MANDATORY protocol. PRs merged without proper AI review engagement
+may be reverted. The goal is quality, not speed.

@@ -126,56 +126,31 @@ The `.github/workflows/ci.yml` has these jobs:
 
 ### How to Request Review
 
-**Comment-triggered** (post as PR comment):
+Post these commands as PR comments:
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
 @copilot review      # GitHub Copilot
-@cursor review       # Cursor AI
+@cursor review       # Cursor AI review
 @coderabbitai review # CodeRabbit AI review
 ```
-
-**Automatic** (via repo settings):
-- Copilot - Enable in Settings > Code security and analysis
-- Cursor Bugbot - Automatic on all PRs
-
-### Scope
-- **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
-- **Not Required**: Pure documentation changes (README, comments only), whitespace/formatting-only, automated Dependabot bumps with no code changes
 
 ### Merge Checklist
 
 Before merging ANY PR:
-- [ ] CI is green (all checks pass)
-- [ ] At least ONE AI review requested and completed
-- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
-- [ ] ALL medium severity items resolved or justified with technical reasoning
-- [ ] Responses posted to ALL feedback items
-- [ ] All review threads addressed
-- [ ] AI-to-AI conflicts resolved and documented
+- [ ] CI is green
+- [ ] At least ONE AI review requested
+- [ ] AI review completed (not pending)
+- [ ] ALL critical/high severity items fixed
+- [ ] ALL feedback items responded to
+- [ ] No unresolved threads
 
-### Addressing Feedback by Severity
+### Addressing Feedback
 
-- 🛑 **Critical/High** - MUST be resolved before merge (fix OR document false positive)
-- ⚠️ **Medium** - Should be resolved or provide strong justification
-- 💡 **Low/Info** - Consider, document if skipping
-
-Actions:
 1. **Fix** the issue, OR
 2. **Reply** with technical justification for disagreeing
 3. **NEVER** ignore or dismiss without response
 4. **Re-request** review after significant changes
-
-### Resolving AI Conflicts
-When AI reviewers disagree:
-- Evaluate both positions for technical merit
-- Apply project conventions as tiebreaker
-- Document your decision and reasoning
-- Prefer security/correctness when in doubt
-- Escalate to team lead if genuinely ambiguous
-
-### Automatic AI Review (Repo Settings)
-Enable in **Settings > Code security and analysis > Copilot code review** for automatic Copilot reviews on all PRs. See `.cursor/rules/15-ai-qa-engagement.mdc` for full setup guide
 
 ## 📝 Making Changes
 
