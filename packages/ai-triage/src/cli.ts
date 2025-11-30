@@ -423,21 +423,18 @@ mcp.command("status")
   .action(async () => {
     console.log("🔍 Checking MCP servers...\n");
 
-    const checks = [
-      { name: "Cursor Agent MCP", env: "COPILOT_MCP_CURSOR_API_KEY or CURSOR_API_KEY" },
-      { name: "GitHub MCP", env: "COPILOT_MCP_GITHUB_TOKEN or GITHUB_JBCOM_TOKEN or GITHUB_TOKEN" },
-      { name: "Context7 MCP", env: "COPILOT_MCP_CONTEXT7_API_KEY or CONTEXT7_API_KEY (optional)" },
+    const checks: Array<{ name: string; envVars: string[]; optional?: boolean }> = [
+      { name: "Cursor Agent MCP", envVars: ["COPILOT_MCP_CURSOR_API_KEY", "CURSOR_API_KEY"] },
+      { name: "GitHub MCP", envVars: ["COPILOT_MCP_GITHUB_TOKEN", "GITHUB_JBCOM_TOKEN", "GITHUB_TOKEN"] },
+      { name: "Context7 MCP", envVars: ["COPILOT_MCP_CONTEXT7_API_KEY", "CONTEXT7_API_KEY"], optional: true },
     ];
 
     for (const check of checks) {
-      // Strip "(optional)" marker from env var names for lookup
-      const hasEnv = check.env.split(" or ").some(e => {
-        const envName = e.trim().replace(/ \(optional\)$/, '');
-        return process.env[envName];
-      });
+      const hasEnv = check.envVars.some(envVar => process.env[envVar]);
       const status = hasEnv ? "✅" : "⚠️";
+      const envDisplay = check.envVars.join(" or ") + (check.optional ? " (optional)" : "");
       console.log(`${status} ${check.name}`);
-      console.log(`   Environment: ${check.env} ${hasEnv ? "(set)" : "(not set)"}`);
+      console.log(`   Environment: ${envDisplay} ${hasEnv ? "(set)" : "(not set)"}`);
     }
 
     console.log("\n🔌 Testing connections...\n");
