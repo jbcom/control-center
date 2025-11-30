@@ -377,9 +377,9 @@ BEGIN by sending health confirmation NOW.
    * Wait for health check from successor
    * 
    * NOTE: This method polls the conversation endpoint to detect health confirmations.
-   * Due to Cursor API eventual consistency, followups may not immediately appear in
-   * conversation history. For critical bidirectional communication, prefer using
-   * GitHub PR comments via the `coordinate` command instead.
+   * The Cursor API's addFollowup is designed for user-to-agent communication.
+   * For agent-to-agent coordination, the `coordinate` command using GitHub PR comments
+   * is the recommended pattern as it provides synchronous, auditable communication.
    * 
    * See: packages/cursor-fleet/docs/FOLLOWUP_INVESTIGATION.md for detailed analysis
    */

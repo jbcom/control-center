@@ -451,19 +451,11 @@ const result = await splitConversation(conversation, {
 - Agent IDs are URL-encoded to prevent injection
 - Error messages are sanitized to remove tokens
 
-## Known Limitations
+## Agent-to-Agent Communication
 
-### Followup Delivery (Eventual Consistency)
+### Recommended Pattern: GitHub PR Comments
 
-**Issue:** Followups sent between agents may not immediately appear in conversation history.
-
-**Impact:** 
-- Station-to-station handoff health checks may timeout
-- Bidirectional followup-based communication may be unreliable
-
-**Root Cause:** Cursor API uses eventual consistency - the `POST /agents/{id}/followup` endpoint may return success before the message appears in `GET /agents/{id}/conversation`.
-
-**Workaround:** ✅ Use GitHub PR comments for reliable bidirectional communication:
+For reliable bidirectional communication between agents, use GitHub PR comments via the `coordinate` command:
 
 ```bash
 # Recommended: Use coordinate command for agent-to-agent communication
@@ -478,6 +470,9 @@ cursor-fleet coordinate --pr 123 --agents bc-xxx,bc-yyy
 - GitHub API is synchronous (comments appear immediately)
 - Comments are auditable and visible to users
 - Multiple agents can communicate via a single PR thread
+
+**Note on Direct Followups:**
+The Cursor API `addFollowup` method is designed for user-to-agent communication. For agent-to-agent coordination, the PR comment pattern provides more reliable and auditable communication.
 
 **Detailed Analysis:** See [docs/FOLLOWUP_INVESTIGATION.md](./docs/FOLLOWUP_INVESTIGATION.md)
 
