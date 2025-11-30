@@ -20,6 +20,10 @@ export interface AgentSource {
 export interface AgentTarget {
   branchName?: string;
   url?: string;
+  prUrl?: string;
+  autoCreatePr?: boolean;
+  openAsCursorGithubApp?: boolean;
+  skipReviewerRequest?: boolean;
 }
 
 export interface Agent {

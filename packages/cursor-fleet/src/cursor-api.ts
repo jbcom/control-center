@@ -171,10 +171,10 @@ export class CursorAPI {
   }
 
   /**
-   * List all background agents
+   * List all agents
    */
   async listAgents(): Promise<FleetResult<Agent[]>> {
-    return this.request<Agent[]>("/background-agents");
+    return this.request<Agent[]>("/agents");
   }
 
   /**
@@ -184,7 +184,7 @@ export class CursorAPI {
   async getAgentStatus(agentId: string): Promise<FleetResult<Agent>> {
     validateAgentId(agentId);
     const encodedId = encodeURIComponent(agentId);
-    return this.request<Agent>(`/background-agents/${encodedId}`);
+    return this.request<Agent>(`/agents/${encodedId}`);
   }
 
   /**
@@ -194,11 +194,11 @@ export class CursorAPI {
   async getAgentConversation(agentId: string): Promise<FleetResult<Conversation>> {
     validateAgentId(agentId);
     const encodedId = encodeURIComponent(agentId);
-    return this.request<Conversation>(`/background-agents/${encodedId}/conversation`);
+    return this.request<Conversation>(`/agents/${encodedId}/conversation`);
   }
 
   /**
-   * Launch a new background agent
+   * Launch a new agent
    * @throws Error if prompt or repository are invalid
    */
   async launchAgent(options: {
@@ -214,7 +214,7 @@ export class CursorAPI {
       }
     }
     
-    return this.request<Agent>("/background-agents", "POST", options);
+    return this.request<Agent>("/agents", "POST", options);
   }
 
   /**
@@ -225,7 +225,7 @@ export class CursorAPI {
     validateAgentId(agentId);
     validatePromptText(prompt.text);
     const encodedId = encodeURIComponent(agentId);
-    return this.request<void>(`/background-agents/${encodedId}/followup`, "POST", { prompt });
+    return this.request<void>(`/agents/${encodedId}/followup`, "POST", { prompt });
   }
 
   /**

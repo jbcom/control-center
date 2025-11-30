@@ -668,6 +668,71 @@ program
   });
 
 // ============================================
+// self - Identify current agent
+// ============================================
+program
+  .command("self")
+  .description("Identify the current running agent (yourself)")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    const { execSync } = await import("node:child_process");
+    
+    // Get current branch
+    const currentBranch = execSync("git branch --show-current", { encoding: "utf-8" }).trim();
+    
+    // List all running agents
+    const result = await fleet.list();
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      process.exit(1);
+    }
+
+    // Handle both array and {agents: []} response formats
+    const agents = Array.isArray(result.data) 
+      ? result.data 
+      : (result.data as any)?.agents ?? [];
+    
+    // Find agent matching current branch
+    const runningAgents = agents.filter((a: Agent) => a.status === "RUNNING");
+    const self = runningAgents.find((a: Agent) => 
+      a.target?.branchName === currentBranch ||
+      currentBranch.includes(a.id.slice(0, 8))
+    );
+
+    // Also check by repo match if branch doesn't match
+    const possibleSelf = self ?? runningAgents.find((a: Agent) =>
+      a.source?.repository?.includes("jbcom-control-center")
+    );
+
+    if (opts.json) {
+      console.log(JSON.stringify({ 
+        currentBranch,
+        self: possibleSelf ?? null,
+        allRunning: runningAgents 
+      }, null, 2));
+    } else {
+      console.log("=== Self Identification ===\n");
+      console.log(`Current Branch: ${currentBranch}`);
+      
+      if (possibleSelf) {
+        console.log(`\n✅ Found matching agent:`);
+        console.log(`   ID:     ${possibleSelf.id}`);
+        console.log(`   Status: ${possibleSelf.status}`);
+        console.log(`   Name:   ${possibleSelf.name}`);
+        console.log(`   Branch: ${possibleSelf.target?.branchName}`);
+        console.log(`   PR:     ${possibleSelf.target?.prUrl ?? possibleSelf.target?.url ?? "N/A"}`);
+      } else {
+        console.log("\n⚠️ Could not identify current agent");
+        console.log(`   Running agents: ${runningAgents.length}`);
+        for (const a of runningAgents) {
+          console.log(`   - ${a.id}: ${a.target?.branchName}`);
+        }
+      }
+    }
+  });
+
+// ============================================
 // handoff - Station-to-station handoff
 // ============================================
 const handoffCmd = program
