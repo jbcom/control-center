@@ -137,7 +137,7 @@ Post these commands as PR comments (all are valid QA agents):
 
 ### Scope
 - **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
-- **Optional**: Pure docs (README only), whitespace-only, Dependabot with no code changes
+- **Optional**: Pure documentation changes (README, comments only), whitespace/formatting-only, Dependabot with no code changes
 
 ### Merge Checklist
 
