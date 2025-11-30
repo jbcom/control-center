@@ -195,6 +195,6 @@ This is a **MANDATORY** protocol enforced as follows:
 2. **Detection** - PRs without AI review comments are flagged in PR audit
 3. **Audit trail** - All feedback and responses are recorded in PR history
 4. **Revert policy** - PRs merged without proper review will be flagged for review by the team lead and may be reverted if they contain unaddressed critical issues
-5. **Continuous improvement** - False positives from AI reviewers should be reported
+5. **Continuous improvement** - Report AI reviewer false positives by creating an issue with label `ai-review-feedback`
 
 The goal is **quality**, not speed. A well-reviewed PR that takes longer is better than a rushed merge that causes production issues.
