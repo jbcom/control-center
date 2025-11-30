@@ -40,7 +40,7 @@ jobs:
     name: Sync ${{ matrix.package }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
 
     strategy:
       fail-fast: false
