@@ -134,8 +134,10 @@ Before merging ANY PR:
 ## Example Workflow
 
 ```bash
-# 1. Create PR with conventional commit scope (use project-specific scopes)
-gh pr create --title "fix(dic): resolve API validation bug"
+# 1. Create PR with conventional commit scope
+# Scopes: edt (extended-data-types), dic (directed-inputs-class),
+#         connectors (vendor-connectors), bridge (python-terraform-bridge)
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve API validation bug"
 
 # 2. Request AI reviews (post as PR comment)
 # /gemini review
@@ -153,7 +155,7 @@ gh pr create --title "fix(dic): resolve API validation bug"
 # 6. Verify merge checklist complete
 
 # 7. Only after ALL feedback addressed:
-gh pr merge --squash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
 ```
 
 ## Enforcement
