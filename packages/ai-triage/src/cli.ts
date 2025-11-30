@@ -426,11 +426,15 @@ mcp.command("status")
     const checks = [
       { name: "Cursor Agent MCP", env: "COPILOT_MCP_CURSOR_API_KEY or CURSOR_API_KEY" },
       { name: "GitHub MCP", env: "COPILOT_MCP_GITHUB_TOKEN or GITHUB_JBCOM_TOKEN or GITHUB_TOKEN" },
-      { name: "Context7 MCP", env: "CONTEXT7_API_KEY (optional)" },
+      { name: "Context7 MCP", env: "COPILOT_MCP_CONTEXT7_API_KEY or CONTEXT7_API_KEY (optional)" },
     ];
 
     for (const check of checks) {
-      const hasEnv = check.env.split(" or ").some(e => process.env[e.trim()]);
+      // Strip "(optional)" marker from env var names for lookup
+      const hasEnv = check.env.split(" or ").some(e => {
+        const envName = e.trim().replace(/ \(optional\)$/, '');
+        return process.env[envName];
+      });
       const status = hasEnv ? "✅" : "⚠️";
       console.log(`${status} ${check.name}`);
       console.log(`   Environment: ${check.env} ${hasEnv ? "(set)" : "(not set)"}`);
