@@ -276,7 +276,7 @@ jobs:
         run: |
           PKG="packages/${{ matrix.package }}"
           mkdir -p "$PKG/docs/_build"
-          
+
           if [ -f "$PKG/docs/conf.py" ]; then
             cd "$PKG" && uv sync --extra docs || uv sync
             uv run sphinx-build -b html docs docs/_build || true
