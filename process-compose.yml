@@ -19,23 +19,30 @@ processes:
     log_location: ./logs/conport.log
 
   # =============================================================================
-  # CURSOR BACKGROUND AGENT MANAGEMENT (via cursor-fleet direct API)
+  # CURSOR BACKGROUND AGENT MANAGEMENT
   # =============================================================================
   # 
-  # cursor-fleet now uses direct API calls instead of MCP proxy.
-  # Use the CLI commands directly:
-  #   node packages/cursor-fleet/dist/cli.js list
-  #   node packages/cursor-fleet/dist/cli.js replay <agent-id> -o <output-dir>
+  # cursor-fleet provides direct API access to Cursor Background Agents.
+  # Available CLI commands:
+  #   list, status, conversation, replay, split, spawn, followup, summary
+  #   watch, monitor, coordinate
   #
-  # The cursor-agent-manager is DEPRECATED - use direct API instead.
-  # Keeping this commented for reference:
-  #
-  # cursor-agent-manager:
-  #   command: "mcp-proxy --port 3011 -- cursor-background-agent-mcp-server"
-  #   availability:
-  #     restart: "always"
-  #   environment:
-  #     - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+  # For MCP-based access (if needed by other tools):
+  cursor-agent-mcp:
+    command: "mcp-proxy --port 3011 -- npx -y cursor-background-agent-mcp-server"
+    availability:
+      restart: "always"
+      backoff_seconds: 10
+    log_location: ./logs/cursor-agent-mcp.log
+    environment:
+      - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+    readiness_probe:
+      http_get:
+        host: localhost
+        port: 3011
+        path: /mcp
+      initial_delay_seconds: 10
+      period_seconds: 15
 
   # =============================================================================
   # AWS MCP SERVERS (via mcp-proxy for background agent CLI access)
@@ -223,30 +230,40 @@ processes:
       period_seconds: 10
 
   # =============================================================================
-  # FLEET MONITORING (cursor-fleet status watcher)
+  # FLEET COORDINATION (bidirectional via PR comments)
   # =============================================================================
   # 
-  # Periodically checks status of running agents.
-  # Use for long-running fleet coordination sessions.
+  # Runs the coordinator that:
+  # - OUTBOUND: Checks agent status, posts updates to PR
+  # - INBOUND: Polls PR comments for @cursor commands
   #
-  # For ad-hoc usage, prefer CLI directly:
-  #   node packages/cursor-fleet/dist/cli.js list
-  #   node packages/cursor-fleet/dist/cli.js replay <agent-id> -o <dir>
-  #   node packages/cursor-fleet/dist/cli.js followup <agent-id> "message"
+  # Set environment variables before starting:
+  #   COORDINATION_PR=<pr-number>
+  #   AGENT_IDS=<comma-separated-ids> (optional, will auto-discover if empty)
 
+  fleet-coordinator:
+    command: "node /workspace/packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR} --repo jbcom/jbcom-control-center --agents ${AGENT_IDS:-}"
+    availability:
+      restart: "always"
+      backoff_seconds: 30
+    log_location: ./logs/fleet-coordinator.log
+    environment:
+      - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+      - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
+      - "COORDINATION_PR=${COORDINATION_PR:-0}"
+      - "AGENT_IDS=${AGENT_IDS:-}"
+    disabled: true  # Enable manually when coordination PR is created
+
+  # Fleet watcher - simple status monitoring (always-on alternative)
   fleet-watcher:
-    command: |
-      bash -c 'while true; do
-        echo "=== Fleet Status $(date +%H:%M:%S) ==="
-        node /workspace/packages/cursor-fleet/dist/cli.js list 2>/dev/null || echo "Fleet CLI not available"
-        sleep 300
-      done'
+    command: "node /workspace/packages/cursor-fleet/dist/cli.js watch --poll 60000"
     availability:
       restart: "on_failure"
       backoff_seconds: 60
     log_location: ./logs/fleet-watcher.log
     environment:
       - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+    disabled: true  # Enable if you want continuous fleet monitoring
 
   # =============================================================================
   # HEALTH MONITORING

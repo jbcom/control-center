@@ -305,6 +305,66 @@ program
   });
 
 // ============================================
+// watch - Monitor fleet for changes
+// ============================================
+program
+  .command("watch")
+  .description("Watch fleet and report status changes")
+  .option("--poll <ms>", "Poll interval in milliseconds", "30000")
+  .option("--iterations <n>", "Max iterations (default: infinite)")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    await fleet.watch({
+      pollInterval: parseInt(opts.poll, 10),
+      maxIterations: opts.iterations ? parseInt(opts.iterations, 10) : undefined,
+    });
+  });
+
+// ============================================
+// monitor - Monitor specific agents until done
+// ============================================
+program
+  .command("monitor")
+  .description("Monitor specific agents until they complete")
+  .argument("<agent-ids...>", "Agent IDs to monitor")
+  .option("--poll <ms>", "Poll interval in milliseconds", "15000")
+  .option("--timeout <ms>", "Timeout in milliseconds", "3600000")
+  .action(async (agentIds, opts) => {
+    const fleet = new Fleet();
+    const results = await fleet.monitorAgents(agentIds, {
+      pollInterval: parseInt(opts.poll, 10),
+      timeout: parseInt(opts.timeout, 10),
+    });
+    
+    console.log("\n=== Final Status ===\n");
+    for (const [id, agent] of results) {
+      console.log(`${agent.status.padEnd(10)} ${id}`);
+    }
+  });
+
+// ============================================
+// coordinate - Run bidirectional coordination
+// ============================================
+program
+  .command("coordinate")
+  .description("Run bidirectional fleet coordinator via PR comments")
+  .requiredOption("--pr <number>", "Coordination PR number")
+  .requiredOption("--repo <owner/repo>", "Repository (e.g., jbcom/jbcom-control-center)")
+  .option("--agents <ids>", "Comma-separated agent IDs to track")
+  .option("--outbound-interval <ms>", "Outbound check interval", "60000")
+  .option("--inbound-interval <ms>", "Inbound poll interval", "15000")
+  .action(async (opts) => {
+    const fleet = new Fleet();
+    await fleet.coordinate({
+      coordinationPr: parseInt(opts.pr, 10),
+      repo: opts.repo,
+      agentIds: opts.agents ? opts.agents.split(",") : undefined,
+      outboundInterval: parseInt(opts.outboundInterval, 10),
+      inboundInterval: parseInt(opts.inboundInterval, 10),
+    });
+  });
+
+// ============================================
 // Helper: Print analysis
 // ============================================
 function printAnalysis(agent: Agent, analysis: TaskAnalysis, archivePath: string, split: SplitResult): void {
