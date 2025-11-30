@@ -1,82 +1,121 @@
-# GitHub Copilot Specific Configuration
+# GitHub Copilot Agent Configuration
 
-Quick reference for GitHub Copilot when working in this template or managed repositories.
+Comprehensive guide for GitHub Copilot when working in jbcom ecosystem repositories.
 
-## Quick Rules - Read First! 🚨
+## 🚨 CRITICAL: Read First!
+
+### Automatic Issue Handling
+When you receive an issue labeled `copilot`:
+1. **Read the full issue description** carefully
+2. **Check `.ruler/AGENTS.md`** for project rules
+3. **Create a feature branch**: `copilot/issue-{number}-{short-description}`
+4. **Implement with tests** - every feature needs tests
+5. **Run verification**: `ruff check . && pytest`
+6. **Create PR** linking to the issue
 
 ### CalVer Auto-Versioning
 ✅ Version is automatic: `YYYY.MM.BUILD`
-❌ Never suggest: semantic-release, git tags, manual versioning
+❌ **NEVER** suggest: semantic-release, git tags, manual versioning
+❌ **NEVER** modify `__version__` manually
 
 ### Release Process
-✅ Every main push = PyPI release (automatic)
-❌ Never suggest: conditional releases, manual steps
+✅ Every push to main = automatic PyPI release
+❌ **NEVER** suggest: conditional releases, manual steps, changelog updates
 
-### Code Quality
-✅ Type hints required
-✅ Tests for new features
-✅ Ruff for linting/formatting
-❌ Don't add complexity
+## Working with Auto-Generated Issues
+
+Issues created by `cursor-fleet analyze` have this structure:
+```markdown
+## Summary
+[Description of the task]
+
+## Priority
+`HIGH` or `CRITICAL` or `MEDIUM` or `LOW`
+
+## Acceptance Criteria
+- [ ] Implementation complete
+- [ ] Tests added/updated
+- [ ] Documentation updated if needed
+- [ ] CI passes
+```
+
+### Your Workflow for These Issues:
+1. Parse the Summary for requirements
+2. Check Priority - `CRITICAL`/`HIGH` = do first
+3. Complete ALL Acceptance Criteria checkboxes
+4. Reference the issue number in your PR
+
+## Repository Structure
+
+```
+jbcom-control-center/
+├── packages/                    # All Python packages (monorepo)
+│   ├── extended-data-types/     # Foundation library
+│   ├── lifecyclelogging/        # Logging utilities
+│   ├── directed-inputs-class/   # Input validation
+│   ├── vendor-connectors/       # External service connectors
+│   ├── cursor-fleet/            # Agent fleet management (Node.js)
+│   └── python-terraform-bridge/ # Terraform utilities
+├── .ruler/                      # Agent instructions (source of truth)
+├── .github/workflows/           # CI/CD workflows
+└── pyproject.toml               # Workspace configuration
+```
 
 ## Code Patterns
 
-### Prefer Modern Python
+### Python Type Hints (Required)
 ```python
-# ✅ Good - modern type hints
-from collections.abc import Mapping
-def func(data: dict[str, Any]) -> list[str]:
-    pass
+# ✅ CORRECT - Modern type hints
+from collections.abc import Mapping, Sequence
+from typing import Any
 
-# ❌ Avoid - old style
-from typing import Dict, List
-def func(data: Dict[str, Any]) -> List[str]:
-    pass
-```
-
-### Use Pathlib
-```python
-# ✅ Good
-from pathlib import Path
-config_file = Path("config.yaml")
-
-# ❌ Avoid
-import os
-config_file = os.path.join("config.yaml")
-```
-
-### Type Hints
-```python
-# ✅ Good - complete type hints
 def process_data(items: list[dict[str, Any]]) -> dict[str, int]:
     """Process items and return counts."""
     return {"count": len(items)}
 
-# ❌ Avoid - no type hints
-def process_data(items):
-    return {"count": len(items)}
+# ❌ WRONG - Legacy typing
+from typing import Dict, List
+def process_data(items: Dict[str, Any]) -> List[str]:
+    pass
 ```
 
-## Testing Patterns
-
-### Write Clear Tests
+### Use Pathlib (Always)
 ```python
-# ✅ Good - descriptive name, clear assertion
+# ✅ CORRECT
+from pathlib import Path
+config_file = Path("config.yaml")
+if config_file.exists():
+    content = config_file.read_text()
+
+# ❌ WRONG
+import os
+config_file = os.path.join("config.yaml")
+```
+
+### Error Handling
+```python
+# ✅ CORRECT - Specific, helpful errors
+if not config_file.exists():
+    raise FileNotFoundError(
+        f"Config file not found: {config_file}. "
+        f"Create it with: python setup.py init"
+    )
+
+# ❌ WRONG - Vague errors
+raise FileNotFoundError("Config not found")
+```
+
+## Testing Requirements
+
+### Every Feature Needs Tests
+```python
+# ✅ CORRECT - Descriptive name, clear assertion
 def test_process_data_returns_correct_count():
     items = [{"id": 1}, {"id": 2}]
     result = process_data(items)
     assert result["count"] == 2
 
-# ❌ Avoid - vague name, multiple assertions
-def test_stuff():
-    result = process_data([{"id": 1}])
-    assert result
-    assert "count" in result
-    assert result["count"] > 0
-```
-
-### Use Fixtures
-```python
-# ✅ Good - reusable setup
+# ✅ CORRECT - Use fixtures for setup
 @pytest.fixture
 def sample_data():
     return [{"id": i} for i in range(10)]
@@ -86,92 +125,80 @@ def test_with_fixture(sample_data):
     assert result["count"] == 10
 ```
 
-## When Working in Ecosystem
+### Test Edge Cases
+- Empty inputs
+- Invalid inputs (should raise appropriate errors)
+- Boundary conditions
+- Large inputs (if performance matters)
 
-### Using extended-data-types
-If the library depends on extended-data-types, use its utilities:
+## Package Dependencies
+
+### Use extended-data-types Utilities
+Before adding any utility function, check if `extended-data-types` provides it:
 
 ```python
-# ✅ Good - use existing utilities
+# ✅ CORRECT - Use existing utilities
 from extended_data_types import (
-    get_unique_signature,
-    make_raw_data_export_safe,
-    strtobool,
+    strtobool,              # String to boolean
+    strtopath,              # String to Path
+    make_raw_data_export_safe,  # Sanitize data for logging
+    get_unique_signature,   # Generate unique IDs
+    encode_json,            # JSON serialization
+    decode_yaml,            # YAML parsing
 )
 
-# ❌ Avoid - reimplementing
+# ❌ WRONG - Reimplementing existing functionality
 def my_str_to_bool(val):
     return val.lower() in ("true", "yes", "1")
 ```
 
-### Data Sanitization
-Always sanitize before logging/exporting:
+### Dependency Order (for releases)
+1. `extended-data-types` (foundation)
+2. `lifecyclelogging` (depends on #1)
+3. `directed-inputs-class` (depends on #1)
+4. `vendor-connectors` (depends on #1, #2, #3)
 
+## Security Requirements
+
+### Never Log Secrets
 ```python
-# ✅ Good
+# ✅ CORRECT - Sanitize before logging
 from extended_data_types import make_raw_data_export_safe
 safe_data = make_raw_data_export_safe(user_data)
 logger.info(f"Processing: {safe_data}")
 
-# ❌ Avoid - logging raw data
-logger.info(f"Processing: {user_data}")  # might have secrets!
+# ❌ WRONG - May log secrets
+logger.info(f"Processing: {user_data}")
 ```
 
-## Common Tasks
-
-### Adding a New Function
-1. Write the function with type hints
-2. Add docstring (Google style)
-3. Write tests (at least happy path + edge cases)
-4. Update module `__all__` if public API
-5. Run `ruff check` and `pytest`
-
-### Fixing a Bug
-1. Write a test that reproduces the bug
-2. Fix the bug
-3. Verify test passes
-4. Check for similar bugs
-5. Update documentation if needed
-
-### Refactoring
-1. Ensure tests exist and pass
-2. Make changes incrementally
-3. Run tests after each change
-4. Verify type checking still passes
-5. Update docstrings if behavior changed
-
-## Error Messages
-
-### Be Helpful
+### Validate All Inputs
 ```python
-# ✅ Good - clear error with context
-if not config_file.exists():
-    raise FileNotFoundError(
-        f"Config file not found: {config_file}. "
-        f"Create it with: python setup.py init"
-    )
-
-# ❌ Avoid - vague error
-if not config_file.exists():
-    raise FileNotFoundError("Config not found")
+# ✅ CORRECT - Validate before use
+def load_config(filepath: str) -> dict[str, Any]:
+    path = Path(filepath)
+    if not path.is_file():
+        raise ValueError(f"Not a file: {filepath}")
+    if path.suffix not in (".json", ".yaml", ".yml"):
+        raise ValueError(f"Unsupported format: {path.suffix}")
+    return decode_yaml(path.read_text())
 ```
 
-## Documentation
+## Documentation Standards
 
-### Docstring Format (Google Style)
+### Google-Style Docstrings
 ```python
 def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
     """Process a list of items and return summary.
 
     Args:
-        items: List of dictionaries containing item data
-        validate: Whether to validate items before processing
+        items: List of dictionaries containing item data.
+        validate: Whether to validate items before processing.
 
     Returns:
-        Dictionary with processing summary and statistics
+        Dictionary with processing summary and statistics.
 
     Raises:
-        ValueError: If items list is empty or validation fails
+        ValueError: If items list is empty or validation fails.
 
     Example:
         >>> items = [{"id": 1, "name": "Item 1"}]
@@ -180,69 +207,117 @@ def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
     """
 ```
 
-## Performance Tips
+## PR Creation Guidelines
 
-### Avoid Repeated Computation
-```python
-# ✅ Good - compute once
-unique_items = set(items)
-for item in unique_items:
-    process(item)
+When creating a PR from an issue:
 
-# ❌ Avoid - computing in loop
-for item in items:
-    if item not in processed:  # O(n) lookup each time
-        process(item)
+### Title Format
+```
+feat(package): Brief description (fixes #123)
 ```
 
-### Use Appropriate Data Structures
-```python
-# ✅ Good - O(1) lookup
-seen = set()
-for item in items:
-    if item not in seen:
-        seen.add(item)
+### Body Template
+```markdown
+## Summary
+Brief description of what this PR does.
 
-# ❌ Avoid - O(n) lookup
-seen = []
-for item in items:
-    if item not in seen:  # Slow for large lists
-        seen.append(item)
+## Changes
+- Change 1
+- Change 2
+
+## Testing
+- [ ] Unit tests added
+- [ ] Manual testing completed
+- [ ] CI passes
+
+## Related
+Fixes #123
 ```
 
-## Security
+### Commit Messages
+```bash
+# Feature
+feat(extended-data-types): Add new utility function
 
-### Never Log Secrets
-```python
-# ✅ Good - sanitize before logging
-safe_config = {k: v for k, v in config.items() if k != "api_key"}
-logger.info(f"Config: {safe_config}")
+# Bug fix
+fix(vendor-connectors): Handle null response from API
 
-# ❌ Avoid - might log secrets
-logger.info(f"Config: {config}")
+# Documentation
+docs(lifecyclelogging): Update README with examples
+
+# Refactor
+refactor(directed-inputs-class): Simplify validation logic
 ```
 
-### Validate Input
+## Verification Before PR
+
+Always run before creating PR:
+
+```bash
+# Python packages
+cd packages/<package-name>
+ruff check .
+ruff format --check .
+pytest
+
+# TypeScript packages
+cd packages/cursor-fleet
+npm run build
+npm test  # if tests exist
+```
+
+## Common Mistakes to Avoid
+
+### ❌ Don't Suggest Version Changes
 ```python
-# ✅ Good - validate before use
-def load_file(filepath: str) -> str:
-    path = Path(filepath)
-    if not path.is_file():
-        raise ValueError(f"Not a file: {filepath}")
-    if not path.suffix == ".json":
-        raise ValueError(f"Not a JSON file: {filepath}")
-    return path.read_text()
+# WRONG - Never touch this manually
+__version__ = "2025.11.42"  # This is auto-generated
+```
+
+### ❌ Don't Add Unnecessary Dependencies
+Check `extended-data-types` first before adding:
+- `inflection` - already re-exported
+- `orjson` - already re-exported  
+- `ruamel.yaml` - already re-exported
+- Custom JSON/YAML functions - use existing
+
+### ❌ Don't Skip Tests
+Every new function needs at least:
+- Happy path test
+- Edge case test (empty input, invalid input)
+
+### ❌ Don't Ignore Type Hints
+```python
+# WRONG - Missing type hints
+def process(data):
+    return data
+
+# CORRECT
+def process(data: dict[str, Any]) -> dict[str, Any]:
+    return data
+```
+
+## Integration with cursor-fleet
+
+If you need to understand what previous agents did:
+
+```bash
+# Analyze a previous agent session
+cursor-fleet analyze bc-xxx-xxx --output report.md
+
+# Review code before pushing
+cursor-fleet review --base main --head HEAD
 ```
 
 ## Questions?
 
-- Check `.ruler/AGENTS.md` for comprehensive guide
-- Check `TEMPLATE_USAGE.md` for template setup
-- Check `README.md` for project overview
-- Don't suggest changes to CalVer/versioning approach
+- **Project Rules**: `.ruler/AGENTS.md`
+- **Ecosystem Guide**: `.ruler/ecosystem.md`
+- **Template Usage**: `TEMPLATE_USAGE.md`
+- **Package Details**: `packages/*/README.md`
 
 ---
 
-**Copilot Instructions Version:** 1.0
-**Compatible With:** GitHub Copilot, Copilot Chat
-**Last Updated:** 2025-11-25
+**Copilot Instructions Version:** 2.0
+**Auto-Issue Compatible:** Yes
+**Last Updated:** 2025-11-30
