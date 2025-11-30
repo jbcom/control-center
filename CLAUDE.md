@@ -199,7 +199,7 @@ To add a package to CI releases:
 ```bash
 # Install tox (CI-consistent testing)
 uv tool install tox --with tox-uv --with tox-gh
-export PATH="/root/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 # Run tests for a package
 tox -e directed-inputs-class
@@ -1785,7 +1785,7 @@ pnpm exec ruler --version
 ```bash
 # Install tox with uv backend
 uv tool install tox --with tox-uv --with tox-gh
-export PATH="/root/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 # Run all package tests
 tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
@@ -1948,7 +1948,7 @@ These are set in:
 ```bash
 # Setup
 uv tool install tox --with tox-uv --with tox-gh
-export PATH="/root/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 pnpm install
 
 # Run tests (all packages)

@@ -195,7 +195,7 @@ To add a package to CI releases:
 ```bash
 # Install tox (CI-consistent testing)
 uv tool install tox --with tox-uv --with tox-gh
-export PATH="/root/.local/bin:$PATH"
+export PATH="$HOME/.local/bin:$PATH"
 
 # Run tests for a package
 tox -e directed-inputs-class
