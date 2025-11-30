@@ -11,6 +11,7 @@ Unified Cursor Background Agent fleet management for control centers.
 - **Diamond Pattern** - Coordinate multiple agents across repos
 - **Fleet Monitoring** - Watch, monitor, and coordinate agent fleets
 - **Bidirectional Coordination** - PR-based communication with sub-agents
+- **AI-Powered Analysis** - Claude-based conversation analysis, code review, and triage
 
 ## Installation
 
@@ -27,6 +28,7 @@ pnpm add @jbcom/cursor-fleet
 | `CURSOR_API_KEY` | Yes* | Cursor API key for direct API access |
 | `CURSOR_API_BASE_URL` | No | Override API base URL (testing) |
 | `GITHUB_JBCOM_TOKEN` | For coordination | GitHub token for PR operations |
+| `ANTHROPIC_API_KEY` | For AI analysis | Anthropic API key for Claude |
 
 *If not set, falls back to MCP client which requires `mcp-proxy` running.
 
@@ -69,6 +71,17 @@ cursor-fleet monitor bc-xxx bc-yyy bc-zzz
 
 # Run bidirectional coordinator
 cursor-fleet coordinate --pr 123 --agents bc-xxx,bc-yyy
+
+# AI-powered analysis
+cursor-fleet analyze bc-xxx-xxx --output report.md
+cursor-fleet analyze bc-xxx-xxx --create-issues --dry-run
+
+# AI code review
+cursor-fleet review --base main --head HEAD
+
+# Quick AI triage
+cursor-fleet triage "Some issue description"
+echo "Multi-line input" | cursor-fleet triage -
 ```
 
 ## API Usage
@@ -223,6 +236,46 @@ graph TB
     CP -.->|coordinate| T1
     CP -.->|coordinate| T2
     CP -.->|coordinate| T3
+```
+
+## AI-Powered Analysis
+
+The `AIAnalyzer` class uses Claude (via Vercel AI SDK) for intelligent analysis:
+
+```typescript
+import { AIAnalyzer, analyzeAndReport } from "@jbcom/cursor-fleet";
+
+const analyzer = new AIAnalyzer({ model: "claude-sonnet-4-20250514" });
+
+// Analyze agent conversation
+const analysis = await analyzer.analyzeConversation(conversation);
+console.log(analysis.completedTasks);   // What's done
+console.log(analysis.outstandingTasks); // What remains
+console.log(analysis.blockers);         // What's blocking progress
+
+// Auto-create GitHub issues from outstanding tasks
+await analyzer.createIssuesFromAnalysis(analysis, { dryRun: false });
+
+// Review code changes
+const review = await analyzer.reviewCode(gitDiff);
+console.log(review.readyToMerge);       // Boolean assessment
+console.log(review.issues);              // Code issues found
+console.log(review.mergeBlockers);       // Blocking issues
+
+// Quick triage
+const triage = await analyzer.quickTriage("Error in production");
+console.log(triage.priority);            // critical/high/medium/low
+console.log(triage.suggestedAction);     // What to do
+```
+
+### Self-Review Before Push
+
+```bash
+# Review your changes before pushing
+cursor-fleet review --base main --head HEAD
+
+# Analyze and create issues from an agent session
+cursor-fleet analyze bc-old-session --create-issues
 ```
 
 ## process-compose Integration
