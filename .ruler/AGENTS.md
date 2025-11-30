@@ -149,7 +149,7 @@ Before merging ANY PR:
 - [ ] CI is green (all checks pass)
 - [ ] At least ONE AI review requested and completed
 - [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
-- [ ] ALL medium items resolved or justified with technical reasoning
+- [ ] ALL medium severity items resolved or justified with technical reasoning
 - [ ] Responses posted to ALL feedback items
 - [ ] All review threads addressed
 - [ ] AI-to-AI conflicts resolved and documented
