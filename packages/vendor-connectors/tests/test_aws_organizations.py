@@ -154,3 +154,95 @@ def test_get_accounts_merges_controltower_data(mocker, organizations_connector: 
     assert list(result.keys()) == ["100", "200", "300"]
     assert result["200"]["managed"] is True
     assert result["100"]["name"] == "Alpha"
+
+
+def test_label_aws_accounts_builds_metadata(mocker, organizations_connector: _TestAWSOrganizations):
+    mocker.patch.object(
+        organizations_connector,
+        "get_organization_accounts",
+        return_value={
+            "123456789012": {
+                "Name": "Prod Account",
+                "Email": "ops@example.com",
+                "OuId": "ou-prod",
+                "OuName": "Prod",
+                "tags": {"Environment": "prod", "ExecutionRoleName": "CustomRole"},
+            }
+        },
+    )
+    mocker.patch.object(organizations_connector, "get_controltower_accounts", return_value={})
+    mocker.patch.object(
+        organizations_connector,
+        "_build_org_units_with_tags",
+        return_value={
+            "ou-prod": {
+                "id": "ou-prod",
+                "name": "Prod",
+                "tags": {"Spoke": "true"},
+            }
+        },
+    )
+    organizations_connector.get_caller_account_id = lambda: "000000000000"  # type: ignore[assignment]
+
+    labeled = organizations_connector.label_aws_accounts(domains={"prod": "example.com"})
+    account = labeled["123456789012"]
+
+    assert account["json_key"] == "ProdAccount"
+    assert account["execution_role_arn"].endswith("role/CustomRole")
+    assert account["environment"] == "prod"
+    assert account["spoke"] is True
+    assert ".example.com" in account["subdomain"]
+
+
+def test_classify_aws_accounts_generates_suffix(organizations_connector: _TestAWSOrganizations):
+    labeled = {
+        "123": {"classifications": ["production", "shared"]},
+        "456": {"classifications": ["development"]},
+    }
+
+    result = organizations_connector.classify_aws_accounts(labeled_accounts=labeled, suffix="_east")
+
+    assert result["production_accounts_east"] == ["123"]
+    assert result["development_accounts_east"] == ["456"]
+
+
+def test_preprocess_aws_organization_uses_helpers(mocker, organizations_connector: _TestAWSOrganizations):
+    labeled_accounts = {
+        "123": {
+            "account_name": "Prod Account",
+            "email": "prod@example.com",
+            "json_key": "ProdAccount",
+            "classifications": ["production"],
+        }
+    }
+    mocker.patch.object(
+        organizations_connector,
+        "_build_org_units_with_tags",
+        return_value={"ou-prod": {"id": "ou-prod", "name": "Prod", "tags": {}}},
+    )
+    mocker.patch.object(
+        organizations_connector,
+        "label_aws_accounts",
+        return_value=labeled_accounts,
+    )
+    mocker.patch.object(
+        organizations_connector,
+        "classify_aws_accounts",
+        return_value={"production_accounts": ["123"]},
+    )
+
+    class _RootsClient:
+        def list_roots(self):
+            return {"Roots": [{"Id": "r-root"}]}
+
+    mocker.patch.object(
+        organizations_connector,
+        "get_aws_client",
+        return_value=_RootsClient(),
+    )
+
+    context = organizations_connector.preprocess_aws_organization(domains={"prod": "example.com"})
+
+    assert context["organization"]["root_id"] == "r-root"
+    assert context["accounts_by_name"]["Prod Account"]["email"] == "prod@example.com"
+    assert context["accounts_by_classification"]["production_accounts"] == ["123"]

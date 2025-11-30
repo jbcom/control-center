@@ -2738,7 +2738,7 @@ wheels = [
 
 [[package]]
 name = "python-terraform-bridge"
-version = "202511.1.0"
+version = "1.0.0"
 source = { editable = "packages/python-terraform-bridge" }
 dependencies = [
     { name = "directed-inputs-class" },
@@ -3500,7 +3500,7 @@ wheels = [
 
 [[package]]
 name = "vendor-connectors"
-version = "202511.9.0"
+version = "202511.10.0"
 source = { editable = "packages/vendor-connectors" }
 dependencies = [
     { name = "boto3" },

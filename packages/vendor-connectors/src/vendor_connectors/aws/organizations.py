@@ -6,6 +6,8 @@ AWS Organizations and Control Tower.
 
 from __future__ import annotations
 
+import re
+from collections import defaultdict
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
 
@@ -287,6 +289,151 @@ class AWSOrganizationsMixin:
         self.logger.info(f"Retrieved {len(org_units)} organizational units")
         return org_units
 
+    # ------------------------------------------------------------------ #
+    # Internal helpers                                                   #
+    # ------------------------------------------------------------------ #
+
+    def _build_org_units_with_tags(
+        self,
+        role_arn: Optional[str],
+    ) -> dict[str, dict[str, Any]]:
+        """Fetch organizational units including tag metadata."""
+
+        orgs = self.get_aws_client(
+            client_name="organizations",
+            execution_role_arn=role_arn,
+        )
+        tags_paginator = orgs.get_paginator("list_tags_for_resource")
+        ou_paginator = orgs.get_paginator("list_organizational_units_for_parent")
+        roots = orgs.list_roots()
+        root_parent_id = roots["Roots"][0]["Id"]
+
+        units: dict[str, dict[str, Any]] = {}
+
+        def get_tags(resource_id: str) -> dict[str, str]:
+            tag_map: dict[str, str] = {}
+            for page in tags_paginator.paginate(ResourceId=resource_id):
+                for tag in page.get("Tags", []):
+                    tag_map[tag["Key"]] = tag["Value"]
+            return tag_map
+
+        def walk(parent_id: str):
+            for page in ou_paginator.paginate(ParentId=parent_id):
+                for ou in page["OrganizationalUnits"]:
+                    ou_id = ou["Id"]
+                    unit_entry = {
+                        "id": ou_id,
+                        "name": ou["Name"],
+                        "arn": ou.get("Arn"),
+                        "tags": get_tags(ou_id),
+                        "control_tower_organizational_unit": f"{ou['Name']} ({ou_id})",
+                    }
+                    units[ou_id] = unit_entry
+                    walk(ou_id)
+
+        walk(root_parent_id)
+        return units
+
+    def _build_labeled_account(
+        self,
+        account_id: str,
+        account_data: dict[str, Any],
+        controltower_data: Optional[dict[str, Any]],
+        units_lookup: dict[str, dict[str, Any]],
+        domains: dict[str, str],
+        caller_account_id: str,
+    ) -> dict[str, Any]:
+        """Normalize metadata for a single AWS account."""
+
+        tags = account_data.get("tags", {})
+        managed = bool(account_data.get("managed") or (controltower_data and controltower_data.get("managed")))
+        account_name = account_data.get("Name") or account_data.get("name") or account_id
+        email = account_data.get("Email") or account_data.get("email")
+        parent_id = account_data.get("OuId") or account_data.get("ou_id")
+        organizational_unit = account_data.get("OuName") or account_data.get("ou_name")
+
+        if controltower_data:
+            tags = {**controltower_data.get("tags", {}), **tags}
+            organizational_unit = controltower_data.get("OrganizationalUnit") or organizational_unit
+            parent_id = controltower_data.get("parent_id") or parent_id
+
+        unit_metadata = {}
+        if parent_id and parent_id in units_lookup:
+            unit_metadata = deepcopy(units_lookup[parent_id])
+        elif organizational_unit:
+            normalized = organizational_unit.lower()
+            for unit in units_lookup.values():
+                if (unit.get("name") or "").lower() == normalized:
+                    unit_metadata = deepcopy(unit)
+                    break
+
+        def _slug(value: str) -> str:
+            sanitized = re.sub(r"[^A-Za-z0-9_-]+", "_", value).strip("_")
+            return sanitized or re.sub(r"[^A-Za-z0-9]+", "", account_id)
+
+        normalized_name = account_name.replace(" ", "")
+        json_key = _slug(normalized_name.replace("-", "_"))
+        network_name = normalized_name.replace("_", "-").lower()
+
+        root_account = account_id == caller_account_id
+        execution_role_name = "" if root_account else tags.get("ExecutionRoleName", "AWSControlTowerExecution")
+        execution_role_arn = ""
+        if execution_role_name and not root_account:
+            execution_role_arn = f"arn:aws:iam::{account_id}:role/{execution_role_name}"
+
+        env_default = "dev" if account_name.startswith("User-") else "global"
+        environment = tags.get("Environment") or unit_metadata.get("tags", {}).get("Environment") or env_default
+
+        domain = account_data.get("domain") or domains.get(environment) or domains.get("default")
+        subdomain = domain
+        if environment in {"stg", "prod"} and domain and not domain.startswith(network_name):
+            subdomain = f"{network_name}.{domain}"
+
+        def _process_classifications(value: str) -> list[str]:
+            if not value:
+                return []
+            return [
+                re.sub(r"[^A-Za-z0-9_-]+", "_", item).lower().removesuffix("_accounts")
+                for item in value.split()
+                if item
+            ]
+
+        unit_tags = unit_metadata.get("tags", {})
+        classifications = list(
+            set(
+                _process_classifications(tags.get("Classifications", ""))
+                + _process_classifications(unit_tags.get("Classifications", ""))
+            )
+        )
+
+        spoke = bool(tags.get("Spoke") or unit_tags.get("Spoke") or tags.get("spoke") or unit_tags.get("spoke"))
+
+        labeled = {
+            "id": account_id,
+            "account_id": account_id,
+            "account_name": account_name,
+            "name": account_name,
+            "email": email,
+            "managed": managed,
+            "tags": tags,
+            "json_key": json_key,
+            "network_name": network_name,
+            "organizational_unit": organizational_unit,
+            "unit": unit_metadata.get("name"),
+            "unit_metadata": unit_metadata,
+            "execution_role_arn": execution_role_arn,
+            "environment": environment,
+            "domain": domain,
+            "subdomain": subdomain,
+            "spoke": spoke,
+            "classifications": classifications or ["accounts"],
+        }
+
+        if controltower_data:
+            labeled["provisioned_product_id"] = controltower_data.get("ProvisionedProductId")
+
+        return labeled
+
     def label_account(
         self,
         account_id: str,
@@ -377,6 +524,189 @@ class AWSOrganizationsMixin:
 
         self.logger.info(f"Classified {len(accounts)} accounts")
         return accounts
+
+    # --------------------------------------------------------------------- #
+    # Terraform-migrated helpers                                           #
+    # --------------------------------------------------------------------- #
+
+    def label_aws_accounts(
+        self,
+        domains: dict[str, str],
+        aws_organization_units: Optional[dict[str, dict[str, Any]]] = None,
+        caller_account_id: Optional[str] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, dict[str, Any]]:
+        """Return normalized metadata for every AWS account.
+
+        This mirrors the legacy ``label_aws_account`` helper from terraform-modules.
+
+        Args:
+            domains: Mapping of environment -> root domain.
+            aws_organization_units: Optional precomputed OU metadata (with tags).
+            caller_account_id: Optional root account id. Auto-discovered if omitted.
+            execution_role_arn: ARN used for cross-account access.
+
+        Returns:
+            Dictionary keyed by account id with normalized metadata (network_name,
+            json_key, execution role ARN, classifications, etc.).
+        """
+
+        if not domains:
+            raise ValueError("domains mapping is required to label AWS accounts")
+
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+        units_lookup = aws_organization_units or self._build_org_units_with_tags(role_arn=role_arn)
+        caller_account_id = caller_account_id or self.get_caller_account_id()
+
+        organization_accounts = self.get_organization_accounts(
+            unhump_accounts=False,
+            sort_by_name=False,
+            execution_role_arn=role_arn,
+        )
+        controltower_accounts = self.get_controltower_accounts(
+            unhump_accounts=False,
+            sort_by_name=False,
+            execution_role_arn=role_arn,
+        )
+
+        labeled_accounts: dict[str, dict[str, Any]] = {}
+
+        for account_id, account_data in organization_accounts.items():
+            controltower_data = controltower_accounts.get(account_id)
+            labeled_accounts[account_id] = self._build_labeled_account(
+                account_id=account_id,
+                account_data=account_data,
+                controltower_data=controltower_data,
+                units_lookup=units_lookup,
+                domains=domains,
+                caller_account_id=caller_account_id,
+            )
+
+        # Include Control Tower-only accounts
+        for account_id, controltower_data in controltower_accounts.items():
+            if account_id in labeled_accounts:
+                continue
+            labeled_accounts[account_id] = self._build_labeled_account(
+                account_id=account_id,
+                account_data=controltower_data,
+                controltower_data=controltower_data,
+                units_lookup=units_lookup,
+                domains=domains,
+                caller_account_id=caller_account_id,
+            )
+
+        return labeled_accounts
+
+    def label_aws_account(
+        self,
+        account_id: str,
+        domains: dict[str, str],
+        aws_organization_units: Optional[dict[str, dict[str, Any]]] = None,
+        caller_account_id: Optional[str] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Return metadata for a single AWS account."""
+
+        labeled_accounts = self.label_aws_accounts(
+            domains=domains,
+            aws_organization_units=aws_organization_units,
+            caller_account_id=caller_account_id,
+            execution_role_arn=execution_role_arn,
+        )
+        try:
+            return labeled_accounts[account_id]
+        except KeyError as exc:  # pragma: no cover - defensive guard
+            raise KeyError(f"AWS account {account_id} not found") from exc
+
+    def classify_aws_accounts(
+        self,
+        labeled_accounts: Optional[dict[str, dict[str, Any]]] = None,
+        suffix: Optional[str] = None,
+        domains: Optional[dict[str, str]] = None,
+        aws_organization_units: Optional[dict[str, dict[str, Any]]] = None,
+        caller_account_id: Optional[str] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, list[str]]:
+        """Group accounts by classification, matching terraform-modules output."""
+
+        if labeled_accounts is None:
+            if not domains:
+                raise ValueError("domains mapping required when labeled_accounts is not provided")
+            labeled_accounts = self.label_aws_accounts(
+                domains=domains,
+                aws_organization_units=aws_organization_units,
+                caller_account_id=caller_account_id,
+                execution_role_arn=execution_role_arn,
+            )
+
+        suffix_value = f"_accounts{suffix}" if suffix else "_accounts"
+        classified_accounts: dict[str, list[str]] = defaultdict(list)
+
+        for account_key, account_data in labeled_accounts.items():
+            for classification in account_data.get("classifications", []):
+                if not classification or classification == "accounts":
+                    continue
+                classified_accounts[f"{classification}{suffix_value}"].append(account_key)
+
+        return dict(classified_accounts)
+
+    def preprocess_aws_organization(
+        self,
+        domains: dict[str, str],
+        suffix: Optional[str] = None,
+        aws_organization_units: Optional[dict[str, dict[str, Any]]] = None,
+        caller_account_id: Optional[str] = None,
+        execution_role_arn: Optional[str] = None,
+    ) -> dict[str, Any]:
+        """Build full organization context (accounts, units, lookups)."""
+
+        role_arn = execution_role_arn or getattr(self, "execution_role_arn", None)
+        units_lookup = aws_organization_units or self._build_org_units_with_tags(role_arn=role_arn)
+
+        labeled_accounts = self.label_aws_accounts(
+            domains=domains,
+            aws_organization_units=units_lookup,
+            caller_account_id=caller_account_id,
+            execution_role_arn=role_arn,
+        )
+        classification_lookup = self.classify_aws_accounts(
+            labeled_accounts=labeled_accounts,
+            suffix=suffix,
+        )
+
+        accounts_by_name = {
+            data["account_name"]: data for data in labeled_accounts.values() if data.get("account_name")
+        }
+        accounts_by_email = {data["email"]: data for data in labeled_accounts.values() if data.get("email")}
+        accounts_by_key = {data["json_key"]: data for data in labeled_accounts.values() if data.get("json_key")}
+
+        orgs = self.get_aws_client(
+            client_name="organizations",
+            execution_role_arn=role_arn,
+        )
+        root_id = orgs.list_roots()["Roots"][0]["Id"]
+
+        units_by_name = {unit["name"]: unit for unit in units_lookup.values() if unit.get("name")}
+
+        result = {
+            "accounts": labeled_accounts,
+            "units": units_lookup,
+            "unit_classifications_by_name": {
+                name: unit.get("classifications", []) for name, unit in units_by_name.items()
+            },
+            "accounts_by_classification": classification_lookup,
+            "accounts_by_name": accounts_by_name,
+            "accounts_by_email": accounts_by_email,
+            "accounts_by_key": accounts_by_key,
+            "organization": {
+                "root_id": root_id,
+                "organizational_units": units_lookup,
+                "account_count": len(labeled_accounts),
+                "ou_count": len(units_lookup),
+            },
+        }
+
+        return result
 
     def preprocess_organization(
         self,
