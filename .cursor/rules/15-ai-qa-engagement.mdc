@@ -16,15 +16,21 @@ globs: ["**/*"]
 
 ## How to Request Review
 
-Post these commands as PR comments to engage AI reviewers:
-
+### Comment-Triggered Reviewers
+Post these commands as PR comments:
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
-@copilot review      # GitHub Copilot
-@cursor review       # Cursor AI review
 @coderabbitai review # CodeRabbit AI review
 ```
+
+### Automatic Reviewers (via repo settings)
+These review automatically when enabled in repo settings:
+- **Copilot** - Enable in Settings > Code security and analysis
+- **Cursor Bugbot** - Automatic on all PRs
+
+### Manual Assignment
+If Copilot auto-review not enabled, manually add as reviewer in GitHub PR UI.
 
 All of the above are considered valid **QA agents** for this protocol.
 
