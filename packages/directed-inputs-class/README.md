@@ -278,7 +278,7 @@ class NewService:
 
 ## Integration with python-terraform-bridge
 
-The decorator API integrates seamlessly with [python-terraform-bridge](https://github.com/jbcom/python-terraform-bridge) for Terraform external data sources:
+The decorator API integrates seamlessly with [python-terraform-bridge](https://github.com/jbcom/jbcom-control-center/tree/main/packages/python-terraform-bridge) for Terraform external data sources:
 
 ```python
 from directed_inputs_class import directed_inputs

@@ -200,20 +200,25 @@ def _coerce_value(value: Any, target_type: type | None) -> Any:
             return value
 
     # Type coercion - do this BEFORE isinstance check to handle string -> other type
-    if target_type is bool and not isinstance(value, bool):
-        return strtobool(value)
-    if target_type is int and not isinstance(value, int):
-        return strtoint(value)
-    if target_type is float and not isinstance(value, float):
-        return strtofloat(str(value))
-    if target_type is Path and not isinstance(value, Path):
-        return strtopath(str(value))
-    if target_type is datetime and not isinstance(value, datetime):
-        return strtodatetime(str(value))
-    if target_type is dict and isinstance(value, str):
-        return decode_json(value)
-    if target_type is list and isinstance(value, str):
-        return decode_json(value)
+    # Wrap in try/except to handle conversion failures gracefully
+    try:
+        if target_type is bool and not isinstance(value, bool):
+            return strtobool(value)
+        if target_type is int and not isinstance(value, int):
+            return strtoint(value)
+        if target_type is float and not isinstance(value, float):
+            return strtofloat(str(value))
+        if target_type is Path and not isinstance(value, Path):
+            return strtopath(str(value))
+        if target_type is datetime and not isinstance(value, datetime):
+            return strtodatetime(str(value))
+        if target_type is dict and isinstance(value, str):
+            return decode_json(value)
+        if target_type is list and isinstance(value, str):
+            return decode_json(value)
+    except (ValueError, TypeError):
+        # Coercion failed, return original value
+        return value
 
     # Now check if already correct type (safely)
     try:
