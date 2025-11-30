@@ -245,6 +245,29 @@ program
   });
 
 // ============================================
+// split
+// ============================================
+program
+  .command("split")
+  .description("Split conversation into readable files")
+  .argument("<agent-id>", "Agent ID")
+  .option("-o, --output <dir>", "Output directory")
+  .action(async (agentId, opts) => {
+    const fleet = new Fleet();
+    const result = await fleet.split(agentId, opts.output);
+
+    if (!result.success) {
+      console.error(`❌ ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log(`✅ Split conversation for ${agentId}`);
+    console.log(`   Messages: ${result.data?.totalMessages}`);
+    console.log(`   Batches: ${result.data?.batchFiles}`);
+    console.log(`   Output: ${result.data?.outputDir}`);
+  });
+
+// ============================================
 // repos
 // ============================================
 program

@@ -13,6 +13,8 @@ import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { execSync } from "node:child_process";
 import { MCPClient } from "./mcp-client.js";
+import { CursorAPI } from "./cursor-api.js";
+import { splitConversation, type SplitResult } from "./conversation-splitter.js";
 import type {
   Agent,
   AgentStatus,
@@ -48,11 +50,26 @@ export interface PRComment {
 
 export class Fleet {
   private client: MCPClient;
+  private api: CursorAPI | null;
   private archivePath: string;
+  private useDirectApi: boolean;
 
   constructor(config: FleetConfig = {}) {
     this.client = new MCPClient(config);
     this.archivePath = config.archivePath ?? "./memory-bank/recovery";
+    
+    // Try to initialize CursorAPI for direct access
+    try {
+      this.api = new CursorAPI({
+        apiKey: config.apiKey,
+        timeout: config.timeout,
+      });
+      this.useDirectApi = true;
+    } catch {
+      // API key not available, fall back to MCP
+      this.api = null;
+      this.useDirectApi = false;
+    }
   }
 
   // ============================================
@@ -63,6 +80,12 @@ export class Fleet {
    * List all agents
    */
   async list(): Promise<FleetResult<Agent[]>> {
+    // Use direct API if available
+    if (this.useDirectApi && this.api) {
+      return this.api.listAgents();
+    }
+    
+    // Fallback to MCP
     const result = await this.client.call<{ agents: Agent[] }>("listAgents", {});
     if (!result.success) return { success: false, error: result.error };
     return { success: true, data: result.data?.agents ?? [] };
@@ -100,6 +123,10 @@ export class Fleet {
    * Get agent status
    */
   async status(agentId: string): Promise<FleetResult<Agent>> {
+    // Use direct API if available
+    if (this.useDirectApi && this.api) {
+      return this.api.getAgentStatus(agentId);
+    }
     return this.client.call<Agent>("getAgentStatus", { agentId });
   }
 
@@ -112,6 +139,17 @@ export class Fleet {
    */
   async spawn(options: LaunchOptions): Promise<FleetResult<Agent>> {
     const task = this.buildTaskWithContext(options.task, options.context);
+
+    // Use direct API if available
+    if (this.useDirectApi && this.api) {
+      return this.api.launchAgent({
+        prompt: { text: task },
+        source: {
+          repository: options.repository,
+          ref: options.ref ?? "main",
+        },
+      });
+    }
 
     const result = await this.client.call<Agent>("launchAgent", {
       prompt: { text: task },
@@ -158,6 +196,11 @@ export class Fleet {
    * Send a follow-up message to an agent
    */
   async followup(agentId: string, message: string): Promise<FleetResult<void>> {
+    // Use direct API if available
+    if (this.useDirectApi && this.api) {
+      return this.api.addFollowup(agentId, { text: message });
+    }
+    
     const result = await this.client.call<void>("addFollowup", {
       agentId,
       prompt: { text: message },
@@ -188,7 +231,30 @@ export class Fleet {
    * Get agent conversation
    */
   async conversation(agentId: string): Promise<FleetResult<Conversation>> {
+    // Use direct API if available (better for large conversations)
+    if (this.useDirectApi && this.api) {
+      return this.api.getAgentConversation(agentId);
+    }
     return this.client.call<Conversation>("getAgentConversation", { agentId });
+  }
+
+  /**
+   * Split a conversation into readable files
+   */
+  async split(agentId: string, outputDir?: string): Promise<FleetResult<SplitResult>> {
+    const conv = await this.conversation(agentId);
+    if (!conv.success || !conv.data) {
+      return { success: false, error: conv.error ?? "Failed to fetch conversation" };
+    }
+
+    const dir = outputDir ?? join(this.archivePath, agentId);
+    
+    try {
+      const result = await splitConversation(conv.data, { outputDir: dir });
+      return { success: true, data: result };
+    } catch (error) {
+      return { success: false, error: String(error) };
+    }
   }
 
   /**
@@ -217,6 +283,11 @@ export class Fleet {
    * List available repositories
    */
   async repositories(): Promise<FleetResult<Repository[]>> {
+    // Use direct API if available
+    if (this.useDirectApi && this.api) {
+      return this.api.listRepositories();
+    }
+    
     const result = await this.client.call<{ repositories: Repository[] }>("listRepositories", {});
     if (!result.success) return { success: false, error: result.error };
     return { success: true, data: result.data?.repositories ?? [] };
