@@ -21,27 +21,26 @@ Post these commands as PR comments:
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot (or enable auto-review in settings)
+@cursor review       # Cursor AI
 @coderabbitai review # CodeRabbit AI review
 ```
 
 ### Automatic Reviewers (via repo settings)
-These review automatically when enabled in repo settings:
+These can also review automatically when enabled:
 - **Copilot** - Enable in Settings > Code security and analysis
 - **Cursor Bugbot** - Automatic on all PRs
-
-### Manual Assignment
-If Copilot auto-review not enabled, manually add as reviewer in GitHub PR UI.
 
 All of the above are considered valid **QA agents** for this protocol.
 
 ### Focused Reviews
 
-Request specific review types:
+Request specific review types (syntax varies by tool):
 ```
-/gemini review security     # Security-focused review
-/q review performance       # Performance analysis
-@copilot review tests       # Test coverage review
-@cursor review architecture # Architecture review
+/gemini review security           # Gemini: append focus area
+/q review performance             # Amazon Q: append focus area
+@copilot focus on test coverage   # Copilot: use natural language
+@coderabbitai review security     # CodeRabbit: append focus area
 ```
 
 ## Scope: When This Protocol Applies
