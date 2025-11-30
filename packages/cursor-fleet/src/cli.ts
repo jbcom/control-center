@@ -10,6 +10,7 @@ import { Command } from "commander";
 import { writeFileSync } from "node:fs";
 import { Fleet } from "./fleet.js";
 import { AIAnalyzer } from "./ai-analyzer.js";
+import { HandoffManager } from "./handoff.js";
 import type { Agent } from "./types.js";
 
 const program = new Command();
@@ -664,6 +665,123 @@ program
       console.error("❌ Review failed:", err);
       process.exit(1);
     }
+  });
+
+// ============================================
+// handoff - Station-to-station handoff
+// ============================================
+const handoffCmd = program
+  .command("handoff")
+  .description("Station-to-station agent handoff commands");
+
+handoffCmd
+  .command("initiate")
+  .description("Initiate handoff to successor agent")
+  .argument("<predecessor-id>", "Your agent ID (predecessor)")
+  .requiredOption("--pr <number>", "Your current PR number")
+  .requiredOption("--branch <name>", "Your current branch name")
+  .option("--repo <url>", "Repository URL for successor", "https://github.com/jbcom/jbcom-control-center")
+  .option("--ref <ref>", "Git ref for successor", "main")
+  .option("--tasks <tasks>", "Comma-separated tasks for successor", "")
+  .option("--timeout <ms>", "Health check timeout", "300000")
+  .action(async (predecessorId, opts) => {
+    const manager = new HandoffManager();
+    
+    console.log("🤝 Initiating station-to-station handoff...\n");
+    
+    const result = await manager.initiateHandoff(predecessorId, {
+      repository: opts.repo,
+      ref: opts.ref,
+      currentPr: parseInt(opts.pr, 10),
+      currentBranch: opts.branch,
+      tasks: opts.tasks ? opts.tasks.split(",").map((t: string) => t.trim()) : [],
+      healthCheckTimeout: parseInt(opts.timeout, 10),
+    });
+
+    if (!result.success) {
+      console.error(`❌ Handoff failed: ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log(`\n✅ Handoff initiated`);
+    console.log(`   Successor: ${result.successorId}`);
+    console.log(`   Healthy: ${result.successorHealthy ? "Yes" : "Pending confirmation"}`);
+  });
+
+handoffCmd
+  .command("confirm")
+  .description("Confirm health as successor agent")
+  .argument("<predecessor-id>", "Predecessor agent ID to confirm to")
+  .action(async (predecessorId) => {
+    const manager = new HandoffManager();
+    
+    // Get our own agent ID from environment or infer
+    const successorId = process.env.CURSOR_AGENT_ID || "successor-agent";
+    
+    console.log(`🤝 Confirming health to predecessor ${predecessorId}...`);
+    await manager.confirmHealthAndBegin(successorId, predecessorId);
+    console.log("✅ Health confirmation sent");
+    console.log("\nNext steps:");
+    console.log("  1. Review .cursor/handoff/${predecessorId}/ for context");
+    console.log("  2. Run: cursor-fleet handoff takeover <predecessor-id> <pr-number> <new-branch>");
+  });
+
+handoffCmd
+  .command("takeover")
+  .description("Merge predecessor PR and take over")
+  .argument("<predecessor-id>", "Predecessor agent ID")
+  .argument("<pr-number>", "Predecessor PR number to merge")
+  .argument("<new-branch>", "Your new branch name")
+  .action(async (predecessorId, prNumber, newBranch) => {
+    const manager = new HandoffManager();
+    
+    console.log("🔄 Taking over from predecessor...\n");
+    
+    const result = await manager.takeover(
+      predecessorId,
+      parseInt(prNumber, 10),
+      newBranch
+    );
+
+    if (!result.success) {
+      console.error(`❌ Takeover failed: ${result.error}`);
+      process.exit(1);
+    }
+
+    console.log("✅ Takeover complete!");
+    console.log("\nYou are now the active agent.");
+    console.log("Next steps:");
+    console.log("  1. Create your hold-open PR");
+    console.log("  2. Review outstanding tasks");
+    console.log("  3. Continue the work");
+  });
+
+handoffCmd
+  .command("status")
+  .description("Check handoff status")
+  .argument("<agent-id>", "Agent ID to check")
+  .action(async (agentId) => {
+    const { existsSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    
+    const handoffDir = join(".cursor", "handoff", agentId);
+    const contextPath = join(handoffDir, "context.json");
+    
+    if (!existsSync(contextPath)) {
+      console.log(`No handoff context found for ${agentId}`);
+      return;
+    }
+
+    const context = JSON.parse(readFileSync(contextPath, "utf-8"));
+    
+    console.log("=== Handoff Context ===\n");
+    console.log(`Predecessor: ${context.predecessorId}`);
+    console.log(`PR: #${context.predecessorPr}`);
+    console.log(`Branch: ${context.predecessorBranch}`);
+    console.log(`Time: ${context.handoffTime}`);
+    console.log(`\nCompleted Work: ${context.completedWork.length} items`);
+    console.log(`Outstanding Tasks: ${context.outstandingTasks.length} items`);
+    console.log(`Decisions: ${context.decisions.length} items`);
   });
 
 program.parse();

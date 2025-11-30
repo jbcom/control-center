@@ -238,6 +238,80 @@ graph TB
     CP -.->|coordinate| T3
 ```
 
+## Station-to-Station Handoff
+
+Enable seamless agent continuity across sessions:
+
+```mermaid
+sequenceDiagram
+    participant P as Predecessor Agent
+    participant S as Successor Agent
+    participant PR as Hold-Open PR
+    participant Main as main branch
+    
+    Note over P: Completing SOW...
+    
+    P->>P: cursor-fleet analyze (identify outstanding tasks)
+    P->>P: cursor-fleet handoff initiate
+    
+    P->>S: Spawn successor (NOT sub-agent)
+    P->>S: Send handoff context
+    
+    S->>P: cursor-fleet handoff confirm
+    Note over P: Health confirmed ✓
+    
+    S->>S: Load predecessor conversation
+    S->>S: cursor-fleet handoff takeover
+    S->>PR: Merge predecessor's PR
+    S->>Main: PR merged ✓
+    
+    S->>S: Create own hold-open PR
+    S->>S: Continue outstanding work
+    
+    Note over P: Session complete, closed out
+    Note over S: Now the active agent
+```
+
+### Handoff CLI Commands
+
+```bash
+# PREDECESSOR: When ready to hand off
+cursor-fleet handoff initiate bc-my-id \
+  --pr 261 \
+  --branch feat/my-work \
+  --tasks "Complete docs,Fix tests"
+
+# SUCCESSOR: Confirm you're healthy
+cursor-fleet handoff confirm bc-predecessor-id
+
+# SUCCESSOR: Take over (merges predecessor PR)
+cursor-fleet handoff takeover bc-predecessor-id 261 successor/continue-work
+
+# Check handoff context
+cursor-fleet handoff status bc-predecessor-id
+```
+
+### What Gets Handed Off
+
+- **Full conversation history** (split into readable files)
+- **Completed work summary** (AI-analyzed)
+- **Outstanding tasks** (for successor to continue)
+- **Key decisions** (context preservation)
+- **PR and branch info** (for proper merge)
+
+### Handoff Context Files
+
+```
+.cursor/handoff/<predecessor-id>/
+├── context.json          # Handoff metadata
+└── conversation/
+    ├── metadata.json     # Message counts
+    ├── conversation.txt  # Full readable transcript
+    ├── original.json     # Raw conversation
+    ├── messages/         # Individual messages
+    └── batches/          # Grouped messages
+```
+
 ## AI-Powered Analysis
 
 The `AIAnalyzer` class uses Claude (via Vercel AI SDK) for intelligent analysis:

@@ -56,6 +56,13 @@ export {
   type CodeReview,
   type AnalyzerOptions,
 } from "./ai-analyzer.js";
+export {
+  HandoffManager,
+  initiateHandoff,
+  type HandoffContext,
+  type HandoffOptions,
+  type HandoffResult,
+} from "./handoff.js";
 export type {
   Agent,
   AgentStatus,
