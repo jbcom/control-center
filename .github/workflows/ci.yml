@@ -69,6 +69,10 @@ jobs:
           - python-terraform-bridge
           - vendor-connectors
         python-version: ["3.9", "3.13"]
+        exclude:
+          # python-terraform-bridge requires Python 3.10+
+          - package: python-terraform-bridge
+            python-version: "3.9"
 
     steps:
       - uses: actions/checkout@v4
