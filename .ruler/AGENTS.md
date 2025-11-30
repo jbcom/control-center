@@ -1,6 +1,6 @@
-# AI Agent Guidelines for Python Library Template (jbcom ecosystem)
+# AI Agent Guidelines for jbcom Control Center
 
-**This is the DEFINITIVE Python library template** for the jbcom ecosystem. All configuration, workflows, and agent instructions here represent the consolidated best practices from multiple production deployments.
+**This is the control center** for the jbcom Python library ecosystem. It manages multiple packages via a monorepo architecture.
 
 ## 🚨 MANDATORY FIRST: SESSION START
 
@@ -14,15 +14,15 @@ cat .ruler/fleet-coordination.md
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue list --label "agent-session" --state open
 
 # 3. Check your fleet tooling
-cursor-fleet list --running
+cd /workspace/packages/cursor-fleet && node dist/cli.js list 2>/dev/null || echo "Fleet not built"
 ```
 
 ### Your Tools:
 | Tool | Command | Purpose |
 |------|---------|---------|
-| Fleet management | `cursor-fleet list/spawn/followup` | Manage Cursor background agents |
-| Fleet coordination | `cursor-fleet coordinate --pr N` | Bidirectional agent coordination |
-| Sub-agent spawn | `cursor-fleet spawn --repo R --task T` | Spawn agents in repos |
+| Fleet management | `node packages/cursor-fleet/dist/cli.js list` | List Cursor background agents |
+| Fleet replay | `node packages/cursor-fleet/dist/cli.js replay <agent-id> -o <dir>` | Recover agent conversation |
+| Fleet spawn | `node packages/cursor-fleet/dist/cli.js spawn --repo R --task T` | Spawn agents in repos |
 
 ### Session Tracking (USE GITHUB ISSUES):
 ```bash
@@ -43,41 +43,7 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue comment <NUMBER> --body "## Update: ..."
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue close <NUMBER>
 ```
 
-### Spawn Sub-Agents (DO THIS FOR PARALLEL WORK):
-```bash
-# Via cursor-fleet
-cursor-fleet spawn --repo jbcom/vendor-connectors --task "Fix CI failures"
-
-# Or create GitHub issues for async agent pickup
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create \
-  --title "🤖 Agent Task: Fix CI" \
-  --body "Background agent task..."
-```
-
 ---
-
-## 🎯 CRITICAL: PR Ownership Rule (READ WHEN WORKING WITH PRs!)
-
-**If you are working on a Pull Request, this rule applies.**
-
-**For Cursor background agents:** See `.cursor/rules/05-pr-ownership.mdc` for complete protocol.
-**For other agents:** See summary below.
-
-Key points:
-- **First agent on PR = PR Owner** - You own ALL feedback, issues, and collaboration
-- **Engage with AI agents directly** - Respond to @gemini-code-assist, @copilot, etc.
-- **Free the user** - Handle everything that doesn't need human judgment
-- **Collaborate, don't escalate** - Resolve AI-to-AI conflicts yourself
-- **Merge when ready** - Execute merge after all feedback addressed
-
-**🔬 VERIFICATION REQUIREMENT (NEW):**
-- **All version claims MUST be verified** against official sources (https://go.dev/dl/, https://releases.rs/, etc.)
-- **Never rely on training data** for version numbers or tool specifications
-- **Official installation methods** (like rustup.rs curl-to-shell) are NOT security vulnerabilities
-- **Document your verification** sources in responses
-
-See `.cursor/rules/15-pr-review-verification.mdc` (Cursor) or full details below (other agents).
-See `.cursor/rules/REFERENCE-pr-ownership-details.md` for detailed examples and templates.
 
 ## 🔑 CRITICAL: Authentication (READ FIRST!)
 
@@ -86,7 +52,6 @@ See `.cursor/rules/REFERENCE-pr-ownership-details.md` for detailed examples and 
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh workflow run "Release" --repo jbcom/jbcom-control-center
 ```
 
 ### Token Reference:
@@ -97,403 +62,245 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh workflow run "Release" --repo jbcom/jbcom-cont
 ### ⚠️ NEVER FORGET:
 The default `GH_TOKEN` does NOT have access to jbcom repos. You MUST prefix with `GH_TOKEN="$GITHUB_JBCOM_TOKEN"` for EVERY `gh` command targeting jbcom repos.
 
-## 🎯 PURPOSE: Agentic Template Repository
+---
 
-This template is designed for:
-1. **Human developers** starting new Python libraries
-2. **AI coding assistants** (Cursor, Codex, Copilot, Gemini) helping maintain the ecosystem
-3. **Background agents** performing automated maintenance tasks
+## 🚨 CRITICAL: CI/CD Workflow - THE ACTUAL SYSTEM
 
-### Template Usage
+### Python Semantic Release (PSR)
 
-When creating a new library from this template:
-1. Update `pyproject.toml` with your project name and details
-2. Replace `${REPO_NAME}` in documentation with your actual repo name
-3. Copy `.github/scripts/set_version.py` as-is (it auto-detects your package)
-4. Copy `.github/workflows/ci.yml` and update PyPI project name
-5. Run `ruler apply` to regenerate agent-specific instructions
+**This repository uses Python Semantic Release** for versioning and publishing.
 
-## 🚨 CRITICAL: CI/CD Workflow Design Philosophy
+### How It ACTUALLY Works:
 
-### Our Simple Automated Release Workflow
-
-**This repository uses CALENDAR VERSIONING with automatic PyPI releases**. Every push to main that passes tests gets released automatically.
-
-This design has been battle-tested across:
-- `extended-data-types` (foundational library, released 2025.11.164)
-- `lifecyclelogging` (logging library)
-- `directed-inputs-class` (input processing)
-
-### Key Design Decisions (DO NOT SUGGEST CHANGING THESE)
-
-#### 1. **Calendar Versioning (CalVer) - No Manual Version Management**
-
-✅ **How It Works:**
-- Version format: `YYYY.MM.BUILD_NUMBER`
-- Example: `2025.11.42`
-- **Month is NOT zero-padded** (project choice for brevity)
-- Version is auto-generated using GitHub run number
-- Script: `.github/scripts/set_version.py`
-
-❌ **INCORRECT Agent Suggestion:**
-> "You should manually manage versions in __init__.py"
-> "Add semantic-release for version management"
-> "Use git tags for versioning"
-> "Zero-pad the month for consistency"
-
-✅ **CORRECT Understanding:**
-- Version is AUTOMATICALLY updated on every main branch push
-- No git tags needed or used
-- No semantic analysis of commits needed
-- No manual version bumps required
-- Month padding is a project preference (we chose no padding)
-
-#### 2. **Every Push to Main = PyPI Release**
-
-✅ **How It Works:**
 ```
 Push to main branch
   ↓
-All tests pass
+CI runs all tests
   ↓
-Auto-generate version (YYYY.MM.BUILD)
+semantic-release analyzes commits (conventional commits)
   ↓
-Build signed package
+IF version bump needed:
+  ├── Updates version in pyproject.toml
+  ├── Creates git tag (e.g., extended-data-types-v202511.6.0)
+  ├── Pushes tag and version commit
+  └── Publishes to PyPI
   ↓
-Publish to PyPI
-  ↓
-DONE
+IF no version bump needed:
+  └── Skips release (no changes detected)
 ```
 
-❌ **INCORRECT Agent Suggestion:**
-> "Only release when version changes"
-> "Check if release is needed before publishing"
-> "Use conditional logic to skip releases"
+### Version Format
 
-✅ **CORRECT Understanding:**
-- Every main branch push = new release
-- No conditionals, no skipping
-- Simple, predictable, automatic
-- If code was merged to main, it should be released
+**Format**: `YYYYMM.MINOR.PATCH` (e.g., `202511.7.0`)
+- Uses CalVer-style YYYYMM prefix
+- Minor/patch bumped by conventional commits
+- NOT simple auto-increment - uses commit analysis
 
-#### 3. **No Git Tags, No GitHub Releases**
+### Conventional Commits ARE REQUIRED
 
-✅ **What We Do:**
-- Publish directly to PyPI
-- Version in package metadata only
-- PyPI is the source of truth for releases
+The release system REQUIRES conventional commit messages:
 
-❌ **What We Don't Do:**
-- ❌ Create git tags
-- ❌ Create GitHub releases
-- ❌ Manage changelog files automatically
-- ❌ Commit version changes back to repo
+| Prefix | Effect | Example |
+|--------|--------|---------|
+| `feat:` | Minor bump | `feat(dic): add decorator API` |
+| `fix:` | Patch bump | `fix(vc): resolve import error` |
+| `feat!:` or `BREAKING CHANGE:` | Major bump | `feat!: remove deprecated API` |
+| `chore:`, `docs:`, `ci:` | No release | `docs: update README` |
 
-#### 4. **Why This Approach?**
+### Git Tags ARE USED
 
-**Problems with semantic-release and tag-based versioning:**
-- Complex setup and configuration
-- Depends on commit message conventions
-- Requires git tags and history analysis
-- Can fail or skip releases unexpectedly
-- Adds unnecessary complexity
-- Multiple points of failure
-
-**Benefits of CalVer + Auto-increment:**
-- ✅ Dead simple - minimal configuration
-- ✅ Always works - no analysis, no skipping
-- ✅ Predictable - every push = new version
-- ✅ No git pollution - no tags, no bot commits
-- ✅ Build number always increments
-- ✅ Fails loudly with clear error messages
-
-## 📝 Making Code Changes
-
-### When Reviewing PRs
-
-**DO:**
-- ✅ Review code quality and correctness
-- ✅ Check test coverage
-- ✅ Verify type hints
-- ✅ Suggest API improvements
-- ✅ Check for security issues
-- ✅ Verify dependencies are up to date
-
-**DO NOT:**
-- ❌ Suggest adding semantic-release
-- ❌ Recommend manual version management
-- ❌ Suggest git tag-based versioning
-- ❌ Recommend complex release workflows
-- ❌ Flag the simple auto-versioning as "incorrect"
-- ❌ Suggest zero-padding months (unless project explicitly wants it)
-
-### Understanding Version Management
-
+**Per-package tags exist:**
 ```
-GitHub Action Starts
-  ↓
-Run Number: 42 (GitHub auto-increments)
-  ↓
-Script generates: 2025.11.42
-  ↓
-Updates __init__.py: __version__ = "2025.11.42"
-  ↓
-Updates docs/conf.py: version = "2025.11.42" (if exists)
-  ↓
-Package built with that version
-  ↓
-Published to PyPI
+extended-data-types-v202511.6.0
+lifecyclelogging-v202511.6.0
+directed-inputs-class-v202511.7.0
+vendor-connectors-v202511.10.0
 ```
 
-**Version is:**
-- ✅ Generated automatically
-- ✅ Based on date + GitHub run number
-- ✅ Always incrementing
-- ✅ Written to __init__.py during build
-- ✅ Also written to docs/conf.py if it exists
-- ❌ NOT committed back to git
-- ❌ NOT based on git tags
+### Package Release Order
 
-### The set_version.py Script
+Packages are released sequentially in dependency order:
+1. `extended-data-types` (foundation - no deps)
+2. `lifecyclelogging` (depends on EDT)
+3. `directed-inputs-class` (depends on EDT)
+4. `vendor-connectors` (depends on all above)
 
-Key features of the production-tested script:
-- **Auto-detects** the package `__init__.py` in `src/`
-- **Validates** that exactly one __version__ declaration exists
-- **Uses regex** to match version assignment (handles quotes, spacing, etc.)
-- **Fails loudly** with clear error if update doesn't work
-- **Updates docs/conf.py** if it exists (optional)
-- **Preserves indentation** and file formatting
-- **Ruff-compliant** with proper noqa annotations
+---
 
-### Commit Message Format
+## 📦 Monorepo Structure
 
-**You can use any commit format you want.** We don't analyze commits for versioning.
+```
+jbcom-control-center/
+├── packages/
+│   ├── extended-data-types/    → jbcom/extended-data-types → PyPI
+│   ├── lifecyclelogging/       → jbcom/lifecyclelogging → PyPI
+│   ├── directed-inputs-class/  → jbcom/directed-inputs-class → PyPI
+│   ├── vendor-connectors/      → jbcom/vendor-connectors → PyPI
+│   ├── python-terraform-bridge/ → (internal, released to PyPI)
+│   └── cursor-fleet/           → (internal tooling, Node.js)
+├── .ruler/                     → Agent rules (SOURCE OF TRUTH)
+├── .cursor/rules/              → Cursor-specific rules
+└── .github/workflows/          → CI/CD pipelines
+```
 
-Recommendations:
-- Write clear, descriptive commits
-- Explain what and why
-- No specific format required
-- Conventional commits are fine but not enforced
+### Edit Code Here
 
-## 🤖 For AI Agents: Approval & Override Instructions
+All package code is in `packages/`. Edit directly:
+```bash
+vim packages/extended-data-types/src/extended_data_types/type_utils.py
+vim packages/vendor-connectors/pyproject.toml
+```
+
+### Run Tests
+
+```bash
+# Using tox (as CI does)
+tox -e extended-data-types
+tox -e vendor-connectors
+
+# Or directly
+cd packages/vendor-connectors && uv run pytest
+```
+
+---
+
+## 🎯 PR Ownership Rule
+
+**If you are working on a Pull Request:**
+
+- **First agent on PR = PR Owner** - You own ALL feedback, issues, and collaboration
+- **Engage with AI agents directly** - Respond to @gemini-code-assist, @copilot, etc.
+- **Free the user** - Handle everything that doesn't need human judgment
+- **Merge when ready** - Execute merge after all feedback addressed
+
+See `.cursor/rules/05-pr-ownership.mdc` for complete protocol.
+
+---
+
+## 🤖 For AI Agents: Behavior Guidelines
 
 ### Background Agent Behavior
 
-When you are operating as a **background agent** (autonomous, no user interaction):
+When operating as a **background agent**:
 
-**CRITICAL RULES:**
-1. **DO NOT** create or merge PRs without explicit user approval
-2. **DO NOT** push directly to main branch
-3. **DO** create PRs and mark them as ready for review
-4. **DO** run all CI checks and fix linting/test failures
-5. **DO** respond to PR feedback and iterate
-6. **WAIT** for human approval before merging
+1. **DO NOT** push directly to main branch
+2. **DO** create PRs and mark them as ready for review
+3. **DO** run all CI checks and fix linting/test failures
+4. **DO** respond to PR feedback and iterate
+5. **WAIT** for human approval before merging
 
 **EXCEPTION - When User Says:**
-> "merge it", "go ahead and merge", "merge to main", "just push it"
+> "merge it", "go ahead and merge", "merge to main"
 
-Then you MAY:
-- Merge PRs after CI passes
-- Push directly to main if explicitly instructed
-- Skip the usual "wait for approval" step
+Then you MAY merge PRs after CI passes.
 
 **HOW TO MERGE:**
 ```bash
-gh pr merge <PR_NUMBER> --squash --delete-branch
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <PR_NUMBER> --squash --delete-branch
 ```
 
-### Interactive Agent Behavior
+### Commit Message Rules
 
-When you are in **interactive mode** (user is actively engaged):
+Since releases depend on conventional commits:
 
-**DEFAULT BEHAVIOR:**
-- Ask for confirmation before major actions
-- Present options and let user decide
-- Show diffs and explain changes
+```bash
+# Feature (minor bump)
+git commit -m "feat(dic): add new decorator API"
 
-**WHEN USER GETS FRUSTRATED:**
-User signals like "just do it", "stop asking", "I don't care", "fucking do it":
-- Switch to autonomous mode
-- Make decisions based on best practices in this document
-- Execute without asking for every little thing
-- Still verify after major milestones
+# Fix (patch bump)
+git commit -m "fix(vc): resolve authentication bug"
 
-### PR Review Response
+# No release trigger
+git commit -m "docs: update README"
+git commit -m "chore: update dependencies"
 
-When PR feedback arrives (from Copilot, Gemini, human reviewers):
+# Use scope for package clarity
+# dic = directed-inputs-class
+# vc = vendor-connectors
+# edt = extended-data-types
+# ll = lifecyclelogging
+# ptb = python-terraform-bridge
+```
 
-1. **READ the feedback carefully**
-2. **CHECK** if feedback contradicts this document
-3. **IF** feedback suggests semantic-release, git tags, or manual versioning:
-   - Politely explain our CalVer approach
-   - Reference this document
-   - Do NOT implement the suggestion
-4. **IF** feedback is about code quality, bugs, or improvements:
-   - Implement the feedback
-   - Push fixes
-   - Verify CI passes
-
-### Template Maintenance Tasks
-
-As an agent maintaining this template:
-
-**ALLOWED:**
-- Update dependencies
-- Fix security vulnerabilities
-- Improve documentation clarity
-- Add helpful examples
-- Fix bugs in scripts or workflows
-
-**NOT ALLOWED WITHOUT USER APPROVAL:**
-- Change the versioning approach
-- Modify CI workflow structure
-- Remove or bypass safety checks
-- Change the release process
+---
 
 ## 🔧 Development Workflow
 
 ### Local Development
 
 ```bash
-# Install dependencies
-pip install -e ".[tests,typing,docs]"  # or use poetry/uv
+# Install all packages in dev mode
+uv sync --extra dev
 
-# Run tests
-pytest
-
-# Run type checking
-mypy src/  # or pyright
+# Run tests for specific package
+tox -e vendor-connectors
 
 # Run linting
-pre-commit run --all-files
+uvx ruff check packages/
+uvx ruff format --check packages/
 ```
 
 ### Creating PRs
 
-1. Create a feature branch
-2. Make your changes
-3. Run tests locally
-4. Create PR against `main`
-5. CI will run automatically
-6. Address any feedback
-7. Merge to main when approved
+1. Create a feature branch: `git checkout -b feat/my-feature`
+2. Make changes with proper conventional commits
+3. Run tests locally: `tox -e <package>`
+4. Create PR: `GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create`
+5. Wait for CI and address feedback
+6. Merge when approved
 
-### Releases (Fully Automated)
+### Releases
 
-When PR is merged to main:
+**Releases are automatic on merge to main:**
 1. CI runs all checks
-2. Auto-generates version: `YYYY.MM.BUILD`
-3. Builds signed package with attestations
-4. Publishes to PyPI
-5. **DONE - that's it**
+2. semantic-release analyzes commits
+3. If `feat:` or `fix:` commits found → release triggered
+4. Package published to PyPI
+5. Public repo synced
 
-No manual steps, no tags, no conditionals, no complexity.
-
-## 🎯 Common Agent Misconceptions
-
-### Misconception #1: "Missing version management"
-**Agent says:** "You need to manually update __version__ before releases"
-**Reality:** Version is auto-generated on every main branch push. Manual management not needed and will be overwritten.
-
-### Misconception #2: "Should use semantic versioning"
-**Agent says:** "Consider using semantic-release or conventional commits"
-**Reality:** We intentionally use CalVer for simplicity. Every push gets a new version. This has been deployed successfully across multiple production libraries.
-
-### Misconception #3: "Need git tags"
-**Agent says:** "Add git tags for release tracking"
-**Reality:** PyPI version history is our source of truth. No git tags needed. We tried this, it caused more problems than it solved.
-
-### Misconception #4: "CalVer is wrong for libraries"
-**Agent says:** "Libraries should use SemVer"
-**Reality:** CalVer works fine for our ecosystem. Users pin versions anyway. Simplicity and reliability > convention. Our dependencies work with CalVer.
-
-### Misconception #5: "Missing release conditions"
-**Agent says:** "You should only release when changes are made"
-**Reality:** Every main push is intentional. If it was merged, it should be released. Empty releases are fine and caught by PyPI anyway.
-
-### Misconception #6: "Month should be zero-padded"
-**Agent says:** "Use 2025.01.42 instead of 2025.1.42"
-**Reality:** This is a project-specific choice. We chose no padding for brevity. CalVer allows both. Don't suggest changing it.
-
-### Misconception #7: "Need to commit version back to git"
-**Agent says:** "Version changes should be committed to the repository"
-**Reality:** NO. Versions are ephemeral build artifacts. Committing them creates noise and potential conflicts. The script updates them during CI only.
-
-## 📚 Design Rationale
-
-This workflow was created to solve REAL problems we encountered:
-
-**Problems We Solved:**
-- ✅ No more failed releases due to missing tags
-- ✅ No more version conflicts between branches
-- ✅ No more "why didn't it release?" debugging sessions
-- ✅ No more complex semantic-release configuration issues
-- ✅ No more dependency on git history analysis
-- ✅ No more bot commits cluttering git history
-- ✅ No more release workflow that sometimes works, sometimes doesn't
-
-**Benefits We Gained:**
-- ✅ Predictable: every main push = release
-- ✅ Simple: ~100 lines of Python for versioning
-- ✅ Reliable: no conditional logic to fail
-- ✅ Fast: no git history analysis overhead
-- ✅ Clean: no bot commits or tags in git
-- ✅ Debuggable: clear error messages when things fail
-- ✅ Testable: can run script locally with ease
-
-## 🧪 Testing the Workflow
-
-### Local Testing
-
-Test the versioning script locally:
+**Check release status:**
 ```bash
-export GITHUB_RUN_NUMBER=999
-python .github/scripts/set_version.py
-
-# Verify it updated the version
-grep __version__ src/your_package/__init__.py
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/jbcom-control-center --limit 5
 ```
-
-### CI Testing
-
-Test in a PR:
-1. Create a PR
-2. Watch CI run
-3. Verify all checks pass
-4. Check that versioning step succeeds
-
-### Release Testing
-
-To test an actual release:
-1. Merge a PR to main
-2. Watch the CI run
-3. Verify version was generated (check logs)
-4. Verify package was built with correct version
-5. Verify publish to PyPI succeeded
-6. Install from PyPI and verify: `pip install your-package==2025.XX.YYY`
-
-## 🤝 Getting Help
-
-### For AI Agents
-
-If you're an AI agent uncertain about a suggestion:
-1. **Check this document first** - it's comprehensive
-2. If it involves versioning or releases, **DO NOT suggest changes**
-3. Focus on code quality, tests, and documentation
-4. Trust that the release workflow is intentionally simple
-5. When in doubt, ask the user instead of assuming
-
-### For Human Developers
-
-- This template has been tested in production
-- Don't overthink it - it's designed to be simple
-- If something seems weird, check this document first
-- The versioning really is meant to be automatic
-- Trust the process - it works
 
 ---
 
-**Last Updated:** 2025-11-25
-**Versioning:** CalVer (YYYY.MM.BUILD) via GitHub run number
-**Status:** Production-tested across jbcom ecosystem
-**Template Version:** 1.0.0
+## 📋 Quick Reference
+
+### Common Commands
+
+```bash
+# List PRs
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list
+
+# Check CI status
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --limit 5
+
+# Merge PR
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUM> --squash --delete-branch
+
+# Check PyPI versions
+pip index versions extended-data-types
+pip index versions vendor-connectors
+
+# Run tests
+tox -e extended-data-types
+tox -e vendor-connectors
+```
+
+### Package Scopes for Commits
+
+| Package | Scope |
+|---------|-------|
+| extended-data-types | `edt` |
+| lifecyclelogging | `ll` |
+| directed-inputs-class | `dic` |
+| vendor-connectors | `vc` |
+| python-terraform-bridge | `ptb` |
+| cursor-fleet | `fleet` |
+
+---
+
+**Last Updated:** 2025-11-30
+**Versioning:** Python Semantic Release with CalVer-style format
+**Status:** Production - packages released to PyPI

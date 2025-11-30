@@ -1,0 +1,5 @@
+{
+  "id": "7c1ea62e-9eab-4b35-a1a8-b1b17b66ee9c",
+  "type": "assistant_message",
+  "text": "Found it! `python-terraform-bridge` is **missing from the release matrix** in CI. Let me add it:"
+}

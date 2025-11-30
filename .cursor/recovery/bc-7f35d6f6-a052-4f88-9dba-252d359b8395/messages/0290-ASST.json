@@ -1,0 +1,5 @@
+{
+  "id": "247202fe-11de-4896-bc9b-03b3f34cfb55",
+  "type": "assistant_message",
+  "text": "The extra is `test` not `tests`. Let me fix tox.ini:"
+}

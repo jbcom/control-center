@@ -1,0 +1,5 @@
+{
+  "id": "6b962d84-5782-4a32-8aa3-19786928c6f3",
+  "type": "assistant_message",
+  "text": "The `.ruler/AGENTS.md` is **completely wrong** - it describes a workflow that doesn't exist. The repo ACTUALLY uses:\n- Python Semantic Release (PSR) - every package has `[tool.semantic_release]` config\n- Git tags per package (`directed-inputs-class-v202511.7.0`, etc.)\n- Conventional commits with scopes (`feat(dic):`, `fix(bridge):`)\n\nLet me fix this documentation to reflect reality:"
+}

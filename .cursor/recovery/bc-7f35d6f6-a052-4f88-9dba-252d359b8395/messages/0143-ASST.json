@@ -1,0 +1,5 @@
+{
+  "id": "29a9f0b7-9812-43f4-8263-34d417ac8ae2",
+  "type": "assistant_message",
+  "text": "You're right - I should integrate this into the `Fleet` class itself, not create separate files. Let me consolidate:"
+}

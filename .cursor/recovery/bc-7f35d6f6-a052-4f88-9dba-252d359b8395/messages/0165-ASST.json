@@ -1,0 +1,5 @@
+{
+  "id": "9f1fd2d3-ac40-439d-9ce6-7e1796c3c409",
+  "type": "assistant_message",
+  "text": "The `.ruler/` was already restored in a checkpoint. Now commit with fleet-coordination:"
+}

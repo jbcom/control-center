@@ -1,0 +1,5 @@
+{
+  "id": "48ad9824-15ce-4f24-9015-237f17db1fbb",
+  "type": "assistant_message",
+  "text": "The issue is tox doesn't have a `python-terraform-bridge` environment. Let me check and fix tox.ini:"
+}

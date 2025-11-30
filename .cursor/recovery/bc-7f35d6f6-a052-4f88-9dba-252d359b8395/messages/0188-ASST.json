@@ -1,0 +1,5 @@
+{
+  "id": "2dec1976-3745-4b64-b59c-6dd9cb894c33",
+  "type": "assistant_message",
+  "text": "Let me summarize and clean up:\n\n**Open PRs:**\n- **#245** ✅ CI passing - vendor-connectors migration (ready to merge)\n- **#247** ❌ Test failure - directed-inputs decorator API\n- **#252** ❌ Lint failure - py3.9 fix attempt\n- **#253** ❌ Lint failure - terraform-bridge fixes\n\nLet me merge #245 and close the stale fix PRs, then create handoff:"
+}

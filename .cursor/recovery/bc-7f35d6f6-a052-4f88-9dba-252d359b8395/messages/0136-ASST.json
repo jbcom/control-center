@@ -1,0 +1,5 @@
+{
+  "id": "40ee7eda-9b28-41a2-ab3e-cc34dac2f138",
+  "type": "assistant_message",
+  "text": "Exactly! The control loop needs to:\n1. **Detect completion** → Check what was done\n2. **Validate results** → CI pass? Feedback addressed?\n3. **Send approvals/next steps** → Unblock waiting agents\n\nLet me add the watch command and then run it:"
+}

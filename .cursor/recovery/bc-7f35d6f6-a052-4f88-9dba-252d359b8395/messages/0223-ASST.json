@@ -1,0 +1,5 @@
+{
+  "id": "cdde64de-4eda-4af5-a65c-8098e133a570",
+  "type": "assistant_message",
+  "text": "Main has `directed-inputs-class v202511.6.0` but NO decorator API yet. Let me check CI and merge:"
+}

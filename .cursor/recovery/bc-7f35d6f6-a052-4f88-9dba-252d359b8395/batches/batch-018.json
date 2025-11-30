@@ -1,0 +1,52 @@
+[
+  {
+    "id": "e281f5cc-1654-4886-8572-3ab5aaa758d3",
+    "type": "assistant_message",
+    "text": "🎯 Exactly! The wiki is literally syncing repo content TO the wiki - it's redundant complexity.\n\n**GitHub Issues + Projects make way more sense:**\n\n| Need | Wiki (current) | GitHub Issues/Projects (better) |\n|------|----------------|--------------------------------|\n| Active context | `wiki/Active-Context.md` synced | **Issue pinned + labeled** |\n| Progress tracking | `wiki/Progress.md` synced | **Project board columns** |\n| Session handoffs | Wiki page updates | **Issue comments with @mentions** |\n| Blockers | Wiki edits | **Issues labeled `blocked`** |\n| Agent coordination | PR comments | **Issues + cross-references** |\n\n**Benefits of Issues/Projects:**\n- ✅ Native notifications (@cursor, @jbcom)\n- ✅ Timeline/history built-in\n- ✅ Cross-repo linking works\n- ✅ Labels, milestones, assignees\n- ✅ API via `gh issue` / `gh project`\n- ✅ No sync tooling needed\n- ✅ Single source of truth\n\n**Simplified architecture:**\n```\nIN-REPO (source of truth):\n├── .ruler/           → Agent rules (ruler apply → .cursorrules, CLAUDE.md)\n├── packages/         → Code\n└── process-compose.yml\n\nGITHUB (tracking):\n├── Issues            → Active work, context, blockers\n├── Projects          → Kanban board, cross-repo view\n└── PRs               → Code changes + coordination comments\n\nDELETE:\n├── wiki/             → Redundant sync\n├── memory-bank/      → Use Issues instead\n└── .cursor/agents/   → Scattered nonsense\n```\n\nWant me to:\n1. Create a GitHub Issue template for \"Agent Session Context\"\n2. Set up a Project board for fleet coordination\n3. Delete the wiki sync workflow?"
+  },
+  {
+    "id": "88618bf5-8ea3-4df2-81bc-bcb2a637ca61",
+    "type": "user_message",
+    "text": "And probably clear the wiki while we're at it so we don't leave behind outdated crap?"
+  },
+  {
+    "id": "58335483-81b3-4ec5-97b5-2fe12e496d92",
+    "type": "assistant_message",
+    "text": "Yes! Let's clean house:"
+  },
+  {
+    "id": "ad59bcfe-6ba6-4f06-a11b-6d3cb297a3c5",
+    "type": "user_message",
+    "text": "Ruler will actually regenerate that file"
+  },
+  {
+    "id": "ae102f31-6a42-407a-8a4c-cc85388ee7a9",
+    "type": "assistant_message",
+    "text": "Right - I should just update `.ruler/` and let ruler regenerate everything. Let me clean up:"
+  },
+  {
+    "id": "c822b183-f942-4f94-86ed-5d5b3b102c2e",
+    "type": "assistant_message",
+    "text": "Now let me update `.ruler/AGENTS.md` to remove wiki refs and use GitHub Issues:"
+  },
+  {
+    "id": "5573205d-34c5-4817-b673-b67d9936443d",
+    "type": "assistant_message",
+    "text": "Now let me stage everything and commit:"
+  },
+  {
+    "id": "edecb336-03a9-42e2-a989-fb827359ad93",
+    "type": "assistant_message",
+    "text": "All changes are staged. Let me push and then clear the GitHub wiki:"
+  },
+  {
+    "id": "5f180274-8845-4751-a0ae-6f66d089c6d0",
+    "type": "assistant_message",
+    "text": "Now let me clear the GitHub wiki (it's a separate git repo):"
+  },
+  {
+    "id": "b94533c2-fad5-4144-b58d-89d1104765e3",
+    "type": "user_message",
+    "text": "If you out all these changes in your HOLD OPEN PR then your last action can be to merge in and everything will be in NYCH better shape for the next agent. Also https://github.com/intellectronica/ruler.git you can clone to /tmp so that you can review docs"
+  }
+]

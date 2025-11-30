@@ -1,0 +1,5 @@
+{
+  "id": "48af7478-4249-420f-a50a-c94bb16492ce",
+  "type": "assistant_message",
+  "text": "**Done.**\n\n- Removed the Python 3.9 test exclusion (the workaround that circumvented the test)\n- Fixed `requires-python` back to `>=3.9` \n- Fixed the tox test extra (`[test]` not `[tests]`)\n- **All tests pass including Python 3.9**\n- **python-terraform-bridge v202511.1.0 released to PyPI**\n\nThe code already had `from __future__ import annotations` on all files, so the union type syntax was fine. The only problem was the `requires-python = \">=3.10\"` restriction that should never have been there."
+}

@@ -1,0 +1,5 @@
+{
+  "id": "e74362f7-0315-4493-8c34-8cd4e375d9aa",
+  "type": "assistant_message",
+  "text": "## All 3 PRs Updated\n\n### PR #247 (directed-inputs-class decorator API)\n- ✅ Added type coercion error handling (try/except for conversion failures)\n- ✅ Fixed README python-terraform-bridge link to monorepo path\n\n### PR #252 (py3.9 ci fix)\n- ✅ Fixed stdin size limit race condition (read limit first, then peek for extra)\n- ✅ Removed duplicate union type handling from `_coerce_value` (already handled by `_resolve_type_hint`)\n- ✅ Added error handling for type coercion\n\n### PR #253 (python-terraform-bridge fixes)\n- ✅ Completed truncated `_print_help` method (was missing data source/null resource listing)"
+}

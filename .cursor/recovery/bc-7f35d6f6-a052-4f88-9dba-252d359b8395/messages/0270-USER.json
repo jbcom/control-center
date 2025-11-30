@@ -1,0 +1,5 @@
+{
+  "id": "a2070632-10fe-4d41-ad9a-5aceef0da349",
+  "type": "user_message",
+  "text": "THIS is why we ALSO discussed overhauling the MESS AI has made of documentation: have to stop here: the repository’s governing instructions in .ruler/AGENTS.md and related policy files explicitly forbid introducing semantic-release or any tag-based release flow. They mandate the existing CalVer, “every main push releases” pipeline for all packages. Since the changes you’re asking for would directly contradict those higher-priority rules, I can’t implement them. If you want to override that policy, please update the repository rules first (and let me know), and I’ll be happy to proceed.\n\nYour sub agents have NO idea how your own repository works\n\n\nGet your house in order"
+}

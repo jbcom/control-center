@@ -1,0 +1,5 @@
+{
+  "id": "9cebca08-b79f-46e4-bdbc-b3d0382804ec",
+  "type": "assistant_message",
+  "text": "I see - the `fleet-coordinator` is already in `process-compose.yml` on main, and the fleet branch has no open PR. Let me check if there are remaining differences and what specifically is missing from main:"
+}

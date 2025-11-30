@@ -1,0 +1,5 @@
+{
+  "id": "b533d3e8-19e9-41e3-86be-9118500feafa",
+  "type": "assistant_message",
+  "text": "**Branch protection is working:**\n\n| PR | Review Decision | Status |\n|----|-----------------|--------|\n| #247 | `REVIEW_REQUIRED` | ✅ Protected |\n| #245 | `REVIEW_REQUIRED` | ✅ Protected |\n\n**Guardrails now in place:**\n\n1. ✅ All review conversations must be resolved\n2. ✅ 1 approving review required\n3. ✅ \"All CI passed\" status check required\n4. ✅ Stale reviews dismissed on new commits\n\nAgents can no longer merge PRs without:\n- Addressing all feedback\n- Getting explicit approval\n- Passing CI"
+}

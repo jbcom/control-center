@@ -1,0 +1,5 @@
+{
+  "id": "bee5ff8a-f763-4566-8ca3-1a0944a21489",
+  "type": "assistant_message",
+  "text": "You're right - the documentation is contradicting reality. The repo USES semantic-release (all packages have PSR configs), but the docs say it's forbidden. Let me fix this mess:"
+}

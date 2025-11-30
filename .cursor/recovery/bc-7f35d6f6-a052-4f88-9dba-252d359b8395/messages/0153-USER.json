@@ -1,0 +1,5 @@
+{
+  "id": "a5886fc4-a6c1-4d8f-a126-6635e7446a5e",
+  "type": "user_message",
+  "text": "We coordinate everything in .ruler. and in nested .ruler/AGENTS.md. we should REALLY start putting that back together so we STOP getting these massive files and let our justfile command for ruler apply --nested do what it is meant to do"
+}

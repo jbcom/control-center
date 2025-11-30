@@ -1,22 +1,49 @@
-# GitHub Copilot Specific Configuration
+# GitHub Copilot Configuration
 
-Quick reference for GitHub Copilot when working in this template or managed repositories.
+Quick reference for GitHub Copilot when working in jbcom-control-center.
 
-## Quick Rules - Read First! 🚨
+## Quick Rules 🚨
 
-### CalVer Auto-Versioning
-✅ Version is automatic: `YYYY.MM.BUILD`
-❌ Never suggest: semantic-release, git tags, manual versioning
+### Versioning - Python Semantic Release
+✅ Uses conventional commits (`feat:`, `fix:`)
+✅ Creates per-package git tags
+✅ CalVer-style format: `YYYYMM.MINOR.PATCH`
 
 ### Release Process
-✅ Every main push = PyPI release (automatic)
-❌ Never suggest: conditional releases, manual steps
+✅ Merge to main triggers release analysis
+✅ `feat:` → minor bump, `fix:` → patch bump
+✅ `chore:`, `docs:` → no release
 
 ### Code Quality
 ✅ Type hints required
 ✅ Tests for new features
 ✅ Ruff for linting/formatting
-❌ Don't add complexity
+
+## Commit Message Format
+
+**REQUIRED for releases to work:**
+
+```bash
+# Feature (minor bump)
+feat(edt): add new utility function
+
+# Fix (patch bump)  
+fix(vc): resolve authentication bug
+
+# Breaking change (major bump)
+feat(dic)!: remove deprecated API
+
+# No release
+docs: update README
+chore: update dependencies
+```
+
+### Package Scopes
+- `edt` = extended-data-types
+- `ll` = lifecyclelogging
+- `dic` = directed-inputs-class
+- `vc` = vendor-connectors
+- `ptb` = python-terraform-bridge
 
 ## Code Patterns
 
@@ -44,14 +71,14 @@ import os
 config_file = os.path.join("config.yaml")
 ```
 
-### Type Hints
+### Type Hints Required
 ```python
-# ✅ Good - complete type hints
+# ✅ Good
 def process_data(items: list[dict[str, Any]]) -> dict[str, int]:
     """Process items and return counts."""
     return {"count": len(items)}
 
-# ❌ Avoid - no type hints
+# ❌ Avoid
 def process_data(items):
     return {"count": len(items)}
 ```
@@ -60,23 +87,20 @@ def process_data(items):
 
 ### Write Clear Tests
 ```python
-# ✅ Good - descriptive name, clear assertion
+# ✅ Good - descriptive name
 def test_process_data_returns_correct_count():
     items = [{"id": 1}, {"id": 2}]
     result = process_data(items)
     assert result["count"] == 2
 
-# ❌ Avoid - vague name, multiple assertions
+# ❌ Avoid - vague name
 def test_stuff():
     result = process_data([{"id": 1}])
     assert result
-    assert "count" in result
-    assert result["count"] > 0
 ```
 
 ### Use Fixtures
 ```python
-# ✅ Good - reusable setup
 @pytest.fixture
 def sample_data():
     return [{"id": i} for i in range(10)]
@@ -86,79 +110,23 @@ def test_with_fixture(sample_data):
     assert result["count"] == 10
 ```
 
-## When Working in Ecosystem
-
-### Using extended-data-types
-If the library depends on extended-data-types, use its utilities:
-
-```python
-# ✅ Good - use existing utilities
-from extended_data_types import (
-    get_unique_signature,
-    make_raw_data_export_safe,
-    strtobool,
-)
-
-# ❌ Avoid - reimplementing
-def my_str_to_bool(val):
-    return val.lower() in ("true", "yes", "1")
-```
-
-### Data Sanitization
-Always sanitize before logging/exporting:
-
-```python
-# ✅ Good
-from extended_data_types import make_raw_data_export_safe
-safe_data = make_raw_data_export_safe(user_data)
-logger.info(f"Processing: {safe_data}")
-
-# ❌ Avoid - logging raw data
-logger.info(f"Processing: {user_data}")  # might have secrets!
-```
-
 ## Common Tasks
 
 ### Adding a New Function
-1. Write the function with type hints
+1. Write function with type hints
 2. Add docstring (Google style)
-3. Write tests (at least happy path + edge cases)
+3. Write tests
 4. Update module `__all__` if public API
 5. Run `ruff check` and `pytest`
+6. Commit with `feat(scope):` message
 
 ### Fixing a Bug
-1. Write a test that reproduces the bug
+1. Write test that reproduces bug
 2. Fix the bug
 3. Verify test passes
-4. Check for similar bugs
-5. Update documentation if needed
+4. Commit with `fix(scope):` message
 
-### Refactoring
-1. Ensure tests exist and pass
-2. Make changes incrementally
-3. Run tests after each change
-4. Verify type checking still passes
-5. Update docstrings if behavior changed
-
-## Error Messages
-
-### Be Helpful
-```python
-# ✅ Good - clear error with context
-if not config_file.exists():
-    raise FileNotFoundError(
-        f"Config file not found: {config_file}. "
-        f"Create it with: python setup.py init"
-    )
-
-# ❌ Avoid - vague error
-if not config_file.exists():
-    raise FileNotFoundError("Config not found")
-```
-
-## Documentation
-
-### Docstring Format (Google Style)
+## Documentation - Google Style
 ```python
 def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
     """Process a list of items and return summary.
@@ -172,77 +140,22 @@ def process_items(items: list[dict], validate: bool = True) -> dict[str, Any]:
 
     Raises:
         ValueError: If items list is empty or validation fails
-
-    Example:
-        >>> items = [{"id": 1, "name": "Item 1"}]
-        >>> process_items(items)
-        {"count": 1, "valid": 1}
     """
-```
-
-## Performance Tips
-
-### Avoid Repeated Computation
-```python
-# ✅ Good - compute once
-unique_items = set(items)
-for item in unique_items:
-    process(item)
-
-# ❌ Avoid - computing in loop
-for item in items:
-    if item not in processed:  # O(n) lookup each time
-        process(item)
-```
-
-### Use Appropriate Data Structures
-```python
-# ✅ Good - O(1) lookup
-seen = set()
-for item in items:
-    if item not in seen:
-        seen.add(item)
-
-# ❌ Avoid - O(n) lookup
-seen = []
-for item in items:
-    if item not in seen:  # Slow for large lists
-        seen.append(item)
 ```
 
 ## Security
 
 ### Never Log Secrets
 ```python
-# ✅ Good - sanitize before logging
+# ✅ Good
 safe_config = {k: v for k, v in config.items() if k != "api_key"}
 logger.info(f"Config: {safe_config}")
 
-# ❌ Avoid - might log secrets
+# ❌ Avoid
 logger.info(f"Config: {config}")
 ```
 
-### Validate Input
-```python
-# ✅ Good - validate before use
-def load_file(filepath: str) -> str:
-    path = Path(filepath)
-    if not path.is_file():
-        raise ValueError(f"Not a file: {filepath}")
-    if not path.suffix == ".json":
-        raise ValueError(f"Not a JSON file: {filepath}")
-    return path.read_text()
-```
-
-## Questions?
-
-- Check `.ruler/AGENTS.md` for comprehensive guide
-- Check `TEMPLATE_USAGE.md` for template setup
-- Check `README.md` for project overview
-- Don't suggest changes to CalVer/versioning approach
-
 ---
 
-**Copilot Instructions Version:** 1.0
-**Compatible With:** GitHub Copilot, Copilot Chat
-**Last Updated:** 2025-11-25
+**Copilot Instructions Version:** 2.0
+**Last Updated:** 2025-11-30

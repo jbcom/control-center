@@ -1,0 +1,5 @@
+{
+  "id": "cbb91150-a7cc-4174-94cc-5a220ffb714c",
+  "type": "assistant_message",
+  "text": "Now add BigQuery billing dataset function to billing.py:"
+}

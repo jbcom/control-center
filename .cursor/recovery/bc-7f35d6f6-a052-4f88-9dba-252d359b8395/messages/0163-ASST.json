@@ -1,0 +1,5 @@
+{
+  "id": "680e935e-af4f-4dad-8175-100d4e1555ba",
+  "type": "assistant_message",
+  "text": "Exactly! 🎯 The core agent rules **must** be in-repo so agents can read them immediately. The wiki migration broke the bootstrap.\n\n`.ruler/` = **How to operate** (must be local)\n`wiki/` = **Reference docs, session logs, progress** (can be remote)\n\nLet me now add fleet coordination to `.ruler/` properly:"
+}

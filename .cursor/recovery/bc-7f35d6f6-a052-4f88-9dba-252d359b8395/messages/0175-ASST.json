@@ -1,0 +1,5 @@
+{
+  "id": "ae102f31-6a42-407a-8a4c-cc85388ee7a9",
+  "type": "assistant_message",
+  "text": "Right - I should just update `.ruler/` and let ruler regenerate everything. Let me clean up:"
+}

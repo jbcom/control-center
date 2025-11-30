@@ -2,121 +2,190 @@
 
 ## cursor-fleet Package
 
-The `@jbcom/cursor-fleet` package in `packages/cursor-fleet/` provides agent orchestration.
+The `@jbcom/cursor-fleet` package in `packages/cursor-fleet/` provides Cursor Background Agent management.
 
-### Commands
+### Building
 
 ```bash
-# List agents
-cursor-fleet list [--running]
-
-# Spawn agent
-cursor-fleet spawn --repo owner/repo --task "Task description"
-
-# Send follow-up message
-cursor-fleet followup <agent-id> "Message"
-
-# Monitor specific agents until done
-cursor-fleet monitor <agent-id1> <agent-id2>
-
-# Watch fleet for state changes
-cursor-fleet watch --poll 30000
-
-# Run bidirectional coordinator
-cursor-fleet coordinate --pr <number> --agents <id1,id2>
+cd /workspace/packages/cursor-fleet
+npm install
+npm run build
 ```
 
-## Coordination Channel (Hold-Open PR)
-
-For multi-agent work, create a **draft PR** as communication hub:
+### CLI Commands
 
 ```bash
-# Create coordination branch
-git checkout -b fleet/coordination-channel
-echo "# Fleet Coordination" > .cursor/agents/FLEET_COORDINATION.md
-git add -A && git commit -m "feat(fleet): Add coordination channel"
-git push -u origin fleet/coordination-channel
+# List all agents
+node dist/cli.js list
 
-# Create as DRAFT to avoid triggering AI reviewers
+# Get agent status
+node dist/cli.js status <agent-id>
+
+# Get agent conversation
+node dist/cli.js conversation <agent-id>
+
+# Replay/recover agent (with splitting)
+node dist/cli.js replay <agent-id> -o <output-dir> -v
+
+# Split existing conversation.json
+node dist/cli.js split <conversation.json> -o <output-dir>
+
+# Spawn new agent
+node dist/cli.js spawn --repo owner/repo --task "Task description"
+
+# Send followup message
+node dist/cli.js followup <agent-id> "Message"
+
+# Archive agent data
+node dist/cli.js archive <agent-id> -o <output-dir>
+```
+
+### Replay Features
+
+The `replay` command provides comprehensive conversation recovery:
+
+```bash
+node dist/cli.js replay bc-7f35d6f6-a052-4f88-9dba-252d359b8395 \
+  -o /workspace/.cursor/recovery/bc-7f35d6f6-a052-4f88-9dba-252d359b8395 \
+  -v
+```
+
+**Output structure:**
+```
+<output-dir>/
+├── conversation.json    # Full conversation
+├── agent.json           # Agent metadata
+├── analysis.json        # Extracted tasks/PRs
+├── metadata.json        # Split metadata
+├── INDEX.md             # Message index with links
+├── REPLAY_SUMMARY.md    # Human-readable summary
+├── messages/            # Individual message files
+│   ├── 0001-USER.md
+│   ├── 0001-USER.json
+│   └── ...
+└── batches/             # Batch files (10 messages each)
+    ├── batch-001.md
+    ├── batch-001.json
+    └── ...
+```
+
+**Analysis extracts:**
+- Completed tasks (✅ patterns)
+- Outstanding tasks (⏳ patterns)
+- PRs created/merged
+- Blockers identified
+- Key decisions
+
+## Hold-Open PR Pattern
+
+For multi-merge sessions, create a **draft PR** as a coordination channel:
+
+```bash
+# 1. Create holding branch
+git checkout -b agent/holding-session-$(date +%Y%m%d-%H%M%S)
+echo "# Session Notes" >> .cursor/agents/session.md
+git add -A && git commit -m "chore: agent holding PR"
+git push -u origin HEAD
+
+# 2. Create as DRAFT to avoid AI reviewers
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create \
   --draft \
-  --title "🤖 Fleet Coordination Channel (HOLD OPEN)" \
-  --body "Communication channel for agent fleet. DO NOT MERGE."
+  --title "[HOLDING] Agent session (DO NOT MERGE)" \
+  --body "Communication channel. DO NOT MERGE until complete."
+
+# 3. Work via interim PRs
+git checkout main && git pull
+git checkout -b fix/specific-issue
+# ... make fix ...
+git push -u origin HEAD
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUM> --squash --delete-branch
+
+# 4. When done, close holding PR
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr close <HOLDING_PR_NUM>
 ```
 
-> **Important**: Use `--draft` to prevent Amazon Q, Gemini, CodeRabbit, etc. from reviewing
+**Why draft?** Prevents Amazon Q, Gemini, CodeRabbit from reviewing the holding PR.
 
 ## Agent Reporting Protocol
 
-Sub-agents report status by commenting on the coordination PR:
+Sub-agents can report status via PR comments:
 
 | Format | Meaning |
 |--------|---------|
-| `@cursor ✅ DONE: [agent-id] [summary]` | Task completed |
-| `@cursor ⚠️ BLOCKED: [agent-id] [issue]` | Needs intervention |
-| `@cursor 📊 STATUS: [agent-id] [progress]` | Progress update |
-| `@cursor 🔄 HANDOFF: [agent-id] [info]` | Ready for next step |
+| `@cursor ✅ DONE: [summary]` | Task completed |
+| `@cursor ⚠️ BLOCKED: [issue]` | Needs intervention |
+| `@cursor 📊 STATUS: [progress]` | Progress update |
 
-## Bidirectional Coordination Loop
+## API Classes
 
-The `coordinate` command runs two concurrent loops:
+### CursorAPI (Direct)
 
+```typescript
+import { CursorAPI } from "@jbcom/cursor-fleet";
+
+const api = new CursorAPI(process.env.CURSOR_API_KEY);
+
+// List agents
+const agents = await api.listAgents();
+
+// Get status
+const agent = await api.getAgentStatus("bc-xxx");
+
+// Get conversation
+const conversation = await api.getAgentConversation("bc-xxx");
+
+// Launch agent
+const newAgent = await api.launchAgent({
+  prompt: { text: "Fix the CI" },
+  source: { repository: "jbcom/vendor-connectors" }
+});
+
+// Send followup
+await api.addFollowup("bc-xxx", { text: "Check PR feedback" });
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Fleet.coordinate()                          │
-│                                                                 │
-│  ┌──────────────────┐              ┌────────────────────────┐  │
-│  │ OUTBOUND Loop    │              │ INBOUND Loop           │  │
-│  │ (every 60s)      │              │ (every 15s)            │  │
-│  │                  │              │                        │  │
-│  │ - Check agents   │              │ - Poll PR comments     │  │
-│  │ - Send followup  │              │ - Parse @cursor        │  │
-│  │ - Remove done    │              │ - Dispatch actions     │  │
-│  └────────┬─────────┘              └──────────▲─────────────┘  │
-│           │                                   │                │
-└───────────┼───────────────────────────────────┼────────────────┘
-            │                                   │
-            ▼                                   │
-    ┌───────────────┐                  ┌────────┴────────┐
-    │ Sub-Agents    │                  │ Coordination PR │
-    │ (via MCP)     │──── comment ────▶│ (GitHub inbox)  │
-    └───────────────┘                  └─────────────────┘
-```
 
-## Programmatic Usage
+### Fleet (High-level)
 
 ```typescript
 import { Fleet } from "@jbcom/cursor-fleet";
 
-const fleet = new Fleet();
+const fleet = new Fleet({ apiKey: process.env.CURSOR_API_KEY });
 
-// Run coordination
-await fleet.coordinate({
-  coordinationPr: 251,
-  repo: "jbcom/jbcom-control-center",
-  agentIds: ["bc-xxx", "bc-yyy"],
+// Replay with splitting
+const result = await fleet.replay("bc-xxx", {
+  outputDir: "/path/to/output",
+  verbose: true
 });
 
-// Or individual methods
-await fleet.spawn({ repository: "owner/repo", task: "Do something" });
-await fleet.followup("bc-xxx", "Status check");
-const comments = fleet.fetchPRComments("owner/repo", 251);
-fleet.postPRComment("owner/repo", 251, "Update");
+// Split existing conversation
+await fleet.splitExisting("/path/to/conversation.json", "/path/to/output");
+
+// Load previous replay
+const data = await fleet.loadReplay("/path/to/archive");
+```
+
+## Environment Variables
+
+```bash
+export CURSOR_API_KEY="..."  # Required for API calls
+export GITHUB_JBCOM_TOKEN="..." # For GitHub operations
 ```
 
 ## process-compose Integration
 
-Add to `process-compose.yml`:
+Add to `process-compose.yml` for long-running coordination:
 
 ```yaml
-fleet-coordinator:
-  command: "node packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR} --agents ${AGENT_IDS}"
-  environment:
-    - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
-    - "CURSOR_API_KEY=${CURSOR_API_KEY}"
+fleet-watcher:
+  command: |
+    node /workspace/packages/cursor-fleet/dist/cli.js list --json | \
+    jq -r '.[] | select(.status == "RUNNING") | .id'
+  depends_on: []
 ```
 
-Run with:
-```bash
-COORDINATION_PR=251 AGENT_IDS=bc-xxx,bc-yyy process-compose up fleet-coordinator
-```
+---
+
+**Package:** @jbcom/cursor-fleet
+**Location:** packages/cursor-fleet/
+**Last Updated:** 2025-11-30

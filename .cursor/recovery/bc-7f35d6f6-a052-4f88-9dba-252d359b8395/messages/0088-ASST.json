@@ -1,0 +1,5 @@
+{
+  "id": "02ceb1bc-55a2-44a0-a695-bd117fe6b744",
+  "type": "assistant_message",
+  "text": "Got it - `packages/` is used for **both** Python and Node.js. The uv workspace in root `pyproject.toml` explicitly lists only the Python packages:\n\n```toml\n[tool.uv.workspace]\nmembers = [\n    \"packages/extended-data-types\",\n    \"packages/lifecyclelogging\",\n    \"packages/directed-inputs-class\",\n    \"packages/vendor-connectors\",\n]\n```\n\nSo `cursor-fleet` is TypeScript (has `package.json`), the rest are Python (have `pyproject.toml`).\n\nTo add `python-terraform-bridge`:\n\n1. Create `packages/python-terraform-bridge/` with `pyproject.toml`\n2. Add to root `pyproject.toml`:\n   ```toml\n   [tool.uv.workspace]\n   members = [\n       \"packages/extended-data-types\",\n       \"packages/lifecyclelogging\",\n       \"packages/directed-inputs-class\",\n       \"packages/vendor-connectors\",\n       \"packages/python-terraform-bridge\",  # NEW\n   ]\n   \n   [tool.uv.sources]\n   python-terraform-bridge = { workspace = true }  # NEW\n   ```\n\nWant me to scaffold it out?"
+}

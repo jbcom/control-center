@@ -1,0 +1,5 @@
+{
+  "id": "0e2a1cbc-570a-4173-9e3b-017c4d516179",
+  "type": "assistant_message",
+  "text": "**Created:**\n\n- **Issue #250**: [fix: Address unresolved feedback in python-terraform-bridge](https://github.com/jbcom/jbcom-control-center/issues/250)\n- **Agent `bc-8e620589`**: Spawned to fix the issues\n\n**Issue #250 Tasks:**\n\n| Priority | Task |\n|----------|------|\n| 🔴 Critical | Fix command injection in `runtime.py` |\n| 🔴 Critical | Sanitize Lambda logging output |\n| 🔴 Critical | Remove manual versions, use PSR |\n| 🟡 Important | Integrate with `@directed_inputs` decorator |\n| 🟡 Important | Add integration tests for decorator composition |\n\n**Current Fleet:**\n\n| Agent | Task | Status |\n|-------|------|--------|\n| `bc-8e620589` | Issue #250 (terraform-bridge fixes) | RUNNING |\n| `bc-7f35d6f6` | Control Manager (me) | RUNNING |\n\n**Open PRs (protected):**\n\n| PR | Status | Needs |\n|----|--------|-------|\n| #247 | REVIEW_REQUIRED | Approval + resolve conversations |\n| #245 | REVIEW_REQUIRED | Approval + resolve conversations |\n\nBranch protection ensures no more premature merges."
+}

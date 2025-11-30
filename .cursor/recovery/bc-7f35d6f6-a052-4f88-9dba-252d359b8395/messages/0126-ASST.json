@@ -1,0 +1,5 @@
+{
+  "id": "efeec94b-ae8d-4632-9e09-f352558ab49b",
+  "type": "assistant_message",
+  "text": "**Branch protection now enabled:**\n\n✅ **Required status checks**: \"All CI passed\" must pass  \n✅ **Required conversation resolution**: All review comments must be resolved  \n✅ **Required approving review**: 1 approval needed  \n✅ **Dismiss stale reviews**: New commits invalidate old approvals  \n\n**Current PR Status:**\n\n| PR | Status | Notes |\n|----|--------|-------|\n| #248 | ⚠️ MERGED | Merged prematurely (before protection was set) |\n| #247 | OPEN | Protected now |\n| #245 | OPEN | Protected now |"
+}

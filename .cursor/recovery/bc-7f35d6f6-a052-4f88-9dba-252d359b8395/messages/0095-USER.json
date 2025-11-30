@@ -1,0 +1,5 @@
+{
+  "id": "bcc084b7-e8ac-4b06-89e7-1fc794d1deef",
+  "type": "user_message",
+  "text": "But ALSO the docstring approach is REALLY flawed and CRITICALLY difficult to document. For that matter thinking about it our entire approach WITH directed inputs class and get_inputs / decode_inputs is critically flawed because it FORCES developers to use a base class just to get input handling. What we NEED is to step back and deal with this from a GOALS perspective. If we look at the methods they are a clear example of WET interface design - Optional arguments defaulting to none and then explicit ger_input and decode_input calls. There is a much more logical approach to take. Refactor directed inputs class to provide a class DECORATOR that TRANSPARENTLY loads inputs to the arguments - and then an instance method decorator for when we want to do overrides / specific changes / instructions that are too complex to be in the arguments automatically - and THEN that will massively help with the python terraform bridge because it becomes AN EXTENDED set of decorators"
+}

@@ -34,13 +34,15 @@ export interface Agent {
 }
 
 export interface Message {
+  id?: string;
   type: "user_message" | "assistant_message";
   text: string;
   timestamp?: string;
 }
 
 export interface Conversation {
-  agentId: string;
+  id?: string;
+  agentId?: string;
   messages: Message[];
 }
 

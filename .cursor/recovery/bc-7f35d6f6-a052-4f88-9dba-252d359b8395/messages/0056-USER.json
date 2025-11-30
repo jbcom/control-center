@@ -1,0 +1,5 @@
+{
+  "id": "f9b41465-a448-41ec-90d5-bfeca27bbcc4",
+  "type": "user_message",
+  "text": "The entire task is to move all cloud code OUT and into vendor connectors as genericiEd cloud specific methods - which since they are all direct inputs compatible is a straight lift and shift with a rewrite of docstrings to standard Google"
+}

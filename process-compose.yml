@@ -19,25 +19,23 @@ processes:
     log_location: ./logs/conport.log
 
   # =============================================================================
-  # CURSOR BACKGROUND AGENT MANAGEMENT (via mcp-proxy)
+  # CURSOR BACKGROUND AGENT MANAGEMENT (via cursor-fleet direct API)
   # =============================================================================
-  
-  cursor-agent-manager:
-    command: "mcp-proxy --port 3011 -- cursor-background-agent-mcp-server"
-    availability:
-      restart: "always"
-      backoff_seconds: 10
-    log_location: ./logs/cursor-agent-manager.log
-    environment:
-      - "CURSOR_API_KEY=${CURSOR_API_KEY}"
-      - "CURSOR_WORKSPACE_ID=${PWD}"
-    readiness_probe:
-      http_get:
-        host: localhost
-        port: 3011
-        path: /mcp
-      initial_delay_seconds: 8
-      period_seconds: 15
+  # 
+  # cursor-fleet now uses direct API calls instead of MCP proxy.
+  # Use the CLI commands directly:
+  #   node packages/cursor-fleet/dist/cli.js list
+  #   node packages/cursor-fleet/dist/cli.js replay <agent-id> -o <output-dir>
+  #
+  # The cursor-agent-manager is DEPRECATED - use direct API instead.
+  # Keeping this commented for reference:
+  #
+  # cursor-agent-manager:
+  #   command: "mcp-proxy --port 3011 -- cursor-background-agent-mcp-server"
+  #   availability:
+  #     restart: "always"
+  #   environment:
+  #     - "CURSOR_API_KEY=${CURSOR_API_KEY}"
 
   # =============================================================================
   # AWS MCP SERVERS (via mcp-proxy for background agent CLI access)
@@ -225,21 +223,30 @@ processes:
       period_seconds: 10
 
   # =============================================================================
-  # FLEET COORDINATION
+  # FLEET MONITORING (cursor-fleet status watcher)
   # =============================================================================
+  # 
+  # Periodically checks status of running agents.
+  # Use for long-running fleet coordination sessions.
+  #
+  # For ad-hoc usage, prefer CLI directly:
+  #   node packages/cursor-fleet/dist/cli.js list
+  #   node packages/cursor-fleet/dist/cli.js replay <agent-id> -o <dir>
+  #   node packages/cursor-fleet/dist/cli.js followup <agent-id> "message"
 
-  fleet-coordinator:
-    command: "node /workspace/packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR:-251} --repo jbcom/jbcom-control-center --agents ${AGENT_IDS:-}"
+  fleet-watcher:
+    command: |
+      bash -c 'while true; do
+        echo "=== Fleet Status $(date +%H:%M:%S) ==="
+        node /workspace/packages/cursor-fleet/dist/cli.js list 2>/dev/null || echo "Fleet CLI not available"
+        sleep 300
+      done'
     availability:
-      restart: "always"
-      backoff_seconds: 30
-    log_location: ./logs/fleet-coordinator.log
+      restart: "on_failure"
+      backoff_seconds: 60
+    log_location: ./logs/fleet-watcher.log
     environment:
-      - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
       - "CURSOR_API_KEY=${CURSOR_API_KEY}"
-    depends_on:
-      cursor-agent-manager:
-        condition: process_healthy
 
   # =============================================================================
   # HEALTH MONITORING

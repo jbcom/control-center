@@ -7,8 +7,17 @@
 
 import { writeFile, mkdir, readFile } from "node:fs/promises";
 import { join, dirname } from "node:path";
-import split from "@codetailor/split-json";
+import { createRequire } from "node:module";
 import type { Conversation, Message } from "./types.js";
+
+const require = createRequire(import.meta.url);
+const split: (
+  inputFilePath: string,
+  outputFolder: string,
+  outputPrefix: string,
+  maxItemsPerFile?: number,
+  minPartNumberLength?: number
+) => Promise<unknown> = require("@codetailor/split-json");
 
 export interface SplitOptions {
   /** Messages per batch file (default: 10) */

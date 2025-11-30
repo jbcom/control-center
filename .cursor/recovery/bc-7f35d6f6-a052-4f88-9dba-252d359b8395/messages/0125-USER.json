@@ -1,0 +1,5 @@
+{
+  "id": "35172546-1cf8-47b4-b164-e3306b1b57c5",
+  "type": "user_message",
+  "text": "URGENT: STOP MERGING. Do NOT merge any PR until: 1) ALL review feedback is addressed 2) All CI checks pass 3) Control manager (bc-7f35d6f6) explicitly approves. Review comments must be resolved, not ignored."
+}

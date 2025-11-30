@@ -1,0 +1,5 @@
+{
+  "id": "9ca6fdea-dd50-4642-a5e1-a65d2af9ccdd",
+  "type": "assistant_message",
+  "text": "The conflicts are extensive. The PR branch has the fuller implementation for terraform-parity. Let me resolve by accepting the incoming changes (which is what the agent intended):"
+}

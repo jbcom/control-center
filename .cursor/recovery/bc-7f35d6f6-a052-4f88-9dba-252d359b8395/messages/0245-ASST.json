@@ -1,0 +1,5 @@
+{
+  "id": "46ef3ac3-0663-422f-a237-ce37c319d5a3",
+  "type": "assistant_message",
+  "text": "The PR is conflicting. Let me fetch the latest and rebase:"
+}

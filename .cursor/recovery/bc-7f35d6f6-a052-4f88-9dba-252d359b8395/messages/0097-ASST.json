@@ -1,0 +1,5 @@
+{
+  "id": "47d57e3f-af92-41c1-9c92-523a23476e38",
+  "type": "assistant_message",
+  "text": "Actually, given the time constraints, let me fix the tests properly using pytest's `pytest.raises`:"
+}

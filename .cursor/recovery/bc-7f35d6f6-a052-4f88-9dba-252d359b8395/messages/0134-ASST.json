@@ -1,0 +1,5 @@
+{
+  "id": "13edc16a-0da8-4f80-8f82-aec8594f96e9",
+  "type": "assistant_message",
+  "text": "You're right! The fleet manager spawns agents but has no control loop to:\n\n1. **Poll agent status** - detect when they finish/stall\n2. **Check PR state** - CI failures, review status\n3. **Auto-remediate** - spawn fix agents when issues detected\n4. **Coordinate handoffs** - notify next agent when dependencies complete\n\nLet me add a `watch` command to cursor-fleet:"
+}

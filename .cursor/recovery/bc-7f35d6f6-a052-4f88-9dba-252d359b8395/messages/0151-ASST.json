@@ -1,0 +1,5 @@
+{
+  "id": "a14dbc3a-3f31-4958-b925-2d2ceb4e5ee0",
+  "type": "assistant_message",
+  "text": "The `.roo/rules` file is very long. Let me add a section about fleet coordination to the existing `AGENTS.md` in the workspace rules more concisely:"
+}

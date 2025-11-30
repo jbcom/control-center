@@ -1,0 +1,5 @@
+{
+  "id": "18d54d27-e482-4005-a6ca-3a64d763a26a",
+  "type": "assistant_message",
+  "text": "Tests are failing for python-terraform-bridge. Let me check the CI logs:"
+}

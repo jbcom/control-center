@@ -1,0 +1,5 @@
+{
+  "id": "f76a4038-dfb9-4a44-a49f-62212fb79846",
+  "type": "assistant_message",
+  "text": "The files already have `from __future__ import annotations`. The problem is just the pyproject.toml restriction:"
+}

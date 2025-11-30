@@ -1,0 +1,5 @@
+{
+  "id": "2a067380-0ad2-4ea3-a8a2-55d327776136",
+  "type": "assistant_message",
+  "text": "Agent `bc-c5f87098` finished but left PR #247 with issues:\n\n- ❌ `Test directed-inputs-class py3.9` - FAILURE\n- ❌ `All CI passed` - FAILURE  \n- ⚠️ Review still required"
+}

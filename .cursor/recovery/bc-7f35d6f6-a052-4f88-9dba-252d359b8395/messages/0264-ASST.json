@@ -1,0 +1,5 @@
+{
+  "id": "05ea9d8b-602c-484f-b385-190997aafe3c",
+  "type": "assistant_message",
+  "text": "Agent finished but hit a rules conflict. Let me check if a PR was created:"
+}

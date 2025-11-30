@@ -1,0 +1,5 @@
+{
+  "id": "e9df08c4-f8ec-46c7-844b-5625bd2b1146",
+  "type": "user_message",
+  "text": "CI doesn't release the NEW python-terraform-bridge. Use your fleet tooling to delegate this to a new Cursor agent"
+}

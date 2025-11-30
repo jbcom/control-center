@@ -1,0 +1,5 @@
+{
+  "id": "bfe423cc-b887-4e43-a539-71aa5d2dae5b",
+  "type": "assistant_message",
+  "text": "Main is missing some unique features from PR #243:\n- `constants.py` \n- `create_google_user`\n- `create_google_group`\n- `get_google_client_for_user` (impersonation)\n\nLet me extract these and properly complete the PR:"
+}

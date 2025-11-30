@@ -1,0 +1,5 @@
+{
+  "id": "c822b183-f942-4f94-86ed-5d5b3b102c2e",
+  "type": "assistant_message",
+  "text": "Now let me update `.ruler/AGENTS.md` to remove wiki refs and use GitHub Issues:"
+}

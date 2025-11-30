@@ -1,0 +1,5 @@
+{
+  "id": "42f07ec5-2cb6-475f-ba7d-56536690e030",
+  "type": "assistant_message",
+  "text": "Now I have full context. PR #243 from agent **bc-f5391b3e** has:\n- **State**: OPEN with merge conflicts\n- **Content**: 2,383 additions bringing Google connector to full terraform-parity\n- **Files**: `google/__init__.py`, `google/constants.py`, tests\n\nLet me resolve the conflicts and complete this PR:"
+}

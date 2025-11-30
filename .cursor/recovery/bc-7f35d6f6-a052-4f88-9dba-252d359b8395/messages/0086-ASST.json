@@ -1,0 +1,5 @@
+{
+  "id": "18aa7ef5-ab71-45f1-b27d-e404475ea42b",
+  "type": "assistant_message",
+  "text": "All available:\n\n| Package Name | Status |\n|--------------|--------|\n| `python-terraform-bridge` | ✅ Available |\n| `terraform-bridge` | ✅ Available |\n| `terraform-python-bridge` | ✅ Available |\n| `pytf-bridge` | ✅ Available |\n| `tf-bridge` | ✅ Available |\n\n**`python-terraform-bridge`** is solid - it's descriptive, follows Python naming conventions (python-*), and clearly communicates what it does.\n\nWant me to:\n1. Draft the initial package structure in the monorepo?\n2. Map out what code moves from terraform-modules?\n3. Design the registry/decorator API?\n\nThe core pieces would be:\n```\npackages/python-terraform-bridge/\n├── src/python_terraform_bridge/\n│   ├── __init__.py\n│   ├── registry.py          # Method → Terraform data source registry\n│   ├── provider.py          # External data provider runtime\n│   ├── schema.py            # Input/output schema generation\n│   ├── codegen.py           # .tf.json generation\n│   └── cli.py               # CLI interface\n├── pyproject.toml\n└── README.md\n```"
+}

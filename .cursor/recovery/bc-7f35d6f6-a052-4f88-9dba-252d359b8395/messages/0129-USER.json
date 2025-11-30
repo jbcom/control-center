@@ -1,0 +1,5 @@
+{
+  "id": "2aea4453-a0c9-4879-83f7-f8cd756e532b",
+  "type": "user_message",
+  "text": "Probably going to need a a follow up PR for the python terrafoem bridge since we there was a LOT of unaddressed feedback to recover AND we need to properly setup the DECORATOR approach"
+}

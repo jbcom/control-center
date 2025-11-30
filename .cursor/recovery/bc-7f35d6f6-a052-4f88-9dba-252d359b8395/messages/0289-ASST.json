@@ -1,0 +1,5 @@
+{
+  "id": "381bdf25-968d-4b9d-ba77-9a2b71325cae",
+  "type": "assistant_message",
+  "text": "The error is `pytest` not found. The `[tests]` extra isn't defined in python-terraform-bridge. Let me check and fix:"
+}

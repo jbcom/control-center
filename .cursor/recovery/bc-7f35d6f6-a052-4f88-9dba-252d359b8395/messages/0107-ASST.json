@@ -1,0 +1,5 @@
+{
+  "id": "1fdaf8d5-fd2b-4822-b467-3c8a4cbeead6",
+  "type": "assistant_message",
+  "text": "## Confirmed: PR #245 is the Authoritative Migration PR\n\nPR #245 already contains all the vendor-connectors functions:\n- `get_bucket_sizes()`\n- `list_available_licenses()`\n- `get_bigquery_billing_dataset()`\n- `get_project_iam_users()`\n- `get_pubsub_resources_for_project()`\n- `find_inactive_projects()`\n- `get_users_with_verified_emails()`\n- Plus additional: `label_account()`, `classify_accounts()`, `preprocess_organization()`, `build_workflow()`\n\n## PRs to Close\n\n| PR | Reason |\n|---|---|\n| **#246** | Documents deleted work (decorator API, terraform-bridge) |\n| **#247** | Code deleted - `decorators.py` removed |\n| **#248** | Code deleted - entire `python-terraform-bridge` package removed |\n| **#249** | Redundant - subset of #245 |\n\n## PR to Keep\n\n| PR | Reason |\n|---|---|\n| **#245** | Complete vendor-connectors migration (100% feature parity) |\n\nWant me to close PRs #246, #247, #248, #249 with appropriate comments explaining why?"
+}
