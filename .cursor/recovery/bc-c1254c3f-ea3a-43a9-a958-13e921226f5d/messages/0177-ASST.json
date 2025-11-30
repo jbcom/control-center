@@ -1,0 +1,5 @@
+{
+  "id": "b8a4a3a6-b3c9-4d9d-996d-200807131ae0",
+  "type": "assistant_message",
+  "text": "Oh that's brilliant! `${{ toJson(secrets) }}` gives you **all secret values** in a workflow! We can use that directly with `gh api`. Let me simplify:"
+}

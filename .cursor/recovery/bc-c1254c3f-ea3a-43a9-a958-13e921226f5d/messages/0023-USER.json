@@ -1,0 +1,5 @@
+{
+  "id": "2178997e-7a4c-45f3-9e35-d402438eda4c",
+  "type": "user_message",
+  "text": "Also you have workflows DIRECTLY installing dowendencies like pycalver and it makes NO sense. It's a uv workflow. That's literally my point. It's a DEV dependency. The core PROBLEM is that NONE Of This is being done RIGHT"
+}

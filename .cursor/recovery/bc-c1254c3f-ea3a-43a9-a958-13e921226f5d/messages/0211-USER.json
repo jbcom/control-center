@@ -1,0 +1,5 @@
+{
+  "id": "13ad0788-3993-450d-b266-a85a6e32c545",
+  "type": "user_message",
+  "text": "EXTERNAL_CI_GPG_PUBLIC_KEY, EXTERNAL_CI_SECRET_KEY, FLIPSIDE_GITHUB_APP_ID, FLIPSIDE_GITHUB_CLIENT_ID, FLIPSIDE_GITHUB_CLIENT_SECRET, \n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📁 Organization: fsc-internal-tooling-***istration\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n  ❌ Failed: EXTERNAL_CI_BOT_ACCESS_KEY\n  ❌ Failed: QUAY_REGISTRY\n  ❌ Failed: FLIPSIDE_GITHUB_CLIENT_ID\n  ❌ Failed: ANALYTICS_TESTBED_EXECUTION_ROLE_ARN\n  ❌ Failed: HCP_CLIENT_ID\n  ❌ Failed: HCP_CLIENT_SECRET\n  ❌ Failed: EXTERNAL_CI_ACCESS_KEY\n  ❌ Failed: NEXUS_USERNAME\n\n\n\nSo SOMETHING is clearly going wrong and just as clearly we are Not Failing fast"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "7d55f46c-d5a0-4ec6-8108-e91838bad2ad",
+  "type": "assistant_message",
+  "text": "`is_nothing` already exists in `extended-data-types`! Let me update both connectors to use it instead of duplicating:"
+}

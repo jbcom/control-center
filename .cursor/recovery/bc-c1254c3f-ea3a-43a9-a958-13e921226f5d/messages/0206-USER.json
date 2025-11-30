@@ -1,0 +1,5 @@
+{
+  "id": "ee0ccd30-844c-402b-8914-8ace83a9596b",
+  "type": "user_message",
+  "text": "Also make SURE that the next agent is going to know EXACTLY how to pick up and take off running with the CRITICAL work - they will actually be able to DO terraform init and terraform plan and terraform output so I want them to work MUCH more surgically on secretsmanager BEFORE any kind of CI kickoff - since once YOU get generator and secrets run in org admin I'm gonna be interesting the cursor background agent IAM role"
+}

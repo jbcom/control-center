@@ -1,0 +1,5 @@
+{
+  "id": "d81a9f57-e9be-4b20-afa0-4d460bc00228",
+  "type": "assistant_message",
+  "text": "The workflows keep getting cancelled. Let me check if there's a pattern - maybe the timeout is being hit:"
+}

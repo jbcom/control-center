@@ -1,0 +1,5 @@
+{
+  "id": "e8dbd570-bc5d-43f0-ba48-e22f959dd185",
+  "type": "assistant_message",
+  "text": "Now update the workflow file to use access keys instead of OIDC:"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "2083a2eb-8a23-4045-ab79-08683594e1cf",
+  "type": "assistant_message",
+  "text": "The APIs are mostly compatible. The main gap is `GoogleConnector.impersonate_subject()`. Let me add it:"
+}

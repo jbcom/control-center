@@ -1,0 +1,5 @@
+{
+  "id": "032ab198-2601-43d1-86dd-0f3d89b165bd",
+  "type": "assistant_message",
+  "text": "These modules aren't used within terraform-modules itself - they're only used by terraform-aws-secretsmanager. Let me create the removal branch:"
+}

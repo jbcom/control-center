@@ -1,0 +1,5 @@
+{
+  "id": "352807b5-74f2-43cf-a37b-aa38f31ab99f",
+  "type": "assistant_message",
+  "text": "Fixed. The distinction:\n\n| Token | Who Uses It | Where It Lives |\n|-------|-------------|----------------|\n| `GITHUB_TOKEN` | Me (agent) | My environment |\n| `GITHUB_JBCOM_TOKEN` | Me (agent) | My environment |\n| `FLIPSIDE_GITHUB_TOKEN` | GHA workflows | FlipsideCrypto org secrets |\n\nThe `FLIPSIDE_` prefix exists because GitHub Actions reserves the `GITHUB_` prefix for its own tokens. So workflows store the org-admin PAT as `FLIPSIDE_GITHUB_TOKEN`."
+}

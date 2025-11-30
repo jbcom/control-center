@@ -1,0 +1,5 @@
+{
+  "id": "5e495cdb-3590-4449-bffa-16091de5525c",
+  "type": "user_message",
+  "text": "Make sure to ALSO move the GET secret functionality And that you're being VERY careful to port ALL the logic Especially around path handling"
+}

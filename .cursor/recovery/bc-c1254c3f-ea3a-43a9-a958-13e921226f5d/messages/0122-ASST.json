@@ -1,0 +1,5 @@
+{
+  "id": "3ec1b81f-44aa-486a-bef6-b29f342f4a4d",
+  "type": "assistant_message",
+  "text": "Now let me also check what we have in extended-data-types for the `is_nothing` utility - this should be a shared function:"
+}

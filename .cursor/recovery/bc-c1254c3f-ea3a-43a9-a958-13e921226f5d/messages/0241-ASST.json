@@ -1,0 +1,5 @@
+{
+  "id": "35dc300d-446e-4c09-98e5-4c3a6d22e302",
+  "type": "assistant_message",
+  "text": "The `EXTERNAL_CI_SECRET_KEY` wasn't synced before cancellation. Let me manually sync just the missing secrets:"
+}

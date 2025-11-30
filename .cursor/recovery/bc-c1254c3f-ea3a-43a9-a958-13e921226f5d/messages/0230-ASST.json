@@ -1,0 +1,5 @@
+{
+  "id": "d5342b49-4b03-4acf-9dc4-39ad089e53c2",
+  "type": "assistant_message",
+  "text": "Now I understand the pattern. When `use_oidc_auth = false`:\n- Uses `EXTERNAL_CI_ACCESS_KEY` and `EXTERNAL_CI_SECRET_KEY` instead of `AWS_OIDC_ROLE_ARN`\n\nLet me check the terraform-organization-administration repo:"
+}

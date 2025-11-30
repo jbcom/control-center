@@ -1,0 +1,5 @@
+{
+  "id": "1636ae40-3af3-416f-a5e7-4d3656af0190",
+  "type": "assistant_message",
+  "text": "Let me trace the OIDC auth configuration through terraform-modules:"
+}

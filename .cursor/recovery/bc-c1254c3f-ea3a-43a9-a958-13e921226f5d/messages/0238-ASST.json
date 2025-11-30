@@ -1,0 +1,5 @@
+{
+  "id": "45af5d5f-53a8-4ce6-bda0-02f15ce25c45",
+  "type": "assistant_message",
+  "text": "`EXTERNAL_CI_SECRET_KEY` is missing! Let me check the source org:"
+}

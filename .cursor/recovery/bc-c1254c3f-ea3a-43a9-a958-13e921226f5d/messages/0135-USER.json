@@ -1,0 +1,5 @@
+{
+  "id": "d3b8bb4e-9a1e-499d-b992-6df954a600ec",
+  "type": "user_message",
+  "text": "Yep go for it full steam ahead. Do you feel like you have a handle on how it was stacking merges ? And how the different configs worked and were processed in the generator in secretsmanager? Fyi terraform-modules docs has markdown on context module etc"
+}

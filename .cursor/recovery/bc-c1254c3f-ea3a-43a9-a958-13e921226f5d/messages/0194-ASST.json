@@ -1,0 +1,5 @@
+{
+  "id": "ed0d57d9-19f0-4579-b3a7-c5383556e1c9",
+  "type": "assistant_message",
+  "text": "Honestly? No. For a repo like terraform-modules with low merge concurrency, they're just adding friction:\n\n- Extra wait time on every merge\n- Have to poll for status\n- No real benefit when PRs aren't racing to main\n\nMerge queues shine when you have 10+ PRs trying to merge simultaneously and need to ensure each is tested against the latest main. For internal tooling repos with 1-2 contributors (or one agent), they're overhead.\n\nWant me to check the workflow result, or would you rather disable the merge queue on terraform-modules first?"
+}

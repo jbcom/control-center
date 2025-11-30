@@ -1,0 +1,5 @@
+{
+  "id": "c6c6be84-cac7-4ea7-b401-a62eb61f8b30",
+  "type": "assistant_message",
+  "text": "The token doesn't have admin access to the target org. The `FLIPSIDE_GITHUB_TOKEN` needs org admin on `fsc-internal-tooling-administration`.\n\nThis is the bootstrap problem - we need to manually grant access first. But let me at least fix the workflow to fail fast and show the actual error:"
+}

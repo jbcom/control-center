@@ -1,0 +1,5 @@
+{
+  "id": "99cb0414-0b60-4946-a38e-b5b4569d687d",
+  "type": "assistant_message",
+  "text": "Found the issues:\n1. **Deploy error**: `rm -rf gh-pages/.*` is deleting the `.git` directory\n2. **vendor-connectors**: No `docs` extra defined in pyproject.toml\n\nLet me fix the docs workflow:"
+}

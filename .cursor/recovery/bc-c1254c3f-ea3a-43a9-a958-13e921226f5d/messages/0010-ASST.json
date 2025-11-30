@@ -1,0 +1,5 @@
+{
+  "id": "b934fc47-52c5-440d-9745-5025bada1a49",
+  "type": "assistant_message",
+  "text": "I see the issue. The `gh: Not Found (HTTP 404)` error is being printed to stderr even though we have `2>/dev/null`, likely because of how GitHub Actions captures output. Let me examine all workflows and fix them comprehensively:"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "20af2494-60e6-4acf-ba70-49abdb920fd1",
+  "type": "assistant_message",
+  "text": "Understood! Since this functionality is ONLY for secrets merging/syncing, we can completely remove it from terraform-modules once vendor-connectors has it all. Let me finish porting the complete Vault `get_secret()` with the matchers logic and path handling:"
+}

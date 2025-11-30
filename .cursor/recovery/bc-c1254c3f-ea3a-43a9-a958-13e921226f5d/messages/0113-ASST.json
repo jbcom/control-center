@@ -1,0 +1,5 @@
+{
+  "id": "c982119b-294d-40ba-b8a3-6e73ca83a235",
+  "type": "assistant_message",
+  "text": "Now let me add the `list_secrets()` methods to both connectors:"
+}

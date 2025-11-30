@@ -1,0 +1,5 @@
+{
+  "id": "773df11b-ee84-40d2-80d2-e44dc69285e2",
+  "type": "assistant_message",
+  "text": "Now I understand. I need to add:\n\n1. **AWS `get_secret()`** - with proper handling of SecretString vs SecretBinary\n2. **Vault `get_secret()`** - with matchers support and proper path handling\n\nLet me update both:"
+}

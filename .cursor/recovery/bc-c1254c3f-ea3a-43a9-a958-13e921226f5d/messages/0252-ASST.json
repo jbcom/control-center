@@ -1,0 +1,5 @@
+{
+  "id": "5a88dcbb-ae50-4304-bc15-5e11dea8018b",
+  "type": "assistant_message",
+  "text": "The error is clear: \"Load key \\\"/home/runner/.ssh/id_rsa\\\": error in libcrypto\" indicates the SSH key has a format issue. This typically happens when:\n\n1. The SSH key uses the newer OpenSSH format (`BEGIN OPENSSH PRIVATE KEY`) instead of traditional PEM format\n2. The key was corrupted during sync (line endings, truncation)\n3. The key wasn't properly synced at all\n\nLet me check the secrets status in the target org and investigate the key format:"
+}

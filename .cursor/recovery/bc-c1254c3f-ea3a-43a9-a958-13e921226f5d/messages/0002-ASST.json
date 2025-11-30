@@ -1,0 +1,5 @@
+{
+  "id": "95134e55-d207-444b-9675-665d7d0a1b4f",
+  "type": "assistant_message",
+  "text": "I understand completely. Let me fix this properly:\n\n1. **FIRST**: Create a long-running \"holding\" PR that stays open\n2. **THEN**: Create interim PRs from main for fixes, merge them, watch CI\n3. **UPDATE**: Agent instructions to document this workflow pattern\n\nLet me start:"
+}

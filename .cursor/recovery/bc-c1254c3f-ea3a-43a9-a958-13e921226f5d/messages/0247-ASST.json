@@ -1,0 +1,5 @@
+{
+  "id": "e6046262-6076-4e4a-ad86-b4698fa54fa5",
+  "type": "assistant_message",
+  "text": "The workflow needs `VAULT_URL`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID` but the safety valve workflow doesn't have access to them. Let me check the terraform-modules repo's workflow:"
+}

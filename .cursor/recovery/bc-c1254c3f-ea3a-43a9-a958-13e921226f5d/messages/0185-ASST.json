@@ -1,0 +1,5 @@
+{
+  "id": "5e55c4cd-e165-478b-8510-99b40b97f8f9",
+  "type": "assistant_message",
+  "text": "Now remove the fallback install since we do it upfront:"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "cdb59164-5be8-4a37-a2cb-fe7c04a9031b",
+  "type": "assistant_message",
+  "text": "Let me replace these methods with deprecation notices rather than fully removing them (safer for transition):"
+}

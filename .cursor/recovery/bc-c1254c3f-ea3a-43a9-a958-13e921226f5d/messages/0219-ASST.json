@@ -1,0 +1,5 @@
+{
+  "id": "cf16a9aa-d0ad-4d5b-ae44-d4c8f4355237",
+  "type": "assistant_message",
+  "text": "The token belongs to **`devops-flipsidecrypto`**. \n\nThis user needs org admin or secrets write access on `fsc-internal-tooling-administration`.\n\n**To fix:**\n1. Go to https://github.com/orgs/fsc-internal-tooling-administration/people\n2. Find or invite `devops-flipsidecrypto`\n3. Change role to **Owner**\n\nOr grant via API if you have access from another account."
+}

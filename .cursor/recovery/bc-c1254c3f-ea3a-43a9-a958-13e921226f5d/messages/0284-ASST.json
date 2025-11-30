@@ -1,0 +1,5 @@
+{
+  "id": "8edcc397-6859-4247-9f61-d6e7b0b9a633",
+  "type": "assistant_message",
+  "text": "Let me use a proper libsodium library for the encryption:"
+}

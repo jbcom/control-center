@@ -1,0 +1,5 @@
+{
+  "id": "62d24ced-ea63-4cb6-af78-cd6c6bf65969",
+  "type": "assistant_message",
+  "text": "The heredoc syntax is breaking YAML. Let me fix it:"
+}

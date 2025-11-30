@@ -1,0 +1,5 @@
+{
+  "id": "da02ebe5-96e8-4da5-86fc-3a8b893723af",
+  "type": "assistant_message",
+  "text": "The package name in pyproject.toml is `vendor-connectors`, but the CI workflow has it as `cloud-connectors`. Let me fix the CI workflow:"
+}

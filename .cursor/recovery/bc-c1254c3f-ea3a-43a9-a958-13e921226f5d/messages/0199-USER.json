@@ -1,0 +1,5 @@
+{
+  "id": "c6d067e3-2ec4-4da5-8238-70cce7f8e7c4",
+  "type": "user_message",
+  "text": "FLIPSIDE_GITHUB_TOKEN isn't yours. It's the token as stored in FlipsideCrypto on GHA. So the equivalent of your GITHUB_TOKEN. (Tokens in GHA cant begun with GITHUB)"
+}

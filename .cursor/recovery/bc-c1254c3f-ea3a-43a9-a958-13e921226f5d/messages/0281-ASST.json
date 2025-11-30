@@ -1,0 +1,5 @@
+{
+  "id": "b6df24a2-6c43-4843-9eac-ab0abfc2aac6",
+  "type": "assistant_message",
+  "text": "Now I understand the pattern. Let me create a proper JavaScript GitHub Action that:\n1. Authenticates with AWS (same pattern as generator/secrets jobs)\n2. Decrypts SOPS files using AWS KMS\n3. Syncs to all enterprise orgs"
+}

@@ -1,0 +1,5 @@
+{
+  "id": "a356b215-d02a-4643-8b51-de091beb7c13",
+  "type": "assistant_message",
+  "text": "Ah, `pycalver` depends on `pkg_resources` which is in `setuptools`. With uvx we need to explicitly include it:"
+}

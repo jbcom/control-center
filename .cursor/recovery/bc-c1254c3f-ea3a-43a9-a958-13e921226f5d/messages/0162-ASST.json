@@ -1,0 +1,5 @@
+{
+  "id": "6e9d80c0-ed1e-434b-b5de-12c772e49127",
+  "type": "assistant_message",
+  "text": "Now let me add the Terraform config to deploy the merger lambda:"
+}

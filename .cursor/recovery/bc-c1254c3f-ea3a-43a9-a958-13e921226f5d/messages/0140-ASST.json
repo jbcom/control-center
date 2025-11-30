@@ -1,0 +1,5 @@
+{
+  "id": "8336401a-daa3-4f30-b3bd-4a3cfc55f961",
+  "type": "assistant_message",
+  "text": "The lint failed due to formatting. Let me fix that:"
+}

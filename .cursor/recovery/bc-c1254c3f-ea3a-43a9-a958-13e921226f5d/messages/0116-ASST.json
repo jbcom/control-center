@@ -1,0 +1,5 @@
+{
+  "id": "47c6aaf2-b6f1-4174-9302-02e9837ae085",
+  "type": "assistant_message",
+  "text": "Now let me see the `list_vault_secrets` function with all its path handling:"
+}

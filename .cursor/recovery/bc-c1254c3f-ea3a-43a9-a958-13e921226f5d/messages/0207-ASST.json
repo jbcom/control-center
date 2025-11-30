@@ -1,0 +1,5 @@
+{
+  "id": "41f78bf1-3ad1-4396-b850-efc1670aee0b",
+  "type": "assistant_message",
+  "text": "Found the bug - `inputs.dry_run || 'true'` treats `false` as falsy. Let me fix:"
+}

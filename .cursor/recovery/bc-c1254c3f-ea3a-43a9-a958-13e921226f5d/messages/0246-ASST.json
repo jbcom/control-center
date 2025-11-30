@@ -1,0 +1,5 @@
+{
+  "id": "0a726112-219f-4c67-a277-a3739a531232",
+  "type": "assistant_message",
+  "text": "Interesting - `VAULT_URL`, `VAULT_ROLE_ID`, `VAULT_SECRET_ID` are set to \"ALL\" but the workflow doesn't see them. This might be because the workflow was last updated before those secrets were created. Let me check if the org admin workflow can still run with what we have:"
+}

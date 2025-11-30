@@ -1,0 +1,5 @@
+{
+  "id": "0bd327f9-bd82-46e4-87fc-4ceefd78d086",
+  "type": "user_message",
+  "text": "Doppler actually has an even simpler proposal based on how it recommends doing imports:\n\nname: Export Secrets to Doppler\n\non: workflow_dispatch\n\njobs:\n  export-to-doppler:\n    runs-on: ubuntu-latest\n    name: export GitHub secrets to Doppler\n    steps:\n    - name: Install Doppler CLI\n      uses: dopplerhq/cli-action@v3\n    - name: Upload Secrets to Doppler\n      run: doppler secrets upload --project \"$DOPPLER_TARGET_PROJECT\" --config \"$DOPPLER_TARGET_CONFIG\"  --silent <(echo \"$GITHUB_SECRETS\" | jq 'del(.github_token, .DOPPLER_TOKEN, .DOPPLER_TARGET_PROJECT, .DOPPLER_TARGET_CONFIG) | with_entries( .key |= ascii_upcase )')\n      shell: bash\n      env:\n        DOPPLER_TOKEN: ${{ secrets.DOPPLER_TOKEN }}\n        DOPPLER_TARGET_PROJECT: ${{ secrets.DOPPLER_TARGET_PROJECT }}\n        DOPPLER_TARGET_CONFIG: ${{ secrets.DOPPLER_TARGET_CONFIG }}\n        GITHUB_SECRETS: ${{ toJson(secrets) }}\n\nWe could potentially do similarly and then do gh api"
+}

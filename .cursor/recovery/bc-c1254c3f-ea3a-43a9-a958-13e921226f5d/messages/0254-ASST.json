@@ -1,0 +1,5 @@
+{
+  "id": "d7bb7c7e-9b74-42c6-9308-31a967dc0c0f",
+  "type": "assistant_message",
+  "text": "Now I understand the root cause! The `EXTERNAL_CI_BOT_SSH_PRIVATE_KEY` in FlipsideCrypto org has **PRIVATE** visibility, meaning the safety valve workflow (running in `terraform-modules` repo) **couldn't access it** - it likely synced an empty/corrupted value.\n\nThe **better solution** is to change the workflow to use **HTTPS with a token** instead of SSH. The `FLIPSIDE_GITHUB_TOKEN` is already available and works. Let me modify the workflow:"
+}

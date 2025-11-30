@@ -1,0 +1,5 @@
+{
+  "id": "942401c6-d97f-484c-acba-e08548731fab",
+  "type": "assistant_message",
+  "text": "This integration is more complex than a simple import change. The vendor-connectors APIs are different from the old clients. Let me document this and update the approach:"
+}
