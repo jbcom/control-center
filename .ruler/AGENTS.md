@@ -139,7 +139,7 @@ The `.github/workflows/ci.yml` has these jobs:
 
 ### Scope
 - **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
-- **Optional**: Pure documentation changes (README, comments only), whitespace/formatting-only, Dependabot with no code changes
+- **Optional**: Pure documentation changes (README, comments only), whitespace/formatting-only, automated Dependabot bumps with no code changes
 
 ### Merge Checklist
 
@@ -165,7 +165,12 @@ Actions:
 4. **Re-request** review after significant changes
 
 ### Resolving AI Conflicts
-When AI reviewers disagree: evaluate both, apply project conventions, document your decision, prefer security/correctness. Escalate to team lead if genuinely ambiguous
+When AI reviewers disagree:
+- Evaluate both positions for technical merit
+- Apply project conventions as tiebreaker
+- Document your decision and reasoning
+- Prefer security/correctness when in doubt
+- Escalate to team lead if genuinely ambiguous
 
 ### Automatic AI Review (Repo Settings)
 Enable in **Settings > Code security and analysis > Copilot code review** for automatic Copilot reviews on all PRs. See `.cursor/rules/15-ai-qa-engagement.mdc` for full setup guide
