@@ -231,6 +231,9 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 
+# Ruler backup files (should never be committed)
+*.bak
+
 # START Ruler Generated Files
 /.aider.conf.yml
 /.aider.conf.yml.bak

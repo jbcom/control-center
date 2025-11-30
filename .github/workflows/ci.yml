@@ -221,7 +221,6 @@ jobs:
           uv pip install mypy types-PyYAML types-requests
 
           # Type check packages with py.typed
-# Type check packages with py.typed
           .venv/bin/mypy packages/extended-data-types/src --ignore-missing-imports
           .venv/bin/mypy packages/lifecyclelogging/src --ignore-missing-imports
 
