@@ -225,7 +225,7 @@ ${task.blockedBy ? `## Blocked By\n${task.blockedBy}\n` : ""}
 ## Context for AI Agents
 This issue was auto-generated from agent session analysis.
 - Follow the guidelines in \`.ruler/AGENTS.md\`
-- Use CalVer versioning (automatic)
+- Versioning is managed by python-semantic-release (SemVer) — never bump manually
 - Run \`cursor-fleet review\` before pushing
 
 ---

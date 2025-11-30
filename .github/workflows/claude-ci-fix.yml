@@ -149,7 +149,7 @@ jobs:
             - Ruff for linting and formatting
             - Mypy for type checking
             - Pytest for testing
-            - CalVer versioning (don't modify versions)
+            - SemVer via python-semantic-release (don't modify versions manually)
           
           claude_args: |
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(uv:*),Bash(ruff:*),Bash(mypy:*),Bash(pytest:*)"

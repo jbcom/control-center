@@ -63,7 +63,7 @@ Actionable: YES
 
 #### Step 2: Evaluate Against Project Rules
 - Check if feedback contradicts `.ruler/AGENTS.md` or `.cursorrules`
-- Our CalVer approach is intentional → politely decline semantic-release suggestions
+- Our python-semantic-release SemVer workflow is intentional → politely decline manual versioning suggestions
 - Security issues → ALWAYS address, no exceptions
 - Style preferences → defer to our ruff configuration
 
@@ -82,14 +82,14 @@ Changes committed in <commit-hash>. Please verify the fix addresses your concern
 
 **Template for declining feedback:**
 ```markdown
-@gemini-code-assist Thank you for the suggestion to use semantic-release. 
+@gemini-code-assist Thank you for the suggestion to bump versions manually. 
 
-However, this project intentionally uses CalVer (calendar versioning) with automatic releases. This is documented in `.ruler/AGENTS.md` under "CI/CD Workflow Design Philosophy".
+However, this project intentionally uses python-semantic-release (SemVer) with automatic releases. This is documented in `.ruler/AGENTS.md` under "CI/CD Workflow Design Philosophy".
 
 Our approach:
-- ✅ CalVer: YYYY.MM.BUILD_NUMBER
+- ✅ SemVer via python-semantic-release
+- ✅ Version detection from scoped conventional commits
 - ✅ Auto-release on every main push
-- ✅ Simpler than semantic-release
 - ✅ Battle-tested in production
 
 For more details, see lines 39-100 in `.ruler/AGENTS.md`.
@@ -321,12 +321,12 @@ AGENT ACTION LOG:
 
 ### Example 4: Rule Violation Suggestion
 
-**Scenario**: Agent suggests semantic-release (contradicts our CalVer)
+**Scenario**: Agent suggests manual version bumps (contradicts our PSR SemVer workflow)
 
 ```markdown
 AGENT ACTION LOG:
 1. Parse feedback: "Add semantic-release"
-2. Check rules: `.ruler/AGENTS.md` lines 39-100 → CalVer is intentional
+2. Check rules: `.ruler/AGENTS.md` lines 39-100 → python-semantic-release SemVer is already standard
 3. Severity: N/A (contradicts project rules)
 4. Respond: Politely decline with explanation (see template above)
 5. Reference: Link to specific documentation

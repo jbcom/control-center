@@ -51,7 +51,7 @@ keywords = [
     "python",
     "template",
     "library",
-    "calver",
+    "semver",
     "automation",
 ]
 dependencies = [

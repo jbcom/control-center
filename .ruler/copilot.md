@@ -13,14 +13,16 @@ When you receive an issue labeled `copilot`:
 5. **Run verification**: `ruff check . && pytest`
 6. **Create PR** linking to the issue
 
-### CalVer Auto-Versioning
-✅ Version is automatic: `YYYY.MM.BUILD`
-❌ **NEVER** suggest: semantic-release, git tags, manual versioning
-❌ **NEVER** modify `__version__` manually
+### Versioning & Releases
+✅ Each package uses python-semantic-release (SemVer `MAJOR.MINOR.PATCH`)
+✅ Conventional commits with scopes drive version bumps
+❌ **NEVER** edit `__version__` or pyproject versions manually
+❌ **NEVER** reintroduce alternative versioning schemes, git tag workflows, or manual bump scripts
 
 ### Release Process
-✅ Every push to main = automatic PyPI release
-❌ **NEVER** suggest: conditional releases, manual steps, changelog updates
+✅ PSR determines if a release is needed when main is updated
+✅ Approved commits trigger: version bump → tag → PyPI publish → repo sync
+❌ **NEVER** suggest conditional/manual release steps outside PSR
 
 ## Working with Auto-Generated Issues
 

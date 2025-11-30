@@ -24,7 +24,7 @@ I've evaluated the current Dockerfile setup as a foundation for optimal backgrou
 ✅ mypy + pyright (type checking)
 ✅ ruff (linting/formatting)
 ✅ pre-commit (git hooks)
-✅ pycalver (versioning)
+✅ python-semantic-release CLI (versioning)
 ✅ poetry (alternative package manager)
 ✅ nox (task automation)
 ```
@@ -233,7 +233,7 @@ Breakdown:
 ### From `.ruler/AGENTS.md`
 ✅ uv package manager (Python)
 ✅ pytest, mypy, ruff (quality tools)
-✅ CalVer support (pycalver installed)
+✅ SemVer automation (python-semantic-release installed)
 ✅ GitHub CLI (gh) for CI/CD
 ✅ No complexity added (clear, maintainable Dockerfile)
 

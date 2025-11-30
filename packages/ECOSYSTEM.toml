@@ -84,9 +84,9 @@ release_workflow = ".github/workflows/release.yml"
 
 # Standards
 [standards]
-versioning = "pycalver (YYYYMM.NNNN)"
-versioning_tool = "pycalver"
-versioning_config = "pyproject.toml [pycalver]"  # Workspace root
+versioning = "SemVer (MAJOR.MINOR.PATCH)"
+versioning_tool = "python-semantic-release"
+versioning_config = "pyproject.toml [tool.semantic_release]"  # Workspace root
 python_versions = ["3.9", "3.10", "3.11", "3.12", "3.13"]
 linting = "ruff"
 testing = "pytest"

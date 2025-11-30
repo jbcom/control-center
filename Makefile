@@ -26,7 +26,6 @@ help:
 	@echo ""
 	@echo "Maintenance:"
 	@echo "  clean        Remove build artifacts"
-	@echo "  bump         Bump version with pycalver (dry run)"
 
 # Setup
 .PHONY: install
@@ -97,6 +96,3 @@ clean:
 	find . -type d -name "build" -exec rm -rf {} + 2>/dev/null || true
 	find . -type f -name "*.pyc" -delete 2>/dev/null || true
 
-.PHONY: bump
-bump:
-	pycalver bump --dry

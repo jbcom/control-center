@@ -25,7 +25,7 @@ system_prompt: |
   - pytest with coverage (≥80%)
   - ruff linting
   - pyright type checking
-  - CalVer auto-versioning (YYYY.MM.BUILD)
+  - SemVer auto-versioning via python-semantic-release
   - PyPI publication via trusted publishing
 
   Repos: extended-data-types, lifecyclelogging, directed-inputs-class,

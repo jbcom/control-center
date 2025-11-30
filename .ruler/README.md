@@ -16,7 +16,7 @@ Ruler processes files in this order:
 2. Remaining `.md` files in sorted order
 
 Current files:
-1. **AGENTS.md** - Core guidelines (CalVer, PR workflow, common misconceptions)
+1. **AGENTS.md** - Core guidelines (SemVer/PSR workflow, common misconceptions)
 2. **copilot.md** - Copilot-specific patterns and quick reference
 3. **cursor.md** - Cursor agent modes, prompts, and workflows
 4. **ecosystem.md** - Repository coordination and management
@@ -93,8 +93,8 @@ output_path_instructions = "AGENTS.md"
 ### AGENTS.md
 **Primary audience:** All AI agents
 **Content:**
-- CalVer philosophy and rationale
-- Why NOT to use semantic-release
+- python-semantic-release (PSR) workflow and rationale
+- Why manual versioning is prohibited
 - PR and release workflows
 - Common agent misconceptions
 - Development workflows

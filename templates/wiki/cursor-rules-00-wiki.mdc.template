@@ -26,7 +26,7 @@ wiki-cli read "Memory-Bank/Progress"
 | Page | Purpose |
 |------|---------|
 | [Core-Guidelines](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Core-Guidelines) | Universal agent rules |
-| [Python-Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards) | CalVer, types, style |
+| [Python-Standards](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/Python-Standards) | SemVer, types, style |
 | [PR-Ownership](https://github.com/jbcom/jbcom-control-center/wiki/Agentic-Rules/PR-Ownership) | AI collaboration |
 | [Active-Context](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Active-Context) | Current work |
 | [Progress](https://github.com/jbcom/jbcom-control-center/wiki/Memory-Bank/Progress) | Session history |
@@ -50,7 +50,7 @@ wiki-cli append "Memory-Bank/Progress" "## Session: $(date -u +%Y-%m-%d)
 
 ## Critical Rules
 
-1. **CalVer versioning** - Never manually edit versions
+1. **SemVer via python-semantic-release** - Never manually edit versions
 2. **Use GITHUB_JBCOM_TOKEN** - For all jbcom repo operations
 3. **Read wiki first** - Before making decisions
 4. **Update wiki** - After completing work

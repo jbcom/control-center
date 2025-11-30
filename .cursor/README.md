@@ -95,7 +95,7 @@ If Cursor doesn't auto-detect:
 - **Testing**: pytest (with plugins)
 - **Type checking**: mypy, pyright
 - **Linting**: ruff
-- **Versioning**: pycalver
+- **Versioning**: python-semantic-release (SemVer)
 
 ### Node.js Development
 - **Package manager**: pnpm 9.15.0
@@ -285,7 +285,7 @@ This environment is designed to work with the agent rules in `.cursor/rules/`:
 - ✅ Python tooling (pytest, mypy, ruff)
 - ✅ GitHub CLI (gh)
 - ✅ Git operations supported
-- ✅ CalVer tools (pycalver)
+- ✅ python-semantic-release CLI
 
 ## Advanced Usage
 
