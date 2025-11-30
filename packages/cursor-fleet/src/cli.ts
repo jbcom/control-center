@@ -507,6 +507,7 @@ program
   .option("-o, --output <path>", "Output report path")
   .option("--create-issues", "Create GitHub issues from outstanding tasks")
   .option("--dry-run", "Show what issues would be created without creating them")
+  .option("--no-copilot", "Don't add copilot label to issues")
   .option("--model <model>", "Claude model to use", "claude-sonnet-4-20250514")
   .action(async (agentId, opts) => {
     const fleet = new Fleet();
@@ -554,8 +555,12 @@ program
       // Create issues if requested
       if (opts.createIssues || opts.dryRun) {
         console.log("\n🎫 Creating GitHub Issues...");
+        if (opts.copilot !== false) {
+          console.log("   (Adding 'copilot' label for automatic PR creation)");
+        }
         const issues = await analyzer.createIssuesFromAnalysis(analysis, { 
-          dryRun: opts.dryRun 
+          dryRun: opts.dryRun,
+          assignCopilot: opts.copilot !== false,
         });
         console.log(`Created ${issues.length} issues`);
       }
