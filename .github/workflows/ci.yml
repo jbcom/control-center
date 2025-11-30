@@ -220,9 +220,12 @@ jobs:
           uv pip install dist/*.whl
           uv pip install mypy types-PyYAML types-requests
 
-          # Type check packages with py.typed
+          # Type check all packages
           .venv/bin/mypy packages/extended-data-types/src --ignore-missing-imports
           .venv/bin/mypy packages/lifecyclelogging/src --ignore-missing-imports
+          .venv/bin/mypy packages/directed-inputs-class/src --ignore-missing-imports
+          .venv/bin/mypy packages/python-terraform-bridge/src --ignore-missing-imports
+          .venv/bin/mypy packages/vendor-connectors/src --ignore-missing-imports
 
   # ============================================
   # VERIFY DEV ENVIRONMENT
