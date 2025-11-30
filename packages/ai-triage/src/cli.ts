@@ -7,10 +7,22 @@
  */
 
 import { Command } from "commander";
+import env from "env-var";
 import { PRTriageAgent } from "./pr-triage-agent.js";
 import { UnifiedAgent, runTask } from "./unified-agent.js";
 import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.js";
 import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
+
+/**
+ * Get the first defined environment variable from a list of fallback names.
+ */
+function getEnvWithFallbacks(...names: string[]): string | undefined {
+  for (const name of names) {
+    const value = env.get(name).asString();
+    if (value) return value;
+  }
+  return undefined;
+}
 
 const program = new Command();
 
@@ -430,19 +442,19 @@ mcp.command("status")
     ];
 
     for (const check of checks) {
-      const hasEnv = check.envVars.some(envVar => process.env[envVar]);
-      const status = hasEnv ? "✅" : "⚠️";
+      const value = getEnvWithFallbacks(...check.envVars);
+      const status = value ? "✅" : "⚠️";
       const envDisplay = check.envVars.join(" or ") + (check.optional ? " (optional)" : "");
       console.log(`${status} ${check.name}`);
-      console.log(`   Environment: ${envDisplay} ${hasEnv ? "(set)" : "(not set)"}`);
+      console.log(`   Environment: ${envDisplay} ${value ? "(set)" : "(not set)"}`);
     }
 
     console.log("\n🔌 Testing connections...\n");
 
     try {
       const clients = await initializeMCPClients({
-        cursor: process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY ? {} : undefined,
-        github: process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN ? {} : undefined,
+        cursor: getEnvWithFallbacks("COPILOT_MCP_CURSOR_API_KEY", "CURSOR_API_KEY") ? {} : undefined,
+        github: getEnvWithFallbacks("COPILOT_MCP_GITHUB_TOKEN", "GITHUB_JBCOM_TOKEN", "GITHUB_TOKEN") ? {} : undefined,
         context7: {},  // Context7 works without API key
       });
 
