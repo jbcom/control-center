@@ -6,23 +6,109 @@
 
 import type { Agent, Conversation, Repository, FleetResult } from "./types.js";
 
-const BASE_URL = "https://api.cursor.com/v0";
+/** Default API base URL - configurable for testing/staging */
+const DEFAULT_BASE_URL = "https://api.cursor.com/v0";
+
+/** Validation regex for agent IDs (alphanumeric with hyphens) */
+const AGENT_ID_PATTERN = /^[a-zA-Z0-9-]+$/;
+
+/** Maximum prompt text length */
+const MAX_PROMPT_LENGTH = 100000;
+
+/** Maximum repository name length */
+const MAX_REPO_LENGTH = 200;
+
+export interface CursorAPIOptions {
+  /** API key (defaults to CURSOR_API_KEY env var) */
+  apiKey?: string;
+  /** Request timeout in milliseconds (default: 60000) */
+  timeout?: number;
+  /** API base URL (default: https://api.cursor.com/v0) */
+  baseUrl?: string;
+}
+
+/**
+ * Validates an agent ID to prevent injection attacks
+ */
+function validateAgentId(agentId: string): void {
+  if (!agentId || typeof agentId !== "string") {
+    throw new Error("Agent ID is required and must be a string");
+  }
+  if (agentId.length > 100) {
+    throw new Error("Agent ID exceeds maximum length (100 characters)");
+  }
+  if (!AGENT_ID_PATTERN.test(agentId)) {
+    throw new Error("Agent ID contains invalid characters (only alphanumeric and hyphens allowed)");
+  }
+}
+
+/**
+ * Validates prompt text
+ */
+function validatePromptText(text: string): void {
+  if (!text || typeof text !== "string") {
+    throw new Error("Prompt text is required and must be a string");
+  }
+  if (text.trim().length === 0) {
+    throw new Error("Prompt text cannot be empty");
+  }
+  if (text.length > MAX_PROMPT_LENGTH) {
+    throw new Error(`Prompt text exceeds maximum length (${MAX_PROMPT_LENGTH} characters)`);
+  }
+}
+
+/**
+ * Validates repository name
+ */
+function validateRepository(repository: string): void {
+  if (!repository || typeof repository !== "string") {
+    throw new Error("Repository is required and must be a string");
+  }
+  if (repository.length > MAX_REPO_LENGTH) {
+    throw new Error(`Repository name exceeds maximum length (${MAX_REPO_LENGTH} characters)`);
+  }
+  // Basic format check: owner/repo or URL
+  if (!repository.includes("/")) {
+    throw new Error("Repository must be in format 'owner/repo' or a valid URL");
+  }
+}
+
+/**
+ * Sanitizes error messages to prevent sensitive data leakage
+ */
+function sanitizeError(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  // Remove potential API keys, tokens, or sensitive patterns
+  return message
+    .replace(/Bearer\s+[a-zA-Z0-9._-]+/gi, "Bearer [REDACTED]")
+    .replace(/api[_-]?key[=:]\s*["']?[a-zA-Z0-9._-]+["']?/gi, "api_key=[REDACTED]")
+    .replace(/token[=:]\s*["']?[a-zA-Z0-9._-]+["']?/gi, "token=[REDACTED]");
+}
 
 export class CursorAPI {
-  private apiKey: string;
-  private timeout: number;
+  private readonly apiKey: string;
+  private readonly timeout: number;
+  private readonly baseUrl: string;
 
-  constructor(apiKey?: string, timeout: number = 60000) {
-    this.apiKey = apiKey ?? process.env.CURSOR_API_KEY ?? "";
-    this.timeout = timeout;
+  constructor(options: CursorAPIOptions = {}) {
+    this.apiKey = options.apiKey ?? process.env.CURSOR_API_KEY ?? "";
+    this.timeout = options.timeout ?? 60000;
+    this.baseUrl = options.baseUrl ?? process.env.CURSOR_API_BASE_URL ?? DEFAULT_BASE_URL;
     
     if (!this.apiKey) {
       throw new Error("CURSOR_API_KEY is required. Set it in environment or pass to constructor.");
     }
   }
 
+  /**
+   * Legacy constructor signature for backwards compatibility
+   */
+  static create(apiKey?: string, timeout?: number): CursorAPI {
+    return new CursorAPI({ apiKey, timeout });
+  }
+
   private async request<T>(endpoint: string, method: string = "GET", body?: object): Promise<FleetResult<T>> {
-    const url = `${BASE_URL}${endpoint}`;
+    const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
 
@@ -37,16 +123,15 @@ export class CursorAPI {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
         const errorText = await response.text();
         let details: string;
         try {
           const parsed = JSON.parse(errorText);
-          details = parsed.message || parsed.error || errorText;
+          details = parsed.message || parsed.error || "Unknown API error";
         } catch {
-          details = errorText;
+          // JSON parsing failed - use raw text but sanitize
+          details = sanitizeError(errorText);
         }
         
         return {
@@ -55,14 +140,33 @@ export class CursorAPI {
         };
       }
 
-      const data = await response.json() as T;
-      return { success: true, data };
+      // Handle empty responses (e.g., 204 No Content)
+      const contentType = response.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        return { success: true, data: {} as T };
+      }
+
+      const text = await response.text();
+      if (!text || text.trim() === "") {
+        return { success: true, data: {} as T };
+      }
+
+      try {
+        const data = JSON.parse(text) as T;
+        return { success: true, data };
+      } catch {
+        return { 
+          success: false, 
+          error: "Invalid JSON response from API" 
+        };
+      }
     } catch (error) {
-      clearTimeout(timeoutId);
       if (error instanceof Error && error.name === "AbortError") {
         return { success: false, error: `Request timeout after ${this.timeout}ms` };
       }
-      return { success: false, error: String(error) };
+      return { success: false, error: sanitizeError(error) };
+    } finally {
+      clearTimeout(timeoutId);
     }
   }
 
@@ -75,33 +179,53 @@ export class CursorAPI {
 
   /**
    * Get status of a specific agent
+   * @throws Error if agentId is invalid
    */
   async getAgentStatus(agentId: string): Promise<FleetResult<Agent>> {
-    return this.request<Agent>(`/background-agents/${agentId}`);
+    validateAgentId(agentId);
+    const encodedId = encodeURIComponent(agentId);
+    return this.request<Agent>(`/background-agents/${encodedId}`);
   }
 
   /**
    * Get conversation history for an agent
+   * @throws Error if agentId is invalid
    */
   async getAgentConversation(agentId: string): Promise<FleetResult<Conversation>> {
-    return this.request<Conversation>(`/background-agents/${agentId}/conversation`);
+    validateAgentId(agentId);
+    const encodedId = encodeURIComponent(agentId);
+    return this.request<Conversation>(`/background-agents/${encodedId}/conversation`);
   }
 
   /**
    * Launch a new background agent
+   * @throws Error if prompt or repository are invalid
    */
   async launchAgent(options: {
     prompt: { text: string };
     source: { repository: string; ref?: string };
   }): Promise<FleetResult<Agent>> {
+    validatePromptText(options.prompt.text);
+    validateRepository(options.source.repository);
+    
+    if (options.source.ref !== undefined) {
+      if (typeof options.source.ref !== "string" || options.source.ref.length > 200) {
+        throw new Error("Invalid ref: must be a string under 200 characters");
+      }
+    }
+    
     return this.request<Agent>("/background-agents", "POST", options);
   }
 
   /**
    * Send a follow-up message to an agent
+   * @throws Error if agentId or prompt are invalid
    */
   async addFollowup(agentId: string, prompt: { text: string }): Promise<FleetResult<void>> {
-    return this.request<void>(`/background-agents/${agentId}/followup`, "POST", { prompt });
+    validateAgentId(agentId);
+    validatePromptText(prompt.text);
+    const encodedId = encodeURIComponent(agentId);
+    return this.request<void>(`/background-agents/${encodedId}/followup`, "POST", { prompt });
   }
 
   /**
