@@ -11,10 +11,14 @@ group:
           __pycache__
           *.pyc
           .pytest_cache
+          .ruff_cache
+          .mypy_cache
           .tox
           .venv
           dist
           build
           *.egg-info
+          .DS_Store
+          .coverage
     repos: |
       jbcom/vendor-connectors

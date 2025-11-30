@@ -134,7 +134,7 @@ PSR handles this correctly with no special configuration needed. Version constra
 
 ## Why This Approach is Correct
 
-Following the [Medium article on monorepo releases](https://medium.com/@asaf.shakarzy/releasing-a-monorepo-using-uv-workspace-and-python-semantic-release):
+Following best practices for monorepo releases with python-semantic-release:
 
 1. **Use PSR for what it's designed for:**
    - Version detection based on conventional commits
@@ -159,7 +159,7 @@ graph TD
     B --> C[PSR checks if release needed]
     C -->|No changes| D[Skip release]
     C -->|Changes detected| E[PSR bumps version, commits, tags, pushes]
-    E --> F[Download pre-built packages]
+    E --> F[Build packages]
     F --> G[Publish to PyPI]
     G --> H[Create GitHub Release]
     H --> I[Sync to public repos via repo-file-sync-action]
@@ -171,7 +171,7 @@ graph TD
 After merge to main with conventional commits:
 1. ✅ PSR detects version bump needed
 2. ✅ PSR bumps version in pyproject.toml and __init__.py
-3. ✅ PSR creates commit with message like "chore(edt-release): release extended-data-types v202511.7.0 [skip ci]"
+3. ✅ PSR creates commit with message like "chore(edt-release): release extended-data-types v202511.7.0"
 4. ✅ PSR creates git tag like "extended-data-types-v202511.7.0"
 5. ✅ PSR pushes commit and tag to GitHub
 6. ✅ Package is published to PyPI
