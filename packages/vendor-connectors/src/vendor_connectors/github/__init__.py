@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import io
 import os
+from copy import deepcopy
 from typing import Any, Optional, Union
 
 from directed_inputs_class import DirectedInputsClass
@@ -17,6 +19,7 @@ from github import Auth, Github
 from github.GithubException import GithubException, UnknownObjectException
 from lifecyclelogging import Logging
 from python_graphql_client import GraphqlClient
+from ruamel.yaml import YAML
 
 FilePath = Union[str, bytes, os.PathLike[Any]]
 
@@ -895,3 +898,75 @@ class GithubConnector(DirectedInputsClass):
             },
             jobs={"test": test_job},
         )
+
+
+def build_github_actions_workflow(
+    workflow_name: str,
+    jobs: dict[str, Any],
+    concurrency_group: Optional[str] = None,
+    environment_variables: Optional[dict[str, str]] = None,
+    secrets: Optional[dict[str, str]] = None,
+    use_oidc_auth: bool = True,
+    events: Optional[dict[str, Any]] = None,
+    triggers: Optional[dict[str, Any]] = None,
+    inputs: Optional[dict[str, Any]] = None,
+    pull_requests: Optional[dict[str, Any]] = None,
+) -> str:
+    """Generate a GitHub Actions workflow YAML string."""
+
+    if not workflow_name:
+        raise ValueError("workflow_name is required")
+    if not jobs:
+        raise ValueError("jobs definition is required")
+
+    env_block = {
+        "COMMIT_SHA": "${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}",
+        "BRANCH": "${{ github.event_name == 'pull_request' && format('refs/heads/{0}', github.event.pull_request.head.ref) || github.ref }}",
+    }
+    for key, value in (environment_variables or {}).items():
+        env_block[key] = value
+    for key, secret_name in (secrets or {}).items():
+        env_block[key] = f"${{{{ secrets.{secret_name} }}}}"
+
+    permissions = {"contents": "write", "pull-requests": "write"}
+    if use_oidc_auth:
+        permissions["id-token"] = "write"
+
+    trigger_defaults = {"push": True, "pull_request": True, "workflow_dispatch": True, "workflow_call": bool(inputs)}
+    if events:
+        trigger_defaults.update(events)
+
+    workflow_on: dict[str, Any] = {}
+    push_config = deepcopy(triggers or {})
+
+    if trigger_defaults.get("push"):
+        workflow_on["push"] = push_config
+    if trigger_defaults.get("pull_request"):
+        workflow_on["pull_request"] = pull_requests or {}
+    if trigger_defaults.get("workflow_dispatch"):
+        dispatch_block: dict[str, Any] = {}
+        if inputs:
+            dispatch_block["inputs"] = inputs
+        workflow_on["workflow_dispatch"] = dispatch_block
+    if trigger_defaults.get("workflow_call"):
+        call_block: dict[str, Any] = {}
+        if inputs:
+            call_block["inputs"] = inputs
+        workflow_on["workflow_call"] = call_block
+
+    workflow: dict[str, Any] = {
+        "name": workflow_name,
+        "on": workflow_on,
+        "env": env_block,
+        "permissions": permissions,
+        "jobs": jobs,
+    }
+
+    if concurrency_group:
+        workflow["concurrency"] = concurrency_group
+
+    yaml = YAML()
+    yaml.indent(mapping=2, sequence=4, offset=2)
+    buffer = io.StringIO()
+    yaml.dump(workflow, buffer)
+    return buffer.getvalue().strip()
