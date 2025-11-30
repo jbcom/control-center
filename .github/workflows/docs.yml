@@ -58,29 +58,42 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - name: Skip if not target package
-        if: github.event_name == 'workflow_dispatch' && inputs.package != 'all' && inputs.package != matrix.package
+      - name: Check if should build this package
+        id: should-build
         run: |
-          echo "Skipping ${{ matrix.package }} - not selected"
-          exit 0
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package }}" ]; then
+              echo "proceed=true" >> $GITHUB_OUTPUT
+            else
+              echo "proceed=false" >> $GITHUB_OUTPUT
+              echo "Skipping ${{ matrix.package }} - not selected"
+            fi
+          else
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          fi
 
       - uses: actions/checkout@v4
+        if: steps.should-build.outputs.proceed == 'true'
         with:
           persist-credentials: false
 
       - uses: actions/setup-python@v5
+        if: steps.should-build.outputs.proceed == 'true'
         with:
           python-version: "3.13"
 
       - uses: hynek/setup-cached-uv@v2
+        if: steps.should-build.outputs.proceed == 'true'
 
       - name: Get package version
+        if: steps.should-build.outputs.proceed == 'true'
         id: version
         run: |
           VERSION=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Install package with docs dependencies
+        if: steps.should-build.outputs.proceed == 'true'
         working-directory: packages/${{ matrix.package }}
         run: |
           uv venv
@@ -88,6 +101,7 @@ jobs:
           uv pip install sphinx sphinx-rtd-theme sphinxawesome-theme sphinx-autodoc2 myst-parser docutils
 
       - name: Build Sphinx documentation
+        if: steps.should-build.outputs.proceed == 'true'
         working-directory: packages/${{ matrix.package }}
         run: |
           mkdir -p docs/_build/html
@@ -133,7 +147,7 @@ jobs:
           fi
 
       - name: Run doctests
-        if: hashFiles(format('packages/{0}/docs/conf.py', matrix.package)) != ''
+        if: steps.should-build.outputs.proceed == 'true' && hashFiles(format('packages/{0}/docs/conf.py', matrix.package)) != ''
         working-directory: packages/${{ matrix.package }}
         continue-on-error: true
         run: |
@@ -142,6 +156,7 @@ jobs:
             docs docs/_build/doctest || true
 
       - name: Upload docs artifact
+        if: steps.should-build.outputs.proceed == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: docs-${{ matrix.package }}
@@ -175,19 +190,29 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - name: Skip if not target package
-        if: github.event_name == 'workflow_dispatch' && inputs.package != 'all' && inputs.package != matrix.package
+      - name: Check if should deploy this package
+        id: should-deploy
         run: |
-          echo "Skipping ${{ matrix.package }} - not selected"
-          exit 0
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package }}" ]; then
+              echo "proceed=true" >> $GITHUB_OUTPUT
+            else
+              echo "proceed=false" >> $GITHUB_OUTPUT
+              echo "Skipping ${{ matrix.package }} - not selected"
+            fi
+          else
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          fi
 
       - name: Download docs artifact
+        if: steps.should-deploy.outputs.proceed == 'true'
         uses: actions/download-artifact@v4
         with:
           name: docs-${{ matrix.package }}
           path: html
 
       - name: Deploy to gh-pages
+        if: steps.should-deploy.outputs.proceed == 'true'
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
