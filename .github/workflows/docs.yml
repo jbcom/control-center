@@ -118,33 +118,33 @@ jobs:
           else
             echo "No docs/conf.py found, generating placeholder..."
             cat > docs/_build/html/index.html << 'HEREDOC'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>${{ matrix.package }} Documentation</title>
-            <style>
-              body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; }
-              h1 { color: #333; }
-              a { color: #0066cc; }
-              code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
-            </style>
-          </head>
-          <body>
-            <h1>${{ matrix.package }}</h1>
-            <p><strong>Version:</strong> ${{ steps.version.outputs.version }}</p>
-            <p>Full documentation is in progress. Please see the <a href="https://github.com/${{ matrix.repo }}">GitHub repository</a> for details.</p>
-            <h2>Installation</h2>
-            <pre><code>pip install ${{ matrix.package }}</code></pre>
-            <h2>Links</h2>
-            <ul>
-              <li><a href="https://github.com/${{ matrix.repo }}">GitHub Repository</a></li>
-              <li><a href="https://pypi.org/project/${{ matrix.package }}/">PyPI Package</a></li>
-            </ul>
-          </body>
-          </html>
-          HEREDOC
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>${{ matrix.package }} Documentation</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { color: #333; }
+    a { color: #0066cc; }
+    code { background: #f4f4f4; padding: 0.2em 0.4em; border-radius: 3px; }
+  </style>
+</head>
+<body>
+  <h1>${{ matrix.package }}</h1>
+  <p><strong>Version:</strong> ${{ steps.version.outputs.version }}</p>
+  <p>Full documentation is in progress. Please see the <a href="https://github.com/${{ matrix.repo }}">GitHub repository</a> for details.</p>
+  <h2>Installation</h2>
+  <pre><code>pip install ${{ matrix.package }}</code></pre>
+  <h2>Links</h2>
+  <ul>
+    <li><a href="https://github.com/${{ matrix.repo }}">GitHub Repository</a></li>
+    <li><a href="https://pypi.org/project/${{ matrix.package }}/">PyPI Package</a></li>
+  </ul>
+</body>
+</html>
+HEREDOC
           fi
 
       - name: Run doctests
