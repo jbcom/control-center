@@ -126,14 +126,16 @@ The `.github/workflows/ci.yml` has these jobs:
 
 ### How to Request Review
 
-Post these commands as PR comments (all are valid QA agents):
+**Comment-triggered** (post as PR comment):
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
-@copilot review      # GitHub Copilot
-@cursor review       # Cursor AI review
 @coderabbitai review # CodeRabbit AI review
 ```
+
+**Automatic** (via repo settings):
+- Copilot - Enable in Settings > Code security
+- Cursor Bugbot - Automatic on all PRs
 
 ### Scope
 - **Required**: All code changes, bug fixes, features, refactors, API changes, config changes affecting runtime
