@@ -1,32 +1,45 @@
 # Development Environment Setup Guide for Agents
 
-## 🚨 CRITICAL: Use uvx and pre-commit
+## 🚨 CRITICAL: Tool Usage Rules
 
-**NEVER assume Python packages are available in the shell environment. Use `uvx` to run tools in isolated environments instead.**
+### Python Tools: Use `uvx`
+
+**NEVER assume Python packages are available. Use `uvx` to run tools in isolated environments.**
 
 ```bash
 # ❌ WRONG - Will fail with ModuleNotFoundError
 python -c "import yaml; ..."
-python -c "from ruamel.yaml import YAML; ..."
 
-# ✅ CORRECT - Use uvx to run Python tools
+# ✅ CORRECT - Use uvx
 uvx yamllint file.yml
 uvx ruff check .
-uvx black --check .
-uvx mypy .
+uvx pre-commit run --files path/to/file.yml
 ```
 
-**ALWAYS use pre-commit to validate files:**
+### Node.js Tools: Global Install or npx
+
+**Ruler is a GLOBAL npm package. Run it directly as `ruler`, not via pnpm/npx.**
 
 ```bash
-# ✅ CORRECT - Use pre-commit for validation
-uvx pre-commit run --files path/to/file.yml
-uvx pre-commit run yamllint --files .github/workflows/ci.yml
-uvx pre-commit run ruff --files packages/
-uvx pre-commit run --all-files  # Run all hooks on all files
+# ✅ CORRECT - ruler is globally installed
+ruler apply
+
+# ❌ WRONG - Don't use pnpm dlx or npx for ruler
+pnpm dlx @intellectronica/ruler apply
+npx @intellectronica/ruler apply
+
+# ❌ WRONG - Don't add ruler to package.json
+# It's a global tool, not a project dependency
 ```
 
-`uvx` automatically installs and runs Python tools in isolated environments. This is the ONLY way to run Python tools in this workspace.
+### Validation: Use pre-commit
+
+```bash
+# ✅ CORRECT - Validate files with pre-commit
+uvx pre-commit run --files .github/workflows/ci.yml
+uvx pre-commit run yamllint --files .github/workflows/ci.yml
+uvx pre-commit run --all-files
+```
 
 ---
 
