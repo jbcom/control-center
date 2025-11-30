@@ -26,6 +26,8 @@ Post these commands as PR comments to engage AI reviewers:
 @coderabbitai review # CodeRabbit AI review
 ```
 
+All of the above are considered valid **QA agents** for this protocol.
+
 ### Focused Reviews
 
 Request specific review types:
@@ -38,20 +40,19 @@ Request specific review types:
 
 ## Scope: When This Protocol Applies
 
-### MANDATORY Review Required:
-- **All PRs with code changes** (Python, TypeScript, etc.)
-- Bug fixes (even "simple" ones with tests)
-- New features and enhancements
-- Refactors (any size)
-- Dependency updates that modify lock files or affect code
+### ALWAYS Request Review For:
+- New features
+- Bug fixes (even "simple" ones)
+- Refactors of any size
+- Dependency updates that affect code
 - Security-related changes
-- API changes (breaking or non-breaking)
-- Configuration changes that affect runtime behavior
+- API changes
+- Infrastructure or configuration changes that affect runtime behavior
 
 ### Review NOT Required (explicit exceptions):
-- **Pure Markdown/documentation changes** - README.md, CHANGELOG.md, comments-only
-- **Whitespace/formatting-only** - No logic changes, just style
-- **Automated Dependabot bumps** - When they pass CI with no code modifications
+- **Pure documentation changes** (README, comments only) that don't affect code behavior
+- **Whitespace/formatting-only** changes with no functional impact
+- **Automated Dependabot bumps** with no code changes
 
 **Note:** When in doubt, request review. It's better to over-review than under-review.
 
@@ -61,8 +62,8 @@ Request specific review types:
 
 1. **Read ALL feedback** - Every comment from every AI reviewer
 2. **Categorize by severity**:
-   - 🛑 **Critical/High** - MUST fix before merge
-   - ⚠️ **Medium** - Should fix or provide strong justification
+   - 🛑 **Critical/High** - MUST be resolved before merge (fix the issue OR document why it's a false positive with evidence)
+   - ⚠️ **Medium** - Should be resolved or provide strong technical justification
    - 💡 **Low/Info** - Consider, document if skipping
 3. **Fix or respond** to EVERY item:
    - Fix the issue, OR
@@ -82,7 +83,15 @@ Request specific review types:
 - Fixing the issue
 - "This is intentional because [technical reason]"
 - "False positive - [explanation with evidence]"
-- "Out of scope for this PR - created issue #X"
+- "Out of scope for this PR - created issue #X" (Note: NOT valid for critical/high severity items)
+
+## Thread Resolution
+
+A review thread is considered **resolved** when:
+1. The PR author has implemented the suggested fix, OR
+2. The PR author has responded with a clear technical justification for not implementing the suggestion
+
+Threads do NOT need to be manually marked 'Resolved' in the GitHub UI - a documented response satisfies the requirement.
 
 ## PR Owner Responsibilities
 
@@ -100,6 +109,7 @@ As PR owner, you MUST:
 2. Don't dismiss previous agent's decisions without justification
 3. Tag original agent if making significant changes
 4. Maintain the feedback resolution record
+5. If conflicts arise, escalate to team lead or create discussion issue
 
 ### Resolving AI-to-AI Conflicts:
 When AI reviewers disagree with each other:
@@ -114,19 +124,18 @@ When AI reviewers disagree with each other:
 Before merging ANY PR:
 
 - [ ] CI is green (all checks pass)
-- [ ] At least ONE AI review requested (`/gemini review`, `/q review`, etc.)
-- [ ] AI review completed (not pending)
-- [ ] ALL critical/high severity items fixed
-- [ ] ALL medium severity items fixed or justified with technical reasoning
+- [ ] At least ONE AI review requested and completed (`/gemini review`, `/q review`, etc.)
+- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
+- [ ] ALL medium severity items resolved or justified with technical reasoning
 - [ ] Responses posted to ALL feedback items (no ignored comments)
-- [ ] No unresolved review threads
+- [ ] All review threads addressed (response posted to each)
 - [ ] Conflicts between AI reviewers resolved and documented
 
 ## Example Workflow
 
 ```bash
-# 1. Create PR with conventional commit scope
-gh pr create --title "fix(connectors): resolve API timeout issue"
+# 1. Create PR with conventional commit scope (use project-specific scopes)
+gh pr create --title "fix(dic): resolve API validation bug"
 
 # 2. Request AI reviews (post as PR comment)
 # /gemini review
@@ -151,9 +160,10 @@ gh pr merge --squash
 
 This is a **MANDATORY** protocol enforced as follows:
 
-1. **Pre-merge gate** - Do not use `--admin` to bypass without AI review
-2. **Audit trail** - All feedback and responses are recorded in PR history
-3. **Revert policy** - PRs merged without proper review may be reverted
-4. **Continuous improvement** - False positives from AI reviewers should be reported
+1. **Pre-merge gate** - Do not use `--admin` to bypass without AI review completion
+2. **Detection** - PRs without AI review comments are flagged in PR audit
+3. **Audit trail** - All feedback and responses are recorded in PR history
+4. **Revert policy** - PRs merged without proper review will be flagged for review by the team lead and may be reverted if they contain unaddressed critical issues
+5. **Continuous improvement** - False positives from AI reviewers should be reported
 
 The goal is **quality**, not speed. A well-reviewed PR that takes longer is better than a rushed merge that causes production issues.
