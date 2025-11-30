@@ -18,6 +18,12 @@ concurrency:
 # Workflow-level permissions
 # NOTE: Using PYPI_TOKEN for PyPI publishing (not Trusted Publishing/OIDC)
 # Therefore id-token and attestations permissions are NOT needed
+# To migrate to Trusted Publishing:
+#   - Remove PYPI_TOKEN secret usage from workflow
+#   - Add id-token: write and attestations: write permissions
+#   - Set attestations: true in pypi-publish step
+#   - Set attest-build-provenance-github: true in build step
+#   - Configure trusted publisher on PyPI for this repo/workflow
 permissions:
   contents: read
   pull-requests: write

@@ -18,8 +18,8 @@ repos:
     hooks:
       - id: mypy
         args: [--strict, --ignore-missing-imports]
-        # types-all is broken (types-pkg-resources no longer exists)
-        # Add specific type stubs as needed
+        # types-all is broken - pkg_resources stubs removed from typeshed March 2025
+        # See: https://github.com/python/typeshed/issues/12398
         additional_dependencies: [types-PyYAML, types-requests]
         files: ^(src/|tools/|\.github/scripts/).*\.py$
 
