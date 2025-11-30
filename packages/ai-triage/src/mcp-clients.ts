@@ -149,6 +149,7 @@ export async function initializeMCPClients(
   // ─────────────────────────────────────────────────────────────────
   // 3. Context7 MCP Server (Documentation)
   // ─────────────────────────────────────────────────────────────────
+  // Check for Context7 API key: config, COPILOT_MCP_CONTEXT7_API_KEY (testing), CONTEXT7_API_KEY
   const context7ApiKey = config.context7?.apiKey || process.env.COPILOT_MCP_CONTEXT7_API_KEY || process.env.CONTEXT7_API_KEY;
   
   if (context7ApiKey || config.context7 !== undefined) {
