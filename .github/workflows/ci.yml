@@ -170,36 +170,36 @@ jobs:
       - name: Install semantic-release
         run: uv tool install python-semantic-release
 
-      - name: Check version
+      - name: Git config
+        run: |
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+
+      - name: Check if release needed
         id: check
         working-directory: packages/${{ matrix.package }}
         run: |
-          CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          
-          NEW=$(semantic-release --noop version --print 2>/dev/null || echo "$CURRENT")
-          
-          if [ -n "$NEW" ] && [ "$NEW" != "$CURRENT" ]; then
+          # PSR will output the new version if a release is needed, or nothing if not
+          NEW_VERSION=$(semantic-release --noop version --print 2>/dev/null || true)
+          if [ -n "$NEW_VERSION" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           else
             echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT" >> $GITHUB_OUTPUT
           fi
 
-      - name: Bump version
+      - name: Release version
         if: steps.check.outputs.should_release == 'true'
         working-directory: packages/${{ matrix.package }}
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          semantic-release version --no-vcs-release
-          # Push changes and tags (skip CI to prevent infinite loops)
-          git push origin main --follow-tags -o ci.skip
+          # Let PSR handle version bump, commit, tag, and push
+          semantic-release version
 
-      - uses: actions/download-artifact@v4
+      - name: Download built packages
+        if: steps.check.outputs.should_release == 'true'
+        uses: actions/download-artifact@v4
         with:
           name: Packages-${{ matrix.package }}
           path: dist
@@ -208,10 +208,19 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          skip-existing: true
           password: ${{ secrets.PYPI_TOKEN }}
 
+      - name: Create GitHub Release
+        if: steps.check.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ matrix.package }}-v${{ steps.check.outputs.version }}
+          name: ${{ matrix.package }} v${{ steps.check.outputs.version }}
+          files: dist/*
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
       - name: Sync to public repo
+        if: steps.check.outputs.should_release == 'true'
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
