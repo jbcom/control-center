@@ -135,15 +135,21 @@ Post these commands as PR comments:
 @coderabbitai review # CodeRabbit AI review
 ```
 
+### Scope
+- **Required**: All code changes, bug fixes, features, refactors, API changes
+- **Optional**: Pure docs (README only), whitespace-only, Dependabot with no code changes
+
 ### Merge Checklist
 
 Before merging ANY PR:
-- [ ] CI is green
+- [ ] CI is green (all checks pass)
 - [ ] At least ONE AI review requested
 - [ ] AI review completed (not pending)
 - [ ] ALL critical/high severity items fixed
-- [ ] ALL feedback items responded to
+- [ ] ALL medium items fixed or justified with technical reasoning
+- [ ] Responses posted to ALL feedback items
 - [ ] No unresolved threads
+- [ ] AI-to-AI conflicts resolved and documented
 
 ### Addressing Feedback
 
@@ -151,6 +157,9 @@ Before merging ANY PR:
 2. **Reply** with technical justification for disagreeing
 3. **NEVER** ignore or dismiss without response
 4. **Re-request** review after significant changes
+
+### Resolving AI Conflicts
+When AI reviewers disagree: evaluate both, apply project conventions, document your decision, prefer security/correctness
 
 ## 📝 Making Changes
 
