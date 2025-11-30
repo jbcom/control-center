@@ -1,72 +1,199 @@
 ---
 alwaysApply: true
-description: Manual AI code review engagement protocol
+description: MANDATORY AI code review engagement protocol - agents MUST engage QA before merge
 globs: ["**/*"]
 ---
 
 # AI Code Review (QA) Engagement
 
-AI code reviews are **manual**, not automatic. Agents decide when to engage QA.
+## 🚨 CRITICAL: Mandatory Review Before Merge
 
-## When to Request Review
-
-Request AI review for:
-- Complex logic changes (algorithms, state machines)
-- Security-sensitive code (auth, secrets, crypto)
-- Breaking API changes
-- Major refactors (>200 lines changed)
-- Unfamiliar codebases (first time contributing)
-
-Skip review for:
-- Documentation-only changes
-- Dependency bumps (Dependabot)
-- Config/formatting changes
-- Simple bug fixes with tests
-- Changes you've thoroughly validated
+**NEVER merge a PR without:**
+1. Requesting AI review from at least ONE QA agent
+2. Waiting for the review to complete
+3. FULLY addressing ALL feedback (not just dismissing it)
+4. Documenting your response to each piece of feedback
 
 ## How to Request Review
 
-Comment on the PR with one of:
-
+### Comment-Triggered Reviewers
+Post these commands as PR comments:
 ```
-@cursor review       # Cursor's AI review
-/q review            # Amazon Q review
-/gemini review       # Google Gemini review
+/gemini review       # Google Gemini Code Assist
+/q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot (or enable auto-review in settings)
+@cursor review       # Cursor AI
 @coderabbitai review # CodeRabbit AI review
 ```
 
-Or be specific:
+### Automatic Reviewers (via repo settings)
+These can also review automatically when enabled:
+- **Copilot** - Enable in Settings > Code security and analysis
+- **Cursor Bugbot** - Automatic on all PRs
+
+All of the above are considered valid **QA agents** for this protocol.
+
+### Focused Reviews
+
+Request specific review types (syntax varies by tool):
 ```
-@cursor review security  # Focus on security
-/q review performance    # Focus on performance
+/gemini review security           # Gemini: append focus area
+/q review performance             # Amazon Q: append focus area
+@copilot focus on test coverage   # Copilot: use natural language
+@coderabbitai review security     # CodeRabbit: append focus area
 ```
 
-## Acting on Feedback
+## Scope: When This Protocol Applies
 
-1. **Evaluate critically** - AI reviews can have false positives
-2. **Prioritize blockers** - Fix critical/high severity issues
-3. **Dismiss noise** - Style suggestions without justification
-4. **Document reasoning** - If you disagree, explain why
+### ALWAYS Request Review For:
+- New features
+- Bug fixes (even "simple" ones)
+- Refactors of any size
+- Dependency updates that affect code
+- Security-related changes
+- API changes
+- Infrastructure or configuration changes that affect runtime behavior
 
-## As the PR Owner
+### Review NOT Required (explicit exceptions):
+- **Pure documentation changes** (README, comments only) that don't affect code behavior
+- **Whitespace/formatting-only** changes with no functional impact
+- **Automated Dependabot bumps** with no code changes
 
-You own the PR - AI feedback is advisory, not authoritative.
+**Note:** When in doubt, request review. It's better to over-review than under-review.
 
-- You decide what to fix
-- You decide when to merge
-- You can dismiss unhelpful feedback
-- You're responsible for the final code
+## Addressing Feedback
 
-## Cross-Agent Collaboration
+### MANDATORY Steps:
 
-When another agent created the PR:
-1. Don't overwrite their decisions without reason
-2. Add your feedback as comments, not force-pushes
-3. Tag them for significant changes: `@cursor what about...`
-4. Respect their ownership
+1. **Read ALL feedback** - Every comment from every AI reviewer
+2. **Categorize by severity**:
+   - 🛑 **Critical/High** - MUST be resolved before merge (fix the issue OR document why it's a false positive with evidence)
+   - ⚠️ **Medium** - Should be resolved or provide strong technical justification
+   - 💡 **Low/Info** - Consider, document if skipping
+3. **Fix or respond** to EVERY item:
+   - Fix the issue, OR
+   - Reply explaining why you disagree with technical justification
+4. **Re-request review** if you made significant changes
+5. **Document** your decisions in the PR
 
-## QA Engagement is Judgment
+### What "Fully Addressing" Means:
 
-Use your judgment. Not every PR needs review. When in doubt:
-- Small, tested changes → Skip
-- Complex, critical changes → Request
+❌ **NOT acceptable:**
+- Ignoring feedback
+- Merging without responding
+- Dismissing without justification
+- "I'll fix it later"
+
+✅ **Acceptable:**
+- Fixing the issue
+- "This is intentional because [technical reason]"
+- "False positive - [explanation with evidence]"
+- "Out of scope for this PR - created issue #X" (Note: NOT valid for critical/high severity items)
+
+## Thread Resolution
+
+A review thread is considered **resolved** when:
+1. The PR author has implemented the suggested fix, OR
+2. The PR author has responded with a clear technical justification for not implementing the suggestion
+
+Threads do NOT need to be manually marked 'Resolved' in the GitHub UI - a documented response satisfies the requirement.
+
+## PR Owner Responsibilities
+
+As PR owner, you MUST:
+- Request AI review before merge
+- Wait for reviews to complete
+- Address every piece of feedback
+- Not merge until feedback is resolved
+- Document your merge decision
+
+## Cross-Agent Collaboration & Conflict Resolution
+
+### When Taking Over Another Agent's PR:
+1. Request fresh AI review
+2. Don't dismiss previous agent's decisions without justification
+3. Tag original agent if making significant changes
+4. Maintain the feedback resolution record
+5. If conflicts arise, escalate to team lead or create discussion issue
+
+### Resolving AI-to-AI Conflicts:
+When AI reviewers disagree with each other:
+1. **Evaluate both positions** - Consider the technical merit of each
+2. **Apply project conventions** - Use existing codebase patterns as tiebreaker
+3. **Document your decision** - Explain which position you chose and why
+4. **Prefer security/correctness** - When in doubt, choose the safer option
+5. **Escalate if needed** - Tag human reviewer for genuinely ambiguous cases
+
+## Merge Checklist
+
+Before merging ANY PR:
+
+- [ ] CI is green (all checks pass)
+- [ ] At least ONE AI review requested and completed (`/gemini review`, `/q review`, etc.)
+- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
+- [ ] ALL medium severity items resolved or justified with technical reasoning
+- [ ] Responses posted to ALL feedback items (no ignored comments)
+- [ ] All review threads addressed (response posted to each)
+- [ ] Conflicts between AI reviewers resolved and documented
+
+## Example Workflow
+
+```bash
+# 1. Create PR with conventional commit scope
+# Scopes: edt (extended-data-types), dic (directed-inputs-class),
+#         connectors (vendor-connectors), bridge (python-terraform-bridge)
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve API validation bug"
+
+# 2. Request AI reviews (post as PR comment)
+# /gemini review
+# /q review
+
+# 3. Wait for reviews to complete (check PR page)
+
+# 4. Address each piece of feedback
+# - Fix code issues raised
+# - Reply to every comment with fix or justification
+
+# 5. If significant changes made, re-request review
+# /gemini review
+
+# 6. Verify merge checklist complete
+
+# 7. Only after ALL feedback addressed:
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
+```
+
+## Repository Settings for Automatic AI Review
+
+To reduce manual effort, configure these GitHub repo settings:
+
+### Enable Copilot Code Review (Recommended)
+1. Go to **Settings > Code security and analysis**
+2. Enable **Copilot code review**
+3. Copilot will automatically review all PRs
+
+### Rulesets for Required AI Reviews
+1. Go to **Settings > Rules > Rulesets**
+2. Create ruleset requiring specific status checks
+3. Add AI reviewer checks (e.g., `Cursor Bugbot`, `amazon-q-developer`)
+
+### CODEOWNERS (Optional)
+Add AI bot accounts to `.github/CODEOWNERS` if they have repo access:
+```
+# Auto-request AI reviews
+* @copilot-pull-request-reviewer
+```
+
+**Note:** Some AI reviewers (Gemini, Amazon Q) are triggered by comments only and cannot be auto-assigned.
+
+## Enforcement
+
+This is a **MANDATORY** protocol enforced as follows:
+
+1. **Pre-merge gate** - Do not use `--admin` to bypass without AI review completion
+2. **Detection** - PRs without AI review comments are flagged in PR audit
+3. **Audit trail** - All feedback and responses are recorded in PR history
+4. **Revert policy** - PRs merged without proper review will be flagged for review by the team lead and may be reverted if they contain unaddressed critical issues
+5. **Continuous improvement** - Report AI reviewer false positives by creating an issue with label `ai-review-feedback`
+
+The goal is **quality**, not speed. A well-reviewed PR that takes longer is better than a rushed merge that causes production issues.
