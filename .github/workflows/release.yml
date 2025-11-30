@@ -1,0 +1,413 @@
+---
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Package to release (or "all" for all packages)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - extended-data-types
+          - lifecyclelogging
+          - directed-inputs-class
+          - python-terraform-bridge
+          - vendor-connectors
+      dry_run:
+        description: 'Dry run (no actual release)'
+        required: false
+        default: false
+        type: boolean
+
+permissions: {}
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FORCE_COLOR: "1"
+
+jobs:
+  # ============================================
+  # RELEASE PACKAGES (in dependency order)
+  # ============================================
+  release:
+    name: Release ${{ matrix.package }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      max-parallel: 1  # Sequential releases in dependency order
+      matrix:
+        include:
+          - package: extended-data-types
+            repo: jbcom/extended-data-types
+            order: 1
+          - package: lifecyclelogging
+            repo: jbcom/lifecyclelogging
+            order: 2
+          - package: directed-inputs-class
+            repo: jbcom/directed-inputs-class
+            order: 3
+          - package: python-terraform-bridge
+            repo: jbcom/python-terraform-bridge
+            order: 4
+          - package: vendor-connectors
+            repo: jbcom/vendor-connectors
+            order: 5
+
+    environment:
+      name: pypi
+      url: https://pypi.org/project/${{ matrix.package }}/
+
+    steps:
+      - name: Check if should release this package
+        id: should-release
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package }}" ]; then
+              echo "proceed=true" >> $GITHUB_OUTPUT
+            else
+              echo "proceed=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "proceed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.should-release.outputs.proceed == 'true'
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        if: steps.should-release.outputs.proceed == 'true'
+        with:
+          python-version: "3.13"
+
+      - uses: hynek/setup-cached-uv@v2
+        if: steps.should-release.outputs.proceed == 'true'
+
+      - name: Install semantic-release
+        if: steps.should-release.outputs.proceed == 'true'
+        run: uv tool install python-semantic-release
+
+      - name: Check for pending release
+        if: steps.should-release.outputs.proceed == 'true'
+        id: check
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          # Get current version
+          CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "current_version=$CURRENT" >> $GITHUB_OUTPUT
+
+          # Check if PSR would create a new version
+          set +e
+          OUTPUT=$(semantic-release --noop version 2>&1)
+          EXIT_CODE=$?
+          set -e
+
+          echo "PSR output: $OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "No release will be made"; then
+            echo "should_release=false" >> $GITHUB_OUTPUT
+            echo "::notice::${{ matrix.package }}: No release needed"
+          elif echo "$OUTPUT" | grep -q "bumped"; then
+            NEW_VERSION=$(echo "$OUTPUT" | grep -oP 'bumped to \K[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+            if [ -n "$NEW_VERSION" ]; then
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+              echo "::notice::${{ matrix.package }}: Will release v$NEW_VERSION"
+            else
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Configure git
+        if: steps.should-release.outputs.proceed == 'true' && steps.check.outputs.should_release == 'true'
+        run: |
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+
+      - name: Bump version and create tag
+        if: steps.should-release.outputs.proceed == 'true' && steps.check.outputs.should_release == 'true' && inputs.dry_run != true
+        working-directory: packages/${{ matrix.package }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Run semantic-release to bump version
+          semantic-release version --no-vcs-release
+
+          # Push changes
+          git push origin main --follow-tags
+
+      - name: Build package
+        if: steps.should-release.outputs.proceed == 'true' && steps.check.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          uv build --out-dir ../../dist
+
+      - name: Publish to PyPI
+        if: steps.should-release.outputs.proceed == 'true' && steps.check.outputs.should_release == 'true' && inputs.dry_run != true
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
+          skip-existing: true
+
+      - name: Create GitHub Release
+        if: steps.should-release.outputs.proceed == 'true' && steps.check.outputs.should_release == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          TAG=$(git describe --tags --abbrev=0)
+          VERSION=${{ steps.check.outputs.new_version }}
+
+          gh release create "$TAG" \
+            --title "${{ matrix.package }} v$VERSION" \
+            --notes "Release of ${{ matrix.package }} version $VERSION
+
+          ## Installation
+          \`\`\`bash
+          pip install ${{ matrix.package }}==$VERSION
+          \`\`\`
+
+          ## Links
+          - [PyPI](https://pypi.org/project/${{ matrix.package }}/$VERSION/)
+          - [Changelog](https://github.com/jbcom/jbcom-control-center/blob/main/packages/${{ matrix.package }}/CHANGELOG.md)
+          " \
+            ../../dist/*.whl ../../dist/*.tar.gz || true
+
+    outputs:
+      released: ${{ steps.check.outputs.should_release }}
+      version: ${{ steps.check.outputs.new_version }}
+      package: ${{ matrix.package }}
+
+  # ============================================
+  # SYNC TO PUBLIC REPOSITORIES
+  # ============================================
+  sync:
+    name: Sync ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    needs: release
+    if: always() && needs.release.result != 'cancelled'
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include:
+          - package: extended-data-types
+            repo: jbcom/extended-data-types
+          - package: lifecyclelogging
+            repo: jbcom/lifecyclelogging
+          - package: directed-inputs-class
+            repo: jbcom/directed-inputs-class
+          - package: python-terraform-bridge
+            repo: jbcom/python-terraform-bridge
+          - package: vendor-connectors
+            repo: jbcom/vendor-connectors
+
+    steps:
+      - name: Check if should sync
+        id: should-sync
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package }}" ]; then
+              echo "sync=true" >> $GITHUB_OUTPUT
+            else
+              echo "sync=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "sync=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.should-sync.outputs.sync == 'true'
+        with:
+          ref: main
+          persist-credentials: false
+
+      - name: Get package version
+        if: steps.should-sync.outputs.sync == 'true'
+        id: version
+        run: |
+          VERSION=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Sync to public repository
+        if: steps.should-sync.outputs.sync == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Clone target repo
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" target
+          cd target
+
+          # Configure git
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+
+          # Clear and copy
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r ../packages/${{ matrix.package }}/. .
+
+          # Stage and check for changes
+          git add -A
+          if ! git diff --staged --quiet; then
+            git commit -m "🔄 Sync v${{ steps.version.outputs.version }} from jbcom-control-center"
+            git push origin main
+            echo "✅ Synced to ${{ matrix.repo }}"
+          else
+            echo "⏭️  No changes to sync"
+          fi
+
+  # ============================================
+  # DEPLOY DOCUMENTATION
+  # ============================================
+  docs:
+    name: Docs ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    needs: sync
+    if: always() && needs.sync.result != 'cancelled'
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: extended-data-types
+            repo: jbcom/extended-data-types
+          - package: lifecyclelogging
+            repo: jbcom/lifecyclelogging
+          - package: directed-inputs-class
+            repo: jbcom/directed-inputs-class
+          - package: python-terraform-bridge
+            repo: jbcom/python-terraform-bridge
+          - package: vendor-connectors
+            repo: jbcom/vendor-connectors
+
+    steps:
+      - name: Check if should build docs
+        id: should-docs
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            if [ "${{ inputs.package }}" == "all" ] || [ "${{ inputs.package }}" == "${{ matrix.package }}" ]; then
+              echo "build=true" >> $GITHUB_OUTPUT
+            else
+              echo "build=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "build=true" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.should-docs.outputs.build == 'true'
+        with:
+          ref: main
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        if: steps.should-docs.outputs.build == 'true'
+        with:
+          python-version: "3.13"
+
+      - uses: hynek/setup-cached-uv@v2
+        if: steps.should-docs.outputs.build == 'true'
+
+      - name: Build docs
+        if: steps.should-docs.outputs.build == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          mkdir -p docs/_build/html
+
+          VERSION=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+
+          if [ -f "docs/conf.py" ]; then
+            uv venv
+            uv pip install -e ".[docs]" 2>/dev/null || uv pip install -e .
+            uv pip install sphinx sphinx-rtd-theme myst-parser
+
+            .venv/bin/sphinx-build -n -b html docs docs/_build/html || true
+          else
+            cat > docs/_build/html/index.html << EOF
+          <!DOCTYPE html>
+          <html><head><title>${{ matrix.package }}</title>
+          <style>body{font-family:system-ui;max-width:800px;margin:0 auto;padding:2rem;}</style>
+          </head><body>
+          <h1>${{ matrix.package }} v${VERSION}</h1>
+          <p>Documentation coming soon.</p>
+          <p><a href="https://github.com/${{ matrix.repo }}">GitHub</a> |
+             <a href="https://pypi.org/project/${{ matrix.package }}/">PyPI</a></p>
+          </body></html>
+          EOF
+          fi
+
+      - name: Deploy to gh-pages
+        if: steps.should-docs.outputs.build == 'true' && inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Clone or init gh-pages
+          git clone --branch gh-pages --depth 1 \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" \
+            gh-pages 2>/dev/null || {
+              mkdir gh-pages && cd gh-pages
+              git init -b gh-pages
+              git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git"
+              cd ..
+            }
+
+          # Update docs
+          find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp -r packages/${{ matrix.package }}/docs/_build/html/. gh-pages/
+          touch gh-pages/.nojekyll
+
+          # Deploy
+          cd gh-pages
+          git config user.name "jbcom-bot"
+          git config user.email "jbcom-bot@users.noreply.github.com"
+          git add -A
+          if ! git diff --staged --quiet; then
+            git commit -m "📚 Update documentation"
+            git push -uf origin gh-pages
+          fi
+
+  # ============================================
+  # SUMMARY
+  # ============================================
+  summary:
+    name: Release Summary
+    runs-on: ubuntu-latest
+    needs: [release, sync, docs]
+    if: always()
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🚀 Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Stage | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Release | ${{ needs.release.result == 'success' && '✅' || needs.release.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Sync | ${{ needs.sync.result == 'success' && '✅' || needs.sync.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.sync.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Docs | ${{ needs.docs.result == 'success' && '✅' || needs.docs.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.docs.result }} |" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.dry_run }}" == "true" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **This was a dry run - no actual changes were made.**" >> $GITHUB_STEP_SUMMARY
+          fi
