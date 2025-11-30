@@ -2,7 +2,7 @@
 
 **Started:** 2025-11-30
 **Agent:** Cursor Background Agent
-**Branch:** `agent/unified-agentic-platform-*`
+**Holding PR:** #284
 
 ## Mission
 
@@ -10,13 +10,48 @@ Formalize and unify all agentic management processes across:
 - jbcom personal repositories
 - Flipside Crypto enterprise terraform repositories
 
-## Key Objectives
+## Completed Work
 
-1. **Borg-consume fsc-control-center** - Integrate Flipside Crypto's control center
-2. **Intelligent Token Switching** - FSC vs JBCOM tokens based on org
-3. **Unified Public Package** - Single npm package for all agentic tooling
-4. **Real Testing** - Production-grade test infrastructure
-5. **Dog-fooding** - We use our own tools
+### ✅ agentic-control Package Created (PR #285)
+
+A new unified npm package that consolidates cursor-fleet and ai-triage with:
+
+- **Intelligent Token Switching**
+  - `GITHUB_FSC_TOKEN` for FlipsideCrypto repos
+  - `GITHUB_JBCOM_TOKEN` for jbcom repos
+  - Consistent PR review identity
+
+- **Fleet Management**
+  - Spawn/monitor/coordinate agents
+  - Model specification support
+  - Diamond pattern orchestration
+
+- **AI Triage**
+  - Conversation analysis
+  - Code review
+  - Issue creation
+
+- **Handoff Protocol**
+  - Station-to-station continuity
+  - Context preservation
+
+### ✅ Dockerfile Updated
+
+Added globally-installed tools:
+- `@intellectronica/ruler`
+- `@anthropic-ai/claude-code`
+- Verification step
+
+### ✅ Testing
+
+19 passing tests for token management
+
+## Created PRs
+
+| PR | Title | Status |
+|----|-------|--------|
+| #284 | [HOLDING] Session keeper | Open |
+| #285 | feat: agentic-control package | Under review |
 
 ## Token Strategy
 
@@ -26,21 +61,18 @@ Formalize and unify all agentic management processes across:
 | jbcom/* repos | `GITHUB_JBCOM_TOKEN` |
 | PR Reviews (always) | `GITHUB_JBCOM_TOKEN` |
 
-## Progress Log
+## Next Steps
 
-### 2025-11-30
-- [ ] Created holding PR
-- [ ] Explored current tooling structure
-- [ ] Cloned fsc-control-center
-- [ ] Designed unified package structure
-- [ ] Updated Dockerfile with global tools
+1. Address AI review feedback on #285
+2. Spawn agent on fsc-control-center
+3. Merge #285 when ready
+4. Publish to npm as public package
 
-## Sub-Agents Spawned
+## Sub-Agents
 
 | Agent ID | Task | Status |
 |----------|------|--------|
-| TBD | fsc-control-center integration | Pending |
+| Pending | fsc-control-center migration | Ready |
 
-## Notes
-
-This is a HOLDING session. Multiple PRs will be created from main during this session.
+---
+*Last updated: 2025-11-30*
