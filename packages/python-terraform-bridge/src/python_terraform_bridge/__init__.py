@@ -59,4 +59,4 @@ __all__ = [
     "null_resource",
 ]
 
-__version__ = "202511.1.0"
+__version__ = "1.0.0"
