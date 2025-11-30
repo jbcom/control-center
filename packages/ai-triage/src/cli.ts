@@ -424,13 +424,13 @@ mcp.command("status")
     console.log("🔍 Checking MCP servers...\n");
 
     const checks = [
-      { name: "Cursor Agent MCP", env: "CURSOR_API_KEY" },
-      { name: "GitHub MCP", env: "GITHUB_TOKEN or GITHUB_JBCOM_TOKEN" },
+      { name: "Cursor Agent MCP", env: "COPILOT_MCP_CURSOR_API_KEY or CURSOR_API_KEY" },
+      { name: "GitHub MCP", env: "COPILOT_MCP_GITHUB_TOKEN or GITHUB_JBCOM_TOKEN or GITHUB_TOKEN" },
       { name: "Context7 MCP", env: "CONTEXT7_API_KEY (optional)" },
     ];
 
     for (const check of checks) {
-      const hasEnv = check.env.split(" or ").some(e => process.env[e]);
+      const hasEnv = check.env.split(" or ").some(e => process.env[e.trim()]);
       const status = hasEnv ? "✅" : "⚠️";
       console.log(`${status} ${check.name}`);
       console.log(`   Environment: ${check.env} ${hasEnv ? "(set)" : "(not set)"}`);
@@ -440,8 +440,8 @@ mcp.command("status")
 
     try {
       const clients = await initializeMCPClients({
-        cursor: process.env.CURSOR_API_KEY ? {} : undefined,
-        github: process.env.GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN ? {} : undefined,
+        cursor: process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY ? {} : undefined,
+        github: process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN ? {} : undefined,
         context7: {},  // Context7 works without API key
       });
 
