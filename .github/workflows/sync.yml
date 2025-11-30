@@ -139,11 +139,15 @@ jobs:
           git diff --staged --stat
 
           # Commit
-          git commit -m "🔄 Sync from jbcom-control-center
+          COMMIT_MSG=$(cat <<EOF
+🔄 Sync from jbcom-control-center
 
-          Package: $PKG
-          Version: $VERSION
-          Source: https://github.com/jbcom/jbcom-control-center/tree/main/packages/$PKG"
+Package: $PKG
+Version: $VERSION
+Source: https://github.com/jbcom/jbcom-control-center/tree/main/packages/$PKG
+EOF
+)
+          git commit -m "$COMMIT_MSG"
 
           # Push
           if [ "$CREATE_PR" == "true" ]; then
