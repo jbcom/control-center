@@ -1,8 +1,34 @@
 import { generateText, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
-import { dirname } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from "fs";
+import { dirname, resolve, relative, isAbsolute } from "path";
+
+/**
+ * Validate that a path is within the allowed working directory
+ * Prevents path traversal attacks
+ */
+function validatePath(inputPath: string, workingDirectory: string): { valid: boolean; resolvedPath: string; error?: string } {
+  try {
+    const fullPath = isAbsolute(inputPath) ? inputPath : resolve(workingDirectory, inputPath);
+    let pathToCheck = fullPath;
+    if (!existsSync(fullPath)) {
+      pathToCheck = dirname(fullPath);
+      if (!existsSync(pathToCheck)) {
+        pathToCheck = workingDirectory;
+      }
+    }
+    const realPath = realpathSync(pathToCheck);
+    const realWorkDir = realpathSync(workingDirectory);
+    const relativePath = relative(realWorkDir, realPath);
+    if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+      return { valid: false, resolvedPath: fullPath, error: `Path traversal detected: ${inputPath}` };
+    }
+    return { valid: true, resolvedPath: fullPath };
+  } catch (error) {
+    return { valid: false, resolvedPath: inputPath, error: `Path validation error: ${error instanceof Error ? error.message : String(error)}` };
+  }
+}
 
 export interface CodeAgentConfig {
   workingDirectory: string;
@@ -63,9 +89,13 @@ export class CodeAgent {
     // Create text editor tool with actual file operations
     const textEditorTool = anthropic.tools.textEditor_20250124({
       execute: async ({ command, path, file_text, insert_line, new_str, old_str, view_range }) => {
-        const fullPath = path.startsWith("/") 
-          ? path 
-          : `${this.config.workingDirectory}/${path}`;
+        // Security: Validate path to prevent path traversal attacks
+        const pathValidation = validatePath(path, this.config.workingDirectory);
+        if (!pathValidation.valid) {
+          steps.push({ toolName: "str_replace_editor", input: { command, path }, output: `Security Error: ${pathValidation.error}` });
+          return `Security Error: ${pathValidation.error}`;
+        }
+        const fullPath = pathValidation.resolvedPath;
 
         try {
           let result: string;

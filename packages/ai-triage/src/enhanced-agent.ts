@@ -13,8 +13,8 @@
 import { generateText, generateObject, streamText, tool, stepCountIs, type ToolSet } from "ai";
 import { anthropic, type AnthropicProviderOptions } from "@ai-sdk/anthropic";
 import { execSync } from "child_process";
-import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync } from "fs";
-import { dirname } from "path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, unlinkSync, realpathSync } from "fs";
+import { dirname, resolve, relative, isAbsolute } from "path";
 import { z } from "zod";
 import { 
   initializeMCPClients, 
@@ -23,6 +23,63 @@ import {
   type MCPClientConfig,
   type MCPClients 
 } from "./mcp-clients.js";
+
+// ─────────────────────────────────────────────────────────────────
+// Security Utilities
+// ─────────────────────────────────────────────────────────────────
+
+/**
+ * Validate that a path is within the allowed working directory
+ * Prevents path traversal attacks (e.g., ../../../etc/passwd)
+ */
+function validatePath(inputPath: string, workingDirectory: string): { valid: boolean; resolvedPath: string; error?: string } {
+  try {
+    // Resolve the input path relative to working directory
+    const fullPath = isAbsolute(inputPath) ? inputPath : resolve(workingDirectory, inputPath);
+    
+    // Get real path (resolves symlinks) - throws if path doesn't exist
+    // For non-existing paths (create operations), we validate the parent
+    let pathToCheck = fullPath;
+    if (!existsSync(fullPath)) {
+      pathToCheck = dirname(fullPath);
+      // If parent doesn't exist either, use working directory
+      if (!existsSync(pathToCheck)) {
+        pathToCheck = workingDirectory;
+      }
+    }
+    
+    const realPath = realpathSync(pathToCheck);
+    const realWorkDir = realpathSync(workingDirectory);
+    
+    // Check if the resolved path is within the working directory
+    const relativePath = relative(realWorkDir, realPath);
+    if (relativePath.startsWith('..') || isAbsolute(relativePath)) {
+      return { 
+        valid: false, 
+        resolvedPath: fullPath,
+        error: `Path traversal detected: ${inputPath} resolves outside working directory`
+      };
+    }
+    
+    return { valid: true, resolvedPath: fullPath };
+  } catch (error) {
+    return { 
+      valid: false, 
+      resolvedPath: inputPath,
+      error: `Path validation error: ${error instanceof Error ? error.message : String(error)}`
+    };
+  }
+}
+
+/**
+ * Sanitize a filename for use in shell commands
+ * Prevents command injection via filenames
+ */
+function sanitizeFilename(filename: string): string {
+  // Remove or escape dangerous characters
+  // Allow only alphanumeric, dots, dashes, underscores, and forward slashes
+  return filename.replace(/[^a-zA-Z0-9._\-\/]/g, '_');
+}
 
 // ─────────────────────────────────────────────────────────────────
 // Configuration Types
@@ -407,9 +464,13 @@ Original task: ${task}`,
 
     const textEditorTool = anthropic.tools.textEditor_20250124({
       execute: async ({ command, path, file_text, insert_line, new_str, old_str, view_range }) => {
-        const fullPath = path.startsWith("/") 
-          ? path 
-          : `${this.config.workingDirectory}/${path}`;
+        // Security: Validate path to prevent path traversal attacks
+        const pathValidation = validatePath(path, this.config.workingDirectory);
+        if (!pathValidation.valid) {
+          recordStep("str_replace_editor", { command, path }, `Security Error: ${pathValidation.error}`);
+          return `Security Error: ${pathValidation.error}`;
+        }
+        const fullPath = pathValidation.resolvedPath;
 
         try {
           let result: string;
@@ -526,7 +587,16 @@ Original task: ${task}`,
       execute: async ({ staged, file }) => {
         try {
           const args = staged ? ["--cached"] : [];
-          if (file) args.push(file);
+          if (file) {
+            // Security: Validate file path and sanitize for shell
+            const pathValidation = validatePath(file, this.config.workingDirectory);
+            if (!pathValidation.valid) {
+              recordStep("git_diff", { staged, file }, `Security Error: ${pathValidation.error}`);
+              return `Security Error: ${pathValidation.error}`;
+            }
+            // Use -- to separate paths from options (git best practice)
+            args.push("--", sanitizeFilename(file));
+          }
           const diff = execSync(`git diff ${args.join(" ")}`, {
             cwd: this.config.workingDirectory,
             encoding: "utf-8",
@@ -541,16 +611,20 @@ Original task: ${task}`,
       },
     });
 
-    // File delete tool with approval
+    // File delete tool with approval and path validation
     tools.delete_file = tool({
       description: "Delete a file (requires approval if configured)",
       inputSchema: z.object({
         path: z.string().describe("Path to the file to delete"),
       }),
       execute: async ({ path }) => {
-        const fullPath = path.startsWith("/") 
-          ? path 
-          : `${this.config.workingDirectory}/${path}`;
+        // Security: Validate path to prevent path traversal attacks
+        const pathValidation = validatePath(path, this.config.workingDirectory);
+        if (!pathValidation.valid) {
+          recordStep("delete_file", { path }, `Security Error: ${pathValidation.error}`, false);
+          return `Security Error: ${pathValidation.error}`;
+        }
+        const fullPath = pathValidation.resolvedPath;
 
         // Always check approval for delete operations
         const approved = await checkApproval("delete_file", { path });

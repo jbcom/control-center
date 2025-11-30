@@ -127,7 +127,10 @@ export async function initializeMCPClients(
               "ghcr.io/github/github-mcp-server",
             ],
             env: {
-              ...process.env as Record<string, string>,
+              // Create clean env object with defined values only
+              ...Object.fromEntries(
+                Object.entries(process.env).filter((entry): entry is [string, string] => entry[1] !== undefined)
+              ),
               GITHUB_PERSONAL_ACCESS_TOKEN: githubToken ?? "",
             },
           }),
