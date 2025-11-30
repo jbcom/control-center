@@ -1,0 +1,24 @@
+# Sync configuration for python-terraform-bridge package
+# Syncs from monorepo to public individual repo
+
+group:
+  - files:
+      - source: packages/python-terraform-bridge/
+        dest: .
+        exclude: |
+          .git
+          .github
+          __pycache__
+          *.pyc
+          .pytest_cache
+          .ruff_cache
+          .mypy_cache
+          .tox
+          .venv
+          dist
+          build
+          *.egg-info
+          .DS_Store
+          .coverage
+    repos: |
+      jbcom/python-terraform-bridge
