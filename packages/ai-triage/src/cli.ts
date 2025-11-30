@@ -9,6 +9,7 @@
 import { Command } from "commander";
 import { PRTriageAgent } from "./pr-triage-agent.js";
 import { UnifiedAgent, runTask } from "./unified-agent.js";
+import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.js";
 import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
 
 const program = new Command();
@@ -246,6 +247,126 @@ agent.command("stream <task>")
       process.exit(1);
     } finally {
       await unified.close();
+    }
+  });
+
+agent.command("smart <task>")
+  .description("Run a task with automatic capability detection (reasoning, web search)")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (task: string, options) => {
+    console.log(`🧠 Smart task execution: ${task.slice(0, 80)}${task.length > 80 ? '...' : ''}\n`);
+
+    try {
+      const result = await runSmartTask(task, {
+        workingDirectory: options.dir,
+        maxSteps: parseInt(options.steps, 10),
+        verbose: options.verbose,
+      });
+
+      if (result.success) {
+        console.log(`\n✅ Task completed\n`);
+        console.log(result.result);
+        
+        if (result.reasoning) {
+          console.log(`\n💭 Reasoning:\n${result.reasoning.slice(0, 500)}${result.reasoning.length > 500 ? '...' : ''}`);
+        }
+      } else {
+        console.error(`\n❌ Task failed: ${result.result}`);
+      }
+
+      if (result.usage) {
+        console.log(`\n📊 Usage: ${result.usage.totalTokens} tokens`);
+      }
+    } catch (error) {
+      console.error("❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+agent.command("reason <task>")
+  .description("Run a task with extended thinking/reasoning enabled")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .option("-b, --budget <tokens>", "Thinking budget in tokens", "15000")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (task: string, options) => {
+    console.log(`🧠 Running with extended reasoning (budget: ${options.budget} tokens)...\n`);
+
+    const enhanced = new EnhancedAgent({
+      workingDirectory: options.dir,
+      maxSteps: parseInt(options.steps, 10),
+      verbose: options.verbose,
+      reasoning: {
+        enabled: true,
+        budgetTokens: parseInt(options.budget, 10),
+      },
+    });
+
+    try {
+      const result = await enhanced.execute(task);
+
+      if (result.success) {
+        console.log(`\n✅ Task completed\n`);
+        
+        if (result.reasoning) {
+          console.log(`💭 Reasoning:\n${"─".repeat(40)}\n${result.reasoning}\n${"─".repeat(40)}\n`);
+        }
+        
+        console.log(`📝 Result:\n${result.result}`);
+      } else {
+        console.error(`\n❌ Task failed: ${result.result}`);
+      }
+
+      if (result.usage) {
+        console.log(`\n📊 Usage: ${result.usage.totalTokens} tokens`);
+      }
+    } catch (error) {
+      console.error("❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await enhanced.close();
+    }
+  });
+
+agent.command("analyze <task>")
+  .description("Analyze a task to determine optimal execution strategy")
+  .action(async (task: string) => {
+    console.log(`🔍 Analyzing task...\n`);
+
+    const enhanced = new EnhancedAgent();
+
+    try {
+      const analysis = await enhanced.analyzeTask(task);
+
+      console.log(`📊 Task Analysis\n${"─".repeat(40)}`);
+      console.log(`Complexity: ${analysis.complexity}`);
+      console.log(`Estimated steps: ${analysis.estimatedSteps}`);
+      console.log(`Needs reasoning: ${analysis.requiresReasoning ? "Yes" : "No"}`);
+      console.log(`Needs web search: ${analysis.requiresWebSearch ? "Yes" : "No"}`);
+      
+      if (analysis.subtasks.length > 0) {
+        console.log(`\n📋 Subtasks:`);
+        for (const subtask of analysis.subtasks) {
+          console.log(`  [${subtask.priority}] ${subtask.description}`);
+          if (subtask.tools.length > 0) {
+            console.log(`    Tools: ${subtask.tools.join(", ")}`);
+          }
+        }
+      }
+
+      if (analysis.risks.length > 0) {
+        console.log(`\n⚠️ Risks:`);
+        for (const risk of analysis.risks) {
+          console.log(`  • ${risk}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Analysis failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await enhanced.close();
     }
   });
 

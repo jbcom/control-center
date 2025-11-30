@@ -48,8 +48,11 @@ export interface AgentResult {
   result: string;
   steps: AgentStep[];
   usage?: {
-    promptTokens: number;
-    completionTokens: number;
+    /** Token count for input/prompt (AI SDK v5 naming) */
+    inputTokens: number;
+    /** Token count for output/completion (AI SDK v5 naming) */
+    outputTokens: number;
+    /** Total token count */
     totalTokens: number;
   };
 }
@@ -132,7 +135,12 @@ export class UnifiedAgent {
         success: true,
         result: result.text,
         steps,
-        usage: result.usage,
+        // AI SDK v5: usage has inputTokens, outputTokens, totalTokens
+        usage: result.usage ? {
+          inputTokens: result.usage.inputTokens ?? 0,
+          outputTokens: result.usage.outputTokens ?? 0,
+          totalTokens: result.usage.totalTokens ?? 0,
+        } : undefined,
       };
     } catch (error) {
       return {
@@ -295,10 +303,10 @@ export class UnifiedAgent {
       str_replace_editor: textEditorTool,
     } as ToolSet;
 
-    // Add custom utility tools
+    // Add custom utility tools (AI SDK v5: use inputSchema instead of parameters)
     tools.git_status = tool({
       description: "Get current git status including branch, staged files, and modified files",
-      parameters: z.object({}),
+      inputSchema: z.object({}),
       execute: async () => {
         try {
           const status = execSync("git status --porcelain -b", {
@@ -317,7 +325,7 @@ export class UnifiedAgent {
 
     tools.git_diff = tool({
       description: "Get git diff for staged or unstaged changes",
-      parameters: z.object({
+      inputSchema: z.object({
         staged: z.boolean().optional().describe("Show staged changes only"),
         file: z.string().optional().describe("Specific file to diff"),
       }),

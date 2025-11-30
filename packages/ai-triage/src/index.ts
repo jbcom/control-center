@@ -3,12 +3,13 @@
  * 
  * This package provides:
  * - UnifiedAgent: Complete AI agent with Anthropic tools + MCP
+ * - EnhancedAgent: Advanced agent with reasoning, web search, and tool approval
  * - PRTriageAgent: Specialized PR analysis and resolution
  * - MCP Clients: Integration with Cursor, GitHub, and Context7 MCP servers
  * 
  * @example
  * ```typescript
- * import { PRTriageAgent, runTask } from "@jbcom/ai-triage";
+ * import { PRTriageAgent, runTask, EnhancedAgent } from "@jbcom/ai-triage";
  * 
  * // Quick task execution
  * const result = await runTask("Fix the linting errors in src/utils.ts");
@@ -17,6 +18,13 @@
  * const agent = new PRTriageAgent({ repository: "owner/repo" });
  * const analysis = await agent.analyze(123);
  * await agent.close();
+ * 
+ * // Enhanced agent with reasoning
+ * const enhanced = new EnhancedAgent({ 
+ *   reasoning: { enabled: true, budgetTokens: 15000 },
+ *   webSearch: { enabled: true },
+ * });
+ * const result = await enhanced.execute("Complex coding task...");
  * ```
  */
 
@@ -28,6 +36,18 @@ export {
   type AgentResult,
   type AgentStep,
 } from "./unified-agent.js";
+
+// Enhanced Agent (AI SDK v5/v6 features)
+export {
+  EnhancedAgent,
+  runEnhancedTask,
+  runSmartTask,
+  TaskAnalysisSchema,
+  type EnhancedAgentConfig,
+  type EnhancedAgentResult,
+  type EnhancedAgentStep,
+  type TaskAnalysis,
+} from "./enhanced-agent.js";
 
 // PR Triage Agent
 export {
