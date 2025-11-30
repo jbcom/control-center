@@ -1,72 +1,139 @@
 ---
 alwaysApply: true
-description: Manual AI code review engagement protocol
+description: MANDATORY AI code review engagement protocol - agents MUST engage QA before merge
 globs: ["**/*"]
 ---
 
 # AI Code Review (QA) Engagement
 
-AI code reviews are **manual**, not automatic. Agents decide when to engage QA.
+## 🚨 CRITICAL: Mandatory Review Before Merge
 
-## When to Request Review
-
-Request AI review for:
-- Complex logic changes (algorithms, state machines)
-- Security-sensitive code (auth, secrets, crypto)
-- Breaking API changes
-- Major refactors (>200 lines changed)
-- Unfamiliar codebases (first time contributing)
-
-Skip review for:
-- Documentation-only changes
-- Dependency bumps (Dependabot)
-- Config/formatting changes
-- Simple bug fixes with tests
-- Changes you've thoroughly validated
+**NEVER merge a PR without:**
+1. Requesting AI review from at least ONE QA agent
+2. Waiting for the review to complete
+3. FULLY addressing ALL feedback (not just dismissing it)
+4. Documenting your response to each piece of feedback
 
 ## How to Request Review
 
-Comment on the PR with one of:
+Post these commands as PR comments to engage AI reviewers:
 
 ```
-@cursor review       # Cursor's AI review
-/q review            # Amazon Q review
-/gemini review       # Google Gemini review
+/gemini review       # Google Gemini Code Assist
+/q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot
+@cursor review       # Cursor AI review
 @coderabbitai review # CodeRabbit AI review
 ```
 
-Or be specific:
+### Focused Reviews
+
+Request specific review types:
 ```
-@cursor review security  # Focus on security
-/q review performance    # Focus on performance
+/gemini review security     # Security-focused review
+/q review performance       # Performance analysis
+@copilot review tests       # Test coverage review
+@cursor review architecture # Architecture review
 ```
 
-## Acting on Feedback
+## When to Request Review
 
-1. **Evaluate critically** - AI reviews can have false positives
-2. **Prioritize blockers** - Fix critical/high severity issues
-3. **Dismiss noise** - Style suggestions without justification
-4. **Document reasoning** - If you disagree, explain why
+### ALWAYS Request Review For:
+- Any code changes (not just docs)
+- Bug fixes (even "simple" ones)
+- New features
+- Refactors of any size
+- Dependency updates that affect code
+- Security-related changes
+- API changes
 
-## As the PR Owner
+### May Skip Review For:
+- Pure documentation changes (README, comments only)
+- Whitespace/formatting-only changes
+- Automated dependency bumps (Dependabot) with no code changes
 
-You own the PR - AI feedback is advisory, not authoritative.
+## Addressing Feedback
 
-- You decide what to fix
-- You decide when to merge
-- You can dismiss unhelpful feedback
-- You're responsible for the final code
+### MANDATORY Steps:
+
+1. **Read ALL feedback** - Every comment from every AI reviewer
+2. **Categorize by severity**:
+   - 🛑 **Critical/High** - MUST fix before merge
+   - ⚠️ **Medium** - Should fix or provide strong justification
+   - 💡 **Low/Info** - Consider, document if skipping
+3. **Fix or respond** to EVERY item:
+   - Fix the issue, OR
+   - Reply explaining why you disagree with technical justification
+4. **Re-request review** if you made significant changes
+5. **Document** your decisions in the PR
+
+### What "Fully Addressing" Means:
+
+❌ **NOT acceptable:**
+- Ignoring feedback
+- Merging without responding
+- Dismissing without justification
+- "I'll fix it later"
+
+✅ **Acceptable:**
+- Fixing the issue
+- "This is intentional because [technical reason]"
+- "False positive - [explanation with evidence]"
+- "Out of scope for this PR - created issue #X"
+
+## PR Owner Responsibilities
+
+As PR owner, you MUST:
+- Request AI review before merge
+- Wait for reviews to complete
+- Address every piece of feedback
+- Not merge until feedback is resolved
+- Document your merge decision
 
 ## Cross-Agent Collaboration
 
-When another agent created the PR:
-1. Don't overwrite their decisions without reason
-2. Add your feedback as comments, not force-pushes
-3. Tag them for significant changes: `@cursor what about...`
-4. Respect their ownership
+When taking over another agent's PR:
+1. Request fresh AI review
+2. Don't dismiss previous agent's decisions without justification
+3. Tag original agent if making significant changes
+4. Maintain the feedback resolution record
 
-## QA Engagement is Judgment
+## Merge Checklist
 
-Use your judgment. Not every PR needs review. When in doubt:
-- Small, tested changes → Skip
-- Complex, critical changes → Request
+Before merging ANY PR:
+
+- [ ] CI is green (all checks pass)
+- [ ] At least ONE AI review requested (`/gemini review`, `/q review`, etc.)
+- [ ] AI review completed (not pending)
+- [ ] ALL critical/high severity items fixed
+- [ ] ALL medium severity items fixed or justified
+- [ ] Responses posted to ALL feedback items
+- [ ] No unresolved review threads
+
+## Example Workflow
+
+```bash
+# 1. Create PR
+gh pr create --title "fix: resolve API bug"
+
+# 2. Request AI reviews (post as PR comment)
+# /gemini review
+# /q review
+
+# 3. Wait for reviews to complete
+
+# 4. Address each piece of feedback
+# - Fix code issues
+# - Reply to comments
+
+# 5. If significant changes, re-request review
+# /gemini review
+
+# 6. Only after ALL feedback addressed:
+gh pr merge --squash
+```
+
+## Enforcement
+
+This is a MANDATORY protocol. PRs merged without proper AI review engagement
+may be reverted. The goal is quality, not speed.

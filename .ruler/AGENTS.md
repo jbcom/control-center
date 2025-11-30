@@ -120,6 +120,38 @@ The `.github/workflows/ci.yml` has these jobs:
 - Resolve AI-to-AI conflicts yourself
 - Merge when CI passes and feedback addressed
 
+## 🔍 MANDATORY: AI QA Review Before Merge
+
+**NEVER merge without engaging AI reviewers and addressing ALL feedback.**
+
+### How to Request Review
+
+Post these commands as PR comments:
+```
+/gemini review       # Google Gemini Code Assist
+/q review            # Amazon Q Developer
+@copilot review      # GitHub Copilot
+@cursor review       # Cursor AI review
+@coderabbitai review # CodeRabbit AI review
+```
+
+### Merge Checklist
+
+Before merging ANY PR:
+- [ ] CI is green
+- [ ] At least ONE AI review requested
+- [ ] AI review completed (not pending)
+- [ ] ALL critical/high severity items fixed
+- [ ] ALL feedback items responded to
+- [ ] No unresolved threads
+
+### Addressing Feedback
+
+1. **Fix** the issue, OR
+2. **Reply** with technical justification for disagreeing
+3. **NEVER** ignore or dismiss without response
+4. **Re-request** review after significant changes
+
 ## 📝 Making Changes
 
 ### Adding a New Package to CI
