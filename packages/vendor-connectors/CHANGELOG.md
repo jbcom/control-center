@@ -2,6 +2,27 @@
 
 <!-- version list -->
 
+## v202511.10.0 (2025-11-30)
+
+### Documentation
+
+- Update PR_PLAN with agent fleet assignments
+  ([`80845b1`](https://github.com/jbcom/jbcom-control-center/commit/80845b1531f900a81786489ce77c030429d4c362))
+
+- Update wiki and orchestration for architectural evolution
+  ([`8ad2f99`](https://github.com/jbcom/jbcom-control-center/commit/8ad2f997f41dffb1910c07398a779d1d7c2a9302))
+
+### Features
+
+- Add python-terraform-bridge package
+  ([#248](https://github.com/jbcom/jbcom-control-center/pull/248),
+  [`2d3cd6f`](https://github.com/jbcom/jbcom-control-center/commit/2d3cd6f05502fe02c0a0178829d871a955ae6b35))
+
+- Complete terraform-modules migration gaps - 100% feature parity
+  ([#245](https://github.com/jbcom/jbcom-control-center/pull/245),
+  [`e360209`](https://github.com/jbcom/jbcom-control-center/commit/e36020912358426fee9d02cca2091bef81230ced))
+
+
 ## v202511.9.0 (2025-11-29)
 
 ### Documentation
