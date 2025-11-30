@@ -2,7 +2,7 @@
 
 ## 🚨 CRITICAL: Use uvx and pre-commit
 
-**NEVER try to import Python packages directly in the shell. Use `uvx` instead.**
+**NEVER assume Python packages are available in the shell environment. Use `uvx` to run tools in isolated environments instead.**
 
 ```bash
 # ❌ WRONG - Will fail with ModuleNotFoundError
