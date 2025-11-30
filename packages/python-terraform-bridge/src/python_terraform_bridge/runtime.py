@@ -191,6 +191,23 @@ class TerraformRuntime:
         help_txt = "Terraform Bridge Runtime\n\n"
         help_txt += "Usage: python -m python_terraform_bridge <method_name>\n\n"
 
+        help_txt += "Data Sources:\n"
+        for name, docs in self._data_source_methods.items():
+            if name.startswith("_") or (docs and "NOPARSE" in docs):
+                continue
+            desc = docs.splitlines()[0] if docs else ""
+            help_txt += f"  {name}: {desc}\n"
+
+        if self._null_resource_methods:
+            help_txt += "\nNull Resources:\n"
+            for name, docs in self._null_resource_methods.items():
+                if name.startswith("_"):
+                    continue
+                desc = docs.splitlines()[0] if docs else ""
+                help_txt += f"  {name}: {desc}\n"
+
+        print(help_txt)
+
     def _instantiate_target(
         self,
         target_class: type[Any],
