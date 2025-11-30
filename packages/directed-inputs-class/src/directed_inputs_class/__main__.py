@@ -170,7 +170,8 @@ class DirectedInputsClass:
         Args:
             k (str): The key for the input.
             default (Any | None): The default value if the key is not found.
-            required (bool): Whether the input is required. Raises an error if required and not found.
+            required (bool): Whether the input is required.
+                Raises an error if required and not found.
             is_bool (bool): Whether to convert the input to a boolean.
             is_integer (bool): Whether to convert the input to an integer.
             is_float (bool): Whether to convert the input to a float.
@@ -237,7 +238,8 @@ class DirectedInputsClass:
         Args:
             k (str): The key for the input.
             default (Any | None): The default value if the key is not found.
-            required (bool): Whether the input is required. Raises an error if required and not found.
+            required (bool): Whether the input is required.
+                Raises an error if required and not found.
             decode_from_json (bool): Whether to decode the input from JSON format.
             decode_from_yaml (bool): Whether to decode the input from YAML format.
             decode_from_base64 (bool): Whether to decode the input from Base64.

@@ -140,6 +140,16 @@ ignore = [
 "noxfile.py" = ["D100", "D103"]
 # Management tools can use print, skip docstrings
 "tools/*.py" = ["T201", "D103", "S603", "S607"]
+# directed-inputs-class: Decorator-based input handling
+"packages/directed-inputs-class/src/**/*.py" = [
+    "PLR0911", "PLR0912",  # Complex coercion function has many branches
+]
+"packages/directed-inputs-class/tests/*.py" = [
+    "D103", "S101", "D100", "D104",  # Tests: skip docstrings, use asserts
+    "PLR2004",  # Magic numbers OK in tests
+    "SLF001",   # Private member access OK in tests
+    "B011", "PT015", "PT017",  # Test assertion patterns OK
+]
 # vendor-connectors: Python 3.9 compat, minimal docstring requirements, relaxed security for connectors
 "packages/vendor-connectors/**/*.py" = [
     "UP006", "UP007", "UP035", "UP045",  # Python 3.9 compat (Optional, Dict, List, etc.)
