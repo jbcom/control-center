@@ -7,30 +7,10 @@
  */
 
 import { Command } from "commander";
-import env from "env-var";
 import { PRTriageAgent } from "./pr-triage-agent.js";
 import { UnifiedAgent, runTask } from "./unified-agent.js";
 import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.js";
-import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
-
-/**
- * Normalized environment with COPILOT_MCP_* fallbacks resolved.
- * Define once, use everywhere.
- */
-const mcpEnv = env.from({
-  ...process.env,
-  // Normalize: COPILOT_MCP_* prefix takes precedence over standard names
-  CURSOR_API_KEY: process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY,
-  GITHUB_TOKEN: process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN,
-  CONTEXT7_API_KEY: process.env.COPILOT_MCP_CONTEXT7_API_KEY || process.env.CONTEXT7_API_KEY,
-});
-
-/** MCP server configuration - resolved once at startup */
-const mcpConfig = {
-  cursorApiKey: mcpEnv.get("CURSOR_API_KEY").asString(),
-  githubToken: mcpEnv.get("GITHUB_TOKEN").asString(),
-  context7ApiKey: mcpEnv.get("CONTEXT7_API_KEY").asString(),
-};
+import { initializeMCPClients, getMCPTools, closeMCPClients, MCP_ENV_VARS, mcpCredentials } from "./mcp-clients.js";
 
 const program = new Command();
 
@@ -443,26 +423,27 @@ mcp.command("status")
   .action(async () => {
     console.log("🔍 Checking MCP servers...\n");
 
-    const checks: Array<{ name: string; envVars: string[]; optional?: boolean }> = [
-      { name: "Cursor Agent MCP", envVars: ["COPILOT_MCP_CURSOR_API_KEY", "CURSOR_API_KEY"] },
-      { name: "GitHub MCP", envVars: ["COPILOT_MCP_GITHUB_TOKEN", "GITHUB_JBCOM_TOKEN", "GITHUB_TOKEN"] },
-      { name: "Context7 MCP", envVars: ["COPILOT_MCP_CONTEXT7_API_KEY", "CONTEXT7_API_KEY"], optional: true },
+    // Use centralized env var definitions from mcp-clients
+    const checks = [
+      { name: "Cursor Agent MCP", config: MCP_ENV_VARS.cursor, value: mcpCredentials.cursorApiKey },
+      { name: "GitHub MCP", config: MCP_ENV_VARS.github, value: mcpCredentials.githubToken },
+      { name: "Context7 MCP", config: MCP_ENV_VARS.context7, value: mcpCredentials.context7ApiKey },
     ];
 
     for (const check of checks) {
-      const value = getEnvWithFallbacks(...check.envVars);
-      const status = value ? "✅" : "⚠️";
-      const envDisplay = check.envVars.join(" or ") + (check.optional ? " (optional)" : "");
+      const status = check.value ? "✅" : "⚠️";
+      const optional = "optional" in check.config && check.config.optional;
+      const envDisplay = check.config.sources.join(" or ") + (optional ? " (optional)" : "");
       console.log(`${status} ${check.name}`);
-      console.log(`   Environment: ${envDisplay} ${value ? "(set)" : "(not set)"}`);
+      console.log(`   Environment: ${envDisplay} ${check.value ? "(set)" : "(not set)"}`);
     }
 
     console.log("\n🔌 Testing connections...\n");
 
     try {
       const clients = await initializeMCPClients({
-        cursor: getEnvWithFallbacks("COPILOT_MCP_CURSOR_API_KEY", "CURSOR_API_KEY") ? {} : undefined,
-        github: getEnvWithFallbacks("COPILOT_MCP_GITHUB_TOKEN", "GITHUB_JBCOM_TOKEN", "GITHUB_TOKEN") ? {} : undefined,
+        cursor: mcpCredentials.cursorApiKey ? {} : undefined,
+        github: mcpCredentials.githubToken ? {} : undefined,
         context7: {},  // Context7 works without API key
       });
 

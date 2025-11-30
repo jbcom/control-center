@@ -10,6 +10,46 @@
 import { experimental_createMCPClient as createMCPClient } from "@ai-sdk/mcp";
 import { Experimental_StdioMCPTransport as StdioMCPTransport } from "@ai-sdk/mcp/mcp-stdio";
 import type { ToolSet } from "ai";
+import env from "env-var";
+
+// ─────────────────────────────────────────────────────────────────
+// Environment Configuration
+// ─────────────────────────────────────────────────────────────────
+
+/** 
+ * MCP environment variable definitions.
+ * Each entry defines the canonical name and its fallback sources.
+ */
+export const MCP_ENV_VARS = {
+  cursor: {
+    name: "CURSOR_API_KEY",
+    sources: ["COPILOT_MCP_CURSOR_API_KEY", "CURSOR_API_KEY"],
+  },
+  github: {
+    name: "GITHUB_TOKEN",
+    sources: ["COPILOT_MCP_GITHUB_TOKEN", "GITHUB_JBCOM_TOKEN", "GITHUB_TOKEN"],
+  },
+  context7: {
+    name: "CONTEXT7_API_KEY",
+    sources: ["COPILOT_MCP_CONTEXT7_API_KEY", "CONTEXT7_API_KEY"],
+    optional: true,
+  },
+} as const;
+
+/** Normalized environment with fallbacks resolved */
+const mcpEnv = env.from({
+  ...process.env,
+  CURSOR_API_KEY: MCP_ENV_VARS.cursor.sources.map(k => process.env[k]).find(Boolean),
+  GITHUB_TOKEN: MCP_ENV_VARS.github.sources.map(k => process.env[k]).find(Boolean),
+  CONTEXT7_API_KEY: MCP_ENV_VARS.context7.sources.map(k => process.env[k]).find(Boolean),
+});
+
+/** Resolved MCP credentials - use this throughout the codebase */
+export const mcpCredentials = {
+  cursorApiKey: mcpEnv.get("CURSOR_API_KEY").asString(),
+  githubToken: mcpEnv.get("GITHUB_TOKEN").asString(),
+  context7ApiKey: mcpEnv.get("CONTEXT7_API_KEY").asString(),
+};
 
 export interface MCPClientConfig {
   /** Cursor Background Agent MCP configuration */
@@ -54,8 +94,7 @@ export async function initializeMCPClients(
   // ─────────────────────────────────────────────────────────────────
   // 1. Cursor Background Agent MCP
   // ─────────────────────────────────────────────────────────────────
-  // Check for Cursor API key: config, COPILOT_MCP_CURSOR_API_KEY (testing), CURSOR_API_KEY
-  const cursorApiKey = config.cursor?.apiKey || process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY;
+  const cursorApiKey = config.cursor?.apiKey || mcpCredentials.cursorApiKey;
   
   if (cursorApiKey) {
     try {
@@ -96,7 +135,7 @@ export async function initializeMCPClients(
   // 2. GitHub MCP Server (Official)
   // ─────────────────────────────────────────────────────────────────
   // Check for GitHub token: config, COPILOT_MCP_GITHUB_TOKEN (testing), GITHUB_JBCOM_TOKEN, GITHUB_TOKEN
-  const githubToken = config.github?.token || process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN;
+  const githubToken = config.github?.token || mcpCredentials.githubToken;
   
   if (githubToken || config.github !== undefined) {
     try {
@@ -149,8 +188,7 @@ export async function initializeMCPClients(
   // ─────────────────────────────────────────────────────────────────
   // 3. Context7 MCP Server (Documentation)
   // ─────────────────────────────────────────────────────────────────
-  // Check for Context7 API key: config, COPILOT_MCP_CONTEXT7_API_KEY (testing), CONTEXT7_API_KEY
-  const context7ApiKey = config.context7?.apiKey || process.env.COPILOT_MCP_CONTEXT7_API_KEY || process.env.CONTEXT7_API_KEY;
+  const context7ApiKey = config.context7?.apiKey || mcpCredentials.context7ApiKey;
   
   if (context7ApiKey || config.context7 !== undefined) {
     try {
