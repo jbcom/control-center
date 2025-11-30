@@ -42,6 +42,13 @@
 
 export { Fleet } from "./fleet.js";
 export { MCPClient } from "./mcp-client.js";
+export { CursorAPI, type CursorAPIOptions } from "./cursor-api.js";
+export { 
+  splitConversation, 
+  quickSplit, 
+  type SplitOptions, 
+  type SplitResult 
+} from "./conversation-splitter.js";
 export type {
   Agent,
   AgentStatus,
