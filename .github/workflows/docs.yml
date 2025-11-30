@@ -157,7 +157,7 @@ jobs:
     needs: build-docs
     if: github.ref == 'refs/heads/main'
     permissions:
-      contents: read
+      contents: write
 
     strategy:
       fail-fast: false
