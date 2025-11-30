@@ -42,11 +42,11 @@ jobs:
           - vendor-connectors
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           fetch-depth: 0
 
-      - uses: hynek/build-and-inspect-python-package@efb823f52190ad02594531168b7a2d5790e66516  # v2
+      - uses: hynek/build-and-inspect-python-package@efb823f52190ad02594531168b7a2d5790e66516  # v2.14.0
         with:
           path: packages/${{ matrix.package }}
           upload-name-suffix: -${{ matrix.package }}
@@ -71,17 +71,17 @@ jobs:
         python-version: ["3.9", "3.13"]
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
-      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
 
       - name: Cache tox
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4.3.0
         with:
           path: |
             ~/.cache/uv
@@ -102,13 +102,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548  # v6.1.0
         with:
           python-version: "3.13"
 
-      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
 
       # Lint packages/ only (scripts/ has different rules)
       - run: uvx ruff check packages/
@@ -160,12 +160,12 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
 
       - name: Install semantic-release
         run: uv tool install python-semantic-release
@@ -199,7 +199,7 @@ jobs:
 
       - name: Download built packages
         if: steps.check.outputs.should_release == 'true'
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
+        uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
         with:
           name: Packages-${{ matrix.package }}
           path: dist
@@ -213,7 +213,7 @@ jobs:
 
       - name: Create GitHub Release
         if: steps.check.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8  # v2.0.9
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe  # v2.4.2
         with:
           tag_name: ${{ matrix.package }}-v${{ steps.check.outputs.version }}
           name: ${{ matrix.package }} v${{ steps.check.outputs.version }}
@@ -253,12 +253,12 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
+      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
 
       - name: Get version via PSR
         id: ver
