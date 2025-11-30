@@ -256,13 +256,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Get version
+      - name: Get version via PSR
         id: ver
+        working-directory: packages/${{ matrix.package }}
         run: |
-          V=$(python -c "import tomllib; print(tomllib.load(open('packages/${{ matrix.package }}/pyproject.toml', 'rb'))['project']['version'])")
+          uv tool install python-semantic-release
+          V=$(semantic-release version --print-last-released || echo "latest")
           echo "version=$V" >> $GITHUB_OUTPUT
 
       - name: Build docs
@@ -271,7 +274,7 @@ jobs:
           mkdir -p "$PKG/docs/_build"
           
           if [ -f "$PKG/docs/conf.py" ]; then
-            cd "$PKG" && uv sync --extra docs 2>/dev/null || uv sync
+            cd "$PKG" && uv sync --extra docs || uv sync
             uv run sphinx-build -b html docs docs/_build || true
           else
             echo '<html><body><h1>${{ matrix.package }} v${{ steps.ver.outputs.version }}</h1></body></html>' > "$PKG/docs/_build/index.html"

@@ -7,19 +7,17 @@ group:
         dest: .
         exclude: |
           .git
-        exclude: |
-          .git
           .github
           __pycache__
           *.pyc
           .pytest_cache
+          .ruff_cache
+          .mypy_cache
           .tox
           .venv
           dist
           build
           *.egg-info
-          .DS_Store
-          .coverage
           .DS_Store
           .coverage
     repos: |
