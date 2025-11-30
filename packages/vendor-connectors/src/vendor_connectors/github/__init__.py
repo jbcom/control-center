@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
+import io
 import os
+from copy import deepcopy
 from typing import Any, Optional, Union
 
-import io
-from copy import deepcopy
 from directed_inputs_class import DirectedInputsClass
 from extended_data_types import (
     decode_json,

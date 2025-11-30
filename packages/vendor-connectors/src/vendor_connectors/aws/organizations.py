@@ -6,10 +6,10 @@ AWS Organizations and Control Tower.
 
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional
-import re
 
 from deepmerge import always_merger
 from extended_data_types import is_nothing, unhump_map
@@ -406,12 +406,7 @@ class AWSOrganizationsMixin:
             )
         )
 
-        spoke = bool(
-            tags.get("Spoke")
-            or unit_tags.get("Spoke")
-            or tags.get("spoke")
-            or unit_tags.get("spoke")
-        )
+        spoke = bool(tags.get("Spoke") or unit_tags.get("Spoke") or tags.get("spoke") or unit_tags.get("spoke"))
 
         labeled = {
             "id": account_id,
@@ -679,7 +674,9 @@ class AWSOrganizationsMixin:
             suffix=suffix,
         )
 
-        accounts_by_name = {data["account_name"]: data for data in labeled_accounts.values() if data.get("account_name")}
+        accounts_by_name = {
+            data["account_name"]: data for data in labeled_accounts.values() if data.get("account_name")
+        }
         accounts_by_email = {data["email"]: data for data in labeled_accounts.values() if data.get("email")}
         accounts_by_key = {data["json_key"]: data for data in labeled_accounts.values() if data.get("json_key")}
 

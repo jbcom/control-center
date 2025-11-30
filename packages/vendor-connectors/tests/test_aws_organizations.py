@@ -208,7 +208,12 @@ def test_classify_aws_accounts_generates_suffix(organizations_connector: _TestAW
 
 def test_preprocess_aws_organization_uses_helpers(mocker, organizations_connector: _TestAWSOrganizations):
     labeled_accounts = {
-        "123": {"account_name": "Prod Account", "email": "prod@example.com", "json_key": "ProdAccount", "classifications": ["production"]}
+        "123": {
+            "account_name": "Prod Account",
+            "email": "prod@example.com",
+            "json_key": "ProdAccount",
+            "classifications": ["production"],
+        }
     }
     mocker.patch.object(
         organizations_connector,
