@@ -544,7 +544,8 @@ export class Fleet {
     const inboundInterval = config.inboundInterval ?? 15000;
     const agentIds = new Set(config.agentIds ?? []);
     const processedCommentIds = new Set<string>();
-    const githubToken = config.githubToken ?? process.env.GITHUB_JBCOM_TOKEN;
+    // Prioritize COPILOT_MCP_GITHUB_TOKEN for testing, then fall back to GITHUB_JBCOM_TOKEN
+    const githubToken = config.githubToken ?? process.env.COPILOT_MCP_GITHUB_TOKEN ?? process.env.GITHUB_JBCOM_TOKEN;
 
     console.log("=== Fleet Coordinator Started ===");
     console.log(`Coordination PR: #${config.coordinationPr}`);

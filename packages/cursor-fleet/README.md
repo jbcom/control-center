@@ -451,6 +451,31 @@ const result = await splitConversation(conversation, {
 - Agent IDs are URL-encoded to prevent injection
 - Error messages are sanitized to remove tokens
 
+## Agent-to-Agent Communication
+
+### Recommended Pattern: GitHub PR Comments
+
+For reliable bidirectional communication between agents, use GitHub PR comments via the `coordinate` command:
+
+```bash
+# Recommended: Use coordinate command for agent-to-agent communication
+cursor-fleet coordinate --pr 123 --agents bc-xxx,bc-yyy
+
+# Sub-agents comment on PR with status updates:
+# @cursor ✅ DONE: bc-xxx task completed
+# @cursor ⚠️ BLOCKED: bc-yyy needs input
+```
+
+**Why This Works:**
+- GitHub API is synchronous (comments appear immediately)
+- Comments are auditable and visible to users
+- Multiple agents can communicate via a single PR thread
+
+**Note on Direct Followups:**
+The Cursor API `addFollowup` method is designed for user-to-agent communication. For agent-to-agent coordination, the PR comment pattern provides more reliable and auditable communication.
+
+**Detailed Analysis:** See [docs/FOLLOWUP_INVESTIGATION.md](./docs/FOLLOWUP_INVESTIGATION.md)
+
 ## Related
 
 - [Fleet Coordination Guide](../../.ruler/fleet-coordination.md)

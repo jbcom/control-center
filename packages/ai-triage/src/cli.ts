@@ -10,7 +10,7 @@ import { Command } from "commander";
 import { PRTriageAgent } from "./pr-triage-agent.js";
 import { UnifiedAgent, runTask } from "./unified-agent.js";
 import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.js";
-import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
+import { initializeMCPClients, getMCPTools, closeMCPClients, MCP_ENV_VARS, mcpCredentials } from "./mcp-clients.js";
 
 const program = new Command();
 
@@ -423,25 +423,27 @@ mcp.command("status")
   .action(async () => {
     console.log("🔍 Checking MCP servers...\n");
 
+    // Use centralized env var definitions from mcp-clients
     const checks = [
-      { name: "Cursor Agent MCP", env: "CURSOR_API_KEY" },
-      { name: "GitHub MCP", env: "GITHUB_TOKEN or GITHUB_JBCOM_TOKEN" },
-      { name: "Context7 MCP", env: "CONTEXT7_API_KEY (optional)" },
+      { name: "Cursor Agent MCP", config: MCP_ENV_VARS.cursor, value: mcpCredentials.cursorApiKey },
+      { name: "GitHub MCP", config: MCP_ENV_VARS.github, value: mcpCredentials.githubToken },
+      { name: "Context7 MCP", config: MCP_ENV_VARS.context7, value: mcpCredentials.context7ApiKey },
     ];
 
     for (const check of checks) {
-      const hasEnv = check.env.split(" or ").some(e => process.env[e]);
-      const status = hasEnv ? "✅" : "⚠️";
+      const status = check.value ? "✅" : "⚠️";
+      const optional = "optional" in check.config && check.config.optional;
+      const envDisplay = check.config.sources.join(" or ") + (optional ? " (optional)" : "");
       console.log(`${status} ${check.name}`);
-      console.log(`   Environment: ${check.env} ${hasEnv ? "(set)" : "(not set)"}`);
+      console.log(`   Environment: ${envDisplay} ${check.value ? "(set)" : "(not set)"}`);
     }
 
     console.log("\n🔌 Testing connections...\n");
 
     try {
       const clients = await initializeMCPClients({
-        cursor: process.env.CURSOR_API_KEY ? {} : undefined,
-        github: process.env.GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN ? {} : undefined,
+        cursor: mcpCredentials.cursorApiKey ? {} : undefined,
+        github: mcpCredentials.githubToken ? {} : undefined,
         context7: {},  // Context7 works without API key
       });
 
