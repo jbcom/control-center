@@ -222,7 +222,7 @@ jobs:
 
       - name: Sync to public repo
         if: steps.check.outputs.should_release == 'true'
-        uses: BetaHuhn/repo-file-sync-action@v1.21.1
+        uses: BetaHuhn/repo-file-sync-action@v1.22.0
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync/${{ matrix.package }}.yml
