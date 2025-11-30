@@ -100,7 +100,8 @@ ignore = ["ANN", "COM", "E501", "FBT", "PLR0913", "C901", "TRY300"]
 convention = "google"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["ANN", "D", "E", "S"]
+"src/**/*.py" = ["PLR0911", "PLR0912"]  # Complex coercion function
+"tests/*" = ["ANN", "D", "E", "S", "PLR2004", "SLF001", "B011", "PT015", "PT017"]
 
 [tool.ruff.lint.isort]
 lines-between-types = 1

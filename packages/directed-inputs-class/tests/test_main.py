@@ -128,7 +128,6 @@ def test_get_input_boolean():
 
 def test_get_input_boolean_existing_bool():
     """Boolean inputs that are already bool are returned unchanged."""
-
     dic = DirectedInputsClass(inputs={"bool_key": False})
     assert dic.get_input("bool_key", is_bool=True) is False
 
@@ -182,7 +181,6 @@ def test_decode_input_base64():
 
 def test_decode_input_base64_from_bytes():
     """Base64 encoded bytes can be decoded and parsed."""
-
     encoded_value = base64_encode(json.dumps({"name": "test"}).encode())
     dic = DirectedInputsClass(inputs={"base64_key": encoded_value.encode()})
     decoded = dic.decode_input(
@@ -235,7 +233,6 @@ def test_shift_inputs():
 
 def test_merge_inputs_deep_merge():
     """Merging inputs should deep merge nested structures rather than replace."""
-
     dic = DirectedInputsClass(inputs={"nested": {"left": 1}})
     merged = dic.merge_inputs({"nested": {"right": 2}})
 
@@ -244,7 +241,6 @@ def test_merge_inputs_deep_merge():
 
 def test_environment_prefix_filter(monkeypatch):
     """Only environment variables matching the prefix should be loaded."""
-
     monkeypatch.setenv("APP_ALPHA", "alpha")
     monkeypatch.setenv("APP_BETA", "beta")
     monkeypatch.setenv("UNSCOPED", "nope")
