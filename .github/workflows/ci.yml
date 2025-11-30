@@ -94,6 +94,14 @@ jobs:
           path: dist
           merge-multiple: true
 
+      - name: Verify all package wheels available
+        run: |
+          echo "=== Downloaded wheels for inter-package dependency resolution ==="
+          ls -la dist/*.whl
+          echo ""
+          echo "Testing package: ${{ matrix.package }}"
+          echo "UV_FIND_LINKS will resolve dependencies from: ${{ github.workspace }}/dist"
+
       - name: Run tests with tox
         env:
           # Ensure inter-package dependencies resolve from local wheels, not PyPI
