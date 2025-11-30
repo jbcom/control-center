@@ -235,25 +235,27 @@ def _resolve_type_hint(target_type: Any) -> type | None:
 
 
 def _load_stdin() -> dict[str, Any]:
-    """Load inputs from stdin as JSON."""
+    """Load inputs from stdin as JSON.
+
+    Limited to STDIN_MAX_BYTES to prevent denial-of-service attacks.
+    """
     if strtobool(os.getenv("OVERRIDE_STDIN", "False")):
         return {}
 
     try:
-        stdin_data = sys.stdin.read(STDIN_MAX_BYTES + 1)
-    except OSError:
-        return {}
+        # Read exactly the limit
+        stdin_data = sys.stdin.read(STDIN_MAX_BYTES)
+        if is_nothing(stdin_data):
+            return {}
 
-    if len(stdin_data) > STDIN_MAX_BYTES:
-        msg = f"Stdin input exceeds maximum size limit ({STDIN_MAX_BYTES} bytes)"
-        raise ValueError(msg)
+        # Check if there's more data - peek one more byte
+        extra = sys.stdin.read(1)
+        if extra:
+            msg = f"Stdin input exceeds maximum size limit ({STDIN_MAX_BYTES} bytes)"
+            raise ValueError(msg)
 
-    if is_nothing(stdin_data):
-        return {}
-
-    try:
         return json.loads(stdin_data)
-    except json.JSONDecodeError:
+    except (OSError, json.JSONDecodeError):
         return {}
 
 
@@ -272,42 +274,31 @@ def _load_env(prefix: str | None = None, strip_prefix: bool = False) -> dict[str
 
 def _coerce_value(value: Any, target_type: type | None) -> Any:
     """Coerce a value to the target type."""
+    # _resolve_type_hint handles Union types and returns the first non-None type
     target_type = _resolve_type_hint(target_type)
     if target_type is None or value is None:
         return value
 
-    # Handle Union types (including X | None via types.UnionType)
-    origin = get_origin(target_type)
-    if origin is Union or (_UNION_TYPE is not None and origin is _UNION_TYPE):
-        args = get_args(target_type)
-        non_none_types = [t for t in args if t is not type(None)]
-        if non_none_types:
-            target_type = non_none_types[0]
-        else:
-            return value
-    elif _UNION_TYPE is not None and isinstance(target_type, _UNION_TYPE):
-        args = getattr(target_type, "__args__", ())
-        non_none_types = [t for t in args if t is not type(None)]
-        if non_none_types:
-            target_type = non_none_types[0]
-        else:
-            return value
-
     # Type coercion - do this BEFORE isinstance check to handle string -> other type
-    if target_type is bool and not isinstance(value, bool):
-        return strtobool(value)
-    if target_type is int and not isinstance(value, int):
-        return strtoint(value)
-    if target_type is float and not isinstance(value, float):
-        return strtofloat(str(value))
-    if target_type is Path and not isinstance(value, Path):
-        return strtopath(str(value))
-    if target_type is datetime and not isinstance(value, datetime):
-        return strtodatetime(str(value))
-    if target_type is dict and isinstance(value, str):
-        return decode_json(value)
-    if target_type is list and isinstance(value, str):
-        return decode_json(value)
+    # Wrap in try/except to handle conversion failures gracefully
+    try:
+        if target_type is bool and not isinstance(value, bool):
+            return strtobool(value)
+        if target_type is int and not isinstance(value, int):
+            return strtoint(value)
+        if target_type is float and not isinstance(value, float):
+            return strtofloat(str(value))
+        if target_type is Path and not isinstance(value, Path):
+            return strtopath(str(value))
+        if target_type is datetime and not isinstance(value, datetime):
+            return strtodatetime(str(value))
+        if target_type is dict and isinstance(value, str):
+            return decode_json(value)
+        if target_type is list and isinstance(value, str):
+            return decode_json(value)
+    except (ValueError, TypeError):
+        # Coercion failed, return original value
+        return value
 
     # Now check if already correct type (safely)
     try:
