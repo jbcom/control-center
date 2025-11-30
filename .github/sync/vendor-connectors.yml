@@ -1,0 +1,24 @@
+# Sync configuration for vendor-connectors package
+# Syncs from monorepo to public individual repo
+
+group:
+  - files:
+      - source: packages/vendor-connectors/
+        dest: .
+        exclude: |
+          .git
+          .github
+          __pycache__
+          *.pyc
+          .pytest_cache
+          .ruff_cache
+          .mypy_cache
+          .tox
+          .venv
+          dist
+          build
+          *.egg-info
+          .DS_Store
+          .coverage
+    repos: |
+      jbcom/vendor-connectors

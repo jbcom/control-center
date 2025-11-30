@@ -170,36 +170,36 @@ jobs:
       - name: Install semantic-release
         run: uv tool install python-semantic-release
 
-      - name: Check version
+      - name: Git config
+        run: |
+          git config --global user.name "jbcom-bot"
+          git config --global user.email "jbcom-bot@users.noreply.github.com"
+
+      - name: Check if release needed
         id: check
         working-directory: packages/${{ matrix.package }}
         run: |
-          CURRENT=$(grep '^version = ' pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
-          echo "current=$CURRENT" >> $GITHUB_OUTPUT
-          
-          NEW=$(semantic-release --noop version --print 2>/dev/null || echo "$CURRENT")
-          
-          if [ -n "$NEW" ] && [ "$NEW" != "$CURRENT" ]; then
+          # PSR will output the new version if a release is needed, or nothing if not
+          NEW_VERSION=$(semantic-release --noop version --print || true)
+          if [ -n "$NEW_VERSION" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "version=$NEW" >> $GITHUB_OUTPUT
+            echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
           else
             echo "should_release=false" >> $GITHUB_OUTPUT
-            echo "version=$CURRENT" >> $GITHUB_OUTPUT
           fi
 
-      - name: Bump version
+      - name: Release version
         if: steps.check.outputs.should_release == 'true'
         working-directory: packages/${{ matrix.package }}
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          semantic-release version --no-vcs-release
-          # Push changes and tags (skip CI to prevent infinite loops)
-          git push origin main --follow-tags -o ci.skip
+          # Let PSR handle version bump, commit, tag, and push
+          semantic-release version --skip-existing
 
-      - uses: actions/download-artifact@v4
+      - name: Download built packages
+        if: steps.check.outputs.should_release == 'true'
+        uses: actions/download-artifact@v4
         with:
           name: Packages-${{ matrix.package }}
           path: dist
@@ -208,21 +208,25 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
-          skip-existing: true
           password: ${{ secrets.PYPI_TOKEN }}
+          skip-existing: true
+
+      - name: Create GitHub Release
+        if: steps.check.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@v2.0.9
+        with:
+          tag_name: ${{ matrix.package }}-v${{ steps.check.outputs.version }}
+          name: ${{ matrix.package }} v${{ steps.check.outputs.version }}
+          files: dist/*
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Sync to public repo
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" target
-          cd target
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp -r ../packages/${{ matrix.package }}/* .
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          git add -A
-          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
+        if: steps.check.outputs.should_release == 'true'
+        uses: BetaHuhn/repo-file-sync-action@v1.22.0
+        with:
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          CONFIG_PATH: .github/sync/${{ matrix.package }}.yml
+          COMMIT_BODY: "🚀 Synced from monorepo release v${{ steps.check.outputs.version }}"
 
   # ============================================
   # DOCS (main only)
@@ -252,13 +256,16 @@ jobs:
       - uses: actions/checkout@v4
         with:
           ref: main
+          fetch-depth: 0
 
       - uses: hynek/setup-cached-uv@v2
 
-      - name: Get version
+      - name: Get version via PSR
         id: ver
+        working-directory: packages/${{ matrix.package }}
         run: |
-          V=$(grep '^version = ' packages/${{ matrix.package }}/pyproject.toml | head -1 | sed 's/version = "\([^"]*\)"/\1/')
+          uv tool install python-semantic-release
+          V=$(semantic-release version --print-last-released || echo "latest")
           echo "version=$V" >> $GITHUB_OUTPUT
 
       - name: Build docs
@@ -267,27 +274,20 @@ jobs:
           mkdir -p "$PKG/docs/_build"
           
           if [ -f "$PKG/docs/conf.py" ]; then
-            cd "$PKG" && uv sync --extra docs 2>/dev/null || uv sync
+            cd "$PKG" && uv sync --extra docs || uv sync
             uv run sphinx-build -b html docs docs/_build || true
           else
             echo '<html><body><h1>${{ matrix.package }} v${{ steps.ver.outputs.version }}</h1></body></html>' > "$PKG/docs/_build/index.html"
           fi
 
       - name: Deploy gh-pages
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          git clone --branch gh-pages --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" gh-pages 2>/dev/null || {
-            mkdir gh-pages && cd gh-pages && git init -b gh-pages
-            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" && cd ..
-          }
-          
-          find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
-          cp -r packages/${{ matrix.package }}/docs/_build/* gh-pages/ 2>/dev/null || true
-          touch gh-pages/.nojekyll
-          
-          cd gh-pages
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          git add -A
-          (git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}") && git push -uf origin gh-pages
+        uses: peaceiris/actions-gh-pages@v4.0.0
+        with:
+          personal_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          external_repository: ${{ matrix.repo }}
+          publish_branch: gh-pages
+          publish_dir: packages/${{ matrix.package }}/docs/_build
+          enable_jekyll: false
+          commit_message: "📚 v${{ steps.ver.outputs.version }}"
+          user_name: jbcom-bot
+          user_email: jbcom-bot@users.noreply.github.com

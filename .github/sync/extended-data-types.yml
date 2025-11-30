@@ -1,0 +1,24 @@
+# Sync configuration for extended-data-types package
+# Syncs from monorepo to public individual repo
+
+group:
+  - files:
+      - source: packages/extended-data-types/
+        dest: .
+        exclude: |
+          .git
+          .github
+          __pycache__
+          *.pyc
+          .pytest_cache
+          .ruff_cache
+          .mypy_cache
+          .tox
+          .venv
+          dist
+          build
+          *.egg-info
+          .DS_Store
+          .coverage
+    repos: |
+      jbcom/extended-data-types
