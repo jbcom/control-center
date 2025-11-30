@@ -54,7 +54,8 @@ export async function initializeMCPClients(
   // ─────────────────────────────────────────────────────────────────
   // 1. Cursor Background Agent MCP
   // ─────────────────────────────────────────────────────────────────
-  const cursorApiKey = config.cursor?.apiKey || process.env.CURSOR_API_KEY;
+  // Check for Cursor API key: config, COPILOT_MCP_CURSOR_API_KEY (testing), CURSOR_API_KEY
+  const cursorApiKey = config.cursor?.apiKey || process.env.COPILOT_MCP_CURSOR_API_KEY || process.env.CURSOR_API_KEY;
   
   if (cursorApiKey) {
     try {
@@ -94,7 +95,8 @@ export async function initializeMCPClients(
   // ─────────────────────────────────────────────────────────────────
   // 2. GitHub MCP Server (Official)
   // ─────────────────────────────────────────────────────────────────
-  const githubToken = config.github?.token || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN;
+  // Check for GitHub token: config, COPILOT_MCP_GITHUB_TOKEN (testing), GITHUB_JBCOM_TOKEN, GITHUB_TOKEN
+  const githubToken = config.github?.token || process.env.COPILOT_MCP_GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN;
   
   if (githubToken || config.github !== undefined) {
     try {

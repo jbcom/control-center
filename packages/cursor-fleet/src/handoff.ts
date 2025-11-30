@@ -88,7 +88,8 @@ export class HandoffManager {
   }) {
     this.api = new CursorAPI({ apiKey: options?.apiKey });
     this.analyzer = new AIAnalyzer({ apiKey: options?.anthropicKey });
-    this.githubToken = options?.githubToken ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
+    // Check for GitHub token: options, COPILOT_MCP_GITHUB_TOKEN (testing), GITHUB_JBCOM_TOKEN
+    this.githubToken = options?.githubToken ?? process.env.COPILOT_MCP_GITHUB_TOKEN ?? process.env.GITHUB_JBCOM_TOKEN ?? "";
     this.repo = options?.repo ?? "jbcom/jbcom-control-center";
   }
 
@@ -374,6 +375,13 @@ BEGIN by sending health confirmation NOW.
 
   /**
    * Wait for health check from successor
+   * 
+   * NOTE: This method polls the conversation endpoint to detect health confirmations.
+   * Due to Cursor API eventual consistency, followups may not immediately appear in
+   * conversation history. For critical bidirectional communication, prefer using
+   * GitHub PR comments via the `coordinate` command instead.
+   * 
+   * See: docs/FOLLOWUP_INVESTIGATION.md for detailed analysis
    */
   private async waitForHealthCheck(
     successorId: string,

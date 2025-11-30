@@ -91,7 +91,8 @@ export class CursorAPI {
   private readonly baseUrl: string;
 
   constructor(options: CursorAPIOptions = {}) {
-    this.apiKey = options.apiKey ?? process.env.CURSOR_API_KEY ?? "";
+    // Check for API key in order: options, COPILOT_MCP_CURSOR_API_KEY (testing), CURSOR_API_KEY
+    this.apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? process.env.CURSOR_API_KEY ?? "";
     this.timeout = options.timeout ?? 60000;
     this.baseUrl = options.baseUrl ?? process.env.CURSOR_API_BASE_URL ?? DEFAULT_BASE_URL;
     

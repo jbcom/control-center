@@ -451,6 +451,36 @@ const result = await splitConversation(conversation, {
 - Agent IDs are URL-encoded to prevent injection
 - Error messages are sanitized to remove tokens
 
+## Known Limitations
+
+### Followup Delivery (Eventual Consistency)
+
+**Issue:** Followups sent between agents may not immediately appear in conversation history.
+
+**Impact:** 
+- Station-to-station handoff health checks may timeout
+- Bidirectional followup-based communication may be unreliable
+
+**Root Cause:** Cursor API uses eventual consistency - the `POST /agents/{id}/followup` endpoint may return success before the message appears in `GET /agents/{id}/conversation`.
+
+**Workaround:** ✅ Use GitHub PR comments for reliable bidirectional communication:
+
+```bash
+# Recommended: Use coordinate command for agent-to-agent communication
+cursor-fleet coordinate --pr 123 --agents bc-xxx,bc-yyy
+
+# Sub-agents comment on PR with status updates:
+# @cursor ✅ DONE: bc-xxx task completed
+# @cursor ⚠️ BLOCKED: bc-yyy needs input
+```
+
+**Why This Works:**
+- GitHub API is synchronous (comments appear immediately)
+- Comments are auditable and visible to users
+- Multiple agents can communicate via a single PR thread
+
+**Detailed Analysis:** See [docs/FOLLOWUP_INVESTIGATION.md](./docs/FOLLOWUP_INVESTIGATION.md)
+
 ## Related
 
 - [Fleet Coordination Guide](../../.ruler/fleet-coordination.md)
