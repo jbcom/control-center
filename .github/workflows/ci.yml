@@ -209,6 +209,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           password: ${{ secrets.PYPI_TOKEN }}
+          skip-existing: true
 
       - name: Create GitHub Release
         if: steps.check.outputs.should_release == 'true'

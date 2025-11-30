@@ -1,5 +1,5 @@
 # Sync configuration for lifecyclelogging package
-# Syncs from monorepo to public container repo
+# Syncs from monorepo to public individual repo
 
 group:
   - files:
