@@ -50,6 +50,9 @@ jobs:
         with:
           path: packages/${{ matrix.package }}
           upload-name-suffix: -${{ matrix.package }}
+          # Attestations require id-token:write permission (Trusted Publishing)
+          # Since we use PYPI_TOKEN, disable attestations
+          attest-build-provenance-github: false
 
   # ============================================
   # TESTS (using tox-uv like original)
