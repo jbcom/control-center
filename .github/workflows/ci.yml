@@ -95,6 +95,9 @@ jobs:
           merge-multiple: true
 
       - name: Run tests with tox
+        env:
+          # Ensure inter-package dependencies resolve from local wheels, not PyPI
+          UV_FIND_LINKS: ${{ github.workspace }}/dist
         run: |
           # Convert package name to wheel filename pattern (e.g., lifecyclelogging -> lifecyclelogging-*.whl)
           WHEEL_NAME=$(echo "${{ matrix.package }}" | tr '-' '_')
