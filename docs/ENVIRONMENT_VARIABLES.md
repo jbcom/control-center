@@ -289,5 +289,5 @@ console.log("Set COPILOT_MCP_NEWSERVICE_API_KEY or NEWSERVICE_API_KEY");
 
 ---
 
-**Last Updated:** 2025-11-30  
+**Last Updated:** 2024-11-30  
 **Maintainer:** @copilot, @jbcom

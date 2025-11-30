@@ -33,9 +33,16 @@ class FollowupDeliveryTest {
 
   constructor() {
     this.api = new CursorAPI();
-    // Use a test repository - must have Cursor GitHub App installed
-    this.testRepo = process.env.TEST_REPO || "https://github.com/jbcom/jbcom-control-center";
+    // IMPORTANT: Requires explicit TEST_REPO environment variable to prevent accidental production usage
+    this.testRepo = process.env.TEST_REPO || "";
     this.testRef = process.env.TEST_REF || "main";
+    
+    if (!this.testRepo) {
+      throw new Error(
+        "TEST_REPO environment variable is required. " +
+        "Set it to a test repository URL (e.g., export TEST_REPO=https://github.com/yourorg/test-repo)"
+      );
+    }
   }
 
   /**
