@@ -381,7 +381,7 @@ BEGIN by sending health confirmation NOW.
    * conversation history. For critical bidirectional communication, prefer using
    * GitHub PR comments via the `coordinate` command instead.
    * 
-   * See: docs/FOLLOWUP_INVESTIGATION.md for detailed analysis
+   * See: packages/cursor-fleet/docs/FOLLOWUP_INVESTIGATION.md for detailed analysis
    */
   private async waitForHealthCheck(
     successorId: string,

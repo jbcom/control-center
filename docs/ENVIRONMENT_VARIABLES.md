@@ -55,9 +55,7 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 
 | COPILOT_MCP Prefix | Standard Name | Usage |
 |-------------------|---------------|-------|
-| `COPILOT_MCP_CONTEXT7_API_KEY` | `CONTEXT7_API_KEY` | Documentation lookup (optional, auto-generated from GitHub token if not provided) |
-
-**Auto-Generation:** If no Context7 API key is explicitly set, one is automatically generated in the format `ctx7sk-<session-id>` using the GitHub token and session context. This enables Context7 MCP functionality without requiring a separate API key.
+| `COPILOT_MCP_CONTEXT7_API_KEY` | `CONTEXT7_API_KEY` | Documentation lookup (optional) |
 
 **Used in:**
 - `packages/ai-triage/src/mcp-clients.ts`
@@ -106,22 +104,6 @@ delete process.env.COPILOT_MCP_CURSOR_API_KEY;
 process.env.CURSOR_API_KEY = "standard-key";
 const api3 = new CursorAPI();  // Uses CURSOR_API_KEY
 ```
-
-### Context7 Auto-Generation
-
-When no explicit Context7 API key is provided, the `ai-triage` package automatically generates one from the GitHub token and session context:
-
-```typescript
-// Auto-generated format: ctx7sk-<session-id>
-// Example: ctx7sk-ceb5dff4-fdac-4c9b-86dc-f453bff4e50a
-
-// Session ID is derived from:
-// 1. GITHUB_RUN_ID (in GitHub Actions)
-// 2. COPILOT_AGENT_START_TIME_SEC (in Copilot agent)
-// 3. Current timestamp (fallback)
-```
-
-This enables Context7 MCP functionality without requiring a separate API key, as long as a GitHub token is available.
 
 ## Implementation Pattern
 

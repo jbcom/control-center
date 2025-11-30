@@ -226,7 +226,9 @@ class FollowupDeliveryTest {
 }
 
 // Run the test if this is the main module
-if (import.meta.url === `file://${process.argv[1]}`) {
+// Note: In ES modules, we check if this file was directly executed
+const isMainModule = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
+if (isMainModule) {
   const test = new FollowupDeliveryTest();
   test.runTest()
     .then(() => {
