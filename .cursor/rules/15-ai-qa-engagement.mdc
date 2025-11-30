@@ -158,6 +158,29 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve AP
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
 ```
 
+## Repository Settings for Automatic AI Review
+
+To reduce manual effort, configure these GitHub repo settings:
+
+### Enable Copilot Code Review (Recommended)
+1. Go to **Settings > Code security and analysis**
+2. Enable **Copilot code review**
+3. Copilot will automatically review all PRs
+
+### Rulesets for Required AI Reviews
+1. Go to **Settings > Rules > Rulesets**
+2. Create ruleset requiring specific status checks
+3. Add AI reviewer checks (e.g., `Cursor Bugbot`, `amazon-q-developer`)
+
+### CODEOWNERS (Optional)
+Add AI bot accounts to `.github/CODEOWNERS` if they have repo access:
+```
+# Auto-request AI reviews
+* @copilot-pull-request-reviewer
+```
+
+**Note:** Some AI reviewers (Gemini, Amazon Q) are triggered by comments only and cannot be auto-assigned.
+
 ## Enforcement
 
 This is a **MANDATORY** protocol enforced as follows:

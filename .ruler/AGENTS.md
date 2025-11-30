@@ -165,6 +165,9 @@ Actions:
 ### Resolving AI Conflicts
 When AI reviewers disagree: evaluate both, apply project conventions, document your decision, prefer security/correctness. Escalate to team lead if genuinely ambiguous
 
+### Automatic AI Review (Repo Settings)
+Enable in **Settings > Code security and analysis > Copilot code review** for automatic Copilot reviews on all PRs. See `.cursor/rules/15-ai-qa-engagement.mdc` for full setup guide
+
 ## 📝 Making Changes
 
 ### Adding a New Package to CI
