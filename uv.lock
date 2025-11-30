@@ -734,7 +734,7 @@ wheels = [
 
 [[package]]
 name = "directed-inputs-class"
-version = "202511.6.0"
+version = "202511.7.0"
 source = { editable = "packages/directed-inputs-class" }
 dependencies = [
     { name = "case-insensitive-dictionary" },
