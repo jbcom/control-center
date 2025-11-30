@@ -16,7 +16,7 @@
  * - Edit files
  */
 
-import { generateText, streamText, tool, type ToolSet } from "ai";
+import { generateText, streamText, tool, stepCountIs, type ToolSet } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -123,7 +123,7 @@ export class UnifiedAgent {
       const result = await generateText({
         model: anthropic(this.config.model),
         tools,
-        maxSteps: this.config.maxSteps,
+        stopWhen: stepCountIs(this.config.maxSteps),
         system: this.getSystemPrompt(),
         prompt: task,
       });
@@ -159,7 +159,7 @@ export class UnifiedAgent {
     const result = streamText({
       model: anthropic(this.config.model),
       tools,
-      maxSteps: this.config.maxSteps,
+      stopWhen: stepCountIs(this.config.maxSteps),
       system: this.getSystemPrompt(),
       prompt: task,
     });

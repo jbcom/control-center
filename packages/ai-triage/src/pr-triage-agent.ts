@@ -10,7 +10,7 @@
  * - Prepare PRs for merge
  */
 
-import { generateText, generateObject } from "ai";
+import { generateText, generateObject, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { z } from "zod";
 import { 
@@ -134,7 +134,7 @@ export class PRTriageAgent {
     const gatherResult = await generateText({
       model: anthropic("claude-sonnet-4-20250514"),
       tools,
-      maxSteps: 10,
+      stopWhen: stepCountIs(10),
       system: `You are a PR analysis assistant. Gather all relevant information about the PR.`,
       prompt: `Analyze PR #${prNumber} in repository ${this.config.repository}.
 

@@ -1,4 +1,4 @@
-import { generateText } from "ai";
+import { generateText, stepCountIs } from "ai";
 import { anthropic } from "@ai-sdk/anthropic";
 import { execSync } from "child_process";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "fs";
@@ -169,7 +169,7 @@ export class CodeAgent {
           bash: bashTool,
           str_replace_editor: textEditorTool,
         },
-        maxSteps: this.config.maxSteps ?? 20,
+        stopWhen: stepCountIs(this.config.maxSteps ?? 20),
         system: `You are a code assistant with access to bash and file editing tools.
 Working directory: ${this.config.workingDirectory}
 
