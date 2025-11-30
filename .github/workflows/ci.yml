@@ -221,17 +221,11 @@ jobs:
 
       - name: Sync to public repo
         if: steps.check.outputs.should_release == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          git clone "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" target
-          cd target
-          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
-          cp -r ../packages/${{ matrix.package }}/* .
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          git add -A
-          (git diff --staged --quiet || git commit -m "🚀 v${{ steps.check.outputs.version }}") && git push
+        uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          CONFIG_PATH: .github/sync/${{ matrix.package }}.yml
+          COMMIT_BODY: "🚀 Synced from monorepo release v${{ steps.check.outputs.version }}"
 
   # ============================================
   # DOCS (main only)
@@ -283,20 +277,13 @@ jobs:
           fi
 
       - name: Deploy gh-pages
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          git clone --branch gh-pages --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" gh-pages 2>/dev/null || {
-            mkdir gh-pages && cd gh-pages && git init -b gh-pages
-            git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${{ matrix.repo }}.git" && cd ..
-          }
-          
-          find gh-pages -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} + 2>/dev/null || true
-          cp -r packages/${{ matrix.package }}/docs/_build/* gh-pages/ 2>/dev/null || true
-          touch gh-pages/.nojekyll
-          
-          cd gh-pages
-          git config user.name "jbcom-bot"
-          git config user.email "jbcom-bot@users.noreply.github.com"
-          git add -A
-          (git diff --staged --quiet || git commit -m "📚 v${{ steps.ver.outputs.version }}") && git push -uf origin gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          personal_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          external_repository: ${{ matrix.repo }}
+          publish_branch: gh-pages
+          publish_dir: packages/${{ matrix.package }}/docs/_build
+          enable_jekyll: false
+          commit_message: "📚 v${{ steps.ver.outputs.version }}"
+          user_name: jbcom-bot
+          user_email: jbcom-bot@users.noreply.github.com

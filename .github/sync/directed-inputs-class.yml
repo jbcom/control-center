@@ -1,0 +1,20 @@
+# Sync configuration for directed-inputs-class package
+# Syncs from monorepo to public container repo
+
+group:
+  - files:
+      - source: packages/directed-inputs-class/
+        dest: .
+        exclude: |
+          .git
+          .github
+          __pycache__
+          *.pyc
+          .pytest_cache
+          .tox
+          .venv
+          dist
+          build
+          *.egg-info
+    repos: |
+      jbcom/directed-inputs-class
