@@ -42,11 +42,11 @@ jobs:
           - vendor-connectors
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
 
-      - uses: hynek/build-and-inspect-python-package@v2
+      - uses: hynek/build-and-inspect-python-package@efb823f52190ad02594531168b7a2d5790e66516  # v2
         with:
           path: packages/${{ matrix.package }}
           upload-name-suffix: -${{ matrix.package }}
@@ -71,17 +71,17 @@ jobs:
         python-version: ["3.9", "3.13"]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: ${{ matrix.python-version }}
           allow-prereleases: true
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
 
       - name: Cache tox
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830  # v4
         with:
           path: |
             ~/.cache/uv
@@ -102,13 +102,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5
         with:
           python-version: "3.13"
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
 
       # Lint packages/ only (scripts/ has different rules)
       - run: uvx ruff check packages/
@@ -124,7 +124,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: re-actors/alls-green@v1.2.2
+      - uses: re-actors/alls-green@05ac9388f0aebcb5727afa17fcccfecd6f8ec5fe  # v1.2.2
         with:
           jobs: ${{ toJSON(needs) }}
 
@@ -160,12 +160,12 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
 
       - name: Install semantic-release
         run: uv tool install python-semantic-release
@@ -199,21 +199,21 @@ jobs:
 
       - name: Download built packages
         if: steps.check.outputs.should_release == 'true'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: Packages-${{ matrix.package }}
           path: dist
 
       - name: Publish to PyPI
         if: steps.check.outputs.should_release == 'true'
-        uses: pypa/gh-action-pypi-publish@release/v1
+        uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
         with:
           password: ${{ secrets.PYPI_TOKEN }}
           skip-existing: true
 
       - name: Create GitHub Release
         if: steps.check.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@v2.0.9
+        uses: softprops/action-gh-release@e7a8f85e1c67a31e6ed99a94b41bd0b71bbee6b8  # v2.0.9
         with:
           tag_name: ${{ matrix.package }}-v${{ steps.check.outputs.version }}
           name: ${{ matrix.package }} v${{ steps.check.outputs.version }}
@@ -222,7 +222,7 @@ jobs:
 
       - name: Sync to public repo
         if: steps.check.outputs.should_release == 'true'
-        uses: BetaHuhn/repo-file-sync-action@v1.22.0
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619  # v1.21.1
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync/${{ matrix.package }}.yml
@@ -253,12 +253,12 @@ jobs:
             repo: jbcom/vendor-connectors
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           ref: main
           fetch-depth: 0
 
-      - uses: hynek/setup-cached-uv@v2
+      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2
 
       - name: Get version via PSR
         id: ver
@@ -281,7 +281,7 @@ jobs:
           fi
 
       - name: Deploy gh-pages
-        uses: peaceiris/actions-gh-pages@v4.0.0
+        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e  # v4.0.0
         with:
           personal_token: ${{ secrets.CI_GITHUB_TOKEN }}
           external_repository: ${{ matrix.repo }}

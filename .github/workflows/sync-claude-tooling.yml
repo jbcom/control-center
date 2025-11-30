@@ -41,12 +41,12 @@ jobs:
     
     steps:
       - name: Checkout control-center
-        uses: actions/checkout@v6
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           path: control-center
       
       - name: Checkout target repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5  # v4
         with:
           repository: ${{ matrix.repo }}
           token: ${{ secrets.JBCOM_TOKEN }}
