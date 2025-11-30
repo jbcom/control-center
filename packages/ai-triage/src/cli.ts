@@ -1,217 +1,542 @@
 #!/usr/bin/env node
+/**
+ * AI Triage CLI
+ * 
+ * Command-line interface for AI-powered PR and issue triage.
+ * Integrates MCP servers (Cursor, GitHub, Context7) with Vercel AI SDK.
+ */
 
 import { Command } from "commander";
-import { Triage } from "./triage.js";
+import { PRTriageAgent } from "./pr-triage-agent.js";
+import { UnifiedAgent, runTask } from "./unified-agent.js";
+import { EnhancedAgent, runEnhancedTask, runSmartTask } from "./enhanced-agent.js";
+import { initializeMCPClients, getMCPTools, closeMCPClients } from "./mcp-clients.js";
 
 const program = new Command();
 
-function getConfig() {
-  const token = process.env.GITHUB_JBCOM_TOKEN || process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
-  if (!token) {
-    console.error("Error: No GitHub token found. Set GITHUB_JBCOM_TOKEN, GITHUB_TOKEN, or GH_TOKEN");
-    process.exit(1);
-  }
-
-  const repo = process.env.GITHUB_REPOSITORY || "jbcom/jbcom-control-center";
-  const [owner, repoName] = repo.split("/");
-
-  return {
-    github: {
-      token,
-      owner,
-      repo: repoName,
-    },
-    resolver: {
-      workingDirectory: process.cwd(),
-      dryRun: false,
-    },
-  };
-}
-
 program
   .name("ai-triage")
-  .description("AI-powered PR and issue triage with automated resolution")
+  .description("AI-powered PR and issue triage with MCP integration")
   .version("0.1.0");
 
-// =============================================================================
-// analyze command
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────
+// PR Commands
+// ─────────────────────────────────────────────────────────────────
 
-program
-  .command("analyze <pr-number>")
-  .description("Analyze a PR and report its triage status")
-  .option("-j, --json", "Output as JSON")
-  .action(async (prNumber: string, options: { json?: boolean }) => {
-    const config = getConfig();
-    const triage = new Triage(config);
+const pr = program.command("pr").description("PR triage commands");
 
-    console.error(`Analyzing PR #${prNumber}...`);
+pr.command("analyze <pr-number>")
+  .description("Analyze a PR and show detailed status")
+  .option("-r, --repo <repo>", "Repository (owner/repo)", process.env.GITHUB_REPOSITORY)
+  .option("-v, --verbose", "Verbose output")
+  .action(async (prNumber: string, options) => {
+    const repo = options.repo;
+    if (!repo) {
+      console.error("❌ Repository required. Use --repo or set GITHUB_REPOSITORY");
+      process.exit(1);
+    }
 
-    const result = await triage.analyze(parseInt(prNumber));
+    console.log(`🔍 Analyzing PR #${prNumber} in ${repo}...\n`);
 
-    if (options.json) {
-      console.log(JSON.stringify(result, null, 2));
-    } else {
-      console.log(triage.formatTriageReport(result));
+    const agent = new PRTriageAgent({
+      repository: repo,
+      verbose: options.verbose,
+    });
+
+    try {
+      const analysis = await agent.analyze(parseInt(prNumber, 10));
+      
+      console.log(`\n📊 Analysis Results\n${"─".repeat(50)}`);
+      console.log(`Status: ${analysis.status}`);
+      console.log(`CI: ${analysis.ci.status}`);
+      console.log(`Feedback: ${analysis.feedback.unaddressed}/${analysis.feedback.total} unaddressed`);
+      console.log(`Blockers: ${analysis.blockers.length}`);
+      
+      console.log(`\n📋 Summary\n${analysis.summary}`);
+      
+      if (analysis.nextActions.length > 0) {
+        console.log(`\n📌 Next Actions:`);
+        for (const action of analysis.nextActions) {
+          const icon = action.automated ? "🤖" : "👤";
+          console.log(`  ${icon} [${action.priority}] ${action.action}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Analysis failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await agent.close();
     }
   });
 
-// =============================================================================
-// plan command
-// =============================================================================
+pr.command("report <pr-number>")
+  .description("Generate a full triage report for a PR")
+  .option("-r, --repo <repo>", "Repository (owner/repo)", process.env.GITHUB_REPOSITORY)
+  .option("-o, --output <file>", "Output file (default: stdout)")
+  .action(async (prNumber: string, options) => {
+    const repo = options.repo;
+    if (!repo) {
+      console.error("❌ Repository required. Use --repo or set GITHUB_REPOSITORY");
+      process.exit(1);
+    }
 
-program
-  .command("plan <pr-number>")
-  .description("Generate a resolution plan without executing")
-  .option("-j, --json", "Output as JSON")
-  .action(async (prNumber: string, options: { json?: boolean }) => {
-    const config = getConfig();
-    const triage = new Triage(config);
+    const agent = new PRTriageAgent({ repository: repo });
 
-    console.error(`Planning resolution for PR #${prNumber}...`);
-
-    const plan = await triage.plan(parseInt(prNumber));
-
-    if (options.json) {
-      console.log(JSON.stringify(plan, null, 2));
-    } else {
-      console.log(`# Resolution Plan for PR #${plan.prNumber}`);
-      console.log("");
-      console.log(`Estimated duration: ${plan.estimatedTotalDuration}`);
-      console.log(`Requires human intervention: ${plan.requiresHumanIntervention ? "Yes" : "No"}`);
-      if (plan.humanInterventionReason) {
-        console.log(`Reason: ${plan.humanInterventionReason}`);
+    try {
+      const report = await agent.generateReport(parseInt(prNumber, 10));
+      
+      if (options.output) {
+        const { writeFileSync } = await import("fs");
+        writeFileSync(options.output, report);
+        console.log(`✅ Report saved to ${options.output}`);
+      } else {
+        console.log(report);
       }
-      console.log("");
-      console.log("## Steps:");
-      for (const step of plan.steps) {
-        const icon = step.automated ? "🤖" : "👤";
-        const deps = step.dependencies.length > 0 
-          ? ` (after: ${step.dependencies.join(", ")})` 
-          : "";
-        console.log(`${step.order}. ${icon} ${step.action}${deps}`);
-        console.log(`   ${step.description}`);
-        console.log(`   Duration: ${step.estimatedDuration}`);
-      }
+    } catch (error) {
+      console.error("❌ Report generation failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await agent.close();
     }
   });
 
-// =============================================================================
-// resolve command
-// =============================================================================
-
-program
-  .command("resolve <pr-number>")
-  .description("Resolve all auto-resolvable blockers and feedback")
-  .option("--dry-run", "Show what would be done without making changes")
-  .action(async (prNumber: string, options: { dryRun?: boolean }) => {
-    const config = getConfig();
-    if (options.dryRun) {
-      config.resolver.dryRun = true;
+pr.command("resolve <pr-number>")
+  .description("Automatically resolve issues in a PR")
+  .option("-r, --repo <repo>", "Repository (owner/repo)", process.env.GITHUB_REPOSITORY)
+  .option("-v, --verbose", "Verbose output")
+  .action(async (prNumber: string, options) => {
+    const repo = options.repo;
+    if (!repo) {
+      console.error("❌ Repository required. Use --repo or set GITHUB_REPOSITORY");
+      process.exit(1);
     }
-    const triage = new Triage(config);
 
-    console.error(`Resolving issues for PR #${prNumber}...`);
+    console.log(`🔧 Resolving issues in PR #${prNumber}...\n`);
 
-    const { triage: result, actions } = await triage.resolve(parseInt(prNumber));
+    const agent = new PRTriageAgent({
+      repository: repo,
+      verbose: options.verbose,
+    });
 
-    console.log("# Resolution Results");
-    console.log("");
-    console.log("## Actions Taken:");
-    for (const action of actions) {
-      const icon = action.success ? "✅" : "❌";
-      console.log(`${icon} ${action.action}: ${action.description}`);
-      if (action.error) {
-        console.log(`   Error: ${action.error}`);
+    try {
+      const result = await agent.resolve(parseInt(prNumber, 10));
+      
+      if (result.success) {
+        console.log(`\n✅ Resolution complete`);
+        console.log(result.result);
+      } else {
+        console.error(`\n❌ Resolution failed: ${result.result}`);
       }
+
+      if (result.steps.length > 0) {
+        console.log(`\n📝 Steps taken: ${result.steps.length}`);
+        if (options.verbose) {
+          for (const step of result.steps) {
+            console.log(`  - ${step.toolName}`);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("❌ Resolution failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await agent.close();
     }
-    console.log("");
-    console.log("## Updated Status:");
-    console.log(`Status: ${result.status}`);
-    console.log(`Unaddressed feedback: ${result.feedback.unaddressed}`);
-    console.log(`Blockers: ${result.blockers.length}`);
   });
 
-// =============================================================================
-// run command
-// =============================================================================
+pr.command("run <pr-number>")
+  .description("Run full triage workflow until PR is ready")
+  .option("-r, --repo <repo>", "Repository (owner/repo)", process.env.GITHUB_REPOSITORY)
+  .option("-i, --iterations <n>", "Max iterations", "5")
+  .option("--request-reviews", "Request reviews when ready")
+  .option("--auto-merge", "Auto-merge when ready")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (prNumber: string, options) => {
+    const repo = options.repo;
+    if (!repo) {
+      console.error("❌ Repository required. Use --repo or set GITHUB_REPOSITORY");
+      process.exit(1);
+    }
 
-program
-  .command("run <pr-number>")
-  .description("Run the full triage workflow until PR is ready to merge")
-  .option("--max-iterations <n>", "Maximum resolution iterations", "10")
-  .action(async (prNumber: string, options: { maxIterations: string }) => {
-    const config = getConfig();
-    const triage = new Triage(config);
+    console.log(`🚀 Running triage workflow for PR #${prNumber}...\n`);
 
-    console.error(`Running triage workflow for PR #${prNumber}...`);
+    const agent = new PRTriageAgent({
+      repository: repo,
+      verbose: options.verbose,
+    });
 
-    const result = await triage.runUntilReady(parseInt(prNumber), {
-      maxIterations: parseInt(options.maxIterations),
-      onProgress: (t, iteration) => {
-        console.error(`[Iteration ${iteration}] Status: ${t.status}, Unaddressed: ${t.feedback.unaddressed}, Blockers: ${t.blockers.length}`);
+    try {
+      const result = await agent.runUntilReady(parseInt(prNumber, 10), {
+        maxIterations: parseInt(options.iterations, 10),
+        requestReviews: options.requestReviews,
+        autoMerge: options.autoMerge,
+      });
+
+      console.log(`\n${"═".repeat(60)}`);
+      console.log(result.report);
+      console.log(`${"═".repeat(60)}`);
+
+      if (result.success) {
+        console.log(`\n✅ PR is ready! (${result.iterations} iterations)`);
+      } else {
+        console.log(`\n⚠️ Could not make PR ready after ${result.iterations} iterations`);
+        console.log(`   Final status: ${result.finalStatus}`);
+      }
+    } catch (error) {
+      console.error("❌ Workflow failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await agent.close();
+    }
+  });
+
+// ─────────────────────────────────────────────────────────────────
+// Agent Commands
+// ─────────────────────────────────────────────────────────────────
+
+const agent = program.command("agent").description("AI agent commands");
+
+agent.command("run <task>")
+  .description("Run a task with the unified AI agent")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (task: string, options) => {
+    console.log(`🤖 Running task: ${task.slice(0, 100)}${task.length > 100 ? '...' : ''}\n`);
+
+    try {
+      const result = await runTask(task, {
+        workingDirectory: options.dir,
+        maxSteps: parseInt(options.steps, 10),
+        verbose: options.verbose,
+      });
+
+      if (result.success) {
+        console.log(`\n✅ Task completed\n`);
+        console.log(result.result);
+      } else {
+        console.error(`\n❌ Task failed: ${result.result}`);
+      }
+
+      if (result.usage) {
+        console.log(`\n📊 Usage: ${result.usage.totalTokens} tokens`);
+      }
+    } catch (error) {
+      console.error("❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+agent.command("stream <task>")
+  .description("Run a task with streaming output")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .action(async (task: string, options) => {
+    const unified = new UnifiedAgent({
+      workingDirectory: options.dir,
+      maxSteps: parseInt(options.steps, 10),
+    });
+
+    try {
+      for await (const chunk of unified.stream(task)) {
+        process.stdout.write(chunk);
+      }
+      console.log();
+    } catch (error) {
+      console.error("\n❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await unified.close();
+    }
+  });
+
+agent.command("smart <task>")
+  .description("Run a task with automatic capability detection (reasoning, web search)")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (task: string, options) => {
+    console.log(`🧠 Smart task execution: ${task.slice(0, 80)}${task.length > 80 ? '...' : ''}\n`);
+
+    try {
+      const result = await runSmartTask(task, {
+        workingDirectory: options.dir,
+        maxSteps: parseInt(options.steps, 10),
+        verbose: options.verbose,
+      });
+
+      if (result.success) {
+        console.log(`\n✅ Task completed\n`);
+        console.log(result.result);
+        
+        if (result.reasoning) {
+          console.log(`\n💭 Reasoning:\n${result.reasoning.slice(0, 500)}${result.reasoning.length > 500 ? '...' : ''}`);
+        }
+      } else {
+        console.error(`\n❌ Task failed: ${result.result}`);
+      }
+
+      if (result.usage) {
+        console.log(`\n📊 Usage: ${result.usage.totalTokens} tokens`);
+      }
+    } catch (error) {
+      console.error("❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    }
+  });
+
+agent.command("reason <task>")
+  .description("Run a task with extended thinking/reasoning enabled")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .option("-s, --steps <n>", "Max steps", "25")
+  .option("-b, --budget <tokens>", "Thinking budget in tokens", "15000")
+  .option("-v, --verbose", "Verbose output")
+  .action(async (task: string, options) => {
+    console.log(`🧠 Running with extended reasoning (budget: ${options.budget} tokens)...\n`);
+
+    const enhanced = new EnhancedAgent({
+      workingDirectory: options.dir,
+      maxSteps: parseInt(options.steps, 10),
+      verbose: options.verbose,
+      reasoning: {
+        enabled: true,
+        budgetTokens: parseInt(options.budget, 10),
       },
     });
 
-    console.log("");
-    console.log(`# Workflow Complete`);
-    console.log("");
-    console.log(`Success: ${result.success}`);
-    console.log(`Iterations: ${result.iterations}`);
-    console.log(`Final Status: ${result.finalTriage.status}`);
-    console.log("");
-    console.log("## Actions Summary:");
-    const successful = result.allActions.filter((a) => a.success).length;
-    const failed = result.allActions.filter((a) => !a.success).length;
-    console.log(`Successful: ${successful}`);
-    console.log(`Failed: ${failed}`);
+    try {
+      const result = await enhanced.execute(task);
+
+      if (result.success) {
+        console.log(`\n✅ Task completed\n`);
+        
+        if (result.reasoning) {
+          console.log(`💭 Reasoning:\n${"─".repeat(40)}\n${result.reasoning}\n${"─".repeat(40)}\n`);
+        }
+        
+        console.log(`📝 Result:\n${result.result}`);
+      } else {
+        console.error(`\n❌ Task failed: ${result.result}`);
+      }
+
+      if (result.usage) {
+        console.log(`\n📊 Usage: ${result.usage.totalTokens} tokens`);
+      }
+    } catch (error) {
+      console.error("❌ Task failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await enhanced.close();
+    }
   });
 
-// =============================================================================
-// request-review command
-// =============================================================================
+agent.command("analyze <task>")
+  .description("Analyze a task to determine optimal execution strategy")
+  .action(async (task: string) => {
+    console.log(`🔍 Analyzing task...\n`);
 
-program
-  .command("request-review <pr-number>")
-  .description("Request AI reviews on a PR")
-  .action(async (prNumber: string) => {
-    const config = getConfig();
-    const triage = new Triage(config);
+    const enhanced = new EnhancedAgent();
 
-    console.error(`Requesting reviews for PR #${prNumber}...`);
+    try {
+      const analysis = await enhanced.analyzeTask(task);
 
-    await triage.requestReviews(parseInt(prNumber));
+      console.log(`📊 Task Analysis\n${"─".repeat(40)}`);
+      console.log(`Complexity: ${analysis.complexity}`);
+      console.log(`Estimated steps: ${analysis.estimatedSteps}`);
+      console.log(`Needs reasoning: ${analysis.requiresReasoning ? "Yes" : "No"}`);
+      console.log(`Needs web search: ${analysis.requiresWebSearch ? "Yes" : "No"}`);
+      
+      if (analysis.subtasks.length > 0) {
+        console.log(`\n📋 Subtasks:`);
+        for (const subtask of analysis.subtasks) {
+          console.log(`  [${subtask.priority}] ${subtask.description}`);
+          if (subtask.tools.length > 0) {
+            console.log(`    Tools: ${subtask.tools.join(", ")}`);
+          }
+        }
+      }
 
-    console.log("Review requests posted: /gemini review, /q review");
+      if (analysis.risks.length > 0) {
+        console.log(`\n⚠️ Risks:`);
+        for (const risk of analysis.risks) {
+          console.log(`  • ${risk}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Analysis failed:", error instanceof Error ? error.message : error);
+      process.exit(1);
+    } finally {
+      await enhanced.close();
+    }
   });
 
-// =============================================================================
-// status command
-// =============================================================================
+// ─────────────────────────────────────────────────────────────────
+// MCP Commands
+// ─────────────────────────────────────────────────────────────────
 
-program
-  .command("status <pr-number>")
-  .description("Quick status check for a PR")
-  .action(async (prNumber: string) => {
-    const config = getConfig();
-    const triage = new Triage(config);
+const mcp = program.command("mcp").description("MCP server management");
 
-    const result = await triage.analyze(parseInt(prNumber));
+mcp.command("list-tools")
+  .description("List all available MCP tools")
+  .option("--cursor", "Initialize Cursor MCP")
+  .option("--github", "Initialize GitHub MCP")
+  .option("--context7", "Initialize Context7 MCP")
+  .action(async (options) => {
+    console.log("🔌 Connecting to MCP servers...\n");
 
-    const statusEmoji: Record<string, string> = {
-      needs_work: "🔧",
-      needs_review: "👀",
-      needs_ci: "⏳",
-      ready_to_merge: "✅",
-      blocked: "🚫",
-      merged: "🎉",
-      closed: "🔒",
-    };
+    const config: Record<string, Record<string, boolean>> = {};
+    if (options.cursor) config.cursor = {};
+    if (options.github) config.github = {};
+    if (options.context7) config.context7 = {};
 
-    console.log(`${statusEmoji[result.status] || "❓"} PR #${result.prNumber}: ${result.status}`);
-    console.log(`   CI: ${result.ci.allPassing ? "✅" : result.ci.anyPending ? "⏳" : "❌"}`);
-    console.log(`   Feedback: ${result.feedback.unaddressed} unaddressed`);
-    console.log(`   Blockers: ${result.blockers.length}`);
+    // Default to all if none specified
+    if (Object.keys(config).length === 0) {
+      config.cursor = {};
+      config.github = {};
+      config.context7 = {};
+    }
+
+    const clients = await initializeMCPClients(config);
+
+    try {
+      const tools = await getMCPTools(clients);
+      const toolNames = Object.keys(tools);
+
+      console.log(`\n📦 Available Tools (${toolNames.length} total):\n`);
+      
+      for (const name of toolNames.sort()) {
+        const t = tools[name] as { description?: string };
+        console.log(`  • ${name}`);
+        if (t.description) {
+          console.log(`    ${t.description.slice(0, 80)}${t.description.length > 80 ? '...' : ''}`);
+        }
+      }
+    } catch (error) {
+      console.error("❌ Failed to list tools:", error instanceof Error ? error.message : error);
+    } finally {
+      await closeMCPClients(clients);
+    }
   });
 
+mcp.command("status")
+  .description("Check MCP server connectivity")
+  .action(async () => {
+    console.log("🔍 Checking MCP servers...\n");
+
+    const checks = [
+      { name: "Cursor Agent MCP", env: "CURSOR_API_KEY" },
+      { name: "GitHub MCP", env: "GITHUB_TOKEN or GITHUB_JBCOM_TOKEN" },
+      { name: "Context7 MCP", env: "CONTEXT7_API_KEY (optional)" },
+    ];
+
+    for (const check of checks) {
+      const hasEnv = check.env.split(" or ").some(e => process.env[e]);
+      const status = hasEnv ? "✅" : "⚠️";
+      console.log(`${status} ${check.name}`);
+      console.log(`   Environment: ${check.env} ${hasEnv ? "(set)" : "(not set)"}`);
+    }
+
+    console.log("\n🔌 Testing connections...\n");
+
+    try {
+      const clients = await initializeMCPClients({
+        cursor: process.env.CURSOR_API_KEY ? {} : undefined,
+        github: process.env.GITHUB_TOKEN || process.env.GITHUB_JBCOM_TOKEN ? {} : undefined,
+        context7: {},  // Context7 works without API key
+      });
+
+      const tools = await getMCPTools(clients);
+      console.log(`\n✅ Connected! ${Object.keys(tools).length} tools available`);
+
+      await closeMCPClients(clients);
+    } catch (error) {
+      console.error("❌ Connection failed:", error instanceof Error ? error.message : error);
+    }
+  });
+
+// ─────────────────────────────────────────────────────────────────
+// Quick Commands
+// ─────────────────────────────────────────────────────────────────
+
+program.command("fix <description>")
+  .description("Quick fix: describe what needs fixing and let AI handle it")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .action(async (description: string, options) => {
+    console.log(`🔧 Fixing: ${description}\n`);
+
+    const result = await runTask(
+      `Fix the following issue: ${description}
+
+Steps:
+1. Understand the issue
+2. Find the relevant code
+3. Make the fix
+4. Verify the fix works
+5. Commit the changes with a descriptive message`,
+      { workingDirectory: options.dir, verbose: true }
+    );
+
+    if (result.success) {
+      console.log(`\n✅ Fix applied!\n${result.result}`);
+    } else {
+      console.error(`\n❌ Fix failed: ${result.result}`);
+      process.exit(1);
+    }
+  });
+
+program.command("review")
+  .description("Review current changes and suggest improvements")
+  .option("-d, --dir <directory>", "Working directory", process.cwd())
+  .action(async (options) => {
+    console.log("👀 Reviewing changes...\n");
+
+    const result = await runTask(
+      `Review the current git changes:
+1. Run git status to see what's changed
+2. Run git diff to see the actual changes
+3. Analyze the changes for:
+   - Potential bugs
+   - Code style issues
+   - Missing error handling
+   - Security concerns
+   - Performance issues
+4. Provide a summary with specific suggestions`,
+      { workingDirectory: options.dir }
+    );
+
+    console.log(result.result);
+  });
+
+program.command("docs <query>")
+  .description("Look up documentation for a library or API")
+  .action(async (query: string) => {
+    console.log(`📚 Looking up: ${query}\n`);
+
+    const clients = await initializeMCPClients({ context7: {} });
+
+    try {
+      const tools = await getMCPTools(clients);
+      
+      // Check if Context7 tools are available
+      const c7Tools = Object.keys(tools).filter(t => t.includes("context7") || t.includes("resolve") || t.includes("get"));
+      
+      if (c7Tools.length === 0) {
+        console.log("⚠️ Context7 MCP tools not available. Using general search...");
+      }
+
+      const result = await runTask(
+        `Look up documentation for: ${query}
+
+Use the Context7 MCP tools if available to get up-to-date documentation.
+Provide a clear, concise summary of the relevant documentation.`,
+        { mcp: { context7: {} } }
+      );
+
+      console.log(result.result);
+    } finally {
+      await closeMCPClients(clients);
+    }
+  });
+
+// Parse and run
 program.parse();
