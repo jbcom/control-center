@@ -195,7 +195,7 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           # Let PSR handle version bump, commit, tag, and push
-          semantic-release version
+          semantic-release version --skip-existing
 
       - name: Download built packages
         if: steps.check.outputs.should_release == 'true'
