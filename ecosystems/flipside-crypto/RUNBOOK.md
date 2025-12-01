@@ -97,17 +97,5 @@ terraform-modules content is absorbed at:
 GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules --state open
 ```
 
-## Legacy Scripts (DEPRECATED)
-
-These scripts in `ecosystems/flipside-crypto/scripts/` are **LEGACY** and superseded by `agentic-control`:
-
-| Legacy Script | Replaced By |
-|--------------|-------------|
-| `fleet-manager.sh` | `agentic fleet` commands |
-| `fleet_manager.py` | `agentic fleet` commands |
-| `replay_agent_session.py` | `agentic triage analyze` |
-
-Use `agentic-control` CLI instead - it's the maintained implementation.
-
 ---
-*Based on actual implementation in `packages/agentic-control`*
+*Based on `packages/agentic-control`*
