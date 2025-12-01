@@ -95,7 +95,9 @@ export class CursorAPI {
     // Check for API key in order: options, CURSOR_API_KEY
     this.apiKey = options.apiKey ?? process.env.CURSOR_API_KEY ?? "";
     this.timeout = options.timeout ?? 60000;
-    this.baseUrl = options.baseUrl ?? process.env.CURSOR_API_BASE_URL ?? DEFAULT_BASE_URL;
+    // Security: Only allow baseUrl via explicit programmatic configuration
+    // Do NOT allow env var override to prevent SSRF attacks
+    this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     
     if (!this.apiKey) {
       throw new Error("CURSOR_API_KEY is required. Set it in environment or pass to constructor.");

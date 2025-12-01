@@ -25,10 +25,10 @@ export { CursorAPI, type CursorAPIOptions } from "./fleet/index.js";
 export { AIAnalyzer, type AIAnalyzerOptions } from "./triage/index.js";
 
 // GitHub operations
-export { GitHubClient, ghForRepo, ghForPRReview, cloneRepo } from "./github/index.js";
+export { GitHubClient, cloneRepo, isValidGitRef, isValidRepoFormat } from "./github/index.js";
 
 // Handoff protocols
 export { HandoffManager, type TakeoverOptions } from "./handoff/index.js";
 
-// Version
-export const VERSION = "0.1.0";
+// Version - managed by semantic-release
+export const VERSION = "0.0.0";

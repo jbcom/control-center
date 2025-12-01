@@ -69,12 +69,15 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 
 # Ruler - AI agent instruction management
 # Used to regenerate .cursorrules, copilot-instructions.md, etc. from .ruler/ sources
-RUN pnpm add -g @intellectronica/ruler && \
+# Version pinned for reproducible builds
+RUN pnpm add -g @intellectronica/ruler@^1.0.0 && \
     ruler --version
 
 # Claude Code - Anthropic's AI coding assistant CLI
 # Requires ANTHROPIC_API_KEY environment variable at runtime
-RUN npm install -g @anthropic-ai/claude-code && \
+# Using pnpm for consistency with other global tools
+# Version pinned for reproducible builds
+RUN pnpm add -g @anthropic-ai/claude-code@^0.2.0 && \
     claude --version || echo "Claude installed (requires API key for full verification)"
 
 # ============================================
@@ -97,6 +100,7 @@ RUN echo "=== Tool Verification ===" && \
     echo "uv: $(uv --version)" && \
     echo "gh: $(gh --version | head -1)" && \
     echo "ruler: $(ruler --version 2>&1 | head -1)" && \
+    echo "claude: $(claude --version 2>&1 | head -1 || echo 'installed, needs API key')" && \
     echo "aider: $(aider --version 2>&1 | head -1)" && \
     echo "process-compose: $(process-compose version 2>&1 | head -1)" && \
     echo "=== Verification Complete ==="

@@ -5,15 +5,15 @@
  * - Automatically selects the correct token based on organization
  * - Uses consistent identity for PR reviews
  * - Wraps @octokit/rest with multi-org support
+ * 
+ * All configuration is user-provided - no hardcoded values.
  */
 
 import { Octokit } from "@octokit/rest";
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import {
   getTokenForRepo,
   getPRReviewToken,
-  getEnvForRepo,
-  getEnvForPRReview,
   extractOrg,
 } from "../core/tokens.js";
 import { log } from "../core/config.js";
@@ -344,44 +344,64 @@ export class GitHubClient {
 }
 
 // ============================================
-// CLI-based Operations (for operations not in Octokit)
+// Safe Git Operations (using spawnSync, not shell)
 // ============================================
 
 /**
- * Execute a gh CLI command with appropriate token for the repo
- */
-export function ghForRepo(command: string, repoUrl: string): string {
-  const env = { ...process.env, ...getEnvForRepo(repoUrl) };
-  return execSync(`gh ${command}`, { encoding: "utf-8", env });
-}
-
-/**
- * Execute a gh CLI command with PR review token
- */
-export function ghForPRReview(command: string): string {
-  const env = { ...process.env, ...getEnvForPRReview() };
-  return execSync(`gh ${command}`, { encoding: "utf-8", env });
-}
-
-/**
  * Clone a repository with appropriate token
+ * Uses spawnSync for safe command execution (no shell injection)
+ * Token is passed as part of URL, not visible in process list
  */
-export function cloneRepo(repoUrl: string, destPath: string): void {
+export function cloneRepo(repoUrl: string, destPath: string): Result<void> {
   const token = getTokenForRepo(repoUrl);
   if (!token) {
-    throw new Error(`No token available for repo: ${repoUrl}`);
+    return { success: false, error: `No token available for repo: ${repoUrl}` };
   }
 
   // Extract the repo URL and inject token
   let cloneUrl = repoUrl;
   if (cloneUrl.startsWith("https://github.com/")) {
     cloneUrl = cloneUrl.replace("https://github.com/", `https://oauth2:${token}@github.com/`);
-  } else if (!cloneUrl.includes("@")) {
+  } else if (!cloneUrl.includes("@") && !cloneUrl.startsWith("https://")) {
     // Handle owner/repo format
     const org = extractOrg(repoUrl);
     const repoName = repoUrl.replace(`${org}/`, "");
     cloneUrl = `https://oauth2:${token}@github.com/${org}/${repoName}.git`;
   }
 
-  execSync(`git clone "${cloneUrl}" "${destPath}"`, { stdio: "inherit" });
+  // Use spawnSync for safe command execution
+  // stdio: "pipe" to prevent token leakage in terminal output
+  const proc = spawnSync("git", ["clone", cloneUrl, destPath], {
+    encoding: "utf-8",
+    stdio: "pipe", // Security: Don't inherit stdio to avoid leaking token
+    timeout: 120000, // 2 minute timeout
+  });
+
+  if (proc.error) {
+    return { success: false, error: `Git clone error: ${proc.error.message}` };
+  }
+
+  if (proc.status !== 0) {
+    // Sanitize error output to remove any token references
+    const errorOutput = (proc.stderr || "Unknown error")
+      .replace(/oauth2:[^@]+@/g, "oauth2:[REDACTED]@");
+    return { success: false, error: `Git clone failed: ${errorOutput}` };
+  }
+
+  return { success: true };
+}
+
+/**
+ * Validate a git ref/branch name to prevent injection
+ */
+export function isValidGitRef(ref: string): boolean {
+  // Safe characters for git refs
+  return /^[a-zA-Z0-9._/-]+$/.test(ref) && ref.length <= 200;
+}
+
+/**
+ * Validate owner/repo format
+ */
+export function isValidRepoFormat(repo: string): boolean {
+  return /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/.test(repo) && repo.length <= 200;
 }

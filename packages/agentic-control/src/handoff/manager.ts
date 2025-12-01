@@ -8,15 +8,18 @@
  * 4. Successor retrieves predecessor's conversation
  * 5. Successor merges predecessor's PR
  * 6. Successor opens own PR and continues work
+ * 
+ * All configuration is user-provided - no hardcoded values.
  */
 
-import { execSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { CursorAPI } from "../fleet/cursor-api.js";
 import { AIAnalyzer } from "../triage/analyzer.js";
 import { getEnvForRepo } from "../core/tokens.js";
-import { log } from "../core/config.js";
+import { log, getConfig } from "../core/config.js";
 import type { 
   HandoffContext, 
   HandoffOptions, 
@@ -38,13 +41,26 @@ export interface TakeoverOptions {
 }
 
 // ============================================
+// Validation Helpers
+// ============================================
+
+/**
+ * Validate branch name to prevent injection
+ */
+function isValidBranchName(branch: string): boolean {
+  return /^[a-zA-Z0-9._/-]+$/.test(branch) && branch.length <= 200;
+}
+
+// isValidGitRef is available from github/client.ts if needed
+
+// ============================================
 // Handoff Manager
 // ============================================
 
 export class HandoffManager {
   private api: CursorAPI | null;
   private analyzer: AIAnalyzer | null;
-  private repo: string;
+  private repo: string | undefined;
 
   constructor(options?: { 
     cursorApiKey?: string; 
@@ -67,7 +83,15 @@ export class HandoffManager {
       log.warn("AI Analyzer not available for handoff analysis");
     }
 
-    this.repo = options?.repo ?? "jbcom/jbcom-control-center";
+    // No hardcoded default - repo must be explicitly configured
+    this.repo = options?.repo ?? getConfig().defaultRepository;
+  }
+
+  /**
+   * Set the repository for GitHub operations
+   */
+  setRepo(repo: string): void {
+    this.repo = repo;
   }
 
   /**
@@ -109,14 +133,28 @@ export class HandoffManager {
       }
     }
 
-    // 2. Build handoff context
+    // 2. Build handoff context - use crypto.randomUUID() for unique IDs
     const handoffContext: HandoffContext = {
       predecessorId,
       predecessorPr: options.currentPr,
       predecessorBranch: options.currentBranch,
       handoffTime: new Date().toISOString(),
-      completedWork: completedWork.map(w => ({ id: `completed-${Date.now()}`, title: w, description: w, priority: "medium" as const, category: "other" as const, status: "completed" as const })),
-      outstandingTasks: outstandingTasks.map(t => ({ id: `task-${Date.now()}`, title: t, description: t, priority: "medium" as const, category: "other" as const, status: "pending" as const })),
+      completedWork: completedWork.map(w => ({ 
+        id: `completed-${randomUUID()}`, 
+        title: w, 
+        description: w, 
+        priority: "medium" as const, 
+        category: "other" as const, 
+        status: "completed" as const 
+      })),
+      outstandingTasks: outstandingTasks.map(t => ({ 
+        id: `task-${randomUUID()}`, 
+        title: t, 
+        description: t, 
+        priority: "medium" as const, 
+        category: "other" as const, 
+        status: "pending" as const 
+      })),
       decisions,
     };
 
@@ -203,6 +241,18 @@ You can safely conclude your session.
   ): Promise<Result<void>> {
     log.info("=== Successor Takeover ===");
 
+    if (!this.repo) {
+      return { 
+        success: false, 
+        error: "Repository is required. Set via constructor options or setRepo()" 
+      };
+    }
+
+    // Validate inputs to prevent injection
+    if (!isValidBranchName(newBranchName)) {
+      return { success: false, error: "Invalid branch name format" };
+    }
+
     if (options?.admin && options?.auto) {
       return { success: false, error: "Cannot use --admin and --auto simultaneously" };
     }
@@ -210,20 +260,17 @@ You can safely conclude your session.
     // Use appropriate token for the repo
     const env = { ...process.env, ...getEnvForRepo(this.repo) };
 
-    // 1. Merge predecessor's PR
+    // 1. Merge predecessor's PR using spawnSync (no shell injection)
     log.info(`📥 Merging predecessor PR #${predecessorPr}...`);
     try {
       const mergeMethod = options?.mergeMethod ?? "squash";
       const deleteBranch = options?.deleteBranch !== false;
-      const mergeArgs = [
-        `gh pr merge ${predecessorPr}`,
-        `--${mergeMethod}`,
-        "--repo",
-        this.repo,
-      ];
+      
+      // Build args array safely
+      const mergeArgs = ["pr", "merge", String(predecessorPr), `--${mergeMethod}`, "--repo", this.repo];
 
       if (deleteBranch) {
-        mergeArgs.splice(2, 0, "--delete-branch");
+        mergeArgs.push("--delete-branch");
       }
 
       if (options?.admin) {
@@ -232,24 +279,40 @@ You can safely conclude your session.
         mergeArgs.push("--auto");
       }
 
-      execSync(mergeArgs.join(" "), { encoding: "utf-8", env });
+      const mergeProc = spawnSync("gh", mergeArgs, { encoding: "utf-8", env });
+      if (mergeProc.error || mergeProc.status !== 0) {
+        return { success: false, error: `Failed to merge PR: ${mergeProc.stderr || mergeProc.error}` };
+      }
       log.info("✅ Predecessor PR merged");
     } catch (err) {
       return { success: false, error: `Failed to merge PR: ${err}` };
     }
 
-    // 2. Pull latest main
+    // 2. Pull latest main using spawnSync
     log.info("📥 Pulling latest main...");
     try {
-      execSync("git checkout main && git pull", { encoding: "utf-8" });
+      // First checkout main
+      const checkoutMain = spawnSync("git", ["checkout", "main"], { encoding: "utf-8" });
+      if (checkoutMain.error || checkoutMain.status !== 0) {
+        return { success: false, error: `Failed to checkout main: ${checkoutMain.stderr || checkoutMain.error}` };
+      }
+      
+      // Then pull
+      const pullProc = spawnSync("git", ["pull"], { encoding: "utf-8" });
+      if (pullProc.error || pullProc.status !== 0) {
+        return { success: false, error: `Failed to pull main: ${pullProc.stderr || pullProc.error}` };
+      }
     } catch (err) {
       return { success: false, error: `Failed to pull main: ${err}` };
     }
 
-    // 3. Create own branch
+    // 3. Create own branch using spawnSync (with validated branch name)
     log.info(`🌿 Creating branch: ${newBranchName}...`);
     try {
-      execSync(`git checkout -b ${newBranchName}`, { encoding: "utf-8" });
+      const branchProc = spawnSync("git", ["checkout", "-b", newBranchName], { encoding: "utf-8" });
+      if (branchProc.error || branchProc.status !== 0) {
+        return { success: false, error: `Failed to create branch: ${branchProc.stderr || branchProc.error}` };
+      }
     } catch (err) {
       return { success: false, error: `Failed to create branch: ${err}` };
     }

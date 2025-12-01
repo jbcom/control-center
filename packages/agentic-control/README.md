@@ -12,6 +12,7 @@
 - **🔍 AI-Powered Triage** - Analyze conversations, review code, extract tasks
 - **🤝 Station-to-Station Handoff** - Seamless agent continuity across sessions
 - **🔐 Multi-Org Support** - Manage agents across multiple GitHub organizations
+- **🔒 Security First** - No hardcoded values, all configuration is user-provided
 
 ## Installation
 
@@ -23,36 +24,59 @@ pnpm add -g agentic-control
 
 ## Quick Start
 
-### 1. Configure Tokens
-
-Set environment variables for your GitHub organizations:
+### 1. Initialize Configuration
 
 ```bash
-export GITHUB_JBCOM_TOKEN="ghp_xxx"      # Personal org
-export GITHUB_FSC_TOKEN="ghp_xxx"        # Enterprise org
-export ANTHROPIC_API_KEY="sk-xxx"        # For AI features
-export CURSOR_API_KEY="xxx"              # For fleet management
+agentic init
 ```
 
-### 2. Check Token Status
+This creates `agentic.config.json`:
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "my-org": {
+        "name": "my-org",
+        "tokenEnvVar": "GITHUB_MY_ORG_TOKEN"
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN",
+    "prReviewTokenEnvVar": "GITHUB_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultRepository": "my-org/my-repo"
+}
+```
+
+### 2. Set Environment Variables
+
+```bash
+export GITHUB_TOKEN="ghp_xxx"           # Default token
+export GITHUB_MY_ORG_TOKEN="ghp_xxx"    # Organization-specific token
+export ANTHROPIC_API_KEY="sk-xxx"       # For AI features
+export CURSOR_API_KEY="xxx"             # For fleet management
+```
+
+### 3. Check Token Status
 
 ```bash
 agentic tokens status
 ```
 
-### 3. List Your Fleet
+### 4. List Your Fleet
 
 ```bash
 agentic fleet list --running
 ```
 
-### 4. Spawn an Agent
+### 5. Spawn an Agent
 
 ```bash
-agentic fleet spawn https://github.com/org/repo "Fix the CI workflow" --model claude-sonnet-4-20250514
+agentic fleet spawn https://github.com/my-org/my-repo "Fix the CI workflow" --model claude-sonnet-4-20250514
 ```
 
-### 5. Analyze a Session
+### 6. Analyze a Session
 
 ```bash
 agentic triage analyze bc-xxx-xxx -o report.md --create-issues
@@ -70,7 +94,7 @@ agentic tokens status
 agentic tokens validate
 
 # Show token for a specific repo
-agentic tokens for-repo FlipsideCrypto/terraform-modules
+agentic tokens for-repo my-org/my-repo
 ```
 
 ### Fleet Management
@@ -92,7 +116,7 @@ agentic fleet spawn <repo> <task> --model claude-sonnet-4-20250514
 agentic fleet followup <agent-id> "Status update?"
 
 # Run coordination loop
-agentic fleet coordinate --pr 123 --repo org/repo
+agentic fleet coordinate --pr 123 --repo my-org/my-repo
 ```
 
 ### AI Triage
@@ -115,7 +139,7 @@ agentic triage analyze <agent-id> --create-issues
 
 ```bash
 # Initiate handoff to successor
-agentic handoff initiate <predecessor-id> --pr 123 --branch my-branch
+agentic handoff initiate <predecessor-id> --pr 123 --branch my-branch --repo https://github.com/my-org/my-repo
 
 # Confirm health as successor
 agentic handoff confirm <predecessor-id>
@@ -126,71 +150,126 @@ agentic handoff takeover <predecessor-id> 123 my-new-branch
 
 ## Configuration
 
+### Configuration File
+
+Create `agentic.config.json` in your project root:
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "my-company": {
+        "name": "my-company",
+        "tokenEnvVar": "GITHUB_COMPANY_TOKEN"
+      },
+      "open-source-org": {
+        "name": "open-source-org",
+        "tokenEnvVar": "GITHUB_OSS_TOKEN"
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN",
+    "prReviewTokenEnvVar": "GITHUB_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultRepository": "my-company/my-repo",
+  "logLevel": "info"
+}
+```
+
 ### Environment Variables
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GITHUB_JBCOM_TOKEN` | Token for jbcom org | For jbcom repos |
-| `GITHUB_FSC_TOKEN` | Token for FlipsideCrypto org | For FSC repos |
-| `GITHUB_TOKEN` | Default fallback token | Fallback |
+| `GITHUB_TOKEN` | Default GitHub token | Recommended |
+| `GITHUB_<ORG>_TOKEN` | Organization-specific tokens | Per org |
 | `ANTHROPIC_API_KEY` | Anthropic API key | For AI features |
 | `CURSOR_API_KEY` | Cursor API key | For fleet ops |
+| `AGENTIC_MODEL` | Default AI model | Optional |
+| `AGENTIC_REPOSITORY` | Default repository | Optional |
+| `AGENTIC_LOG_LEVEL` | Log level (debug/info/warn/error) | Optional |
 
-### Custom Organizations
+### Dynamic Organization Configuration
 
-Add custom organizations via environment:
+Add organizations via environment variables:
 
 ```bash
-export AGENTIC_ORG_MYORG_TOKEN=MY_CUSTOM_TOKEN_VAR
+# Pattern: AGENTIC_ORG_<NAME>_TOKEN=<ENV_VAR_NAME>
+export AGENTIC_ORG_MYCOMPANY_TOKEN=GITHUB_MYCOMPANY_TOKEN
+export AGENTIC_ORG_PARTNER_TOKEN=PARTNER_GH_PAT
 ```
 
 ### PR Review Token
 
-By default, all PR review operations use `GITHUB_JBCOM_TOKEN` for consistent identity.
-Override with:
+Configure a consistent identity for all PR review operations:
 
 ```bash
-export AGENTIC_PR_REVIEW_TOKEN=GITHUB_MY_TOKEN
+export AGENTIC_PR_REVIEW_TOKEN=GITHUB_TOKEN
 ```
 
 ## Programmatic Usage
 
 ```typescript
-import { Fleet, AIAnalyzer, getTokenForRepo } from "agentic-control";
+import { 
+  Fleet, 
+  AIAnalyzer, 
+  GitHubClient,
+  getTokenForRepo,
+  setTokenConfig,
+  addOrganization,
+} from "agentic-control";
+
+// Configure organizations programmatically
+addOrganization({
+  name: "my-company",
+  tokenEnvVar: "GITHUB_COMPANY_TOKEN",
+});
+
+// Or configure everything at once
+setTokenConfig({
+  organizations: {
+    "my-company": { name: "my-company", tokenEnvVar: "GITHUB_COMPANY_TOKEN" },
+  },
+  prReviewTokenEnvVar: "GITHUB_TOKEN",
+});
 
 // Fleet management
 const fleet = new Fleet();
 const agents = await fleet.list();
 await fleet.spawn({
-  repository: "https://github.com/org/repo",
+  repository: "https://github.com/my-company/my-repo",
   task: "Fix the bug",
   model: "claude-sonnet-4-20250514",
 });
 
 // Token-aware operations
-const token = getTokenForRepo("FlipsideCrypto/terraform-modules");
-// Returns GITHUB_FSC_TOKEN value
+const token = getTokenForRepo("my-company/my-repo");
+// Returns value of GITHUB_COMPANY_TOKEN
 
-// AI Analysis
-const analyzer = new AIAnalyzer();
+// AI Analysis (requires repo to be set)
+const analyzer = new AIAnalyzer({ repo: "my-company/my-repo" });
 const result = await analyzer.quickTriage("Error in deployment");
 ```
 
 ## Token Switching Logic
 
-The package automatically selects tokens based on organization:
+The package automatically selects tokens based on organization configuration:
 
 ```
-Repository                           → Token Used
-──────────────────────────────────────────────────
-FlipsideCrypto/terraform-modules     → GITHUB_FSC_TOKEN
-FlipsideCrypto/fsc-control-center    → GITHUB_FSC_TOKEN
-jbcom/jbcom-control-center           → GITHUB_JBCOM_TOKEN
-jbcom/extended-data-types            → GITHUB_JBCOM_TOKEN
-unknown/repo                         → GITHUB_TOKEN (default)
+Repository                    → Token Used
+────────────────────────────────────────────
+my-company/repo-1             → GITHUB_COMPANY_TOKEN (configured)
+my-company/repo-2             → GITHUB_COMPANY_TOKEN (configured)
+unknown-org/repo              → GITHUB_TOKEN (default)
 
-PR Review Operations (always)        → GITHUB_JBCOM_TOKEN
+PR Review Operations          → Configured PR review token
 ```
+
+### How It Works
+
+1. **Config file** (`agentic.config.json`) defines org → token mappings
+2. **Environment variables** (`AGENTIC_ORG_*_TOKEN`) add dynamic mappings
+3. **Programmatic configuration** overrides at runtime
+4. **Default token** (`GITHUB_TOKEN`) used for unconfigured orgs
 
 ## Architecture
 
@@ -215,6 +294,15 @@ agentic-control/
 └── tests/
 ```
 
+## Security
+
+This package is designed with security in mind:
+
+- **No hardcoded values** - All tokens and organizations are user-configured
+- **Safe subprocess execution** - Uses `spawnSync` instead of shell interpolation
+- **Token sanitization** - Tokens are never logged or exposed in error messages
+- **ReDoS protection** - Regex patterns are designed to prevent denial of service
+
 ## Development
 
 ```bash
@@ -236,7 +324,7 @@ pnpm run dev
 1. Fork the repository
 2. Create a feature branch
 3. Make your changes with tests
-4. Run `agentic triage review` before pushing
+4. Ensure `pnpm test` passes
 5. Create a pull request
 
 ## License

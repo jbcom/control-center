@@ -7,4 +7,9 @@
  * - Repository and PR management
  */
 
-export { GitHubClient, ghForRepo, ghForPRReview, cloneRepo } from "./client.js";
+export { 
+  GitHubClient, 
+  cloneRepo, 
+  isValidGitRef, 
+  isValidRepoFormat,
+} from "./client.js";

@@ -4,9 +4,12 @@
  * 
  * Unified command-line interface for AI agent fleet management,
  * triage, and orchestration across multiple GitHub organizations.
+ * 
+ * All configuration is user-provided - no hardcoded values.
  */
 
-import { Command } from "commander";
+import { Command, Option, InvalidArgumentError } from "commander";
+import { spawnSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { Fleet } from "./fleet/index.js";
 import { AIAnalyzer } from "./triage/index.js";
@@ -17,7 +20,7 @@ import {
   getConfiguredOrgs,
   extractOrg,
 } from "./core/tokens.js";
-import { initConfig, getDefaultModel } from "./core/config.js";
+import { initConfig, getDefaultModel, getConfig } from "./core/config.js";
 import type { Agent } from "./core/types.js";
 import { VERSION } from "./index.js";
 
@@ -27,6 +30,47 @@ program
   .name("agentic")
   .description("Unified AI agent fleet management, triage, and orchestration")
   .version(VERSION);
+
+// ============================================
+// CLI Argument Validators
+// ============================================
+
+/**
+ * Parse and validate an integer argument
+ */
+function parsePositiveInt(value: string, name: string): number {
+  const parsed = parseInt(value, 10);
+  if (isNaN(parsed) || parsed <= 0) {
+    throw new InvalidArgumentError(`${name} must be a positive integer`);
+  }
+  return parsed;
+}
+
+/**
+ * Validate git ref format (alphanumeric, hyphens, underscores, slashes, dots)
+ */
+function validateGitRef(ref: string): string {
+  if (!/^[a-zA-Z0-9._/-]+$/.test(ref)) {
+    throw new InvalidArgumentError("Invalid git ref format");
+  }
+  if (ref.length > 200) {
+    throw new InvalidArgumentError("Git ref too long (max 200 characters)");
+  }
+  return ref;
+}
+
+/**
+ * Validate branch name
+ */
+function validateBranchName(branch: string): string {
+  if (!/^[a-zA-Z0-9._/-]+$/.test(branch)) {
+    throw new InvalidArgumentError("Invalid branch name format");
+  }
+  if (branch.length > 200) {
+    throw new InvalidArgumentError("Branch name too long (max 200 characters)");
+  }
+  return branch;
+}
 
 // ============================================
 // Helper Functions
@@ -126,24 +170,29 @@ fleetCmd
   .option("--running", "Show only running agents")
   .option("--json", "Output as JSON")
   .action(async (opts) => {
-    const fleet = new Fleet();
-    const result = opts.running ? await fleet.running() : await fleet.list();
-    
-    if (!result.success) {
-      console.error(`❌ ${result.error}`);
-      process.exit(1);
-    }
-
-    if (opts.json) {
-      output(result.data, true);
-    } else {
-      console.log("=== Fleet Status ===\n");
-      console.log(`${"STATUS".padEnd(10)} ${"ID".padEnd(40)} ${"REPO".padEnd(25)} NAME`);
-      console.log("-".repeat(100));
-      for (const agent of result.data ?? []) {
-        console.log(formatAgent(agent));
+    try {
+      const fleet = new Fleet();
+      const result = opts.running ? await fleet.running() : await fleet.list();
+      
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
       }
-      console.log(`\nTotal: ${result.data?.length ?? 0} agents`);
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        console.log("=== Fleet Status ===\n");
+        console.log(`${"STATUS".padEnd(10)} ${"ID".padEnd(40)} ${"REPO".padEnd(25)} NAME`);
+        console.log("-".repeat(100));
+        for (const agent of result.data ?? []) {
+          console.log(formatAgent(agent));
+        }
+        console.log(`\nTotal: ${result.data?.length ?? 0} agents`);
+      }
+    } catch (err) {
+      console.error("❌ Fleet list failed:", err instanceof Error ? err.message : err);
+      process.exit(1);
     }
   });
 
@@ -156,27 +205,32 @@ fleetCmd
   .option("--model <model>", "AI model to use", getDefaultModel())
   .option("--json", "Output as JSON")
   .action(async (repo, task, opts) => {
-    const fleet = new Fleet();
-    
-    const result = await fleet.spawn({
-      repository: repo,
-      task,
-      ref: opts.ref,
-      model: opts.model,
-    });
+    try {
+      const fleet = new Fleet();
+      
+      const result = await fleet.spawn({
+        repository: repo,
+        task,
+        ref: opts.ref,
+        model: opts.model,
+      });
 
-    if (!result.success) {
-      console.error(`❌ ${result.error}`);
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        console.log("=== Agent Spawned ===\n");
+        console.log(`ID:     ${result.data?.id}`);
+        console.log(`Status: ${result.data?.status}`);
+        console.log(`Model:  ${opts.model}`);
+      }
+    } catch (err) {
+      console.error("❌ Spawn failed:", err instanceof Error ? err.message : err);
       process.exit(1);
-    }
-
-    if (opts.json) {
-      output(result.data, true);
-    } else {
-      console.log("=== Agent Spawned ===\n");
-      console.log(`ID:     ${result.data?.id}`);
-      console.log(`Status: ${result.data?.status}`);
-      console.log(`Model:  ${opts.model}`);
     }
   });
 
@@ -186,15 +240,20 @@ fleetCmd
   .argument("<agent-id>", "Agent ID")
   .argument("<message>", "Message to send")
   .action(async (agentId, message) => {
-    const fleet = new Fleet();
-    const result = await fleet.followup(agentId, message);
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.followup(agentId, message);
 
-    if (!result.success) {
-      console.error(`❌ ${result.error}`);
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      console.log(`✅ Follow-up sent to ${agentId}`);
+    } catch (err) {
+      console.error("❌ Followup failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
-
-    console.log(`✅ Follow-up sent to ${agentId}`);
   });
 
 fleetCmd
@@ -202,44 +261,71 @@ fleetCmd
   .description("Get fleet summary")
   .option("--json", "Output as JSON")
   .action(async (opts) => {
-    const fleet = new Fleet();
-    const result = await fleet.summary();
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.summary();
 
-    if (!result.success) {
-      console.error(`❌ ${result.error}`);
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        const s = result.data!;
+        console.log("=== Fleet Summary ===\n");
+        console.log(`Total:     ${s.total}`);
+        console.log(`Running:   ${s.running}`);
+        console.log(`Completed: ${s.completed}`);
+        console.log(`Failed:    ${s.failed}`);
+      }
+    } catch (err) {
+      console.error("❌ Summary failed:", err instanceof Error ? err.message : err);
       process.exit(1);
-    }
-
-    if (opts.json) {
-      output(result.data, true);
-    } else {
-      const s = result.data!;
-      console.log("=== Fleet Summary ===\n");
-      console.log(`Total:     ${s.total}`);
-      console.log(`Running:   ${s.running}`);
-      console.log(`Completed: ${s.completed}`);
-      console.log(`Failed:    ${s.failed}`);
     }
   });
 
 fleetCmd
   .command("coordinate")
   .description("Run bidirectional fleet coordinator")
-  .requiredOption("--pr <number>", "Coordination PR number")
-  .option("--repo <owner/name>", "Repository", "jbcom/jbcom-control-center")
+  .addOption(new Option("--pr <number>", "Coordination PR number").argParser((v) => parsePositiveInt(v, "--pr")))
+  .requiredOption("--repo <owner/name>", "Repository (owner/repo format)")
   .option("--outbound <ms>", "Outbound poll interval (ms)", "60000")
   .option("--inbound <ms>", "Inbound poll interval (ms)", "15000")
   .option("--agents <ids>", "Comma-separated agent IDs to monitor", "")
   .action(async (opts) => {
-    const fleet = new Fleet();
-    
-    await fleet.coordinate({
-      coordinationPr: parseInt(opts.pr, 10),
-      repo: opts.repo,
-      outboundInterval: parseInt(opts.outbound, 10),
-      inboundInterval: parseInt(opts.inbound, 10),
-      agentIds: opts.agents ? opts.agents.split(",").filter(Boolean) : [],
-    });
+    try {
+      if (!opts.pr) {
+        console.error("❌ --pr is required");
+        process.exit(1);
+      }
+
+      const outbound = parseInt(opts.outbound, 10);
+      const inbound = parseInt(opts.inbound, 10);
+
+      if (isNaN(outbound) || outbound <= 0) {
+        console.error("❌ --outbound must be a positive integer");
+        process.exit(1);
+      }
+      if (isNaN(inbound) || inbound <= 0) {
+        console.error("❌ --inbound must be a positive integer");
+        process.exit(1);
+      }
+
+      const fleet = new Fleet();
+      
+      await fleet.coordinate({
+        coordinationPr: opts.pr,
+        repo: opts.repo,
+        outboundInterval: outbound,
+        inboundInterval: inbound,
+        agentIds: opts.agents ? opts.agents.split(",").filter(Boolean) : [],
+      });
+    } catch (err) {
+      console.error("❌ Coordinate failed:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
   });
 
 // ============================================
@@ -265,9 +351,8 @@ triageCmd
       }
     }
 
-    const analyzer = new AIAnalyzer({ model: opts.model });
-    
     try {
+      const analyzer = new AIAnalyzer({ model: opts.model });
       const result = await analyzer.quickTriage(text);
       
       console.log("\n=== Triage Result ===\n");
@@ -277,7 +362,7 @@ triageCmd
       console.log(`Action:     ${result.suggestedAction}`);
       console.log(`Confidence: ${(result.confidence * 100).toFixed(0)}%`);
     } catch (err) {
-      console.error("❌ Triage failed:", err);
+      console.error("❌ Triage failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
@@ -289,20 +374,38 @@ triageCmd
   .option("--head <ref>", "Head ref for diff", "HEAD")
   .option("--model <model>", "Claude model to use", getDefaultModel())
   .action(async (opts) => {
-    const { execSync } = await import("node:child_process");
-    
-    const diff = execSync(`git diff ${opts.base}...${opts.head}`, { encoding: "utf-8" });
-    
-    if (!diff.trim()) {
-      console.log("No changes to review");
-      return;
-    }
-
-    const analyzer = new AIAnalyzer({ model: opts.model });
-    
-    console.log(`🔍 Reviewing diff ${opts.base}...${opts.head}...`);
-    
     try {
+      // Validate git refs to prevent command injection
+      const baseRef = validateGitRef(opts.base);
+      const headRef = validateGitRef(opts.head);
+      
+      // Use spawnSync to safely execute git diff
+      const diffProc = spawnSync("git", ["diff", `${baseRef}...${headRef}`], { 
+        encoding: "utf-8",
+        maxBuffer: 10 * 1024 * 1024, // 10MB max
+      });
+      
+      if (diffProc.error) {
+        console.error("❌ git diff failed:", diffProc.error.message);
+        process.exit(1);
+      }
+      
+      if (diffProc.status !== 0) {
+        console.error("❌ git diff failed:", diffProc.stderr || "Unknown error");
+        process.exit(1);
+      }
+      
+      const diff = diffProc.stdout;
+      
+      if (!diff.trim()) {
+        console.log("No changes to review");
+        return;
+      }
+
+      const analyzer = new AIAnalyzer({ model: opts.model });
+      
+      console.log(`🔍 Reviewing diff ${baseRef}...${headRef}...`);
+      
       const review = await analyzer.reviewCode(diff);
       
       console.log("\n=== Code Review ===\n");
@@ -327,7 +430,7 @@ triageCmd
       console.log("\n📝 Overall Assessment:");
       console.log(`   ${review.overallAssessment}`);
     } catch (err) {
-      console.error("❌ Review failed:", err);
+      console.error("❌ Review failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
@@ -341,20 +444,20 @@ triageCmd
   .option("--dry-run", "Show what issues would be created")
   .option("--model <model>", "Claude model to use", getDefaultModel())
   .action(async (agentId, opts) => {
-    const fleet = new Fleet();
-    const analyzer = new AIAnalyzer({ model: opts.model });
-
-    console.log(`🔍 Fetching conversation for ${agentId}...`);
-    const conv = await fleet.conversation(agentId);
-    
-    if (!conv.success || !conv.data) {
-      console.error(`❌ ${conv.error}`);
-      process.exit(1);
-    }
-
-    console.log(`📊 Analyzing ${conv.data.messages?.length ?? 0} messages...`);
-    
     try {
+      const fleet = new Fleet();
+      const analyzer = new AIAnalyzer({ model: opts.model });
+
+      console.log(`🔍 Fetching conversation for ${agentId}...`);
+      const conv = await fleet.conversation(agentId);
+      
+      if (!conv.success || !conv.data) {
+        console.error(`❌ ${conv.error}`);
+        process.exit(1);
+      }
+
+      console.log(`📊 Analyzing ${conv.data.messages?.length ?? 0} messages...`);
+      
       const analysis = await analyzer.analyzeConversation(conv.data);
       
       console.log("\n=== Analysis Summary ===\n");
@@ -378,7 +481,7 @@ triageCmd
         console.log(`Created ${issues.length} issues`);
       }
     } catch (err) {
-      console.error("❌ Analysis failed:", err);
+      console.error("❌ Analysis failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
@@ -395,32 +498,42 @@ handoffCmd
   .command("initiate")
   .description("Initiate handoff to successor agent")
   .argument("<predecessor-id>", "Your agent ID (predecessor)")
-  .requiredOption("--pr <number>", "Your current PR number")
+  .addOption(new Option("--pr <number>", "Your current PR number").argParser((v) => parsePositiveInt(v, "--pr")))
   .requiredOption("--branch <name>", "Your current branch name")
-  .option("--repo <url>", "Repository URL for successor", "https://github.com/jbcom/jbcom-control-center")
+  .requiredOption("--repo <url>", "Repository URL for successor")
   .option("--ref <ref>", "Git ref for successor", "main")
   .option("--tasks <tasks>", "Comma-separated tasks for successor", "")
   .action(async (predecessorId, opts) => {
-    const manager = new HandoffManager();
-    
-    console.log("🤝 Initiating station-to-station handoff...\n");
-    
-    const result = await manager.initiateHandoff(predecessorId, {
-      repository: opts.repo,
-      ref: opts.ref,
-      currentPr: parseInt(opts.pr, 10),
-      currentBranch: opts.branch,
-      tasks: opts.tasks ? opts.tasks.split(",").map((t: string) => t.trim()) : [],
-    });
+    try {
+      if (!opts.pr) {
+        console.error("❌ --pr is required");
+        process.exit(1);
+      }
 
-    if (!result.success) {
-      console.error(`❌ Handoff failed: ${result.error}`);
+      const manager = new HandoffManager();
+      
+      console.log("🤝 Initiating station-to-station handoff...\n");
+      
+      const result = await manager.initiateHandoff(predecessorId, {
+        repository: opts.repo,
+        ref: opts.ref,
+        currentPr: opts.pr,
+        currentBranch: validateBranchName(opts.branch),
+        tasks: opts.tasks ? opts.tasks.split(",").map((t: string) => t.trim()) : [],
+      });
+
+      if (!result.success) {
+        console.error(`❌ Handoff failed: ${result.error}`);
+        process.exit(1);
+      }
+
+      console.log(`\n✅ Handoff initiated`);
+      console.log(`   Successor: ${result.successorId}`);
+      console.log(`   Healthy: ${result.successorHealthy ? "Yes" : "Pending"}`);
+    } catch (err) {
+      console.error("❌ Handoff failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
-
-    console.log(`\n✅ Handoff initiated`);
-    console.log(`   Successor: ${result.successorId}`);
-    console.log(`   Healthy: ${result.successorHealthy ? "Yes" : "Pending"}`);
   });
 
 handoffCmd
@@ -428,46 +541,56 @@ handoffCmd
   .description("Confirm health as successor agent")
   .argument("<predecessor-id>", "Predecessor agent ID")
   .action(async (predecessorId) => {
-    const manager = new HandoffManager();
-    const successorId = process.env.CURSOR_AGENT_ID || "successor-agent";
-    
-    console.log(`🤝 Confirming health to predecessor ${predecessorId}...`);
-    await manager.confirmHealthAndBegin(successorId, predecessorId);
-    console.log("✅ Health confirmation sent");
+    try {
+      const manager = new HandoffManager();
+      const successorId = process.env.CURSOR_AGENT_ID || "successor-agent";
+      
+      console.log(`🤝 Confirming health to predecessor ${predecessorId}...`);
+      await manager.confirmHealthAndBegin(successorId, predecessorId);
+      console.log("✅ Health confirmation sent");
+    } catch (err) {
+      console.error("❌ Confirm failed:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
   });
 
 handoffCmd
   .command("takeover")
   .description("Merge predecessor PR and take over")
   .argument("<predecessor-id>", "Predecessor agent ID")
-  .argument("<pr-number>", "Predecessor PR number")
-  .argument("<new-branch>", "Your new branch name")
+  .argument("<pr-number>", "Predecessor PR number", (v) => parsePositiveInt(v, "pr-number"))
+  .argument("<new-branch>", "Your new branch name", validateBranchName)
   .option("--admin", "Use admin privileges")
   .option("--auto", "Enable auto-merge")
-  .option("--merge-method <method>", "Merge method (merge|squash|rebase)", "squash")
+  .addOption(new Option("--merge-method <method>", "Merge method").choices(["merge", "squash", "rebase"]).default("squash"))
   .action(async (predecessorId, prNumber, newBranch, opts) => {
-    const manager = new HandoffManager();
-    
-    console.log("🔄 Taking over from predecessor...\n");
-    
-    const result = await manager.takeover(
-      predecessorId,
-      parseInt(prNumber, 10),
-      newBranch,
-      {
-        admin: opts.admin,
-        auto: opts.auto,
-        mergeMethod: opts.mergeMethod as "merge" | "squash" | "rebase",
-        deleteBranch: true,
-      }
-    );
+    try {
+      const manager = new HandoffManager();
+      
+      console.log("🔄 Taking over from predecessor...\n");
+      
+      const result = await manager.takeover(
+        predecessorId,
+        prNumber,
+        newBranch,
+        {
+          admin: opts.admin,
+          auto: opts.auto,
+          mergeMethod: opts.mergeMethod,
+          deleteBranch: true,
+        }
+      );
 
-    if (!result.success) {
-      console.error(`❌ Takeover failed: ${result.error}`);
+      if (!result.success) {
+        console.error(`❌ Takeover failed: ${result.error}`);
+        process.exit(1);
+      }
+
+      console.log("✅ Takeover complete!");
+    } catch (err) {
+      console.error("❌ Takeover failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
-
-    console.log("✅ Takeover complete!");
   });
 
 // ============================================
@@ -479,24 +602,67 @@ program
   .description("Show current configuration")
   .option("--json", "Output as JSON")
   .action((opts) => {
-    const config = {
+    const cfg = getConfig();
+    const configData = {
       defaultModel: getDefaultModel(),
       configuredOrgs: getConfiguredOrgs(),
       tokens: getTokenSummary(),
+      defaultRepository: cfg.defaultRepository ?? "(not set)",
+      coordinationPr: cfg.coordinationPr ?? "(not set)",
+      logLevel: cfg.logLevel,
     };
     
     if (opts.json) {
-      output(config, true);
+      output(configData, true);
     } else {
       console.log("=== Configuration ===\n");
-      console.log(`Default Model: ${config.defaultModel}`);
-      console.log(`Configured Orgs: ${config.configuredOrgs.join(", ")}`);
+      console.log(`Default Model: ${configData.defaultModel}`);
+      console.log(`Default Repository: ${configData.defaultRepository}`);
+      console.log(`Coordination PR: ${configData.coordinationPr}`);
+      console.log(`Log Level: ${configData.logLevel}`);
+      console.log(`Configured Orgs: ${configData.configuredOrgs.length > 0 ? configData.configuredOrgs.join(", ") : "(none - configure in agentic.config.json)"}`);
       console.log("\nToken Status:");
-      for (const [org, info] of Object.entries(config.tokens)) {
+      for (const [org, info] of Object.entries(configData.tokens)) {
         const status = info.available ? "✅" : "❌";
         console.log(`  ${status} ${org}: ${info.envVar}`);
       }
     }
+  });
+
+program
+  .command("init")
+  .description("Create a sample configuration file")
+  .option("--force", "Overwrite existing config file")
+  .action((opts) => {
+    const { existsSync } = require("node:fs");
+    const configPath = "agentic.config.json";
+    
+    if (existsSync(configPath) && !opts.force) {
+      console.error(`❌ ${configPath} already exists. Use --force to overwrite.`);
+      process.exit(1);
+    }
+    
+    const sampleConfig = {
+      "$schema": "https://agentic-control.dev/schema/config.json",
+      "tokens": {
+        "organizations": {
+          "my-org": {
+            "name": "my-org",
+            "tokenEnvVar": "GITHUB_MY_ORG_TOKEN"
+          }
+        },
+        "defaultTokenEnvVar": "GITHUB_TOKEN",
+        "prReviewTokenEnvVar": "GITHUB_TOKEN"
+      },
+      "defaultModel": "claude-sonnet-4-20250514",
+      "defaultRepository": "my-org/my-repo",
+      "logLevel": "info"
+    };
+    
+    writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2) + "\n");
+    console.log(`✅ Created ${configPath}`);
+    console.log("\nEdit this file to configure your organizations and tokens.");
+    console.log("See https://github.com/jbcom/agentic-control#configuration for details.");
   });
 
 // ============================================

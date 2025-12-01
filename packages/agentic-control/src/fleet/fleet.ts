@@ -8,17 +8,15 @@
  * - Archiving conversations
  * - Diamond pattern orchestration
  * - Token-aware GitHub coordination
+ * 
+ * All configuration is user-provided - no hardcoded values.
  */
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { execSync } from "node:child_process";
 import { CursorAPI, type CursorAPIOptions } from "./cursor-api.js";
-import { 
-  getEnvForRepo, 
-  getEnvForPRReview, 
-  extractOrg,
-} from "../core/tokens.js";
+import { GitHubClient } from "../github/client.js";
+import { extractOrg } from "../core/tokens.js";
 import { getDefaultModel, log } from "../core/config.js";
 import type {
   Agent,
@@ -437,7 +435,7 @@ export class Fleet {
   }
 
   // ============================================
-  // GitHub Coordination (Token-Aware)
+  // GitHub Coordination (Token-Aware, Using GitHubClient)
   // ============================================
 
   /**
@@ -447,7 +445,13 @@ export class Fleet {
     const outboundInterval = config.outboundInterval ?? 60000;
     const inboundInterval = config.inboundInterval ?? 15000;
     const agentIds = new Set(config.agentIds ?? []);
-    const processedCommentIds = new Set<string>();
+    const processedCommentIds = new Set<number>();
+
+    // Parse repo into owner/name
+    const [owner, repo] = config.repo.split("/");
+    if (!owner || !repo) {
+      throw new Error("Invalid repo format. Expected 'owner/repo'");
+    }
 
     log.info("=== Fleet Coordinator Started ===");
     log.info(`Coordination PR: #${config.coordinationPr}`);
@@ -456,13 +460,15 @@ export class Fleet {
 
     // Run both loops concurrently
     await Promise.all([
-      this.outboundLoop(config, agentIds, outboundInterval),
-      this.inboundLoop(config, agentIds, processedCommentIds, inboundInterval),
+      this.outboundLoop(config, owner, repo, agentIds, outboundInterval),
+      this.inboundLoop(config, owner, repo, agentIds, processedCommentIds, inboundInterval),
     ]);
   }
 
   private async outboundLoop(
     config: CoordinationConfig,
+    _owner: string,
+    _repo: string,
     agentIds: Set<string>,
     interval: number
   ): Promise<void> {
@@ -503,23 +509,32 @@ export class Fleet {
 
   private async inboundLoop(
     config: CoordinationConfig,
+    owner: string,
+    repo: string,
     agentIds: Set<string>,
-    processedIds: Set<string>,
+    processedIds: Set<number>,
     interval: number
   ): Promise<void> {
     while (true) {
       try {
-        const comments = this.fetchPRComments(config.repo, config.coordinationPr);
+        // Use GitHubClient for safe API calls (no shell injection)
+        const commentsResult = await GitHubClient.listPRComments(owner, repo, config.coordinationPr);
+        
+        if (!commentsResult.success || !commentsResult.data) {
+          log.warn("[INBOUND] Failed to fetch comments:", commentsResult.error);
+          await new Promise(r => setTimeout(r, interval));
+          continue;
+        }
 
-        for (const comment of comments) {
-          if (processedIds.has(String(comment.id))) continue;
+        for (const comment of commentsResult.data) {
+          if (processedIds.has(comment.id)) continue;
 
           if (comment.body.includes("@cursor")) {
             log.info(`[INBOUND] New @cursor mention from ${comment.author}`);
-            await this.processCoordinationComment(config, agentIds, comment);
+            await this.processCoordinationComment(owner, repo, config, agentIds, comment);
           }
 
-          processedIds.add(String(comment.id));
+          processedIds.add(comment.id);
         }
       } catch (err) {
         log.error("[INBOUND ERROR]", err);
@@ -530,6 +545,8 @@ export class Fleet {
   }
 
   private async processCoordinationComment(
+    owner: string,
+    repo: string,
     config: CoordinationConfig,
     agentIds: Set<string>,
     comment: PRComment
@@ -542,8 +559,11 @@ export class Fleet {
         const [, agentId, summary] = match;
         log.info(`Agent ${agentId} completed: ${summary}`);
         agentIds.delete(agentId);
-        this.postPRComment(
-          config.repo, 
+        
+        // Use GitHubClient for posting (uses PR review token)
+        await GitHubClient.postPRComment(
+          owner, 
+          repo, 
           config.coordinationPr, 
           `✅ Acknowledged completion from ${agentId.slice(0, 12)}. Summary: ${summary}`
         );
@@ -553,53 +573,14 @@ export class Fleet {
       if (match) {
         const [, agentId, issue] = match;
         log.warn(`Agent ${agentId} blocked: ${issue}`);
-        this.postPRComment(
-          config.repo,
+        
+        await GitHubClient.postPRComment(
+          owner,
+          repo,
           config.coordinationPr,
           `⚠️ Agent ${agentId.slice(0, 12)} blocked: ${issue}\n\nManual intervention may be required.`
         );
       }
-    }
-  }
-
-  /**
-   * Fetch comments from a GitHub PR using appropriate token for the repo
-   */
-  fetchPRComments(repo: string, prNumber: number): PRComment[] {
-    try {
-      // Use token-aware environment for the repo
-      const env = { ...process.env, ...getEnvForRepo(repo) };
-      
-      const output = execSync(
-        `gh api repos/${repo}/issues/${prNumber}/comments --jq '.[] | {id: .id, body: .body, author: .user.login, createdAt: .created_at, updatedAt: .updated_at}'`,
-        { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"], env }
-      );
-
-      return output
-        .trim()
-        .split("\n")
-        .filter(Boolean)
-        .map(line => JSON.parse(line) as PRComment);
-    } catch {
-      return [];
-    }
-  }
-
-  /**
-   * Post a comment to a GitHub PR
-   * ALWAYS uses PR review token for consistent identity
-   */
-  postPRComment(repo: string, prNumber: number, body: string): void {
-    try {
-      // ALWAYS use PR review token for posting comments
-      const env = { ...process.env, ...getEnvForPRReview() };
-      
-      execSync(
-        `gh pr comment ${prNumber} --repo ${repo} --body-file -`,
-        { input: body, stdio: ["pipe", "pipe", "pipe"], env }
-      );
-    } catch (err) {
-      log.error("Failed to post PR comment:", err);
     }
   }
 }

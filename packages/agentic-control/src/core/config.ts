@@ -2,9 +2,28 @@
  * Configuration Management for agentic-control
  * 
  * Handles loading configuration from multiple sources:
- * - Environment variables
- * - Config files (agentic.config.json, agentic.config.yaml)
- * - Programmatic configuration
+ * 1. Programmatic configuration (highest priority)
+ * 2. Environment variables
+ * 3. Config files (agentic.config.json, .agenticrc)
+ * 4. Built-in defaults (lowest priority)
+ * 
+ * NO hardcoded organization or token values - all user-configurable.
+ * 
+ * @example Config file (agentic.config.json):
+ * ```json
+ * {
+ *   "tokens": {
+ *     "organizations": {
+ *       "my-org": { "name": "my-org", "tokenEnvVar": "MY_ORG_TOKEN" }
+ *     },
+ *     "defaultTokenEnvVar": "GITHUB_TOKEN",
+ *     "prReviewTokenEnvVar": "GITHUB_TOKEN"
+ *   },
+ *   "defaultModel": "claude-sonnet-4-20250514",
+ *   "defaultRepository": "my-org/my-repo",
+ *   "logLevel": "info"
+ * }
+ * ```
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -20,7 +39,7 @@ export interface AgenticConfig {
   /** Token configuration for multi-org access */
   tokens?: Partial<TokenConfig>;
   
-  /** Default model for AI operations */
+  /** Default model for AI operations (user-configurable) */
   defaultModel?: string;
   
   /** Default repository for fleet operations */
@@ -35,22 +54,48 @@ export interface AgenticConfig {
   /** Whether to enable verbose output */
   verbose?: boolean;
   
+  /** Cursor API configuration */
+  cursor?: {
+    /** API key environment variable name (NOT the key itself!) */
+    apiKeyEnvVar?: string;
+    /** Base URL for Cursor API (defaults to official API) */
+    baseUrl?: string;
+  };
+  
   /** MCP server configuration */
   mcp?: {
     serverPath?: string;
     command?: string;
     args?: string[];
   };
+
+  /** Anthropic API configuration */
+  anthropic?: {
+    /** API key environment variable name (NOT the key itself!) */
+    apiKeyEnvVar?: string;
+    /** Default model for AI operations */
+    defaultModel?: string;
+  };
 }
 
 // ============================================
-// Default Configuration
+// Default Configuration (NO HARDCODED VALUES)
 // ============================================
 
 const DEFAULT_CONFIG: AgenticConfig = {
+  // AI model - uses Claude Sonnet as sensible default
   defaultModel: "claude-sonnet-4-20250514",
   logLevel: "info",
   verbose: false,
+  // Cursor defaults
+  cursor: {
+    apiKeyEnvVar: "CURSOR_API_KEY",
+  },
+  // Anthropic defaults
+  anthropic: {
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+    defaultModel: "claude-sonnet-4-20250514",
+  },
 };
 
 // ============================================
@@ -58,6 +103,7 @@ const DEFAULT_CONFIG: AgenticConfig = {
 // ============================================
 
 let config: AgenticConfig = { ...DEFAULT_CONFIG };
+let configLoaded = false;
 
 // ============================================
 // Configuration Loading
@@ -93,15 +139,37 @@ function loadEnvConfig(): Partial<AgenticConfig> {
   }
 
   if (process.env.AGENTIC_COORDINATION_PR) {
-    envConfig.coordinationPr = parseInt(process.env.AGENTIC_COORDINATION_PR, 10);
+    const parsed = parseInt(process.env.AGENTIC_COORDINATION_PR, 10);
+    if (!isNaN(parsed) && parsed > 0) {
+      envConfig.coordinationPr = parsed;
+    }
   }
 
   if (process.env.AGENTIC_LOG_LEVEL) {
-    envConfig.logLevel = process.env.AGENTIC_LOG_LEVEL as AgenticConfig["logLevel"];
+    const level = process.env.AGENTIC_LOG_LEVEL.toLowerCase();
+    if (["debug", "info", "warn", "error"].includes(level)) {
+      envConfig.logLevel = level as AgenticConfig["logLevel"];
+    }
   }
 
-  if (process.env.AGENTIC_VERBOSE === "true") {
+  if (process.env.AGENTIC_VERBOSE === "true" || process.env.AGENTIC_VERBOSE === "1") {
     envConfig.verbose = true;
+  }
+
+  // Cursor API configuration
+  if (process.env.AGENTIC_CURSOR_API_KEY_VAR) {
+    envConfig.cursor = {
+      ...envConfig.cursor,
+      apiKeyEnvVar: process.env.AGENTIC_CURSOR_API_KEY_VAR,
+    };
+  }
+
+  // Anthropic configuration
+  if (process.env.AGENTIC_ANTHROPIC_API_KEY_VAR) {
+    envConfig.anthropic = {
+      ...envConfig.anthropic,
+      apiKeyEnvVar: process.env.AGENTIC_ANTHROPIC_API_KEY_VAR,
+    };
   }
 
   return envConfig;
@@ -112,12 +180,18 @@ function loadEnvConfig(): Partial<AgenticConfig> {
  * Searches in order: current directory, workspace root, home directory
  */
 function findConfigFile(): string | null {
-  const configNames = ["agentic.config.json", ".agenticrc", ".agenticrc.json"];
+  const configNames = [
+    "agentic.config.json",
+    ".agenticrc",
+    ".agenticrc.json",
+    ".agentic-control.json",
+  ];
+  
   const searchPaths = [
     process.cwd(),
-    process.env.WORKSPACE_PATH ?? "/workspace",
-    process.env.HOME ?? "",
-  ].filter(Boolean);
+    process.env.WORKSPACE_PATH,
+    process.env.HOME,
+  ].filter((p): p is string => typeof p === "string" && p.length > 0);
 
   for (const searchPath of searchPaths) {
     for (const configName of configNames) {
@@ -133,28 +207,28 @@ function findConfigFile(): string | null {
 
 /**
  * Initialize configuration from all sources
- * Priority: env vars > config file > defaults
+ * Priority: programmatic overrides > env vars > config file > defaults
  */
 export function initConfig(overrides?: Partial<AgenticConfig>): AgenticConfig {
   // Start with defaults
-  config = { ...DEFAULT_CONFIG };
+  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
 
   // Load from config file if found
   const configFile = findConfigFile();
   if (configFile) {
     const fileConfig = loadJsonConfig(configFile);
     if (fileConfig) {
-      config = { ...config, ...fileConfig };
+      config = mergeConfig(config, fileConfig);
     }
   }
 
   // Load from environment
   const envConfig = loadEnvConfig();
-  config = { ...config, ...envConfig };
+  config = mergeConfig(config, envConfig);
 
   // Apply programmatic overrides
   if (overrides) {
-    config = { ...config, ...overrides };
+    config = mergeConfig(config, overrides);
   }
 
   // Apply token configuration
@@ -162,7 +236,31 @@ export function initConfig(overrides?: Partial<AgenticConfig>): AgenticConfig {
     setTokenConfig(config.tokens);
   }
 
+  configLoaded = true;
   return config;
+}
+
+/**
+ * Deep merge configuration objects
+ */
+function mergeConfig(base: AgenticConfig, overrides: Partial<AgenticConfig>): AgenticConfig {
+  const result = { ...base };
+  
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) continue;
+    
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      // Deep merge objects
+      (result as Record<string, unknown>)[key] = {
+        ...(base as Record<string, unknown>)[key] as object,
+        ...value,
+      };
+    } else {
+      (result as Record<string, unknown>)[key] = value;
+    }
+  }
+  
+  return result;
 }
 
 // ============================================
@@ -171,8 +269,12 @@ export function initConfig(overrides?: Partial<AgenticConfig>): AgenticConfig {
 
 /**
  * Get the current configuration
+ * Initializes if not already done
  */
 export function getConfig(): AgenticConfig {
+  if (!configLoaded) {
+    initConfig();
+  }
   return { ...config };
 }
 
@@ -180,7 +282,7 @@ export function getConfig(): AgenticConfig {
  * Update configuration
  */
 export function setConfig(updates: Partial<AgenticConfig>): void {
-  config = { ...config, ...updates };
+  config = mergeConfig(config, updates);
   
   // Also update token config if provided
   if (updates.tokens) {
@@ -189,9 +291,20 @@ export function setConfig(updates: Partial<AgenticConfig>): void {
 }
 
 /**
+ * Reset configuration to defaults (useful for testing)
+ */
+export function resetConfig(): void {
+  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  configLoaded = false;
+}
+
+/**
  * Get a specific configuration value
  */
 export function getConfigValue<K extends keyof AgenticConfig>(key: K): AgenticConfig[K] {
+  if (!configLoaded) {
+    initConfig();
+  }
   return config[key];
 }
 
@@ -214,6 +327,22 @@ export function getDefaultModel(): string {
  */
 export function getLogLevel(): string {
   return config.logLevel ?? "info";
+}
+
+/**
+ * Get Cursor API key from configured environment variable
+ */
+export function getCursorApiKey(): string | undefined {
+  const envVar = config.cursor?.apiKeyEnvVar ?? "CURSOR_API_KEY";
+  return process.env[envVar];
+}
+
+/**
+ * Get Anthropic API key from configured environment variable
+ */
+export function getAnthropicApiKey(): string | undefined {
+  const envVar = config.anthropic?.apiKeyEnvVar ?? "ANTHROPIC_API_KEY";
+  return process.env[envVar];
 }
 
 // ============================================
@@ -255,5 +384,4 @@ export const log = {
   },
 };
 
-// Initialize on import
-initConfig();
+// Initialize lazily - don't auto-init on import to avoid side effects
