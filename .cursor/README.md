@@ -235,6 +235,17 @@ RUN pip install --no-cache-dir \
 docker build --no-cache -f .cursor/Dockerfile -t jbcom-control-center:dev .
 ```
 
+## Recent Updates (2025-12-01)
+
+### Dockerfile Build & Lint Fixes
+- **Fixed package versions**: Updated `@intellectronica/ruler` from `^1.0.0` (non-existent) to `0.3.16`
+- **Pinned claude-code**: Changed from `@latest` to `2.0.55` for reproducible builds
+- **Added shell safety**: Added `SHELL ["/bin/bash", "-euo", "pipefail", "-c"]` for safer RUN commands
+- **Improved pre-commit**: Switched from `hadolint` to `hadolint-docker` hook for better reliability
+- **All hadolint warnings resolved**: DL4006 (pipefail) fixed
+
+The Dockerfile now builds successfully and passes all linting checks.
+
 ## Automated Dependency Management
 
 This repository uses multiple tools to keep dependencies up to date:

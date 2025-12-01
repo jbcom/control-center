@@ -72,8 +72,8 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 
 # Global Node.js tools - version pinned for reproducible builds
 # - Ruler: AI agent instruction management (latest: 0.3.16)
-# - Claude Code: Anthropic's AI coding assistant CLI (latest: 2.0.x)
-RUN pnpm add -g @intellectronica/ruler@0.3.16 @anthropic-ai/claude-code@latest && \
+# - Claude Code: Anthropic's AI coding assistant CLI (pinned to 2.0.55)
+RUN pnpm add -g @intellectronica/ruler@0.3.16 @anthropic-ai/claude-code@2.0.55 && \
     ruler --version && \
     (claude --version || echo "Claude installed (requires API key for full verification)")
 
