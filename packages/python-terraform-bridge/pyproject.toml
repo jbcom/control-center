@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "python-terraform-bridge"
-version = "1.0.0"
+version = "1.1.0"
 description = "Bridge Python classes to Terraform external data sources and modules"
 authors = [
     { name = "Jon Bogaty", email = "jon@jonbogaty.com" }
