@@ -1,87 +1,35 @@
-# Active Context
+# Active Context - FlipsideCrypto
 
-## Current State: AGENTIC CONTROL CONFIGURED
+## Current Focus: terraform-modules Library Cleanup
 
-Complete agentic control system configured for FlipsideCrypto ecosystem. Agent fleet ready for orchestrated operations across all repositories.
+### PR #226: Library Cleanup
+https://github.com/FlipsideCrypto/terraform-modules/pull/226
 
-### Repository Structure
+### Issues to Complete (in order)
 
+| Issue | Description | Status |
+|-------|-------------|--------|
+| #225 | Move sync_flipsidecrypto_users_and_groups to SAM | **DO FIRST** |
+| #229 | Remove cloud data methods (~35 methods) | After #225 |
+| #227 | Remove cloud ops from TerraformNullResource | After #229 |
+| #228 | Refactor to pipeline focus | Final |
+
+### Goal
+Reduce library from ~550KB to ~80KB, focused on pipeline generation only.
+
+### Key Decisions
+- Only `sync_flipsidecrypto_users_and_groups` goes to SAM (FSC-specific composite op)
+- `sync_flipsidecrypto_rev_ops_groups` is legacy - DELETE
+- All `get_aws_*`, `get_github_*`, etc. - DELETE (use vendor-connectors)
+- All `create_*`, `delete_*` - DELETE (use vendor-connectors or Terraform)
+
+### How to Continue
+
+```bash
+# Clone and checkout
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh repo clone FlipsideCrypto/terraform-modules /tmp/terraform-modules
+cd /tmp/terraform-modules
+git checkout cleanup/remove-cloud-ops-use-vendor-connectors
+
+# See CLEANUP_PLAN.md for details
 ```
-fsc-control-center/
-├── config/
-│   ├── defaults.yaml          # terraform_version: 1.13.1, python: 3.13.5
-│   ├── pipelines.yaml         # 13 pipeline definitions
-│   ├── state-paths.yaml       # 41 workspaces with state keys (REGENERATED FROM REALITY)
-│   └── secrets/
-├── terraform/
-│   ├── modules/               # 30 module categories (aws, google, terraform, etc.)
-│   └── workspaces/
-│       ├── terraform-aws-organization/    # 37 config.tf.json files
-│       └── terraform-google-organization/ # 7 config.tf.json files
-├── scripts/
-│   └── audit-workspace-generation.py      # Workspace audit tool
-└── reports/workspace-audit/               # Audit results
-```
-
-### Workspace Breakdown
-
-**41 workspaces with valid state keys** tracked in state-paths.yaml:
-- terraform-aws-organization: 34 workspaces
-- terraform-google-organization: 7 workspaces
-
-**3 template files** (no state key, intermediate/template):
-- workers-stg/rpc, workers-stg/workers, workers-stg/rpc-stg
-
-### State Key Pattern
-
-`terraform/state/{pipeline}/workspaces/{workspace}/terraform.tfstate`
-
-Examples:
-- `terraform/state/terraform-aws-organization/workspaces/generator/terraform.tfstate`
-- `terraform/state/compass/workspaces/infrastructure/terraform.tfstate`
-- `terraform/state/terraform-google-organization/workspaces/gcp/projects/terraform.tfstate`
-
-### Backend Config (from actual config.tf.json)
-
-```
-bucket: flipside-crypto-internal-tooling
-dynamodb_table: internal-tooling-terraform-state
-region: us-east-1
-encrypt: true
-```
-
-### Critical Constraint
-
-**State keys are IMMUTABLE** - state-paths.yaml is the authoritative registry.
-
-### What's Working
-
-- ✅ All 44 config.tf.json files are valid JSON
-- ✅ state-paths.yaml regenerated from actual workspace structure
-- ✅ Audit system tracks workspace state/hash/providers
-- ✅ Terraform 1.13.1 installed (matching defaults.yaml)
-
-### What's Next
-
-- Build new generator that produces ZERO DIFF against existing config.tf.json
-- Test terraform init/validate on workspaces (requires module access)
-- Copy remaining managed repos (terraform-github-organization, etc.) if needed
-
-### Recent Session Progress
-
-**Completed:**
-- Regenerated state-paths.yaml from actual workspace structure (was wrong)
-- Cleaned up terragrunt placeholder directories
-- Fixed HCL formatting errors in terraform-google-organization
-- Created shim modules for terraform_modules → vendor-connectors compatibility
-- Got tm_cli working (`pip install -e .` + shims)
-- Updated ECOSYSTEM.toml to reflect actual state
-
-**Python Shims Created:**
-- logging.py - wraps lifecyclelogging.Logging with old interface
-- aws_client.py, github_client.py, google_client.py, slack_client.py, vault_client.py, zoom_client.py - wrap vendor_connectors
-- doppler_config.py, vault_config.py - configuration constants
-
-**Key Discovery:**
-- defaults.yaml has terraform_version: 1.13.1, python_version: 3.13.5
-- Must review ALL config files when taking ownership of a codebase
