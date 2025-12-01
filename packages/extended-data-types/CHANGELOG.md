@@ -2,6 +2,15 @@
 
 <!-- version list -->
 
+## v202511.7.1 (2025-12-01)
+
+### Bug Fixes
+
+- Update default model to claude-4-opus for Cursor compatibility
+  ([#290](https://github.com/jbcom/jbcom-control-center/pull/290),
+  [`9b81310`](https://github.com/jbcom/jbcom-control-center/commit/9b8131073c73107bd07c078801897acc5bbe8370))
+
+
 ## v202511.7.0 (2025-12-01)
 
 ### Documentation
