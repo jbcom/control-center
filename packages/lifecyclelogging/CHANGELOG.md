@@ -2,6 +2,21 @@
 
 <!-- version list -->
 
+## v202511.8.0 (2025-12-01)
+
+### Documentation
+
+- Create handoff for documentation overhaul
+  ([#298](https://github.com/jbcom/jbcom-control-center/pull/298),
+  [`4481bd2`](https://github.com/jbcom/jbcom-control-center/commit/4481bd27d6cd665cecc678acf784395c9986d930))
+
+### Features
+
+- Absorb  control center into unified control surface
+  ([#295](https://github.com/jbcom/jbcom-control-center/pull/295),
+  [`2c207ca`](https://github.com/jbcom/jbcom-control-center/commit/2c207caf5129184d178bfbff81945eb74988d629))
+
+
 ## v202511.7.0 (2025-12-01)
 
 ### Bug Fixes
