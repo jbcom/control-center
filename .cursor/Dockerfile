@@ -2,6 +2,9 @@
 # https://github.com/nikolaik/docker-python-nodejs
 FROM nikolaik/python-nodejs:python3.13-nodejs24
 
+# Set shell options for safer RUN commands with pipes
+SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
+
 WORKDIR /workspace
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -68,9 +71,9 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 # ============================================
 
 # Global Node.js tools - version pinned for reproducible builds
-# - Ruler: AI agent instruction management
-# - Claude Code: Anthropic's AI coding assistant CLI
-RUN pnpm add -g @intellectronica/ruler@^1.0.0 @anthropic-ai/claude-code@^0.2.0 && \
+# - Ruler: AI agent instruction management (latest: 0.3.16)
+# - Claude Code: Anthropic's AI coding assistant CLI (latest: 2.0.x)
+RUN pnpm add -g @intellectronica/ruler@0.3.16 @anthropic-ai/claude-code@latest && \
     ruler --version && \
     (claude --version || echo "Claude installed (requires API key for full verification)")
 
