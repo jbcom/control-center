@@ -1,119 +1,113 @@
 # FlipsideCrypto Management Runbook
 
-## Quick Start for New Agents
+> **Source of Truth**: `packages/agentic-control` + `agentic.config.json`
 
-You are managing FlipsideCrypto infrastructure from the unified jbcom control center. Everything you need is here.
-
-## Token Usage
+## Quick Start
 
 ```bash
-# FlipsideCrypto repos - ALWAYS use FSC token
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh <command> --repo FlipsideCrypto/<repo>
+# Check token status - confirms FSC access works
+node packages/agentic-control/dist/cli.js tokens status
 
-# jbcom repos - ALWAYS use JBCOM token  
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command> --repo jbcom/<repo>
-```
-
-## Key Repositories
-
-| Repo | Purpose | Token |
-|------|---------|-------|
-| `FlipsideCrypto/terraform-modules` | Terraform modules + Python lib | `GITHUB_FSC_TOKEN` |
-| `jbcom/jbcom-control-center` | This control center | `GITHUB_JBCOM_TOKEN` |
-| `jbcom/vendor-connectors` | Cloud connectors (FSC uses this) | `GITHUB_JBCOM_TOKEN` |
-
-## Managing terraform-modules
-
-### Check Status
-```bash
-# Open issues
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules
-
-# Open PRs
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
-
-# CI status
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo FlipsideCrypto/terraform-modules --limit 5
-```
-
-### Merge a PR
-```bash
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr merge <number> --repo FlipsideCrypto/terraform-modules --squash
-```
-
-### Create Issue
-```bash
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue create --repo FlipsideCrypto/terraform-modules \
-  --title "Title" --body "Body"
-```
-
-## Using agentic-control CLI
-
-```bash
 # List running agents
-node /workspace/packages/agentic-control/dist/cli.js fleet list
+node packages/agentic-control/dist/cli.js fleet list
 
-# Analyze an agent's work
-node /workspace/packages/agentic-control/dist/cli.js triage analyze <agent-id> \
-  -o /workspace/memory-bank/report.md --model claude-sonnet-4-20250514
-
-# Create issues from analysis
-node /workspace/packages/agentic-control/dist/cli.js triage analyze <agent-id> --create-issues
-
-# Spawn agent in FSC repo
-node /workspace/packages/agentic-control/dist/cli.js fleet spawn \
-  --repo FlipsideCrypto/terraform-modules --task "Fix CI" --ref main
+# Show current config
+node packages/agentic-control/dist/cli.js config
 ```
 
-## Using fleet-manager.sh (Alternative)
+## Token Configuration
+
+Configured in `/workspace/agentic.config.json`:
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": { "tokenEnvVar": "GITHUB_JBCOM_TOKEN" },
+      "FlipsideCrypto": { "tokenEnvVar": "GITHUB_FSC_TOKEN" }
+    }
+  }
+}
+```
+
+The CLI automatically selects the right token based on repo organization.
+
+## Managing FlipsideCrypto/terraform-modules
+
+### Via agentic-control CLI (Recommended)
 
 ```bash
-cd /workspace/ecosystems/flipside-crypto/scripts
+# Spawn agent to work on terraform-modules
+node packages/agentic-control/dist/cli.js fleet spawn \
+  --repo FlipsideCrypto/terraform-modules \
+  --task "Fix failing CI" \
+  --ref main
 
-# List agents
-./fleet-manager.sh list
+# Analyze what an agent did
+node packages/agentic-control/dist/cli.js triage analyze <agent-id> \
+  -o report.md --model claude-sonnet-4-20250514
 
-# Spawn agent
-./fleet-manager.sh spawn https://github.com/FlipsideCrypto/terraform-modules "Task description" main
-
-# Send followup
-./fleet-manager.sh followup <agent-id> "Message"
+# Create issues from outstanding tasks
+node packages/agentic-control/dist/cli.js triage analyze <agent-id> --create-issues
 ```
 
-## Local Code
+### Via gh CLI (Direct)
 
-The terraform-modules content is absorbed into this repo at:
+```bash
+# The token is auto-selected, but for gh you must set GH_TOKEN explicitly
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo FlipsideCrypto/terraform-modules
+```
+
+## CLI Commands Reference
+
+| Command | Purpose |
+|---------|---------|
+| `fleet list` | List all agents |
+| `fleet spawn --repo X --task Y` | Spawn agent in repo |
+| `fleet followup <id> <msg>` | Send message to agent |
+| `triage analyze <id>` | AI analysis of agent work |
+| `triage analyze <id> --create-issues` | Create GitHub issues from analysis |
+| `triage review` | AI code review of git diff |
+| `tokens status` | Show token availability |
+| `config` | Show current configuration |
+
+## Local Code Location
+
+terraform-modules content is absorbed at:
 ```
 /workspace/ecosystems/flipside-crypto/terraform/
-├── modules/     # 30 module categories
-└── workspaces/  # 44 workspace configurations
+├── modules/     # Terraform modules
+└── workspaces/  # Workspace configurations
 ```
 
-## Key Config Files
+## Configuration Files
 
 | File | Purpose |
 |------|---------|
-| `/workspace/ECOSYSTEM.toml` | Unified ecosystem manifest |
-| `/workspace/agentic.config.json` | Agent token/model config |
-| `/workspace/ecosystems/flipside-crypto/config/state-paths.yaml` | Terraform state keys (IMMUTABLE) |
-| `/workspace/ecosystems/flipside-crypto/config/pipelines.yaml` | Pipeline definitions |
+| `/workspace/agentic.config.json` | CLI configuration |
+| `/workspace/ECOSYSTEM.toml` | Ecosystem manifest |
+| `/workspace/ecosystems/flipside-crypto/config/state-paths.yaml` | Terraform state keys |
 
-## Memory Bank
+## Current Issues
 
-- **jbcom**: `/workspace/memory-bank/`
-- **FSC**: `/workspace/ecosystems/flipside-crypto/memory-bank/`
-
-## Current Outstanding Work
-
-Check GitHub issues:
 ```bash
+# Check what needs work
 GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules --state open
 ```
 
-Key issues:
-- #224: Rebuild terraform-modules using jbcom packages
-- #220: Migration verification
-- #202: Remove Vault/AWS wrappers
+## Legacy Scripts (DEPRECATED)
+
+These scripts in `ecosystems/flipside-crypto/scripts/` are **LEGACY** and superseded by `agentic-control`:
+
+| Legacy Script | Replaced By |
+|--------------|-------------|
+| `fleet-manager.sh` | `agentic fleet` commands |
+| `fleet_manager.py` | `agentic fleet` commands |
+| `replay_agent_session.py` | `agentic triage analyze` |
+
+Use `agentic-control` CLI instead - it's the maintained implementation.
 
 ---
-*This runbook is the entry point for any agent managing FlipsideCrypto infrastructure.*
+*Based on actual implementation in `packages/agentic-control`*
