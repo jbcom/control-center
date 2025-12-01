@@ -1,103 +1,184 @@
-# Contributing
+# Contributing to Unified Control Center
 
-## Development Setup
+## Overview
+
+This repository manages two ecosystems:
+
+| Ecosystem | Path | Output |
+|-----------|------|--------|
+| jbcom | `packages/` | PyPI + npm |
+| FlipsideCrypto | `ecosystems/flipside-crypto/` | AWS/GCP infrastructure |
+
+## Quick Start
 
 ```bash
 # Clone
-git clone https://github.com/jbcom/jbcom-control-center
+git clone https://github.com/jbcom/jbcom-control-center.git
 cd jbcom-control-center
 
-# Install (uses uv workspace)
+# Python packages
 uv sync
 
-# Or with pip
-pip install -e ".[dev]"
+# Node.js packages
+pnpm install
 ```
 
 ## Making Changes
 
-1. Create a branch: `git checkout -b fix/description`
-2. Make changes in `packages/`
-3. Run tests: `cd packages/<package> && pytest`
-4. Run lint: `ruff check packages/`
-5. Commit using conventional format (see below)
-6. Push: `git push -u origin fix/description`
-7. Create PR: `GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create`
-
-## Commit Message Format
-
-We use [Conventional Commits](https://www.conventionalcommits.org/) for automatic versioning via python-semantic-release.
-
-### Format
-
-```
-<type>(<scope>): <description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-### Types
-
-| Type | Effect | Description |
-|------|--------|-------------|
-| `feat` | Minor bump | New feature |
-| `fix` | Patch bump | Bug fix |
-| `perf` | Patch bump | Performance improvement |
-| `feat!` or `BREAKING CHANGE:` | Major bump | Breaking change |
-| `docs`, `style`, `refactor`, `test`, `chore`, `ci`, `build` | No bump | Maintenance |
-
-### Package Scopes
-
-Use these scopes to target specific packages:
-
-| Scope | Package | Example |
-|-------|---------|---------|
-| `edt` | extended-data-types | `feat(edt): add utility` |
-| `logging` | lifecyclelogging | `fix(logging): handle error` |
-| `dic` | directed-inputs-class | `perf(dic): optimize parsing` |
-| `connectors` | vendor-connectors | `feat(connectors): add provider` |
-
-### Examples
+### 1. Create a Branch
 
 ```bash
-# Minor version bump for extended-data-types
-git commit -m "feat(edt): add new serialization utility"
-
-# Patch bump for lifecyclelogging
-git commit -m "fix(logging): handle edge case in formatter"
-
-# Breaking change (major bump)
-git commit -m "feat(edt)!: rename core API function
-
-BREAKING CHANGE: `old_function` renamed to `new_function`"
-
-# No version bump (documentation)
-git commit -m "docs: update README examples"
+git checkout -b <type>/<description>
 ```
 
-## Code Style
+Branch types:
+- `feat/` - New features
+- `fix/` - Bug fixes
+- `docs/` - Documentation
+- `refactor/` - Code refactoring
+- `test/` - Test additions
 
-- **Linting**: ruff (configured in pyproject.toml)
-- **Type hints**: Required for public APIs
-- **Docstrings**: Google style
-- **Tests**: pytest, aim for good coverage
+### 2. Make Changes
 
-## Versioning
+Follow the standards for each ecosystem:
 
-We use python-semantic-release with standard SemVer (`MAJOR.MINOR.PATCH`):
-- Version bumps happen automatically based on conventional commits
-- Each package is versioned independently via Git tags
-- Never edit `__version__` or pyproject versions manually—PSR handles it
+**Python packages:**
+- Type hints required
+- Google-style docstrings
+- Tests for new functions
 
-## Pull Requests
+**Node.js (agentic-control):**
+- TypeScript strict mode
+- JSDoc comments
+- Vitest tests
 
-- Clear title using conventional commit format
-- Brief description of what and why
-- Tests for new features
-- CI must pass before merge
+**Terraform:**
+- Module documentation
+- Variable descriptions
+- Output descriptions
+
+### 3. Commit with Conventional Commits
+
+```bash
+git commit -m "<type>(<scope>): <description>"
+```
+
+| Scope | Package |
+|-------|---------|
+| `edt` | extended-data-types |
+| `logging` | lifecyclelogging |
+| `dic` | directed-inputs-class |
+| `bridge` | python-terraform-bridge |
+| `connectors` | vendor-connectors |
+| `agentic-control` | agentic-control |
+| `fsc` | FlipsideCrypto infrastructure |
+
+Examples:
+```bash
+feat(edt): add new utility function
+fix(connectors): handle null response
+docs(agentic-control): update CLI reference
+```
+
+### 4. Create Pull Request
+
+```bash
+git push -u origin <branch>
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "<type>(<scope>): <description>"
+```
+
+### 5. Request AI Review
+
+Post as PR comment:
+```
+/gemini review
+/q review
+```
+
+### 6. Address Feedback
+
+- Fix all critical/high severity issues
+- Respond to every comment
+- Re-request review if significant changes
+
+### 7. Merge
+
+After CI passes and reviews addressed:
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <number> --squash --delete-branch
+```
+
+## Token Configuration
+
+### For jbcom repos
+```bash
+export GITHUB_JBCOM_TOKEN="ghp_..."
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command>
+```
+
+### For FlipsideCrypto repos
+```bash
+export GITHUB_FSC_TOKEN="ghp_..."
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh <command>
+```
+
+### Automatic (via agentic-control)
+```bash
+agentic github pr create --repo <org/repo>  # Token selected automatically
+```
+
+## Testing
+
+### Python
+```bash
+# All packages
+tox
+
+# Single package
+tox -e extended-data-types
+
+# Lint
+tox -e lint
+```
+
+### Node.js
+```bash
+cd packages/agentic-control
+pnpm test
+```
+
+### Terraform
+```bash
+cd ecosystems/flipside-crypto/terraform/workspaces/<workspace>
+terraform validate
+terraform plan
+```
+
+## CI/CD
+
+CI runs automatically on:
+- Push to `main`
+- Pull requests
+
+Jobs:
+- Build all packages
+- Test (Python 3.9 + 3.13)
+- Lint (Ruff)
+- agentic-control build + test
+
+On merge to `main`:
+- python-semantic-release bumps versions
+- Publishes to PyPI/npm
+- Syncs to public repos
+- Deploys docs
+
+## Code of Conduct
+
+Be respectful. Focus on the code, not the person. Assume good intent.
 
 ## Questions?
 
-Check `.cursor/agents/jbcom-ecosystem-manager.md` or the [wiki](https://github.com/jbcom/jbcom-control-center/wiki).
+Open an issue or check:
+- `ECOSYSTEM.toml` - Package manifest
+- `.ruler/AGENTS.md` - Agent guidelines
+- `docs/` - Process documentation
