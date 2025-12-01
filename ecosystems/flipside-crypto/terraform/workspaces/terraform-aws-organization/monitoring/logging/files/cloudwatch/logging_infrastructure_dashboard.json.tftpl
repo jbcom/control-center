@@ -1,0 +1,193 @@
+{
+  "widgets": [
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"LambdaExecutionCount\"', 'Sum', 300))", "id": "e1", "label": "Total Lambda Executions" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Lambda Executions Across All Accounts",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 0,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"ScheduledExecutionCount\"', 'Sum', 300))", "id": "e2", "label": "Scheduled Executions" } ],
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"TerraformExecutionCount\"', 'Sum', 300))", "id": "e3", "label": "Terraform-Triggered Executions" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Lambda Execution Types",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"LogGroupsDiscovered\"', 'Sum', 300))", "id": "e4", "label": "Total Log Groups" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Log Groups Discovered Across All Accounts",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 6,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"SubscriptionFiltersCreated\"', 'Sum', 300))", "id": "e5", "label": "Total Subscription Filters" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Subscription Filters Created Across All Accounts",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"ErrorCount\"', 'Sum', 300))", "id": "e6", "label": "Total Errors" } ],
+          [ { "expression": "SUM(SEARCH('{LoggingInfrastructure,AccountId} MetricName=\"SubscriptionFilterErrorCount\"', 'Sum', 300))", "id": "e7", "label": "Subscription Filter Errors" } ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Errors Across All Accounts",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 12,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/Firehose", "DeliveryToHttpEndpoint.Success", "DeliveryStreamName", "${firehose_stream_name}" ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Firehose Delivery Success Rate",
+        "period": 300,
+        "stat": "Average",
+        "yAxis": {
+          "left": {
+            "min": 0,
+            "max": 1
+          }
+        }
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/Firehose", "DeliveryToHttpEndpoint.DataFreshness", "DeliveryStreamName", "${firehose_stream_name}" ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Firehose Data Freshness (seconds)",
+        "period": 300,
+        "stat": "Maximum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 18,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/S3", "NumberOfObjects", "BucketName", "${fallback_bucket_name}" ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "S3 Fallback Bucket Objects",
+        "period": 300,
+        "stat": "Average"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 0,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/Firehose", "ThrottledRecords", "DeliveryStreamName", "${firehose_stream_name}" ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Firehose Throttled Records",
+        "period": 300,
+        "stat": "Sum"
+      }
+    },
+    {
+      "type": "metric",
+      "x": 12,
+      "y": 24,
+      "width": 12,
+      "height": 6,
+      "properties": {
+        "metrics": [
+          [ "AWS/Firehose", "IncomingBytes", "DeliveryStreamName", "${firehose_stream_name}" ],
+          [ "AWS/Firehose", "IncomingRecords", "DeliveryStreamName", "${firehose_stream_name}" ]
+        ],
+        "view": "timeSeries",
+        "stacked": false,
+        "region": "${aws_region}",
+        "title": "Firehose Incoming Data",
+        "period": 300,
+        "stat": "Sum"
+      }
+    }
+  ]
+}

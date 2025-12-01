@@ -1,0 +1,108 @@
+{
+  "data": {
+    "env_var": {
+      "EXECUTION_ROLE_ARN": {
+        "id": "EXECUTION_ROLE_ARN",
+        "required": false
+      },
+      "ROLE_SESSION_NAME": {
+        "id": "ROLE_SESSION_NAME",
+        "required": false
+      }
+    },
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "label_aws_account"
+        ],
+        "query": {
+          "EXECUTION_ROLE_ARN": "${data.env_var.EXECUTION_ROLE_ARN.value}",
+          "ROLE_SESSION_NAME": "${data.env_var.ROLE_SESSION_NAME.value}",
+          "account_key": "${try(nonsensitive(var.account_key), var.account_key)}",
+          "aws_account": "${try(nonsensitive(base64encode(jsonencode(var.aws_account))), base64encode(jsonencode(var.aws_account)))}",
+          "aws_organization_units": "${try(nonsensitive(base64encode(jsonencode(var.aws_organization_units))), base64encode(jsonencode(var.aws_organization_units)))}",
+          "caller_account_id": "${try(nonsensitive(var.caller_account_id), var.caller_account_id)}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "domains": "${try(nonsensitive(base64encode(jsonencode(var.domains))), base64encode(jsonencode(var.domains)))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"accounts\"]))}"
+  },
+  "output": {
+    "accounts": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "account_key": {
+      "type": "string"
+    },
+    "aws_account": {
+      "type": "any"
+    },
+    "aws_organization_units": {
+      "default": null,
+      "type": "any"
+    },
+    "caller_account_id": {
+      "default": null,
+      "type": "string"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "domains": {
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

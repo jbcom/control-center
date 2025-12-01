@@ -1,0 +1,21 @@
+# Ignore build artifacts
+gws-user-sync
+*.exe
+
+# Ignore development files
+.git/
+.gitignore
+README.md
+
+# Ignore Go test files
+*_test.go
+
+# Ignore IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore OS files
+.DS_Store
+Thumbs.db

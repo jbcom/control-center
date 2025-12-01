@@ -1,0 +1,228 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "merge_sources"
+        ],
+        "query": {
+          "allowlist": "${try(nonsensitive(jsonencode(var.allowlist)), jsonencode(var.allowlist))}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "config_dir": "${try(nonsensitive(var.config_dir), var.config_dir)}",
+          "config_dirs": "${try(nonsensitive(jsonencode(var.config_dirs)), jsonencode(var.config_dirs))}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "denylist": "${try(nonsensitive(jsonencode(var.denylist)), jsonencode(var.denylist))}",
+          "extra_record_categories": "${try(nonsensitive(base64encode(jsonencode(var.extra_record_categories))), base64encode(jsonencode(var.extra_record_categories)))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "merge_record": "${try(nonsensitive(var.merge_record), var.merge_record)}",
+          "merge_records": "${try(nonsensitive(jsonencode(var.merge_records)), jsonencode(var.merge_records))}",
+          "nest_config_under_key": "${try(nonsensitive(var.nest_config_under_key), var.nest_config_under_key)}",
+          "nest_records_under_key": "${try(nonsensitive(var.nest_records_under_key), var.nest_records_under_key)}",
+          "nest_sources_under_key": "${try(nonsensitive(var.nest_sources_under_key), var.nest_sources_under_key)}",
+          "nest_state_under_key": "${try(nonsensitive(var.nest_state_under_key), var.nest_state_under_key)}",
+          "ordered": "${try(nonsensitive(var.ordered), var.ordered)}",
+          "ordered_config_merge": "${try(nonsensitive(var.ordered_config_merge), var.ordered_config_merge)}",
+          "ordered_parent_config_dirs_merge": "${try(nonsensitive(var.ordered_parent_config_dirs_merge), var.ordered_parent_config_dirs_merge)}",
+          "ordered_parent_records_merge": "${try(nonsensitive(var.ordered_parent_records_merge), var.ordered_parent_records_merge)}",
+          "ordered_parent_sources_merge": "${try(nonsensitive(var.ordered_parent_sources_merge), var.ordered_parent_sources_merge)}",
+          "ordered_records_merge": "${try(nonsensitive(var.ordered_records_merge), var.ordered_records_merge)}",
+          "ordered_sources_merge": "${try(nonsensitive(var.ordered_sources_merge), var.ordered_sources_merge)}",
+          "ordered_state_merge": "${try(nonsensitive(var.ordered_state_merge), var.ordered_state_merge)}",
+          "override_data": "${try(nonsensitive(base64encode(jsonencode(var.override_data))), base64encode(jsonencode(var.override_data)))}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "parent_config_dirs": "${try(nonsensitive(jsonencode(var.parent_config_dirs)), jsonencode(var.parent_config_dirs))}",
+          "parent_records": "${try(nonsensitive(jsonencode(var.parent_records)), jsonencode(var.parent_records))}",
+          "passthrough_data_channel": "${try(nonsensitive(base64encode(jsonencode(var.passthrough_data_channel))), base64encode(jsonencode(var.passthrough_data_channel)))}",
+          "record_directories": "${try(nonsensitive(base64encode(jsonencode(var.record_directories))), base64encode(jsonencode(var.record_directories)))}",
+          "source_data": "${try(nonsensitive(base64encode(jsonencode(var.source_data))), base64encode(jsonencode(var.source_data)))}",
+          "source_directories": "${try(nonsensitive(base64encode(jsonencode(var.source_directories))), base64encode(jsonencode(var.source_directories)))}",
+          "source_files": "${try(nonsensitive(jsonencode(var.source_files)), jsonencode(var.source_files))}",
+          "source_maps": "${try(nonsensitive(base64encode(jsonencode(var.source_maps))), base64encode(jsonencode(var.source_maps)))}",
+          "state_key": "${try(nonsensitive(var.state_key), var.state_key)}",
+          "state_path": "${try(nonsensitive(var.state_path), var.state_path)}",
+          "state_paths": "${try(nonsensitive(base64encode(jsonencode(var.state_paths))), base64encode(jsonencode(var.state_paths)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"data\"]))}"
+  },
+  "output": {
+    "data": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "allowlist": {
+      "default": [],
+      "type": "any"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "config_dir": {
+      "default": null,
+      "type": "string"
+    },
+    "config_dirs": {
+      "default": [],
+      "type": "any"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "denylist": {
+      "default": [],
+      "type": "any"
+    },
+    "extra_record_categories": {
+      "default": {},
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "merge_record": {
+      "default": null,
+      "type": "string"
+    },
+    "merge_records": {
+      "default": [],
+      "type": "any"
+    },
+    "nest_config_under_key": {
+      "default": null,
+      "type": "string"
+    },
+    "nest_records_under_key": {
+      "default": null,
+      "type": "string"
+    },
+    "nest_sources_under_key": {
+      "default": null,
+      "type": "string"
+    },
+    "nest_state_under_key": {
+      "default": null,
+      "type": "string"
+    },
+    "ordered": {
+      "default": null,
+      "type": "any"
+    },
+    "ordered_config_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_parent_config_dirs_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_parent_records_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_parent_sources_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_records_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_sources_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "ordered_state_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "override_data": {
+      "default": {},
+      "type": "any"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "parent_config_dirs": {
+      "default": [],
+      "type": "any"
+    },
+    "parent_records": {
+      "default": [],
+      "type": "any"
+    },
+    "passthrough_data_channel": {
+      "default": null,
+      "type": "any"
+    },
+    "record_directories": {
+      "default": {},
+      "type": "any"
+    },
+    "source_data": {
+      "default": [],
+      "type": "any"
+    },
+    "source_directories": {
+      "default": {},
+      "type": "any"
+    },
+    "source_files": {
+      "default": [],
+      "type": "any"
+    },
+    "source_maps": {
+      "default": [],
+      "type": "any"
+    },
+    "state_key": {
+      "default": "context",
+      "type": "string"
+    },
+    "state_path": {
+      "type": "string"
+    },
+    "state_paths": {
+      "default": {},
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

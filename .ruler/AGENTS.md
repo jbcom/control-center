@@ -1,6 +1,6 @@
-# AI Agent Guidelines for jbcom-control-center
+# AI Agent Guidelines for Unified Control Center
 
-**This is the monorepo for jbcom Python ecosystem packages.** All packages are managed here with unified CI/CD.
+**Single control surface for jbcom + FlipsideCrypto ecosystems.**
 
 ## 🚨 MANDATORY FIRST: SESSION START
 
@@ -8,40 +8,73 @@
 ```bash
 # 1. Read core agent rules
 cat .ruler/AGENTS.md
-cat .ruler/fleet-coordination.md
+cat ECOSYSTEM.toml
 
 # 2. Check active GitHub Issues for context
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue list --label "agent-session" --state open
 
 # 3. Check your fleet tooling
-node packages/cursor-fleet/dist/cli.js list --running
+agentic fleet list --running
 ```
 
 ### Your Tools:
 | Tool | Command | Purpose |
 |------|---------|---------|
-| Fleet management | `cursor-fleet list/spawn/followup` | Manage Cursor background agents |
-| Fleet coordination | `cursor-fleet coordinate --pr N` | Bidirectional agent coordination |
-| Sub-agent spawn | `cursor-fleet spawn <repo> <task>` | Spawn agents in repos |
+| Fleet management | `agentic fleet list/spawn/followup` | Manage Cursor background agents |
+| Fleet coordination | `agentic fleet coordinate --pr N` | Bidirectional agent coordination |
+| Triage | `agentic triage analyze <session>` | AI-powered session analysis |
+| GitHub | `agentic github pr/issue` | Token-aware GitHub operations |
 
 ## 🔑 CRITICAL: Authentication
 
-**ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
+**Token switching is AUTOMATIC based on repository organization:**
 ```bash
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+# jbcom repos → uses GITHUB_JBCOM_TOKEN
+agentic github pr create --repo jbcom/extended-data-types
+
+# FlipsideCrypto repos → uses GITHUB_FSC_TOKEN
+agentic github pr create --repo FlipsideCrypto/terraform-modules
+
+# PR reviews ALWAYS use GITHUB_JBCOM_TOKEN
 ```
 
-## 📦 Monorepo Structure
+**Manual operations:**
+```bash
+# jbcom
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
 
+# FlipsideCrypto
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create ...
+```
+
+## 📦 Repository Structure
+
+### jbcom Ecosystem (Python/Node.js Packages)
 ```
 packages/
-├── extended-data-types/      # Foundational utilities
-├── lifecyclelogging/         # Structured logging
-├── directed-inputs-class/    # Input handling (decorators + legacy)
-├── python-terraform-bridge/  # Terraform integration
-├── vendor-connectors/        # Cloud vendor connectors (AWS, Google, GitHub)
-└── cursor-fleet/             # TypeScript - Agent fleet management
+├── extended-data-types/      # Foundation (Python → PyPI)
+├── lifecyclelogging/         # Logging (Python → PyPI)
+├── directed-inputs-class/    # Validation (Python → PyPI)
+├── python-terraform-bridge/  # Terraform utils (Python → PyPI)
+├── vendor-connectors/        # Cloud SDKs (Python → PyPI)
+└── agentic-control/          # Agent orchestration (Node.js → npm)
+```
+
+### FlipsideCrypto Ecosystem (Infrastructure)
+```
+ecosystems/flipside-crypto/
+├── terraform/
+│   ├── modules/              # 100+ reusable modules
+│   │   ├── aws/              # AWS (70+ modules)
+│   │   ├── google/           # GCP (38 modules)
+│   │   └── github/           # GitHub management
+│   └── workspaces/           # 44 live workspaces
+│       ├── terraform-aws-organization/
+│       └── terraform-google-organization/
+├── sam/                      # AWS Lambda apps
+├── lib/                      # Python libraries
+├── config/                   # State paths, pipelines
+└── memory-bank/              # Agent context
 ```
 
 ## 🚀 CI/CD & Release Workflow

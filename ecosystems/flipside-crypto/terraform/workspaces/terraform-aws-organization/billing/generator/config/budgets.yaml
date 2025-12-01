@@ -1,0 +1,56 @@
+# Organization Budget Configuration
+
+# Default budget settings
+default_budget:
+  time_unit: "MONTHLY"
+  budget_type: "COST"
+  notification_threshold: 80
+  notification_type: "ACTUAL"
+  
+  # Default notification subscribers
+  subscribers:
+    - admin@flipsidecrypto.com
+    - finance@flipsidecrypto.com
+
+# Organization-level budgets
+organization_budgets:
+  total:
+    name: "OrganizationTotalBudget"
+    limit_amount: 10000
+    limit_unit: "USD"
+    include_credits: true
+    include_refunds: true
+    include_taxes: true
+    include_subscriptions: true
+    include_upfront: true
+    include_recurring: true
+    include_other_subscriptions: true
+    time_period_start: "2023-01-01_00:00"
+    time_period_end: "2087-06-15_00:00"
+
+# OU-level budgets
+ou_budgets:
+  infrastructure:
+    name: "InfrastructureOUBudget"
+    limit_amount: 5000
+    limit_unit: "USD"
+  deployments:
+    name: "DeploymentsOUBudget" 
+    limit_amount: 3000
+    limit_unit: "USD"
+  sandbox:
+    name: "SandboxOUBudget"
+    limit_amount: 1000
+    limit_unit: "USD"
+    notification_threshold: 70  # Lower threshold for sandbox
+
+# Account-specific budgets
+account_budgets:
+  management:
+    name: "ManagementAccountBudget"
+    limit_amount: 500
+    limit_unit: "USD"
+  audit:
+    name: "AuditAccountBudget"
+    limit_amount: 200
+    limit_unit: "USD" 

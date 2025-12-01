@@ -1,0 +1,19 @@
+%{ if length(targets) > 1 ~}
+name: "Release ${group_name}"
+
+concurrency:
+  cancel-in-progress: true
+  group: "${group_name}-$${{github.ref}}"
+
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+
+jobs:
+%{ for target in targets ~}
+
+  ${trimsuffix(basename(target), ".yml")}:
+    secrets: "inherit"
+    uses: "./${target}"
+%{ endfor ~}
+%{ endif ~}

@@ -1,0 +1,179 @@
+{
+  "units": {
+    "AFT": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-0s7c5ok8",
+      "control_tower_organizational_unit": "AFT (ou-8p4z-0s7c5ok8)",
+      "id": "ou-8p4z-0s7c5ok8",
+      "name": "AFT",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "",
+        "Environment": "global",
+        "Name": "AFT",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "",
+        "Environment": "global",
+        "Name": "AFT",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Deployments": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-vlne0tw1",
+      "control_tower_organizational_unit": "Deployments (ou-8p4z-vlne0tw1)",
+      "id": "ou-8p4z-vlne0tw1",
+      "name": "Deployments",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "admin infrastructure architecture",
+        "Environment": "global",
+        "Name": "Deployments",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "admin infrastructure architecture",
+        "Environment": "global",
+        "Name": "Deployments",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Infrastructure": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-85r4p68c",
+      "control_tower_organizational_unit": "Infrastructure (ou-8p4z-85r4p68c)",
+      "id": "ou-8p4z-85r4p68c",
+      "name": "Infrastructure",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "admin infrastructure architecture",
+        "Environment": "global",
+        "Name": "Infrastructure",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "admin infrastructure architecture",
+        "Environment": "global",
+        "Name": "Infrastructure",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Isolated": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-3qhbvr5r",
+      "control_tower_organizational_unit": "Isolated (ou-8p4z-3qhbvr5r)",
+      "id": "ou-8p4z-3qhbvr5r",
+      "name": "Isolated",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "isolated",
+        "Environment": "global",
+        "Name": "Isolated",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "isolated",
+        "Environment": "global",
+        "Name": "Isolated",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Sandbox": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-djwdb8i2",
+      "control_tower_organizational_unit": "Sandbox (ou-8p4z-djwdb8i2)",
+      "id": "ou-8p4z-djwdb8i2",
+      "name": "Sandbox",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "sandbox",
+        "Environment": "global",
+        "Name": "Sandbox",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "sandbox",
+        "Environment": "global",
+        "Name": "Sandbox",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Security": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-wvgmzggv",
+      "control_tower_organizational_unit": "Security (ou-8p4z-wvgmzggv)",
+      "id": "ou-8p4z-wvgmzggv",
+      "name": "Security",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "system security",
+        "Environment": "global",
+        "Name": "Security",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "system security",
+        "Environment": "global",
+        "Name": "Security",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    },
+    "Suspended": {
+      "arn": "arn:aws:organizations::862006574860:ou/o-fdri2qhe6u/ou-8p4z-rgr49g6g",
+      "control_tower_organizational_unit": "Suspended (ou-8p4z-rgr49g6g)",
+      "id": "ou-8p4z-rgr49g6g",
+      "name": "Suspended",
+      "parent_id": "r-8p4z",
+      "tags": {
+        "Classifications": "suspended",
+        "Environment": "global",
+        "Name": "Suspended",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Classifications": "suspended",
+        "Environment": "global",
+        "Name": "Suspended",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      }
+    }
+  }
+}

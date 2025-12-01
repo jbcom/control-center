@@ -1,0 +1,111 @@
+{
+  "data": {
+    "env_sensitive": {
+      "GOOGLE_SERVICE_ACCOUNT": {
+        "id": "GOOGLE_SERVICE_ACCOUNT",
+        "required": true
+      }
+    },
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_google_org_units"
+        ],
+        "query": {
+          "GOOGLE_SERVICE_ACCOUNT": "${data.env_sensitive.GOOGLE_SERVICE_ACCOUNT.value}",
+          "allowed_ou_types": "${try(nonsensitive(jsonencode(var.allowed_ou_types)), jsonencode(var.allowed_ou_types))}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "denied_ou_types": "${try(nonsensitive(jsonencode(var.denied_ou_types)), jsonencode(var.denied_ou_types))}",
+          "flatten_nested_org_units": "${try(nonsensitive(var.flatten_nested_org_units), var.flatten_nested_org_units)}",
+          "include_root": "${try(nonsensitive(var.include_root), var.include_root)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "unhump_org_units": "${try(nonsensitive(var.unhump_org_units), var.unhump_org_units)}",
+          "use_basename": "${try(nonsensitive(var.use_basename), var.use_basename)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"org_units\"]))}"
+  },
+  "output": {
+    "org_units": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "allowed_ou_types": {
+      "default": [],
+      "type": "any"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "denied_ou_types": {
+      "default": [],
+      "type": "any"
+    },
+    "flatten_nested_org_units": {
+      "default": false,
+      "type": "bool"
+    },
+    "include_root": {
+      "default": true,
+      "type": "bool"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "unhump_org_units": {
+      "default": true,
+      "type": "bool"
+    },
+    "use_basename": {
+      "default": false,
+      "type": "bool"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

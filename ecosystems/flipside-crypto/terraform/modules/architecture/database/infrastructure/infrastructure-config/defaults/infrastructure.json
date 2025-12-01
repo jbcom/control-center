@@ -1,0 +1,6 @@
+{
+  "databases": {},
+  "dynamodb_tables": {},
+  "elasticache_redis": {},
+  "opensearch": {}
+}

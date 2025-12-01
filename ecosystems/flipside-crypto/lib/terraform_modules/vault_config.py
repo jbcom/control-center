@@ -1,0 +1,11 @@
+# Vault configuration
+import os
+
+VAULT_URL_ENV_VAR = "VAULT_ADDR"
+VAULT_NAMESPACE_ENV_VAR = "VAULT_NAMESPACE"
+
+# Direct values if needed
+VAULT_URL = os.environ.get(VAULT_URL_ENV_VAR, "")
+VAULT_NAMESPACE = os.environ.get(VAULT_NAMESPACE_ENV_VAR, "")
+
+__all__ = ["VAULT_URL_ENV_VAR", "VAULT_NAMESPACE_ENV_VAR", "VAULT_URL", "VAULT_NAMESPACE"]

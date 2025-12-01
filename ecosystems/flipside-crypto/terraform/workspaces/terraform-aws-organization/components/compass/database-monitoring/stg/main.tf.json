@@ -1,0 +1,14 @@
+{
+  "module": {
+    "base": {
+      "context": "${local.context}",
+      "database_name": "${local.database_name}",
+      "source": "../../../terraform/modules/database_monitoring"
+    },
+    "permanent_records": {
+      "records": "${local.records_config}",
+      "records_dir": "records/${local.workspaces_dir}",
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/utils/permanent-record"
+    }
+  }
+}

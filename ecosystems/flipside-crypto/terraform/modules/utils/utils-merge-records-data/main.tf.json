@@ -1,0 +1,114 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "merge_records_data"
+        ],
+        "query": {
+          "allowlist": "${try(nonsensitive(jsonencode(var.allowlist)), jsonencode(var.allowlist))}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "denylist": "${try(nonsensitive(jsonencode(var.denylist)), jsonencode(var.denylist))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "nest_records_under_key": "${try(nonsensitive(var.nest_records_under_key), var.nest_records_under_key)}",
+          "ordered_records_merge": "${try(nonsensitive(var.ordered_records_merge), var.ordered_records_merge)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "record_categories": "${try(nonsensitive(base64encode(jsonencode(var.record_categories))), base64encode(jsonencode(var.record_categories)))}",
+          "record_directories": "${try(nonsensitive(base64encode(jsonencode(var.record_directories))), base64encode(jsonencode(var.record_directories)))}",
+          "record_files": "${try(nonsensitive(jsonencode(var.record_files)), jsonencode(var.record_files))}",
+          "records": "${try(nonsensitive(base64encode(jsonencode(var.records))), base64encode(jsonencode(var.records)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"records\"]))}"
+  },
+  "output": {
+    "records": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "allowlist": {
+      "default": [],
+      "type": "any"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "denylist": {
+      "default": [],
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "nest_records_under_key": {
+      "default": null,
+      "type": "string"
+    },
+    "ordered_records_merge": {
+      "default": true,
+      "type": "bool"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "record_categories": {
+      "default": {},
+      "type": "any"
+    },
+    "record_directories": {
+      "default": {},
+      "type": "any"
+    },
+    "record_files": {
+      "default": [],
+      "type": "any"
+    },
+    "records": {
+      "default": {},
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

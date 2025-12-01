@@ -1,0 +1,104 @@
+{
+  "data": {
+    "env_var": {
+      "EXECUTION_ROLE_ARN": {
+        "id": "EXECUTION_ROLE_ARN",
+        "required": false
+      },
+      "ROLE_SESSION_NAME": {
+        "id": "ROLE_SESSION_NAME",
+        "required": false
+      }
+    }
+  },
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli purge_all_matching_s3_buckets",
+              "environment": {
+                "EXECUTION_ROLE_ARN": "${data.env_var.EXECUTION_ROLE_ARN.value}",
+                "ROLE_SESSION_NAME": "${data.env_var.ROLE_SESSION_NAME.value}",
+                "checksum": "${self.triggers_replace.checksum}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "name_tags": "${self.triggers_replace.name_tags}",
+                "names": "${self.triggers_replace.names}",
+                "params": "${self.triggers_replace.params}",
+                "purge_file": "${self.triggers_replace.purge_file}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "name_tags": "${try(nonsensitive(jsonencode(var.name_tags)), jsonencode(var.name_tags))}",
+          "names": "${try(nonsensitive(jsonencode(var.names)), jsonencode(var.names))}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "purge_file": "${try(nonsensitive(var.purge_file), var.purge_file)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "name_tags": {
+      "default": [],
+      "type": "any"
+    },
+    "names": {
+      "default": [],
+      "type": "any"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "purge_file": {
+      "default": null,
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "locals": {
+    "backend_path_template": "${local.terraform_workspace_config.backend_bucket_workspaces_path}/%s/terraform.tfstate",
+    "default_context_binding": "${local.terraform_workspace_config.bind_to_context}",
+    "default_root_dir": "${local.terraform_workspace_config.root_dir}",
+    "default_workspace_dir": "${local.terraform_workspace_config.workspace_dir}",
+    "nested_backend_path_prefix_template": "${local.terraform_workspace_config.backend_bucket_workspaces_path}/%s",
+    "nested_backend_path_template": "${local.nested_backend_path_prefix_template}/%s/terraform.tfstate",
+    "nested_root_dir": "${local.default_root_dir}/${local.default_workspace_dir}",
+    "nested_root_dir_template": "${local.nested_root_dir}/%s",
+    "pipeline_name": "rstudio",
+    "terraform_config": "${local.pipeline_config.terraform}",
+    "terraform_workflow_config": "${local.terraform_config.workflow}",
+    "terraform_workspace_config": "${local.terraform_config.workspace}"
+  }
+}

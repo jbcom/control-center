@@ -1,0 +1,52 @@
+# Deployments Organizational Unit
+name: "Deployments"
+description: "Accounts for application deployments including clusters and serverless"
+
+classifications:
+  - "admin"
+
+# Accounts in this unit (listed by logical name)
+accounts:
+  # Production Clusters
+  clusters_prod:
+    name: "Clusters-Prod"
+    email: "clusters-prod@flipsidecrypto.com"
+    environment: "prod"
+    control_tower_managed: true
+  
+  # Staging Clusters
+  clusters_stg:
+    name: "Clusters-Stg"
+    email: "clusters-stg@flipsidecrypto.com"
+    environment: "stg"
+    control_tower_managed: true
+  
+  # Production Serverless
+  serverless_prod:
+    name: "Serverless-Prod"
+    email: "serverless-prod@flipsidecrypto.com"
+    environment: "prod"
+    classifications:
+      - "analytics"
+      - "cluster"
+      - "logged"
+      - "monitored"
+      - "serverless"
+    control_tower_managed: true
+  
+  # Staging Serverless
+  serverless_stg:
+    name: "Serverless-Stg"
+    email: "serverless-stg@flipsidecrypto.com"
+    environment: "stg"
+    classifications:
+      - "analytics"
+      - "cluster"
+      - "serverless"
+    control_tower_managed: true
+
+# Policy assignments for this unit
+policy_assignments:
+  # Service control policies
+  service_control:
+    - "deny_leave_organization"

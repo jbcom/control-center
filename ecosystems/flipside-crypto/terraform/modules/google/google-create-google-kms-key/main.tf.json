@@ -1,0 +1,102 @@
+{
+  "data": {
+    "env_sensitive": {
+      "GOOGLE_SERVICE_ACCOUNT": {
+        "id": "GOOGLE_SERVICE_ACCOUNT",
+        "required": true
+      }
+    }
+  },
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli create_google_kms_key",
+              "environment": {
+                "GOOGLE_SERVICE_ACCOUNT": "${data.env_sensitive.GOOGLE_SERVICE_ACCOUNT.value}",
+                "checksum": "${self.triggers_replace.checksum}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "kms_key_name": "${self.triggers_replace.kms_key_name}",
+                "kms_keyring_name": "${self.triggers_replace.kms_keyring_name}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "params": "${self.triggers_replace.params}",
+                "project_id": "${self.triggers_replace.project_id}",
+                "region": "${self.triggers_replace.region}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "kms_key_name": "${try(nonsensitive(var.kms_key_name), var.kms_key_name)}",
+          "kms_keyring_name": "${try(nonsensitive(var.kms_keyring_name), var.kms_keyring_name)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "project_id": "${try(nonsensitive(var.project_id), var.project_id)}",
+          "region": "${try(nonsensitive(var.region), var.region)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "kms_key_name": {
+      "type": "string"
+    },
+    "kms_keyring_name": {
+      "type": "string"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "region": {
+      "default": "us-east1",
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

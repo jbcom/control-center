@@ -1,0 +1,126 @@
+{
+  "data": {
+    "env_sensitive": {
+      "SLACK_BOT_TOKEN": {
+        "id": "SLACK_BOT_TOKEN",
+        "required": true
+      },
+      "SLACK_TOKEN": {
+        "id": "SLACK_TOKEN",
+        "required": true
+      }
+    },
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_slack_conversations"
+        ],
+        "query": {
+          "SLACK_BOT_TOKEN": "${data.env_sensitive.SLACK_BOT_TOKEN.value}",
+          "SLACK_TOKEN": "${data.env_sensitive.SLACK_TOKEN.value}",
+          "channels_only": "${try(nonsensitive(var.channels_only), var.channels_only)}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "exclude_archived": "${try(nonsensitive(var.exclude_archived), var.exclude_archived)}",
+          "get_members": "${try(nonsensitive(var.get_members), var.get_members)}",
+          "limit": "${try(nonsensitive(var.limit), var.limit)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "sort_by_name": "${try(nonsensitive(var.sort_by_name), var.sort_by_name)}",
+          "team_id": "${try(nonsensitive(var.team_id), var.team_id)}",
+          "types": "${try(nonsensitive(base64encode(jsonencode(var.types))), base64encode(jsonencode(var.types)))}",
+          "user_identifiers_file": "${try(nonsensitive(var.user_identifiers_file), var.user_identifiers_file)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"conversations\"]))}"
+  },
+  "output": {
+    "conversations": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "channels_only": {
+      "default": false,
+      "type": "bool"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "exclude_archived": {
+      "default": null,
+      "type": "any"
+    },
+    "get_members": {
+      "default": false,
+      "type": "bool"
+    },
+    "limit": {
+      "default": null,
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "sort_by_name": {
+      "default": false,
+      "type": "bool"
+    },
+    "team_id": {
+      "default": null,
+      "type": "string"
+    },
+    "types": {
+      "default": null,
+      "type": "any"
+    },
+    "user_identifiers_file": {
+      "default": null,
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

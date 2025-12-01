@@ -1,0 +1,19 @@
+name: compass-${environment_name}-${pipeline_type}
+version: 1
+
+source:
+  provider: GitHub
+  properties:
+    branch: ${branch}
+    repository: https://github.com/FlipsideCrypto/compass
+    connection_name: ${connection_name}
+
+stages:
+  - name: ${environment_name}
+%{ if pipeline_type == "environment" ~}
+    deployments:
+      deploy-env:
+        template_path: infrastructure/${environment_name}.env.yml
+        template_config: infrastructure/${environment_name}.env.params.json
+        stack_name: compass-${environment_name}
+%{ endif ~}

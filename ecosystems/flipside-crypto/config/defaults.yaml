@@ -1,0 +1,46 @@
+# Global defaults for all pipelines
+# These are merged with pipeline-specific configuration
+
+repositories:
+  kms:
+    enabled: false
+    managed: true
+  terraform:
+    region: "us-east-1"
+    backend:
+      backend_bucket_name: "flipside-crypto-internal-tooling"
+      backend_dynamodb_table: "internal-tooling-terraform-state"
+    isolated: false
+    data_sinks: []
+    context:
+      environment: "global"
+    workspace:
+      terraform_version: "1.13.1"
+      python_version: "3.13.5"
+      root_dir: "."
+      workspace_branch: main
+      workspace_dir: "workspaces"
+    workflow:
+      events:
+        push: false
+        pull_request: false
+        release: true
+    generator:
+      workflow:
+        workflow_name: generator
+        events:
+          push: true
+          pull_request: false
+        release:
+          publish: true
+      workspace:
+        job_name: generator
+        workspace_name: generator
+        dependencies: []
+
+live_environments:
+  - stg
+  - prod
+
+# Bootstrap standard GitHub Actions config
+bootstrap_github_actions: true

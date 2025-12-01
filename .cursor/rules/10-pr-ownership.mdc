@@ -1,0 +1,67 @@
+---
+alwaysApply: true
+description: PR ownership and AI-to-AI collaboration protocol
+globs: ["**/*"]
+priority: 2
+---
+
+# PR Ownership Protocol
+
+## Core Principle
+
+**First agent on PR = PR Owner** - Full responsibility until merge or close.
+
+## Owner Responsibilities
+
+- ✅ Address ALL feedback (human AND AI agents)
+- ✅ Fix ALL CI failures
+- ✅ Engage with AI reviewers (@gemini-code-assist, @copilot, etc.)
+- ✅ Execute final merge
+
+**User involvement only for**: Product decisions, hard blockers, breaking change approval
+
+## AI-to-AI Collaboration
+
+### Accepting Feedback
+
+```markdown
+@gemini-code-assist Thank you for the review. I've addressed your concern:
+
+✅ Fixed: <description>
+✅ Committed: <commit-hash>
+
+Please verify the fix.
+```
+
+### Declining Feedback
+
+```markdown
+@gemini-code-assist Thank you, but this conflicts with project rules:
+
+**Our approach**: <description>
+**Reference**: See `.ruler/AGENTS.md`
+
+Happy to discuss if you see issues.
+```
+
+## Priority Order for Conflicting Feedback
+
+1. **Project rules** (`.ruler/AGENTS.md`) - Highest
+2. **Security concerns** - Always address
+3. **Performance** - Evaluate with evidence
+4. **Style** - Defer to project config
+5. **Subjective** - Use judgment, explain
+
+## Cross-Control-Center PRs
+
+For jbcom PRs, use jbcom token:
+
+```bash
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --repo jbcom/jbcom-control-center ...
+```
+
+Follow jbcom conventions when contributing upstream.
+
+## Full Documentation
+
+See `docs/PR-OWNERSHIP-PROTOCOL.md`

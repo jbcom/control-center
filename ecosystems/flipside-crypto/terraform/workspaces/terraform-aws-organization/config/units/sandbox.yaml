@@ -1,0 +1,51 @@
+# Sandbox Organizational Unit
+name: "Sandbox"
+description: "Accounts for testing and development"
+
+# Unit classifications for filtering and grouping
+classifications:
+  - "sandbox"
+
+environment: "dev"
+
+# Accounts in this unit (listed by logical name)
+accounts:
+  # Analytics testbed
+  analytics_testbed:
+    name: "Analytics-Testbed"
+    email: "analytics@flipsidecrypto.com"
+    classifications:
+      - "analytics"
+      - "logged"
+      - "monitored"
+    control_tower_managed: true
+  
+  # Data platform testbed
+  data_platform_testbed:
+    name: "Data-Platform-Testbed"
+    email: "data-platform@flipsidecrypto.com"
+    classifications:
+      - "data-platform"
+    control_tower_managed: true
+
+# Policy assignments for this unit
+policy_assignments:
+  # Service control policies
+  service_control:
+    - "deny_leave_organization"
+  
+  # Tag policies - looser requirements for sandbox
+  tag:
+    - "required_tags"
+
+provisioning:
+  users: []
+  groups:
+    - analytics
+    - data-platform
+  remaps:
+    desmond@flipsidecrypto.com:
+      account_email: desmond.hui@flipsidecrypto.com
+    mattromano@flipsidecrypto.com:
+      key: user_mattromano
+      account_name: User-mattromano

@@ -1,0 +1,2 @@
+# Handler has no direct dependencies - everything comes from the layer
+# This file exists to satisfy SAM build requirements

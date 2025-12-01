@@ -1,110 +1,138 @@
-# jbcom Control Center
+# Unified Control Center
 
-**Monorepo for the jbcom Python ecosystem.**
+**Single control surface for jbcom + FlipsideCrypto ecosystems.**
 
-## Architecture
+## What's Managed
 
-All Python packages live in `packages/`:
+### jbcom Ecosystem (Python Packages → PyPI)
 
 ```
 packages/
 ├── extended-data-types/    → PyPI: extended-data-types
 ├── lifecyclelogging/       → PyPI: lifecyclelogging
 ├── directed-inputs-class/  → PyPI: directed-inputs-class
-└── vendor-connectors/      → PyPI: vendor-connectors
+├── python-terraform-bridge/→ PyPI: python-terraform-bridge
+├── vendor-connectors/      → PyPI: vendor-connectors
+└── agentic-control/        → npm: agentic-control
 ```
 
-## How It Works
+### FlipsideCrypto Ecosystem (Infrastructure → AWS/GCP)
 
-1. **Develop here** - Edit code in `packages/`
-2. **PR to main** - CI runs tests, lint, review
-3. **Merge** - python-semantic-release bumps version, creates Git tags, publishes to PyPI
-4. **Sync** - Sync workflow pushes to public repos
+```
+ecosystems/flipside-crypto/
+├── terraform/
+│   ├── modules/           # 30 module categories (100+ modules)
+│   │   ├── aws/           # AWS infrastructure
+│   │   ├── google/        # Google Cloud
+│   │   ├── github/        # GitHub management
+│   │   └── terraform/     # Pipeline generation
+│   └── workspaces/        # 44 workspaces
+│       ├── terraform-aws-organization/    # 37 AWS workspaces
+│       └── terraform-google-organization/ # 7 GCP workspaces
+├── sam/                   # AWS Lambda applications
+│   ├── secrets-config/
+│   ├── secrets-merging/
+│   └── secrets-syncing/
+├── lib/                   # Python libraries
+│   └── terraform_modules/
+├── config/                # State paths, pipelines
+└── memory-bank/           # Agent context
+```
 
 ## Quick Start
 
 ```bash
-# Install dependencies (uv workspace)
+# Python packages
 uv sync
-
-# Run tests for a package
 cd packages/extended-data-types && pytest
 
-# Lint
-ruff check packages/
+# Node.js (agentic-control)
+pnpm install
+cd packages/agentic-control && pnpm test
 
-# Create PR
-git checkout -b fix/something
-# ... make changes ...
-git add -A && git commit -m "fix: something"
-git push -u origin fix/something
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix: something" --body "Details"
+# Terraform (FlipsideCrypto)
+cd ecosystems/flipside-crypto/terraform/workspaces/<workspace>
+terraform init && terraform plan
 ```
+
+## Agent Orchestration
+
+This repo includes `agentic-control` - a unified CLI for AI agent management:
+
+```bash
+npm install -g agentic-control
+
+# Initialize configuration
+agentic init
+
+# Spawn agents
+agentic fleet spawn --repo jbcom/jbcom-control-center --task "Fix CI"
+agentic fleet spawn --repo FlipsideCrypto/fsc-control-center --task "Update modules"
+
+# Triage conversations
+agentic triage analyze <session-id>
+```
+
+## Token Configuration
+
+```bash
+# jbcom repos
+export GITHUB_JBCOM_TOKEN="..."
+
+# FlipsideCrypto repos
+export GITHUB_FSC_TOKEN="..."
+
+# Default operations
+export GITHUB_TOKEN="$GITHUB_JBCOM_TOKEN"
+```
+
+All PR reviews use `GITHUB_JBCOM_TOKEN` regardless of target repo.
+
+## CI/CD
+
+| Ecosystem | Registry | Trigger |
+|-----------|----------|---------|
+| jbcom Python | PyPI | Merge to main + conventional commit |
+| agentic-control | npm | Merge to main + changes detected |
+| FlipsideCrypto | N/A | Terraform apply (manual) |
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `pyproject.toml` | uv workspace + dev dependencies |
-| `packages/*/pyproject.toml` | Per-package PSR config |
-| `packages/ECOSYSTEM.toml` | Package metadata, dependencies, release order |
-| `scripts/psr/monorepo_parser.py` | Monorepo commit parser for PSR |
-| `.github/workflows/ci.yml` | CI, release, and PyPI publishing |
+| `ECOSYSTEM.toml` | Unified ecosystem manifest |
+| `agentic.config.json` | Agent token/org configuration |
+| `packages/*/pyproject.toml` | Python package config |
+| `packages/agentic-control/package.json` | Node.js package config |
+| `ecosystems/flipside-crypto/config/` | Terraform state paths |
+| `.github/workflows/ci.yml` | Unified CI (Python + Node.js) |
 
 ## Versioning
 
-Uses [python-semantic-release](https://python-semantic-release.readthedocs.io/) with per-package SemVer:
-- Format: `MAJOR.MINOR.PATCH`
-- Conventional commits (with scopes) drive version detection
-- Each package has independent versioning tracked via Git tags
-- Never edit `__version__` or pyproject versions manually—PSR handles it
+- **Python packages**: SemVer via python-semantic-release
+- **agentic-control**: SemVer via conventional commits
+- **Terraform**: State-managed, no version tags
 
-### Commit Message Format
-
-Use [Conventional Commits](https://www.conventionalcommits.org/) with package scopes:
-
-| Scope | Package |
-|-------|---------|
-| `edt` | extended-data-types |
-| `logging` | lifecyclelogging |
-| `dic` | directed-inputs-class |
-| `connectors` | vendor-connectors |
-
-Examples:
+Commit format:
 ```bash
-feat(edt): add new utility function     # → extended-data-types minor bump
-fix(logging): handle edge case          # → lifecyclelogging patch bump
-feat(edt)!: breaking change             # → major bump
+feat(edt): new utility         # → extended-data-types minor
+fix(connectors): handle null   # → vendor-connectors patch
+feat(agentic-control): fleet   # → agentic-control minor
 ```
 
-## Authentication
-
-**Always use `GITHUB_JBCOM_TOKEN` for jbcom repo operations:**
-```bash
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge ...
-```
-
-## Packages
-
-| Package | PyPI | Role |
-|---------|------|------|
-| extended-data-types | [extended-data-types](https://pypi.org/project/extended-data-types/) | Foundation utilities |
-| lifecyclelogging | [lifecyclelogging](https://pypi.org/project/lifecyclelogging/) | Structured logging |
-| directed-inputs-class | [directed-inputs-class](https://pypi.org/project/directed-inputs-class/) | Input validation |
-| vendor-connectors | [vendor-connectors](https://pypi.org/project/vendor-connectors/) | Cloud integrations |
-
-## Dependency Order
+## Cross-Ecosystem Dependencies
 
 ```
-extended-data-types (foundation)
+jbcom (packages)
+├── extended-data-types (foundation)
 ├── lifecyclelogging
 ├── directed-inputs-class
-└── vendor-connectors (depends on both)
+├── vendor-connectors
+│   └── used by → FlipsideCrypto (infrastructure)
+└── agentic-control
+    └── orchestrates → both ecosystems
 ```
-
-Always release in this order.
 
 ---
 
-See `.cursor/agents/jbcom-ecosystem-manager.md` for detailed agent instructions.
+See `ECOSYSTEM.toml` for complete manifest.

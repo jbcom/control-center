@@ -1,0 +1,88 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "group_and_format_files"
+        ],
+        "query": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "files": "${try(nonsensitive(base64encode(jsonencode(var.files))), base64encode(jsonencode(var.files)))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "preserve_names_as_is": "${try(nonsensitive(jsonencode(var.preserve_names_as_is)), jsonencode(var.preserve_names_as_is))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "gitkeep_records": "${jsondecode(base64decode(data.external.default.result[\"gitkeep_records\"]))}",
+    "results": "${jsondecode(base64decode(data.external.default.result[\"files\"]))}"
+  },
+  "output": {
+    "files": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    },
+    "gitkeep_records": {
+      "description": "Data query results",
+      "value": "${local.gitkeep_records}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "files": {
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "preserve_names_as_is": {
+      "default": [],
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

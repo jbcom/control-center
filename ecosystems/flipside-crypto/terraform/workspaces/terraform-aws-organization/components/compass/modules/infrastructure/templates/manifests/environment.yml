@@ -1,0 +1,34 @@
+name: ${environment_name}
+type: Environment
+
+network:
+  vpc:
+    id: ${vpc_id}
+    subnets:
+      public:
+%{ for subnet in public_subnets ~}
+        - id: ${subnet}
+%{ endfor ~}
+      private:
+%{ for subnet in private_subnets ~}
+        - id: ${subnet}
+%{ endfor ~}
+
+http:
+  public:
+    access_logs:
+      prefix: fsc-compass-${environment_name}-access-logs
+    certificates:
+%{ for arn in acm_certificate_arns ~}
+      - "${arn}"
+%{ endfor ~}
+
+service_discovery:
+  enable: false
+
+dns:
+  private_zone:
+    enable: false
+
+observability:
+  container_insights: true

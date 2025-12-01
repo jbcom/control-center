@@ -1,0 +1,101 @@
+{
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli restart_aws_ecs_services_matching_tags",
+              "environment": {
+                "checksum": "${self.triggers_replace.checksum}",
+                "cluster_tags": "${self.triggers_replace.cluster_tags}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "dry_run": "${self.triggers_replace.dry_run}",
+                "execution_role_arn": "${self.triggers_replace.execution_role_arn}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "params": "${self.triggers_replace.params}",
+                "service_tags": "${self.triggers_replace.service_tags}",
+                "tags": "${self.triggers_replace.tags}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "cluster_tags": "${try(nonsensitive(base64encode(jsonencode(var.cluster_tags))), base64encode(jsonencode(var.cluster_tags)))}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "dry_run": "${try(nonsensitive(var.dry_run), var.dry_run)}",
+          "execution_role_arn": "${try(nonsensitive(var.execution_role_arn), var.execution_role_arn)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "service_tags": "${try(nonsensitive(base64encode(jsonencode(var.service_tags))), base64encode(jsonencode(var.service_tags)))}",
+          "tags": "${try(nonsensitive(base64encode(jsonencode(var.tags))), base64encode(jsonencode(var.tags)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "cluster_tags": {
+      "default": {},
+      "type": "any"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "dry_run": {
+      "default": false,
+      "type": "bool"
+    },
+    "execution_role_arn": {
+      "default": null,
+      "type": "string"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "service_tags": {
+      "default": {},
+      "type": "any"
+    },
+    "tags": {
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

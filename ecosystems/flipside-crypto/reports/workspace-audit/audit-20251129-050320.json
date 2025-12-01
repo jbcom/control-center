@@ -1,0 +1,1293 @@
+{
+  "timestamp": "2025-11-29T05:03:20.374217",
+  "summary": {
+    "total": 44,
+    "with_config": 44,
+    "without_config": 0,
+    "by_pipeline": {
+      "terraform-aws-organization": 37,
+      "terraform-google-organization": 7
+    }
+  },
+  "workspaces": [
+    {
+      "path": "terraform-aws-organization/aggregator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "aggregator",
+      "config_hash": "2f74fb542cc2",
+      "config_size": 3152,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/aggregator/terraform.tfstate",
+        "workspace_name": "aggregator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": false,
+      "has_outputs": true
+    },
+    {
+      "path": "terraform-aws-organization/authentication",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "authentication",
+      "config_hash": "948174c14973",
+      "config_size": 4626,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/authentication/terraform.tfstate",
+        "workspace_name": "authentication",
+        "providers": [
+          "aws",
+          "github",
+          "google",
+          "googleworkspace",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 2229,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/bots",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "bots",
+      "config_hash": "be1fb912f1d5",
+      "config_size": 2954,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/bots/terraform.tfstate",
+        "workspace_name": "bots",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 2567,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/policies/rpc-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/policies/rpc-prod",
+      "config_hash": "f1bc6cd7624d",
+      "config_size": 3860,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/policies/rpc-prod/terraform.tfstate",
+        "workspace_name": "policies",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/policies/rpc-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/policies/rpc-stg",
+      "config_hash": "b34bca4d7194",
+      "config_size": 3857,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/policies/rpc-stg/terraform.tfstate",
+        "workspace_name": "policies",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/policies/workers-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/policies/workers-prod",
+      "config_hash": "428d4e8edd56",
+      "config_size": 3872,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/policies/workers-prod/terraform.tfstate",
+        "workspace_name": "policies",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/policies/workers-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/policies/workers-stg",
+      "config_hash": "a4ad431c86a9",
+      "config_size": 3869,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/policies/workers-stg/terraform.tfstate",
+        "workspace_name": "policies",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/rpc-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/rpc-prod",
+      "config_hash": "653eff64dc4a",
+      "config_size": 3820,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/system-resources/rpc-prod/terraform.tfstate",
+        "workspace_name": "system-resources",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/rpc-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/rpc-stg",
+      "config_hash": "362e50e789c4",
+      "config_size": 3818,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/system-resources/rpc-stg/terraform.tfstate",
+        "workspace_name": "system-resources",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/workers-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/workers-prod",
+      "config_hash": "70506c0bb2ee",
+      "config_size": 3828,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/system-resources/workers-prod/terraform.tfstate",
+        "workspace_name": "system-resources",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/workers-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/workers-stg",
+      "config_hash": "b319f640b7e8",
+      "config_size": 3826,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/system-resources/workers-stg/terraform.tfstate",
+        "workspace_name": "system-resources",
+        "providers": [
+          "aws",
+          "awsutils",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/workers-stg/rpc",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/workers-stg/rpc",
+      "config_hash": "b43760f1a2fb",
+      "config_size": 3039,
+      "analysis": {
+        "has_backend": false,
+        "state_key": "none",
+        "workspace_name": "system-resources-rpc",
+        "providers": [
+          "aws",
+          "awsutils"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.6"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/workers-stg/rpc-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/workers-stg/rpc-stg",
+      "config_hash": "53ed9309b7bd",
+      "config_size": 3047,
+      "analysis": {
+        "has_backend": false,
+        "state_key": "none",
+        "workspace_name": "system-resources-rpc-stg",
+        "providers": [
+          "aws",
+          "awsutils"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.6"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/system-resources/workers-stg/workers",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/system-resources/workers-stg/workers",
+      "config_hash": "150f648cb2dc",
+      "config_size": 3047,
+      "analysis": {
+        "has_backend": false,
+        "state_key": "none",
+        "workspace_name": "system-resources-workers",
+        "providers": [
+          "aws",
+          "awsutils"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.6"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/tasks/rpc-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/tasks/rpc-prod",
+      "config_hash": "73fae6342211",
+      "config_size": 4186,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/tasks/rpc-prod/terraform.tfstate",
+        "workspace_name": "tasks",
+        "providers": [
+          "aws",
+          "awsutils",
+          "cloudflare",
+          "github",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/tasks/rpc-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/tasks/rpc-stg",
+      "config_hash": "65cdcdbbdc6d",
+      "config_size": 4183,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/tasks/rpc-stg/terraform.tfstate",
+        "workspace_name": "tasks",
+        "providers": [
+          "aws",
+          "awsutils",
+          "cloudflare",
+          "github",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/tasks/workers-prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/tasks/workers-prod",
+      "config_hash": "6e6dead42b60",
+      "config_size": 4198,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/tasks/workers-prod/terraform.tfstate",
+        "workspace_name": "tasks",
+        "providers": [
+          "aws",
+          "awsutils",
+          "cloudflare",
+          "github",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/containers/compass/tasks/workers-stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/containers/compass/tasks/workers-stg",
+      "config_hash": "c04586e6781f",
+      "config_size": 4195,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/containers/compass/tasks/workers-stg/terraform.tfstate",
+        "workspace_name": "tasks",
+        "providers": [
+          "aws",
+          "awsutils",
+          "cloudflare",
+          "github",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/database-monitoring/prod",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/database-monitoring/prod",
+      "config_hash": "12f72ba2a90d",
+      "config_size": 3793,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/database-monitoring/prod/terraform.tfstate",
+        "workspace_name": "database-monitoring-prod",
+        "providers": [
+          "aws",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/database-monitoring/stg",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/database-monitoring/stg",
+      "config_hash": "4e0c03a65ee5",
+      "config_size": 3789,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/database-monitoring/stg/terraform.tfstate",
+        "workspace_name": "database-monitoring-stg",
+        "providers": [
+          "aws",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/generator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/generator",
+      "config_hash": "1ddcaa4c8441",
+      "config_size": 3205,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 7108,
+      "has_outputs": true
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/infrastructure",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/infrastructure",
+      "config_hash": "2c17ca3a39e7",
+      "config_size": 4221,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/infrastructure/terraform.tfstate",
+        "workspace_name": "infrastructure",
+        "providers": [
+          "aws",
+          "cloudflare",
+          "datadog",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 669,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/compass/post-processing",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/compass/post-processing",
+      "config_hash": "1a3e8b5752b5",
+      "config_size": 3838,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/compass/workspaces/post-processing/terraform.tfstate",
+        "workspace_name": "post-processing",
+        "providers": [
+          "aws",
+          "cloudflare",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.7"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 1019,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/datadog/generator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/datadog/generator",
+      "config_hash": "75eee465ab4a",
+      "config_size": 3226,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-datadog-monitoring/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/fireblocks/generator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/fireblocks/generator",
+      "config_hash": "99f9779c1c49",
+      "config_size": 3225,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-treasury/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/components/rstudio/generator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "components/rstudio/generator",
+      "config_hash": "9f00b1d0e03b",
+      "config_size": 3205,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/rstudio/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/generator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "generator",
+      "config_hash": "0543e09913ab",
+      "config_size": 3671,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws",
+          "googleworkspace"
+        ],
+        "modules": [
+          "context"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region",
+          "doppler_secrets"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 3757,
+      "has_outputs": true
+    },
+    {
+      "path": "terraform-aws-organization/guards",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "guards",
+      "config_hash": "e66464310217",
+      "config_size": 3045,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/guards/terraform.tfstate",
+        "workspace_name": "guards",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 479,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/organization",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "organization",
+      "config_hash": "c6ce77821bb5",
+      "config_size": 2984,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/organization/terraform.tfstate",
+        "workspace_name": "organization",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 819,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/secrets",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "secrets",
+      "config_hash": "4fe969201535",
+      "config_size": 3313,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/secrets/terraform.tfstate",
+        "workspace_name": "secrets",
+        "providers": [
+          "aws",
+          "github"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 3623,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/aggregator",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/aggregator",
+      "config_hash": "eb87de7a3818",
+      "config_size": 3075,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/aggregator/terraform.tfstate",
+        "workspace_name": "aggregator",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 3020,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/config",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/config",
+      "config_hash": "ccb89bcec206",
+      "config_size": 3063,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/config/terraform.tfstate",
+        "workspace_name": "config",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/delegation",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/delegation",
+      "config_hash": "f1e79eaa5a24",
+      "config_size": 3075,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/delegation/terraform.tfstate",
+        "workspace_name": "delegation",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 2830,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/guardduty",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/guardduty",
+      "config_hash": "043675c4a368",
+      "config_size": 3072,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/guardduty/terraform.tfstate",
+        "workspace_name": "guardduty",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 1589,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/macie",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/macie",
+      "config_hash": "7dee3dcb2701",
+      "config_size": 3060,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/macie/terraform.tfstate",
+        "workspace_name": "macie",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 1166,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/security/securityhub",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "security/securityhub",
+      "config_hash": "5a945fbbdbda",
+      "config_size": 3078,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-security/workspaces/securityhub/terraform.tfstate",
+        "workspace_name": "securityhub",
+        "providers": [
+          "aws"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.11"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 1234,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-aws-organization/sso",
+      "pipeline": "terraform-aws-organization",
+      "workspace": "sso",
+      "config_hash": "6f5463afea82",
+      "config_size": 3634,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-aws-organization/workspaces/sso/terraform.tfstate",
+        "workspace_name": "sso",
+        "providers": [
+          "aws",
+          "googleworkspace"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 3356,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-google-organization/gcp/authentication",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gcp/authentication",
+      "config_hash": "1acae490d4e4",
+      "config_size": 5183,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gcp/authentication/terraform.tfstate",
+        "workspace_name": "authentication",
+        "providers": [
+          "aws",
+          "doppler",
+          "github",
+          "google",
+          "googleworkspace",
+          "postgresql",
+          "snowflake",
+          "sops"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 6542,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-google-organization/gcp/functions",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gcp/functions",
+      "config_hash": "2f554640a6cc",
+      "config_size": 3346,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gcp/functions/terraform.tfstate",
+        "workspace_name": "functions",
+        "providers": [
+          "aws",
+          "doppler",
+          "google",
+          "google-beta"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-google-organization/gcp/policies",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gcp/policies",
+      "config_hash": "2e6a32051d9e",
+      "config_size": 3343,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gcp/policies/terraform.tfstate",
+        "workspace_name": "policies",
+        "providers": [
+          "aws",
+          "doppler",
+          "google",
+          "google-beta"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 2017,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-google-organization/gcp/projects",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gcp/projects",
+      "config_hash": "324e52a43c2f",
+      "config_size": 3343,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gcp/projects/terraform.tfstate",
+        "workspace_name": "projects",
+        "providers": [
+          "aws",
+          "doppler",
+          "google",
+          "google-beta"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 687,
+      "has_outputs": true
+    },
+    {
+      "path": "terraform-google-organization/generator",
+      "pipeline": "terraform-google-organization",
+      "workspace": "generator",
+      "config_hash": "b5fe97cf1d07",
+      "config_size": 4133,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/generator/terraform.tfstate",
+        "workspace_name": "generator",
+        "providers": [
+          "aws",
+          "google",
+          "google-beta",
+          "googleworkspace"
+        ],
+        "modules": [
+          "context"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region",
+          "doppler_secrets"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 1755,
+      "has_outputs": true
+    },
+    {
+      "path": "terraform-google-organization/gws/assignments",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gws/assignments",
+      "config_hash": "ef3430dbf2d5",
+      "config_size": 3578,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gws/assignments/terraform.tfstate",
+        "workspace_name": "assignments",
+        "providers": [
+          "aws",
+          "doppler",
+          "googleworkspace"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": true,
+      "main_tf_size": 4226,
+      "has_outputs": false
+    },
+    {
+      "path": "terraform-google-organization/gws/org_units",
+      "pipeline": "terraform-google-organization",
+      "workspace": "gws/org_units",
+      "config_hash": "a23bfde796db",
+      "config_size": 3572,
+      "analysis": {
+        "has_backend": true,
+        "state_key": "terraform/state/terraform-google-organization/workspaces/gws/org_units/terraform.tfstate",
+        "workspace_name": "org_units",
+        "providers": [
+          "aws",
+          "doppler",
+          "googleworkspace"
+        ],
+        "modules": [
+          "context",
+          "vendors"
+        ],
+        "data_sources": [
+          "aws_caller_identity",
+          "aws_partition",
+          "aws_region"
+        ],
+        "required_version": "~>1.13"
+      },
+      "has_main_tf": false,
+      "has_outputs": false
+    }
+  ]
+}

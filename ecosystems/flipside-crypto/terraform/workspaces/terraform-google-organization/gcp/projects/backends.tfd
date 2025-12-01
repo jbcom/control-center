@@ -1,0 +1,6 @@
+terraform {
+  backend "gcs" {
+    bucket = "cs-tfstate-us-east1-38c00cb1065342758f1d77b1e5c7c67d"
+    prefix = "terraform"
+  }
+}

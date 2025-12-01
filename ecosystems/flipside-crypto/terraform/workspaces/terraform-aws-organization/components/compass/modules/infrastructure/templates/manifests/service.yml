@@ -1,0 +1,19 @@
+image:
+  build:
+    cache_from:
+      - ${account_id}.dkr.ecr.${region}.amazonaws.com/compass/${service_name}:latest
+    args:
+      BUILDKIT_INLINE_CACHE: 1
+
+environments:
+%{ for environment_name, efs_filesystem_id in efs_filesystem_ids ~}
+  ${environment_name}:
+    storage:
+      volumes:
+        temporal_data:
+          path: /data
+          read_only: false
+          efs:
+            id: ${efs_filesystem_id}
+
+%{ endfor ~}

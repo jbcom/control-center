@@ -1,0 +1,98 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_aws_s3_terraform_state_outputs"
+        ],
+        "query": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "extra_state_keys": "${try(nonsensitive(jsonencode(var.extra_state_keys)), jsonencode(var.extra_state_keys))}",
+          "fail_on_not_found": "${try(nonsensitive(var.fail_on_not_found), var.fail_on_not_found)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "s3_bucket": "${try(nonsensitive(var.s3_bucket), var.s3_bucket)}",
+          "state_key": "${try(nonsensitive(var.state_key), var.state_key)}",
+          "state_path": "${try(nonsensitive(var.state_path), var.state_path)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"outputs\"]))}"
+  },
+  "output": {
+    "outputs": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "extra_state_keys": {
+      "default": [],
+      "type": "any"
+    },
+    "fail_on_not_found": {
+      "default": false,
+      "type": "bool"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "s3_bucket": {
+      "default": "flipside-crypto-internal-tooling",
+      "type": "string"
+    },
+    "state_key": {
+      "default": "context",
+      "type": "string"
+    },
+    "state_path": {
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

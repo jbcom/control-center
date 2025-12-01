@@ -1,0 +1,108 @@
+{
+  "data": {
+    "aws_caller_identity": {
+      "current": {}
+    },
+    "aws_partition": {
+      "current": {}
+    },
+    "aws_region": {
+      "current": {}
+    }
+  },
+  "locals": {
+    "account_id": "${data.aws_caller_identity.current.account_id}",
+    "context": "${module.context.context}",
+    "environment": "compass",
+    "partition": "${data.aws_partition.current.partition}",
+    "region": "${data.aws_region.current.name}",
+    "rel_to_root": "../../../../..",
+    "root_dir": "./terraform/containers/compass",
+    "secrets_dir": "",
+    "stage": "${local.region}",
+    "use_local_secrets": false,
+    "vendors_data": "${module.vendors.credentials}",
+    "workspace_dir": "./terraform/containers/compass/system-resources/rpc-stg",
+    "workspace_name": "system-resources-rpc-stg",
+    "workspaces_dir": "./terraform/containers/compass/system-resources",
+    "workspaces_dir_name": "system-resources"
+  },
+  "module": {
+    "context": {
+      "config": {
+        "merge_records": [],
+        "record_directories": {},
+        "state_key": "context",
+        "state_path": "terraform/state/compass/workspaces/generator/terraform.tfstate"
+      },
+      "environment": "${local.environment}",
+      "rel_to_root": "${local.rel_to_root}",
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/utils/context",
+      "stage": "${local.stage}",
+      "tags": {
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Terraform": "terraform"
+      }
+    },
+    "vendors": {
+      "mount_point": "admin/secret",
+      "path": "vendors",
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/vault/vault-get-vault-secret",
+      "use_local_repo": false
+    }
+  },
+  "provider": {
+    "aws": [
+      {
+        "assume_role": {
+          "role_arn": "arn:aws:iam::957136710666:role/AWSControlTowerExecution"
+        },
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    ],
+    "awsutils": [
+      {
+        "assume_role": {
+          "role_arn": "arn:aws:iam::957136710666:role/AWSControlTowerExecution"
+        },
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    ]
+  },
+  "terraform": {
+    "required_providers": {
+      "assert": {
+        "source": "bwoznicki/assert",
+        "version": "<= 0.0.1"
+      },
+      "aws": {
+        "source": "hashicorp/aws",
+        "version": "<= 5.16.2"
+      },
+      "awsutils": {
+        "source": "cloudposse/awsutils",
+        "version": "<= 0.16.0"
+      },
+      "json-formatter": {
+        "source": "TheNicholi/json-formatter",
+        "version": "<= 0.1.1"
+      },
+      "sops": {
+        "source": "lokkersp/sops",
+        "version": "<= 0.6.10"
+      },
+      "utils": {
+        "source": "cloudposse/utils",
+        "version": "<= 1.12.0"
+      }
+    },
+    "required_version": "~>1.6"
+  }
+}

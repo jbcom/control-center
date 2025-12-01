@@ -1,0 +1,17 @@
+# Suspended Organizational Unit
+name: "Suspended"
+description: "Accounts that have been suspended or are pending deletion"
+
+# Unit classifications for filtering and grouping
+classifications:
+  - "suspended"
+
+# Accounts in this unit (listed by logical name)
+accounts: {}
+
+# Policy assignments for this unit
+policy_assignments:
+  # Service control policies
+  service_control:
+    - "deny_leave_organization"
+    - "deny_all_access"

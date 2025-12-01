@@ -1,0 +1,104 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_aws_accounts"
+        ],
+        "query": {
+          "aws_organization_units": "${try(nonsensitive(base64encode(jsonencode(var.aws_organization_units))), base64encode(jsonencode(var.aws_organization_units)))}",
+          "caller_account_id": "${try(nonsensitive(var.caller_account_id), var.caller_account_id)}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "domains": "${try(nonsensitive(base64encode(jsonencode(var.domains))), base64encode(jsonencode(var.domains)))}",
+          "label_aws_accounts": "${try(nonsensitive(var.label_aws_accounts), var.label_aws_accounts)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "sort_by_name": "${try(nonsensitive(var.sort_by_name), var.sort_by_name)}",
+          "unhump_accounts": "${try(nonsensitive(var.unhump_accounts), var.unhump_accounts)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"accounts\"]))}"
+  },
+  "output": {
+    "accounts": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "aws_organization_units": {
+      "default": null,
+      "type": "any"
+    },
+    "caller_account_id": {
+      "default": null,
+      "type": "string"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "domains": {
+      "default": null,
+      "type": "any"
+    },
+    "label_aws_accounts": {
+      "default": false,
+      "type": "bool"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "sort_by_name": {
+      "default": false,
+      "type": "bool"
+    },
+    "unhump_accounts": {
+      "default": true,
+      "type": "bool"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}
