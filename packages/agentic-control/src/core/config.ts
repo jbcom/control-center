@@ -83,8 +83,8 @@ export interface AgenticConfig {
 // ============================================
 
 const DEFAULT_CONFIG: AgenticConfig = {
-  // AI model - uses Claude Sonnet as sensible default
-  defaultModel: "claude-sonnet-4-20250514",
+  // AI model - uses Claude 4 Opus as sensible default for Cursor
+  defaultModel: "claude-4-opus",
   logLevel: "info",
   verbose: false,
   // Cursor defaults
