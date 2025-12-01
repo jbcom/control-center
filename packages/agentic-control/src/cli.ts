@@ -10,7 +10,7 @@
 
 import { Command, Option, InvalidArgumentError } from "commander";
 import { spawnSync } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { writeFileSync, existsSync } from "node:fs";
 import { Fleet } from "./fleet/index.js";
 import { AIAnalyzer } from "./triage/index.js";
 import { HandoffManager } from "./handoff/index.js";
