@@ -13,6 +13,26 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
 
 The default `GH_TOKEN` does NOT have jbcom access. NEVER use bare `gh` commands for jbcom repos.
 
+## 🎛️ agentic-control Configuration
+
+This workspace uses `agentic-control` for fleet management and triage. Configuration is in `/workspace/agentic.config.json`:
+
+- **jbcom** repos → `GITHUB_JBCOM_TOKEN`
+- **** repos → `GITHUB_FSC_TOKEN`
+- **PR reviews** always use `GITHUB_JBCOM_TOKEN` for consistent identity
+
+Use the CLI:
+```bash
+# Check token status
+agentic tokens status
+
+# Spawn agent with explicit model
+agentic fleet spawn https://github.com/jbcom/repo "Task" --model claude-sonnet-4-20250514
+
+# Analyze a session
+agentic triage analyze bc-xxx-xxx -o report.md
+```
+
 ## 🚨 CRITICAL: Long-Running PR Workflow for Multi-Merge Sessions
 
 When a background agent needs to manage **multiple merges to main** and oversee **multiple CI runs**, you MUST use the following workflow pattern. Failure to do so will cause the background agent session to terminate prematurely when a PR is merged.
