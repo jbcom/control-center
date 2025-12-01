@@ -1,210 +1,216 @@
-# Ecosystem Repositories
+# Unified Control Center Ecosystem
 
-This control center manages the jbcom Python library ecosystem via **MONOREPO ARCHITECTURE**.
+This control center manages **TWO ecosystems** from a single repository:
 
----
-
-## 🏗️ ARCHITECTURE: All Code Lives Here
-
-**ALL Python ecosystem code is in `packages/` in this repository.**
-
-```
-jbcom-control-center/packages/
-├── extended-data-types/    → syncs to → jbcom/extended-data-types → PyPI
-├── lifecyclelogging/       → syncs to → jbcom/lifecyclelogging → PyPI
-├── directed-inputs-class/  → syncs to → jbcom/directed-inputs-class → PyPI
-└── vendor-connectors/      → syncs to → jbcom/vendor-connectors → PyPI
-```
-
-### Workflow
-1. **Edit** code in `packages/`
-2. **PR** to control-center main
-3. **Sync workflow** creates PRs in public repos
-4. **Merge** public PRs → CI → PyPI release
-
-### Why Monorepo
-- ✅ No cloning external repos
-- ✅ No GitHub API gymnastics
-- ✅ Single source of truth
-- ✅ Cross-package changes in ONE PR
-- ✅ Dependencies always aligned
+| Ecosystem | Path | Output |
+|-----------|------|--------|
+| **jbcom** | `packages/` | PyPI + npm |
+| **FlipsideCrypto** | `ecosystems/flipside-crypto/` | AWS/GCP infrastructure |
 
 ---
 
-## 📦 Package Details
+## 🏗️ ARCHITECTURE
 
-### 1. extended-data-types (FOUNDATION)
-**Location:** `packages/extended-data-types/`
-**PyPI:** `extended-data-types`
-**Public Repo:** `jbcom/extended-data-types`
-
-The foundation library - ALL other packages depend on this.
-
-**Provides:**
-- Re-exported libraries: `gitpython`, `inflection`, `lark`, `orjson`, `python-hcl2`, `ruamel.yaml`, `sortedcontainers`, `wrapt`
-- Utilities: `strtobool`, `strtopath`, `make_raw_data_export_safe`, `get_unique_signature`
-- Serialization: `decode_yaml`, `encode_yaml`, `decode_json`, `encode_json`
-- Collections: `flatten_map`, `filter_map`, and more
-
-**Rule:** Before adding ANY dependency to other packages, check if extended-data-types provides it.
-
-### 2. lifecyclelogging
-**Location:** `packages/lifecyclelogging/`
-**PyPI:** `lifecyclelogging`
-**Public Repo:** `jbcom/lifecyclelogging`
-
-Structured lifecycle logging with automatic sanitization.
-
-**Depends on:** extended-data-types
-
-### 3. directed-inputs-class
-**Location:** `packages/directed-inputs-class/`
-**PyPI:** `directed-inputs-class`
-**Public Repo:** `jbcom/directed-inputs-class`
-
-Declarative input validation and processing.
-
-**Depends on:** extended-data-types
-
-### 4. vendor-connectors
-**Location:** `packages/vendor-connectors/`
-**PyPI:** `vendor-connectors`
-**Public Repo:** `jbcom/vendor-connectors`
-
-Unified vendor connectors (AWS, GCP, GitHub, Slack, Vault, Zoom).
-
-**Depends on:** extended-data-types, lifecyclelogging, directed-inputs-class
+```
+jbcom-control-center/
+├── packages/                          # jbcom ecosystem
+│   ├── extended-data-types/           # → PyPI
+│   ├── lifecyclelogging/              # → PyPI
+│   ├── directed-inputs-class/         # → PyPI
+│   ├── python-terraform-bridge/       # → PyPI
+│   ├── vendor-connectors/             # → PyPI
+│   └── agentic-control/               # → npm
+│
+├── ecosystems/flipside-crypto/        # FlipsideCrypto ecosystem
+│   ├── terraform/
+│   │   ├── modules/                   # 100+ reusable modules
+│   │   └── workspaces/                # 44 live workspaces
+│   ├── sam/                           # AWS Lambda apps
+│   ├── lib/                           # Python libraries
+│   └── config/                        # State paths, pipelines
+│
+└── ECOSYSTEM.toml                     # Unified manifest
+```
 
 ---
 
-## 🔗 Dependency Chain
+## 📦 jbcom Packages
+
+### Python (PyPI)
+
+| Package | Description | Public Repo |
+|---------|-------------|-------------|
+| extended-data-types | Foundation utilities | jbcom/extended-data-types |
+| lifecyclelogging | Structured logging | jbcom/lifecyclelogging |
+| directed-inputs-class | Input validation | jbcom/directed-inputs-class |
+| python-terraform-bridge | Terraform utils | jbcom/python-terraform-bridge |
+| vendor-connectors | Cloud SDKs | jbcom/vendor-connectors |
+
+### Node.js (npm)
+
+| Package | Description | Public Repo |
+|---------|-------------|-------------|
+| agentic-control | Agent orchestration | jbcom/agentic-control |
+
+### Dependency Chain
 
 ```
-extended-data-types (FOUNDATION)
+extended-data-types (foundation)
 ├── lifecyclelogging
 ├── directed-inputs-class
-└── vendor-connectors (depends on BOTH)
-```
+├── python-terraform-bridge
+└── vendor-connectors (depends on all above)
 
-**Release Order:** Always release in this order:
-1. extended-data-types
-2. lifecyclelogging
-3. directed-inputs-class
-4. vendor-connectors
-
----
-
-## 🔧 Working With Packages
-
-### Edit Code
-```bash
-# Just edit files directly!
-vim packages/extended-data-types/src/extended_data_types/type_utils.py
-vim packages/vendor-connectors/pyproject.toml
-```
-
-### Run Tests
-```bash
-cd packages/extended-data-types && pip install -e ".[tests]" && pytest
-cd packages/lifecyclelogging && pip install -e ".[tests]" && pytest
-```
-
-### Align Dependencies
-```bash
-# Update version across all packages
-sed -i 's/extended-data-types>=.*/extended-data-types>=2025.11.200/' \
-  packages/*/pyproject.toml
-```
-
-### Create PR
-```bash
-git checkout -b fix/whatever
-git add -A && git commit -m "Fix: description"
-git push -u origin fix/whatever
-gh pr create --title "Fix: whatever"
+agentic-control (independent Node.js package)
 ```
 
 ---
 
-## 🔄 Sync Configuration
+## 🏢 FlipsideCrypto Infrastructure
 
-### Files
-- `packages/ECOSYSTEM.toml` - Source of truth
-- `.github/sync.yml` - What syncs where
-- `.github/workflows/sync-packages.yml` - Sync workflow
+### Terraform Modules (100+)
 
-### Triggers
-- Push to main with `packages/**` changes
-- Manual workflow dispatch
-- Release published
+| Category | Path | Count |
+|----------|------|-------|
+| AWS | `terraform/modules/aws/` | 70+ |
+| Google | `terraform/modules/google/` | 38 |
+| GitHub | `terraform/modules/github/` | 10+ |
+| Terraform | `terraform/modules/terraform/` | 5 |
 
-### Secret
-`CI_GITHUB_TOKEN` from Doppler - has write access to all jbcom repos
+### Terraform Workspaces (44)
+
+| Organization | Path | Count |
+|--------------|------|-------|
+| AWS | `terraform/workspaces/terraform-aws-organization/` | 37 |
+| Google | `terraform/workspaces/terraform-google-organization/` | 7 |
+
+### SAM Applications
+
+| App | Purpose |
+|-----|---------|
+| secrets-config | Secrets configuration |
+| secrets-merging | Secrets merging |
+| secrets-syncing | Secrets syncing |
+
+---
+
+## 🔑 Token Configuration
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": { "tokenEnvVar": "GITHUB_JBCOM_TOKEN" },
+      "FlipsideCrypto": { "tokenEnvVar": "GITHUB_FSC_TOKEN" }
+    },
+    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+  }
+}
+```
+
+**Token switching is automatic** via `agentic-control`.
+
+---
+
+## 🔄 Release Flow
+
+### Python Packages
+```
+Conventional commit → PSR version bump → PyPI publish → Public repo sync
+```
+
+### Node.js Package
+```
+Conventional commit → CI version bump → npm publish → Public repo sync
+```
+
+### Terraform
+```
+Edit → Plan → Apply (manual with appropriate credentials)
+```
+
+---
+
+## 🔧 Working With Each Ecosystem
+
+### jbcom Packages
+
+```bash
+# Edit
+vim packages/extended-data-types/src/extended_data_types/utils.py
+
+# Test
+tox -e extended-data-types
+
+# PR
+git checkout -b fix/something
+git commit -m "fix(edt): description"
+git push -u origin fix/something
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create
+```
+
+### FlipsideCrypto Infrastructure
+
+```bash
+# Navigate
+cd ecosystems/flipside-crypto/terraform/workspaces/terraform-aws-organization/security
+
+# Plan
+terraform plan
+
+# Apply (requires AWS credentials)
+terraform apply
+```
+
+### agentic-control
+
+```bash
+# Build
+cd packages/agentic-control && pnpm build
+
+# Test
+pnpm test
+
+# Use CLI
+agentic fleet list
+agentic triage analyze <session>
+```
 
 ---
 
 ## ⚠️ Rules
 
 ### DO
-- ✅ Edit code in `packages/` directly
-- ✅ Use regular git for this repo
-- ✅ Check `packages/ECOSYSTEM.toml` for relationships
-- ✅ Use extended-data-types utilities
-- ✅ Release in dependency order
+- ✅ Use `agentic-control` for cross-ecosystem operations
+- ✅ Let token switching happen automatically
+- ✅ Check `ECOSYSTEM.toml` for relationships
+- ✅ Use conventional commits with scopes
 
 ### DON'T
-- ❌ Clone external repos - code is HERE
-- ❌ Add duplicate utilities
-- ❌ Skip the sync workflow
-- ❌ Push directly to main (use PRs)
-
----
-
-## 🎯 Eliminate Duplication
-
-### Check Before Adding Dependencies
-Always check `packages/extended-data-types/pyproject.toml` first.
-
-### Red Flags
-- `utils.py` > 100 lines → duplicating extended-data-types
-- Direct `import inflection` → should use extended-data-types
-- Custom JSON/YAML functions → use `encode_json`, `decode_yaml`
-
-### Correct Pattern
-```python
-# ✅ Use foundation library
-from extended_data_types import strtobool, make_raw_data_export_safe
-
-# ❌ Don't reimplement
-def my_str_to_bool(val):
-    return val.lower() in ("true", "yes", "1")
-```
+- ❌ Hardcode tokens
+- ❌ Mix ecosystem concerns in single commits
+- ❌ Push directly to main
+- ❌ Modify Terraform state manually
 
 ---
 
 ## 📊 Health Checks
 
-### Check Public Repo CI
 ```bash
-for repo in extended-data-types lifecyclelogging directed-inputs-class vendor-connectors; do
-  gh run list --repo jbcom/$repo --limit 3
+# Check Python packages
+for pkg in extended-data-types lifecyclelogging directed-inputs-class vendor-connectors; do
+  GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/$pkg --limit 1
 done
-```
 
-### Check PyPI Versions
-```bash
-pip index versions extended-data-types
-pip index versions lifecyclelogging
-pip index versions vendor-connectors
-```
+# Check agentic-control
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/agentic-control --limit 1
 
-### Trigger Manual Sync
-```bash
-gh workflow run "Sync Packages to Public Repos" --repo jbcom/jbcom-control-center
+# Check agent fleet
+agentic fleet list --running
 ```
 
 ---
 
-**Source of Truth:** `packages/ECOSYSTEM.toml`
-**All code is in:** `packages/`
-**Sync handles:** Pushing to public repos and PyPI
+**Manifest:** `ECOSYSTEM.toml`
+**Agent Config:** `agentic.config.json`
+**Token Docs:** `docs/TOKEN-MANAGEMENT.md`
