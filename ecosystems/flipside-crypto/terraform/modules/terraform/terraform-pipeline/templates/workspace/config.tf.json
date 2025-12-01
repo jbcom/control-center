@@ -1,0 +1,39 @@
+{
+  "terraform": {
+%{ if disable_backend ~}
+    "required_version": "~>${terraform_major_minor_version}"
+%{ else ~}
+    "required_version": "~>${terraform_major_minor_version}",
+    "backend": {
+      "s3": {
+        "bucket": "${backend_bucket_name}",
+        "dynamodb_table": "${backend_dynamodb_table}",
+        "encrypt": true,
+        "key": "${backend_bucket_workspaces_path}/${backend_workspace_name}/terraform.tfstate",
+        "region": "${backend_region}",
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true,
+        "skip_credentials_validation": true
+      }
+    }
+%{ endif ~}
+  },
+  "data": {
+    "aws_region": {
+      "current": {}
+    },
+    "aws_caller_identity": {
+      "current": {}
+    },
+    "aws_partition": {
+      "current": {}
+    }
+  },
+  "locals": {
+    "rel_to_root": "${rel_to_root}",
+    "workspace_name": "${workspace_name}",
+    "region": "$${data.aws_region.current.name}",
+    "account_id": "$${data.aws_caller_identity.current.account_id}",
+    "partition": "$${data.aws_partition.current.partition}"
+  }
+}

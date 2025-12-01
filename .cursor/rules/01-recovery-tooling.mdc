@@ -1,0 +1,93 @@
+---
+alwaysApply: true
+description: CRITICAL - Agent recovery and conversation replay tooling
+globs: ["**/*"]
+priority: 0
+---
+
+# 🚨 RECOVERY TOOLING - READ THIS FIRST
+
+## The Problem You Will Face
+
+Previous agent sessions contain CRITICAL context. You MUST be able to:
+1. Find previous agent conversations
+2. Replay them into memory bank
+3. Recover lost work
+
+## Your Tooling Location
+
+```
+/workspace/scripts/replay_agent_session.py   # Replay conversations
+/workspace/.cursor/scripts/agent-triage-local # Triage failed agents
+/workspace/.cursor/recovery/                  # Recovery data storage
+/workspace/docs/AGENT-RECOVERY-TOOLING.md    # Full documentation
+```
+
+## How to Get Previous Agent Conversations
+
+### Method 1: cursor-agents CLI (if available)
+```bash
+cursor-agents conversation <agent-id> > /workspace/.cursor/recovery/<agent-id>/conversation.json
+```
+
+### Method 2: If cursor-agents doesn't exist (COMMON)
+```bash
+# The CLI may not be installed. You need to:
+# 1. ASK THE USER for the conversation export
+# 2. Or check if there's a recovery file already:
+ls -la /workspace/.cursor/recovery/
+cat /workspace/.cursor/recovery/*/conversation.json
+```
+
+### Method 3: Check for existing recovery data
+```bash
+# Previous agents may have left recovery data
+find /workspace -name "conversation.json" -o -name "*recovery*" -o -name "*handoff*" 2>/dev/null
+```
+
+## When User Says "Recover Agent X" or "Replay Session"
+
+IMMEDIATELY do this:
+```bash
+# 1. Check if conversation exists
+AGENT_ID="<the-id-user-gave>"
+CONV_FILE="/workspace/.cursor/recovery/$AGENT_ID/conversation.json"
+
+if [ -f "$CONV_FILE" ]; then
+  # Replay it
+  python /workspace/scripts/replay_agent_session.py --conversation "$CONV_FILE"
+else
+  # ASK USER: "I need the conversation JSON for agent $AGENT_ID. 
+  # Please export it from Cursor and provide the file or paste the contents."
+fi
+```
+
+## If You Cannot Find The Tooling
+
+**STOP AND TELL THE USER:**
+```
+I cannot find the recovery tooling at:
+- /workspace/scripts/replay_agent_session.py
+- /workspace/.cursor/scripts/agent-triage-local
+
+This tooling should exist. Either:
+1. It needs to be copied from jbcom-control-center
+2. The environment is misconfigured
+3. I need instructions on where it is
+
+Please help me locate or install the recovery tooling.
+```
+
+## DO NOT
+
+- ❌ Proceed without recovery tooling when user asks for recovery
+- ❌ Assume cursor-agents CLI exists
+- ❌ Ignore requests to replay/recover sessions
+- ❌ Keep going when you can't find your tools
+
+## DO
+
+- ✅ Check for tooling FIRST
+- ✅ Ask user for help if tooling missing
+- ✅ Stop and address the problem
+- ✅ Report what you cannot find

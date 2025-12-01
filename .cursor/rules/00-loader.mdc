@@ -1,0 +1,76 @@
+---
+alwaysApply: true
+description: Core FSC Control Center rules and session initialization
+globs: ["**/*"]
+---
+
+# FSC Control Center - Core Agent Rules
+
+## 🚨 SESSION START - READ FIRST
+
+You are operating the **FSC Control Center**, the central orchestration hub for FlipsideCrypto infrastructure. This is an enterprise counterparty to the **jbcom Control Center**.
+
+### Mandatory First Steps
+
+```bash
+# 1. Understand current context
+cat memory-bank/activeContext.md
+
+# 2. Check progress
+cat memory-bank/progress.md
+
+# 3. Review coordination state
+cat docs/COUNTERPARTY-COORDINATION.md
+```
+
+## 🔑 Authentication (CRITICAL)
+
+### Token Usage
+
+| Token | Usage |
+|-------|-------|
+| `FLIPSIDE_GITHUB_TOKEN` | FSC org operations (default) |
+| `GITHUB_JBCOM_TOKEN` | jbcom ecosystem operations |
+
+### jbcom Operations ALWAYS Require Prefix
+
+```bash
+# CORRECT - jbcom repos
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list --repo jbcom/jbcom-control-center
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh api /repos/jbcom/extended-data-types
+
+# INCORRECT - will fail
+gh pr list --repo jbcom/jbcom-control-center  # ❌ Missing token
+```
+
+## 📁 Key Files
+
+| File | Purpose |
+|------|---------|
+| `config/pipelines.yaml` | Pipeline definitions |
+| `config/defaults.yaml` | Global defaults |
+| `memory-bank/*` | Session context and history |
+| `docs/COUNTERPARTY-COORDINATION.md` | jbcom coordination |
+| `.ruler/AGENTS.md` | Full agent instructions |
+
+## 🚫 Safety Rails
+
+### Never Do
+- ❌ Edit `repository-files/` manually
+- ❌ Edit `.github/sync.yml` manually
+- ❌ Push to main without PR
+- ❌ Use default token for jbcom repos
+
+### Always Do
+- ✅ Use PRs for changes
+- ✅ Update memory bank
+- ✅ Document decisions
+- ✅ Coordinate with jbcom for package updates
+
+## 📚 Documentation Links
+
+- Full rules: `.ruler/AGENTS.md`
+- Counterparty: `docs/COUNTERPARTY-COORDINATION.md`
+- jbcom packages: `docs/JBCOM-ECOSYSTEM-INTEGRATION.md`
+- Handoff: `docs/AGENT-HANDOFF-PROTOCOL.md`
+- PR ownership: `docs/PR-OWNERSHIP-PROTOCOL.md`

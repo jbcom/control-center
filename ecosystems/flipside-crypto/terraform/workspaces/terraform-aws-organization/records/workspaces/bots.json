@@ -1,0 +1,84 @@
+{
+  "admin_bot_users": [
+    "arn:aws:iam::862006574860:user/external-ci-bot",
+    "arn:aws:iam::862006574860:role/github-20230523144038950100000002"
+  ],
+  "bots": {
+    "external_ci": {
+      "docs": {
+        "columns": {
+          "arn": [
+            "arn:aws:iam::862006574860:user/external-ci-bot"
+          ],
+          "name": [
+            "external-ci-bot"
+          ],
+          "parameters": [
+            "<ul>\n<li>/bots/external-ci-bot/access_key</li>\n<li>/bots/external-ci-bot/secret_access_key</li>\n<li>/bots/external-ci-bot/ssh_private_key</li>\n<li>/bots/external-ci-bot/ssh_public_key</li>\n</ul>\n"
+          ]
+        },
+        "order": [
+          "name",
+          "arn",
+          "parameters"
+        ]
+      },
+      "eks_user": [
+        {
+          "groups": [
+            "system:masters"
+          ],
+          "userarn": "arn:aws:iam::862006574860:user/external-ci-bot",
+          "username": "external-ci-bot"
+        }
+      ],
+      "keybase_password_decrypt_command": "echo \"wcFMA0Rjjwyd4AmqARAAr96H49aJJSu8aopbN9cKci7QURHCGy/dFtWwZNj017E4Bv6yRiziXzlCWBGwEIYMtDLH2xyIYy0E8Wb+lY4T1+9sb6K8AVb3yzXWSYQCdShf9NTh3GtFSjkZKOsGD5z+qqgeyJ0mA2LVmZ11+BubsRLRpXX/sQT/Z9To9eEcqmSd154e4Hzn/VDqXdTn2JPN4nH/DYKurtNxnr3CMIoiu0hxI2c1hPPjHAOxw+tHw9RTyq/JIT93K/wAGgkjDEbnaLTqhpOqFF3gMBMFYKitKVILoFlZLngtTplA0bwOLjcYXsCwo71cnk+zvr9a1Rvkaf+jP2tMMBBrsZocuPQD6zO10upaGYsfSXrMYgIlRxs5L6B6c1yAUxvUFsU1zFixXQYq9kKEy2SeNAsd86C1bwaYBrBPw4GH3VhYgWYb/0Hj5/IyAF+vH/Xeg77q6lOcsy3VozTmq0MuCOS2pLfaNMl7HcO2sh2K1V0yxw20Xgq3uINFiSM/KIyKsMOVNeBk4Ov4i/JsWBhEE8mXwAM1RldWBzkWHsOrab76XBErKw9KxNpNN5YhUpEl5n6dhHn2YHyYvljJlWKXEg2osr3MhMHZDpN5M2WnLg/K+z/3kBvEYBMH9HPIV0h1GxrEKOUziMVoZvHOqnucNnqMrJ+rshMqQOVp/MPownEat3pwqOnSSQFuKZlF/rVZ4MBplbCB6TPmcSUZwuxLrH7l5KiDIt+ns+ep+H794bvSpTtulK+A/SVmdrGiRey5YuG1cfPFcOaEN2JPBueI56w=\" | base64 --decode | keybase pgp decrypt",
+      "keybase_password_pgp_message": "-----BEGIN PGP MESSAGE-----\nVersion: Keybase OpenPGP v2.0.76\nComment: https://keybase.io/crypto\nwcFMA0Rjjwyd4AmqARAAr96H49aJJSu8aopbN9cKci7QURHCGy/dFtWwZNj017E4Bv6yRiziXzlCWBGwEIYMtDLH2xyIYy0E8Wb+lY4T1+9sb6K8AVb3yzXWSYQCdShf9NTh3GtFSjkZKOsGD5z+qqgeyJ0mA2LVmZ11+BubsRLRpXX/sQT/Z9To9eEcqmSd154e4Hzn/VDqXdTn2JPN4nH/DYKurtNxnr3CMIoiu0hxI2c1hPPjHAOxw+tHw9RTyq/JIT93K/wAGgkjDEbnaLTqhpOqFF3gMBMFYKitKVILoFlZLngtTplA0bwOLjcYXsCwo71cnk+zvr9a1Rvkaf+jP2tMMBBrsZocuPQD6zO10upaGYsfSXrMYgIlRxs5L6B6c1yAUxvUFsU1zFixXQYq9kKEy2SeNAsd86C1bwaYBrBPw4GH3VhYgWYb/0Hj5/IyAF+vH/Xeg77q6lOcsy3VozTmq0MuCOS2pLfaNMl7HcO2sh2K1V0yxw20Xgq3uINFiSM/KIyKsMOVNeBk4Ov4i/JsWBhEE8mXwAM1RldWBzkWHsOrab76XBErKw9KxNpNN5YhUpEl5n6dhHn2YHyYvljJlWKXEg2osr3MhMHZDpN5M2WnLg/K+z/3kBvEYBMH9HPIV0h1GxrEKOUziMVoZvHOqnucNnqMrJ+rshMqQOVp/MPownEat3pwqOnSSQFuKZlF/rVZ4MBplbCB6TPmcSUZwuxLrH7l5KiDIt+ns+ep+H794bvSpTtulK+A/SVmdrGiRey5YuG1cfPFcOaEN2JPBueI56w=\n-----END PGP MESSAGE-----\n",
+      "parameters": {
+        "access_key": "/bots/external-ci-bot/access_key",
+        "secret_access_key": "/bots/external-ci-bot/secret_access_key",
+        "ssh_private_key": "/bots/external-ci-bot/ssh_private_key",
+        "ssh_public_key": "/bots/external-ci-bot/ssh_public_key"
+      },
+      "user_arn": "arn:aws:iam::862006574860:user/external-ci-bot",
+      "user_name": "external-ci-bot"
+    },
+    "grafana_cloudwatch": {
+      "docs": {
+        "columns": {
+          "arn": [
+            "arn:aws:iam::862006574860:user/grafana-cloudwatch-bot"
+          ],
+          "name": [
+            "grafana-cloudwatch-bot"
+          ],
+          "parameters": [
+            "<ul>\n<li>/bots/grafana-cloudwatch-bot/access_key</li>\n<li>/bots/grafana-cloudwatch-bot/secret_access_key</li>\n</ul>\n"
+          ]
+        },
+        "order": [
+          "name",
+          "arn",
+          "parameters"
+        ]
+      },
+      "eks_user": [
+        {
+          "groups": [
+            "system:masters"
+          ],
+          "userarn": "arn:aws:iam::862006574860:user/grafana-cloudwatch-bot",
+          "username": "grafana-cloudwatch-bot"
+        }
+      ],
+      "keybase_password_decrypt_command": "",
+      "keybase_password_pgp_message": "",
+      "parameters": {
+        "access_key": "/bots/grafana-cloudwatch-bot/access_key",
+        "secret_access_key": "/bots/grafana-cloudwatch-bot/secret_access_key"
+      },
+      "user_arn": "arn:aws:iam::862006574860:user/grafana-cloudwatch-bot",
+      "user_name": "grafana-cloudwatch-bot"
+    }
+  }
+}

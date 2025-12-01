@@ -1,0 +1,107 @@
+{
+  "data": {
+    "env_sensitive": {
+      "GOOGLE_SERVICE_ACCOUNT": {
+        "id": "GOOGLE_SERVICE_ACCOUNT",
+        "required": true
+      }
+    }
+  },
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli create_google_user",
+              "environment": {
+                "GOOGLE_SERVICE_ACCOUNT": "${data.env_sensitive.GOOGLE_SERVICE_ACCOUNT.value}",
+                "checksum": "${self.triggers_replace.checksum}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "exit_on_completion": "${self.triggers_replace.exit_on_completion}",
+                "family_name": "${self.triggers_replace.family_name}",
+                "given_name": "${self.triggers_replace.given_name}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "params": "${self.triggers_replace.params}",
+                "primary_email": "${self.triggers_replace.primary_email}",
+                "user_password": "${self.triggers_replace.user_password}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "exit_on_completion": "${try(nonsensitive(var.exit_on_completion), var.exit_on_completion)}",
+          "family_name": "${try(nonsensitive(var.family_name), var.family_name)}",
+          "given_name": "${try(nonsensitive(var.given_name), var.given_name)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "primary_email": "${try(nonsensitive(var.primary_email), var.primary_email)}",
+          "user_password": "${try(nonsensitive(var.user_password), var.user_password)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "exit_on_completion": {
+      "default": true,
+      "type": "bool"
+    },
+    "family_name": {
+      "type": "string"
+    },
+    "given_name": {
+      "type": "string"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "primary_email": {
+      "type": "string"
+    },
+    "user_password": {
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

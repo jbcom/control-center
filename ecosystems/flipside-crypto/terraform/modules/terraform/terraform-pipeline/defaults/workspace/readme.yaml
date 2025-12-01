@@ -1,0 +1,33 @@
+tags:
+  - aws
+  - terraform
+  - terraform-workspaces
+categories:
+  - terraform-modules/supported
+license: APACHE2
+include:
+  - docs/targets.md
+  - docs/terraform.md
+contributors:
+  - name: Erik Osterman
+    github: osterman
+  - name: Andriy Knysh
+    github: aknysh
+  - name: Igor Rodionov
+    github: goruha
+  - name: Sergey Vasilyev
+    github: s2504s
+  - name: Michael Pereira
+    github: MichaelPereira
+  - name: Jamie Nelson
+    github: Jamie-BitFlight
+  - name: Vladimir
+    github: SweetOps
+  - name: Daren Desjardins
+    github: darend
+  - name: Maarten van der Hoef
+    github: maartenvanderhoef
+  - name: Adam Tibbing
+    github: tibbing
+  - name: Yonatan Koren
+    github: korenyoni

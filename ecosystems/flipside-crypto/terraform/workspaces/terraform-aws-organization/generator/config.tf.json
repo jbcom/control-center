@@ -1,0 +1,117 @@
+{
+  "data": {
+    "aws_caller_identity": {
+      "current": {}
+    },
+    "aws_partition": {
+      "current": {}
+    },
+    "aws_region": {
+      "current": {}
+    },
+    "doppler_secrets": {
+      "vendors": {
+        "config": "ops",
+        "project": "it"
+      }
+    }
+  },
+  "locals": {
+    "account_id": "${data.aws_caller_identity.current.account_id}",
+    "context": "${module.context.context}",
+    "environment": "global",
+    "label_key_case": "title",
+    "partition": "${data.aws_partition.current.partition}",
+    "pipeline_config": "${try(jsondecode(file(\"${path.module}/files/pipeline_config.json\")), {})}",
+    "region": "${data.aws_region.current.name}",
+    "rel_to_root": "../..",
+    "root_dir": ".",
+    "secrets_kms_key_arn": "",
+    "stage": "${local.region}",
+    "use_local_secrets": false,
+    "vendor_secrets_dir": "",
+    "vendors_data": "${zipmap([for k in keys(data.doppler_secrets.vendors.map) : lower(k)], values(data.doppler_secrets.vendors.map))}",
+    "workspace_dir": "./workspaces/generator",
+    "workspace_name": "generator",
+    "workspace_secrets_dir": "secrets",
+    "workspaces_dir": "./workspaces",
+    "workspaces_dir_name": "workspaces"
+  },
+  "module": {
+    "context": {
+      "config": {
+        "config_dir": "config",
+        "config_dirs": [],
+        "merge_records": [],
+        "record_directories": {},
+        "state_key": "context",
+        "state_path": "terraform/state/terraform-organization/workspaces/generator/terraform.tfstate"
+      },
+      "environment": "${local.environment}",
+      "label_key_case": "${local.label_key_case}",
+      "ordered_parent_config_dirs_merge": null,
+      "ordered_parent_records_merge": null,
+      "ordered_parent_sources_merge": null,
+      "parent_config_dirs": [],
+      "parent_records": [],
+      "source": "git@github.com:FlipsideCrypto/terraform-modules.git//utils/context",
+      "stage": "${local.stage}",
+      "tags": {
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Terraform": "terraform"
+      }
+    }
+  },
+  "provider": {
+    "aws": [
+      {
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    ],
+    "googleworkspace": {
+      "credentials": "${local.vendors_data.google_service_account}",
+      "customer_id": "C00m3i1uh",
+      "impersonated_user_email": "internal-tooling-bot@flipsidecrypto.com",
+      "oauth_scopes": [
+        "https://www.googleapis.com/auth/admin.directory.user",
+        "https://www.googleapis.com/auth/admin.directory.userschema",
+        "https://www.googleapis.com/auth/admin.directory.group",
+        "https://www.googleapis.com/auth/admin.directory.orgunit",
+        "https://www.googleapis.com/auth/apps.groups.settings"
+      ]
+    }
+  },
+  "terraform": {
+    "backend": {
+      "s3": {
+        "bucket": "flipside-crypto-internal-tooling",
+        "dynamodb_table": "internal-tooling-terraform-state",
+        "encrypt": true,
+        "key": "terraform/state/terraform-aws-organization/workspaces/generator/terraform.tfstate",
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    },
+    "required_providers": {
+      "aws": {
+        "source": "hashicorp/aws",
+        "version": "<= 6.12.0"
+      },
+      "doppler": {
+        "source": "DopplerHQ/doppler",
+        "version": "<= 1.21.0"
+      },
+      "googleworkspace": {
+        "source": "hashicorp/googleworkspace",
+        "version": "<= 0.7.0"
+      }
+    },
+    "required_version": "~>1.13"
+  }
+}

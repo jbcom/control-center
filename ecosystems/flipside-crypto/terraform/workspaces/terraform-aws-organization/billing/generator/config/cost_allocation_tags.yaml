@@ -1,0 +1,64 @@
+# Cost Allocation Tags Configuration
+
+# Direct application tags
+direct:
+  aws-chalice:
+    description: "AWS Chalice application tag"
+    status: "Active"
+  Environment:
+    description: "Environment tag (prod, staging, dev)"
+    status: "Active"
+  Owner:
+    description: "Resource owner"
+    status: "Active"
+  Project:
+    description: "Project identifier"
+    status: "Active"
+  CostCenter:
+    description: "Cost center for billing allocation"
+    status: "Active"
+  Application:
+    description: "Application identifier"
+    status: "Active"
+
+# System and framework tags
+system:
+  cloudformation:
+    prefix: "aws:cloudformation"
+    tags:
+      logical-id:
+        description: "CloudFormation logical ID"
+        status: "Active"
+      stack-id:
+        description: "CloudFormation stack ID" 
+        status: "Active"
+      stack-name:
+        description: "CloudFormation stack name"
+        status: "Active"
+  terraform:
+    prefix: "terraform"
+    tags:
+      workspace:
+        description: "Terraform workspace"
+        status: "Active"
+      environment:
+        description: "Deployment environment"
+        status: "Active"
+  autoscaling:
+    prefix: "aws:autoscaling"
+    tags:
+      groupName:
+        description: "Auto Scaling group name"
+        status: "Active"
+  elasticbeanstalk:
+    prefix: "aws:elasticbeanstalk"
+    tags:
+      environment-name:
+        description: "Elastic Beanstalk environment name"
+        status: "Active"
+  lambda:
+    prefix: "lambda"
+    tags:
+      function-name:
+        description: "Lambda function name"
+        status: "Active" 

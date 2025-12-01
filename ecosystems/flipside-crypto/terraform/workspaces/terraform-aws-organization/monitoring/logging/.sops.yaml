@@ -1,0 +1,3 @@
+"creation_rules":
+- "kms": "arn:aws:kms:us-east-1:862006574860:key/ec033500-c790-4c62-9a2e-c1daf091041d"
+  "path_regex": "secrets/.*"

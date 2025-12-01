@@ -1,0 +1,88 @@
+{
+  "category": "aws_components",
+  "file_base_path": ".",
+  "kms": {
+    "enabled": false,
+    "generated_kms_key_arn": "arn:aws:kms:us-east-1:862006574860:alias/datadog",
+    "managed": true
+  },
+  "pipeline_name": "datadog",
+  "terraform": {
+    "backend": {
+      "backend_bucket_name": "flipside-crypto-internal-tooling",
+      "backend_bucket_workspaces_path": "terraform/state/terraform-datadog-monitoring/workspaces",
+      "backend_dynamodb_table": "internal-tooling-terraform-state",
+      "backend_region": "us-east-1"
+    },
+    "context": {
+      "environment": "global"
+    },
+    "data_sinks": [],
+    "enabled": true,
+    "generator": {
+      "workflow": {
+        "enable": false,
+        "events": {
+          "pull_request": false,
+          "push": true
+        },
+        "release": {
+          "publish": true
+        },
+        "workflow_name": "generator"
+      },
+      "workspace": {
+        "backend_bucket_name": "flipside-crypto-internal-tooling",
+        "backend_bucket_workspaces_path": "terraform/state/terraform-datadog-monitoring/workspaces",
+        "backend_dynamodb_table": "internal-tooling-terraform-state",
+        "backend_region": "us-east-1",
+        "bind_to_context": {
+          "environment": "global",
+          "state_path": "terraform/state/terraform-aws-networks/workspaces/aggregator/terraform.tfstate"
+        },
+        "dependencies": [],
+        "job_name": "generator",
+        "local_modules_dir": "modules",
+        "python_version": "3.12.1",
+        "root_dir": "./workspaces/aws/components",
+        "secrets_kms_key_arn": "",
+        "terraform_version": "1.11.1",
+        "use_local_modules": true,
+        "vendor_secrets_dir": "secrets",
+        "workspace_branch": "main",
+        "workspace_dir": "datadog",
+        "workspace_name": "generator"
+      }
+    },
+    "isolated": false,
+    "region": "us-east-1",
+    "workflow": {
+      "enable": false,
+      "events": {
+        "pull_request": false,
+        "push": false,
+        "release": true
+      },
+      "workflow_name": "datadog"
+    },
+    "workspace": {
+      "backend_bucket_name": "flipside-crypto-internal-tooling",
+      "backend_bucket_workspaces_path": "terraform/state/terraform-datadog-monitoring/workspaces",
+      "backend_dynamodb_table": "internal-tooling-terraform-state",
+      "backend_region": "us-east-1",
+      "bind_to_context": {
+        "environment": "global",
+        "state_path": "terraform/state/terraform-datadog-monitoring/workspaces/generator/terraform.tfstate"
+      },
+      "local_modules_dir": "modules",
+      "python_version": "3.12.1",
+      "root_dir": "./workspaces/aws/components",
+      "secrets_kms_key_arn": "",
+      "terraform_version": "1.11.1",
+      "use_local_modules": true,
+      "vendor_secrets_dir": "secrets",
+      "workspace_branch": "main",
+      "workspace_dir": "datadog"
+    }
+  }
+}

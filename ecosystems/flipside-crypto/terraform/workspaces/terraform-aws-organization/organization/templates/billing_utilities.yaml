@@ -1,0 +1,297 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Comprehensive AWS billing utilities for cost management and IAM permissions
+
+Parameters:
+  ManagementAccountId:
+    Type: String
+    Description: AWS Account ID of the organization's management account
+  
+  OrganizationId:
+    Type: String
+    Description: AWS Organization ID
+  
+  MigrationRoleName:
+    Type: String
+    Default: BillingUtilitiesRole
+    Description: Name of the IAM role to create for billing utilities
+  
+  LambdaFunctionName:
+    Type: String
+    Default: BillingUtilitiesFunction
+    Description: Name of the Lambda function to create
+  
+  ScheduleExpression:
+    Type: String
+    Default: rate(30 days)
+    Description: Schedule expression for running the utilities (CloudWatch Events)
+  
+  EnableAutoUpdates:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Enable automatic updates of policies (true) or run in scan-only mode (false)
+  
+  IncludeBillingConductor:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Include AWS Billing Conductor specific permission mappings
+  
+  IncludeCUR:
+    Type: String
+    Default: 'true'
+    AllowedValues: ['true', 'false']
+    Description: Include Cost and Usage Report specific permission mappings
+  
+  CURBucketPrefix:
+    Type: String
+    Default: fsc-cur
+    Description: Prefix for CUR bucket names
+    
+  CentralCURBucket:
+    Type: String
+    Description: Name of the central CUR bucket in the management account
+    
+  LambdaCode:
+    Type: String
+    Description: Python code for the Lambda function
+
+Resources:
+  BillingUtilitiesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref MigrationRoleName
+      Description: IAM role for billing utilities automation
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub 'arn:${AWS::Partition}:iam::${ManagementAccountId}:root'
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals:
+                aws:PrincipalOrgID: !Ref OrganizationId
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: BillingUtilitiesPermissions
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iam:GetAccountAuthorizationDetails
+                  - iam:GetPolicy
+                  - iam:GetPolicyVersion
+                  - iam:GetUserPolicy
+                  - iam:GetGroupPolicy
+                  - iam:GetRolePolicy
+                  - iam:CreatePolicyVersion
+                  - iam:DeletePolicyVersion
+                  - iam:PutUserPolicy
+                  - iam:PutGroupPolicy
+                  - iam:PutRolePolicy
+                  - iam:SetDefaultPolicyVersion
+                  - iam:ListPolicyVersions
+                  - iam:ListRoles
+                  - iam:ListUsers
+                  - iam:ListGroups
+                  - iam:ListPolicies
+                  - cur:DescribeReportDefinitions
+                  - cur:PutReportDefinition
+                  - billingconductor:ListBillingGroups
+                  - billingconductor:ListPricingPlans
+                  - billingconductor:ListPricingRules
+                  - support:CreateCase
+                  - support:DescribeCases
+                  - s3:CreateBucket
+                  - s3:PutBucketPolicy
+                  - s3:PutBucketEncryption
+                  - s3:PutLifecycleConfiguration
+                  - s3:PutBucketVersioning
+                  - s3:PutBucketReplication
+                  - s3:GetReplicationConfiguration
+                  - s3:HeadBucket
+                  - s3:PutObject
+                  - s3:GetObject
+                  - s3:ListBucket
+                  - iam:CreateRole
+                  - iam:PutRolePolicy
+                  - iam:PassRole
+                  - events:PutEvents
+                Resource: '*'
+      Tags:
+        - Key: Purpose
+          Value: BillingUtilities
+        - Key: ManagedBy
+          Value: CloudFormation
+
+  # IAM role for S3 replication
+  CURReplicationRole:
+    Type: AWS::IAM::Role
+    Condition: CreateCURResources
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: s3.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: CURReplicationPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:GetReplicationConfiguration
+                  - s3:ListBucket
+                Resource:
+                  - !Sub 'arn:aws:s3:::${CURBucketPrefix}-${AWS::AccountId}'
+              - Effect: Allow
+                Action:
+                  - s3:GetObjectVersion
+                  - s3:GetObjectVersionAcl
+                  - s3:GetObjectVersionTagging
+                  - s3:GetObjectRetention
+                  - s3:GetObjectLegalHold
+                Resource:
+                  - !Sub 'arn:aws:s3:::${CURBucketPrefix}-${AWS::AccountId}/*'
+              - Effect: Allow
+                Action:
+                  - s3:ReplicateObject
+                  - s3:ReplicateDelete
+                  - s3:ReplicateTags
+                Resource:
+                  - !Sub 'arn:aws:s3:::${CentralCURBucket}/organization/${OrganizationId}/${AWS::AccountId}/*'
+
+  # S3 bucket for member account CUR data
+  CURBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateCURResources
+    DeletionPolicy: Retain
+    Properties:
+      BucketName: !Sub '${CURBucketPrefix}-${AWS::AccountId}'
+      VersioningConfiguration:
+        Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      ReplicationConfiguration:
+        Role: !GetAtt CURReplicationRole.Arn
+        Rules:
+          - Status: Enabled
+            Destination:
+              Bucket: !Sub 'arn:aws:s3:::${CentralCURBucket}'
+              StorageClass: STANDARD
+              EncryptionConfiguration:
+                ReplicaKmsKeyID: aws:kms:us-east-1:${ManagementAccountId}:alias/aws/s3
+            Prefix: !Sub 'organization/${OrganizationId}/${AWS::AccountId}/'
+            Priority: 1
+
+  # CUR bucket policy allowing AWS report delivery
+  CURBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: CreateCURResources
+    Properties:
+      Bucket: !Ref CURBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action:
+              - s3:GetBucketAcl
+              - s3:GetBucketPolicy
+            Resource: !Sub 'arn:aws:s3:::${CURBucketPrefix}-${AWS::AccountId}'
+          - Effect: Allow
+            Principal:
+              Service: billingreports.amazonaws.com
+            Action: s3:PutObject
+            Resource: !Sub 'arn:aws:s3:::${CURBucketPrefix}-${AWS::AccountId}/*'
+
+  BillingUtilitiesFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Ref LambdaFunctionName
+      Handler: index.handler
+      Role: !GetAtt BillingUtilitiesRole.Arn
+      Runtime: python3.9
+      Timeout: 300
+      MemorySize: 512
+      Environment:
+        Variables:
+          MANAGEMENT_ACCOUNT_ID: !Ref ManagementAccountId
+          ENABLE_AUTO_UPDATES: !Ref EnableAutoUpdates
+          MIGRATION_ROLE_NAME: !Ref MigrationRoleName
+          INCLUDE_BILLING_CONDUCTOR: !Ref IncludeBillingConductor
+          INCLUDE_CUR: !Ref IncludeCUR
+          ORGANIZATION_ID: !Ref OrganizationId
+          CUR_BUCKET_PREFIX: !Ref CURBucketPrefix
+          CENTRAL_CUR_BUCKET: !Ref CentralCURBucket
+      Code:
+        ZipFile: !Ref LambdaCode
+      Tags:
+        - Key: Purpose
+          Value: BillingUtilities
+
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: Scheduled rule to run billing utilities
+      ScheduleExpression: !Ref ScheduleExpression
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt BillingUtilitiesFunction.Arn
+          Id: BillingUtilitiesTarget
+
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref BillingUtilitiesFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ScheduledRule.Arn
+
+  # CUR Report Configuration
+  CUReportDefinition:
+    Type: AWS::CUR::ReportDefinition
+    Condition: CreateCURResources
+    Properties:
+      ReportName: !Sub 'cur-${AWS::AccountId}'
+      TimeUnit: HOURLY
+      Format: Parquet
+      Compression: Parquet
+      AdditionalSchemaElements:
+        - RESOURCES
+        - SPLIT_COST_ALLOCATION_DATA
+      S3Bucket: !Ref CURBucket
+      S3Prefix: 'reports'
+      S3Region: !Ref AWS::Region
+      RefreshClosedReports: true
+      ReportVersioning: OVERWRITE_REPORT
+
+Conditions:
+  CreateCURResources: !Equals [!Ref IncludeCUR, 'true']
+
+Outputs:
+  BillingUtilitiesRoleARN:
+    Description: ARN of the created IAM role for billing utilities
+    Value: !GetAtt BillingUtilitiesRole.Arn
+  
+  BillingUtilitiesFunctionARN:
+    Description: ARN of the Lambda function for billing utilities
+    Value: !GetAtt BillingUtilitiesFunction.Arn
+    
+  CURBucketName:
+    Condition: CreateCURResources
+    Description: Name of the CUR bucket created in this account
+    Value: !Ref CURBucket 

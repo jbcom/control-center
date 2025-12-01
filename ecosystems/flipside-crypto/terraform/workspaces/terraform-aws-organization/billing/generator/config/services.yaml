@@ -1,0 +1,60 @@
+# Billing and Cost Management Services Configuration
+
+# Service principals for billing
+service_principals:
+  - "billingconductor.amazonaws.com"
+  - "cur.amazonaws.com"
+  - "pricing.amazonaws.com"
+  - "tax.amazonaws.com"
+
+# Cost optimization services
+compute_optimizer:
+  enabled: true
+  settings:
+    enhanced_infrastructure_metrics: true
+    inferred_workload_types: true
+
+# Cost analytics services
+cost_explorer:
+  enabled: true
+  settings:
+    cost_categories:
+      enabled: true
+    anomaly_detection:
+      enabled: true
+      threshold_percent: 10
+    backfill:
+      enabled: false
+      lookback_period: "SIXTY_DAYS"
+
+# Core billing services
+billing:
+  enabled: true
+  settings:
+    iam_access: true
+    consolidated_billing: true
+    cost_reporting:
+      enabled: true
+
+# CUDOS (AWS Cost & Usage Dashboards) 
+cudos:
+  enabled: true
+  settings:
+    quicksight_dashboard: true
+    athena_workgroup_name: "cudos-athena-workgroup"
+    glue_database_name: "cudos_db"
+   
+# Cost and Usage Reports
+cur:
+  enabled: true
+  settings:
+    bucket_prefix: "fsc-cur"
+    report_name: "cur-report"
+    report_versioning: "OVERWRITE_REPORT"
+    time_unit: "HOURLY"
+    compression: "Parquet"
+    format: "Parquet"
+    refresh_period: "HOURLY"
+    additional_schema_elements:
+      - "RESOURCES"
+      - "SPLIT_COST_ALLOCATION_DATA" 

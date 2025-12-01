@@ -1,0 +1,27 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "allowEcs",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": [
+          "AROA55WOLFQFL5PWHSCUG",
+          "AROA55WOLFQFATR3COQRT",
+          "arn:aws:iam::957136710666:role/compass-us-east-1-lambda-streamers-stg"
+        ]
+      },
+      "Action": "elasticfilesystem:Client*",
+      "Resource": "arn:aws:elasticfilesystem:us-east-1:957136710666:file-system/fs-0aac20957e92a60b9"
+    },
+    {
+      "Sid": "allowDatasync",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": "arn:aws:iam::957136710666:role/datasync-efs-managed-private-compass-stg"
+      },
+      "Action": "elasticfilesystem:Client*",
+      "Resource": "arn:aws:elasticfilesystem:us-east-1:957136710666:file-system/fs-0aac20957e92a60b9"
+    }
+  ]
+}

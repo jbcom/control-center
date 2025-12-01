@@ -1,0 +1,126 @@
+{
+  "data": {
+    "env_sensitive": {
+      "SLACK_BOT_TOKEN": {
+        "id": "SLACK_BOT_TOKEN",
+        "required": true
+      },
+      "SLACK_TOKEN": {
+        "id": "SLACK_TOKEN",
+        "required": true
+      }
+    },
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_slack_users"
+        ],
+        "query": {
+          "SLACK_BOT_TOKEN": "${data.env_sensitive.SLACK_BOT_TOKEN.value}",
+          "SLACK_TOKEN": "${data.env_sensitive.SLACK_TOKEN.value}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "flatten_profile": "${try(nonsensitive(var.flatten_profile), var.flatten_profile)}",
+          "flipsidecrypto_users_only": "${try(nonsensitive(var.flipsidecrypto_users_only), var.flipsidecrypto_users_only)}",
+          "include_app_users": "${try(nonsensitive(var.include_app_users), var.include_app_users)}",
+          "include_bots": "${try(nonsensitive(var.include_bots), var.include_bots)}",
+          "include_deleted": "${try(nonsensitive(var.include_deleted), var.include_deleted)}",
+          "include_locale": "${try(nonsensitive(var.include_locale), var.include_locale)}",
+          "limit": "${try(nonsensitive(var.limit), var.limit)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "team_id": "${try(nonsensitive(var.team_id), var.team_id)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"users\"]))}"
+  },
+  "output": {
+    "users": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "flatten_profile": {
+      "default": false,
+      "type": "bool"
+    },
+    "flipsidecrypto_users_only": {
+      "default": false,
+      "type": "bool"
+    },
+    "include_app_users": {
+      "default": false,
+      "type": "bool"
+    },
+    "include_bots": {
+      "default": false,
+      "type": "bool"
+    },
+    "include_deleted": {
+      "default": false,
+      "type": "bool"
+    },
+    "include_locale": {
+      "default": null,
+      "type": "any"
+    },
+    "limit": {
+      "default": null,
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "team_id": {
+      "default": null,
+      "type": "string"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

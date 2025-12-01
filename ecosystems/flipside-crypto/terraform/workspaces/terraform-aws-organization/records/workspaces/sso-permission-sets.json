@@ -1,0 +1,179 @@
+{
+  "permission_sets": {
+    "AWSAdministratorAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-772e1b31d84b5535",
+      "created_date": "2022-05-01T19:13:54Z",
+      "description": "Provides full access to AWS services and resources",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-772e1b31d84b5535,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "AWSAdministratorAccess",
+      "relay_state": "",
+      "session_duration": "PT1H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "AWSOrganizationsFullAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-521ce50e33638208",
+      "created_date": "2022-05-01T19:13:56Z",
+      "description": "Provides full access to AWS Organizations",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-521ce50e33638208,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "AWSOrganizationsFullAccess",
+      "relay_state": "",
+      "session_duration": "PT1H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "AWSPowerUserAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-53f78845caf4e4ec",
+      "created_date": "2022-05-01T19:13:55Z",
+      "description": "Provides full access to AWS services and resources, but does not allow management of Users and groups",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-53f78845caf4e4ec,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "AWSPowerUserAccess",
+      "relay_state": "",
+      "session_duration": "PT1H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "AWSReadOnlyAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-50a81aafcc6a7c2f",
+      "created_date": "2022-05-01T19:13:56Z",
+      "description": "This policy grants permissions to view resources and basic metadata across all AWS services",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-50a81aafcc6a7c2f,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "AWSReadOnlyAccess",
+      "relay_state": "",
+      "session_duration": "PT1H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "BillingAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-0ae95e089b303483",
+      "created_date": "2022-11-08T15:57:30Z",
+      "description": "Allow billing access to the account",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-0ae95e089b303483,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "BillingAccess",
+      "relay_state": "",
+      "session_duration": "PT8H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "EngineeringAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-9293e62e144e4c65",
+      "created_date": "2022-11-08T15:57:30Z",
+      "description": "Allow engineering access to the account",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-9293e62e144e4c65,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "EngineeringAccess",
+      "relay_state": "",
+      "session_duration": "PT8H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    },
+    "PowerUserAccess": {
+      "arn": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-48b859bb803f530a",
+      "created_date": "2022-11-08T15:57:30Z",
+      "description": "Allow power user access to non-infrastructure accounts",
+      "id": "arn:aws:sso:::permissionSet/ssoins-72235ae1b44254ca/ps-48b859bb803f530a,arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "instance_arn": "arn:aws:sso:::instance/ssoins-72235ae1b44254ca",
+      "name": "PowerUserAccess",
+      "relay_state": "",
+      "session_duration": "PT8H",
+      "tags": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "tags_all": {
+        "Environment": "global",
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Stage": "us-east-1",
+        "Terraform": "terraform"
+      },
+      "timeouts": null
+    }
+  }
+}

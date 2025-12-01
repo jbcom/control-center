@@ -1,0 +1,160 @@
+# FlipsideCrypto Admin CLI Configuration
+# This configuration file contains the operational settings for the flipsidecrypto-admin CLI tool
+
+# Google Cloud Platform Configuration
+google:
+  # Service account for GCP operations (set via environment variable GOOGLE_SERVICE_ACCOUNT_JSON)
+  # service_account_json: "path/to/service-account.json" 
+  
+  # Subject for Google Workspace domain-wide delegation
+  subject: "admin@flipsidecrypto.com"
+  
+  # Default GCP settings
+  defaults:
+    # Default IAM roles assigned to service accounts
+    required_roles:
+      - "roles/owner"
+      - "roles/billing.admin"
+      - "roles/resourcemanager.organizationAdmin"
+      - "roles/iam.securityAdmin"
+      - "roles/serviceusage.serviceUsageAdmin"
+    
+    # Default APIs enabled for new projects
+    required_apis:
+      - "compute.googleapis.com"
+      - "container.googleapis.com"
+      - "cloudbilling.googleapis.com"
+      - "cloudresourcemanager.googleapis.com"
+      - "iam.googleapis.com"
+      - "cloudkms.googleapis.com"
+      - "storage.googleapis.com"
+      - "bigquery.googleapis.com"
+      - "serviceusage.googleapis.com"
+    
+    # Default service account identifier
+    service_account_identifier: "terraform@flipsidecrypto.com"
+    
+    # Default region for resources
+    region: "us-east1"
+    
+    # Default project labels
+    project_labels:
+      organization: "flipsidecrypto"
+      managed_by: "terraform"
+      team: "infrastructure"
+
+# AWS Configuration
+aws:
+  # Execution role ARN for cross-account access (set via environment variable AWS_EXECUTION_ROLE_ARN)
+  # execution_role_arn: "arn:aws:iam::123456789012:role/OrganizationAccountAccessRole"
+  
+  # Default role session name
+  role_session_name: "flipsidecrypto-admin"
+  
+  # Default organizational units and accounts configuration
+  defaults:
+    # AWS SSO required roles
+    sso_roles:
+      - "arn:aws:iam::aws:policy/PowerUserAccess"
+      - "arn:aws:iam::aws:policy/IAMFullAccess"
+
+# Vendor Integration Configuration
+vendors:
+  github:
+    # GitHub organization
+    owner: "FlipsideCrypto"
+    # Token set via environment variable GITHUB_TOKEN
+    
+  slack:
+    # Slack workspace configuration
+    # Tokens set via environment variables SLACK_TOKEN and SLACK_BOT_TOKEN
+    channels:
+      onboarding: "C07FCAX8Y2J"  # Channel for onboarding notifications
+      gemini: "gemini-onboarding"  # Gemini license management channel
+    
+  zoom:
+    # Zoom API configuration
+    # Credentials set via environment variables:
+    # ZOOM_CLIENT_ID, ZOOM_CLIENT_SECRET, ZOOM_ACCOUNT_ID
+    
+# FlipsideCrypto Specific Configuration
+flipsidecrypto:
+  # Organization settings
+  organization:
+    domain: "flipsidecrypto.com"
+    billing_account_name: "Primary"
+    team_calendar_id: "flipsidecrypto.com_team@flipsidecrypto.com"
+  
+  # Default constraints for GCP organization policies
+  gcp_constraints:
+    boolean_constraints:
+      "constraints/compute.disableNestedVirtualization": false
+      "constraints/compute.disableSerialPortAccess": true
+      "constraints/sql.restrictPublicIp": true
+    
+    list_constraints:
+      "constraints/compute.trustedImageProjects":
+        enforced: false
+        allowed_values:
+          - "projects/cos-cloud"
+          - "projects/ubuntu-os-cloud"
+  
+  # User management settings
+  user_management:
+    default_ou: "/Users"
+    limited_access_ou: "/LimitedAccess"
+    automation_ou: "/Automation"
+    consultants_ou: "/Consultants"
+    
+    # Default password settings
+    password_length: 12
+    change_password_at_next_login: true
+    
+    # Custom schema fields for vendor integration
+    custom_schemas:
+      vendor_attributes:
+        - "githubUsername"
+        - "awsAccountName"
+
+# Operational Settings
+operations:
+  # Retry settings
+  max_retries: 3
+  retry_delay: 2
+  
+  # Batch processing
+  batch_size: 100
+  
+  # Logging
+  log_level: "info"  # debug, info, warn, error
+  
+  # Timeouts
+  api_timeout: "30s"
+  operation_timeout: "300s"
+
+# Environment-specific overrides
+environments:
+  development:
+    google:
+      defaults:
+        region: "us-central1"
+        project_labels:
+          environment: "dev"
+          cost_center: "engineering"
+  
+  staging:
+    google:
+      defaults:
+        region: "us-east1"
+        project_labels:
+          environment: "stg"
+          cost_center: "engineering"
+  
+  production:
+    google:
+      defaults:
+        region: "us-east1"
+        project_labels:
+          environment: "prod"
+          cost_center: "engineering"
+          compliance: "required"

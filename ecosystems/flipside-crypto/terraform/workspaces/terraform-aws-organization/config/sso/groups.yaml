@@ -1,0 +1,128 @@
+# AWS SSO Groups Configuration
+# This defines Google Workspace group access to AWS accounts
+# Keys are actual Google Workspace group email addresses
+
+# Team-based access structure
+teams:
+  # Root/Admin Group
+  "root@flipsidecrypto.com":
+    accounts:
+      "*":
+        - "AWSAdministratorAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "AWSAdministratorAccess"
+        - "AWSOrganizationsFullAccess"
+  
+  # Engineering Infrastructure
+  "eng-infra@flipsidecrypto.com":
+    accounts:
+      "production":  # 222802434940
+        - "EngineeringAccess"
+        - "PowerUserAccess"
+      "staging":  # 016638755067
+        - "EngineeringAccess"
+        - "PowerUserAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "AWSOrganizationsFullAccess"
+  
+  "engineering@flipsidecrypto.com":
+    accounts:
+      "production":  # 222802434940
+        - "EngineeringAccess"
+        - "PowerUserAccess"
+      "staging":  # 016638755067
+        - "EngineeringAccess"
+        - "PowerUserAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "AWSOrganizationsFullAccess"
+  
+  # Leadership
+  "leads@flipsidecrypto.com":
+    accounts:
+      "production":  # 222802434940
+        - "PowerUserAccess"
+      "staging":  # 016638755067
+        - "PowerUserAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "PowerUserAccess"
+  
+  # Analytics
+  "analytics@flipsidecrypto.com":
+    accounts:
+      "production":  # 222802434940
+        - "EngineeringAccess"
+      "staging":  # 016638755067
+        - "EngineeringAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "PowerUserAccess"
+  
+  # Billing
+  "billing@flipsidecrypto.com":
+    accounts:
+      "flipside_crypto_root":  # 862006574860
+        - "BillingAccess"
+  
+  # AWS Security Auditors
+  "AWSSecurityAuditors@flipsidecrypto.com":
+    accounts:
+      "*":
+        - "AWSReadOnlyAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "AWSReadOnlyAccess"
+        - "AWSPowerUserAccess"
+  
+  "AWSSecurityAuditPowerUsers@flipsidecrypto.com":
+    accounts:
+      "*":
+        - "AWSReadOnlyAccess"
+      "flipside_crypto_root":  # 862006574860
+        - "AWSReadOnlyAccess"
+        - "AWSPowerUserAccess"
+  
+  # Service Catalog
+  "AWSServiceCatalogAdmins@flipsidecrypto.com":
+    accounts:
+      "flipside_crypto_root":  # 862006574860
+        - "AWSServiceCatalogAdminFullAccess"
+  
+  "AWSAccountFactory@flipsidecrypto.com":
+    accounts:
+      "flipside_crypto_root":  # 862006574860
+        - "AWSServiceCatalogEndUserAccess"
+  
+  # Control Tower
+  "AWSControlTowerAdmins@flipsidecrypto.com":
+    accounts:
+      "flipside_crypto_root":  # 862006574860
+        - "AWSAdministratorAccess"
+      "production":  # 222802434940
+        - "AWSOrganizationsFullAccess"
+      "staging":  # 016638755067
+        - "AWSOrganizationsFullAccess"
+
+# Special function groups
+functions:
+  # Discord bot management
+  "discord-bots@flipsidecrypto.com":
+    accounts:
+      "flipside_crypto_root":  # 862006574860 (Route53 is here)
+        - "FlipsideDiscordMgmt"
+
+# Global settings
+settings:
+  # Only sync groups that are explicitly defined above
+  sync_only_defined_groups: true
+  
+  # Default session duration for groups (can be overridden per permission set)
+  default_session_duration: "PT8H"
+  
+  # Prefix for group display names in AWS (if any)
+  group_display_name_prefix: ""
+  
+  # Google Workspace domain filter
+  google_domain_filter: "@flipsidecrypto.com"
+  
+  # Account denylist - accounts to exclude from wildcard assignments
+  account_denylist:
+    - "269429265333"  # User-Joan
+    - "710162345443"  # User-Liz

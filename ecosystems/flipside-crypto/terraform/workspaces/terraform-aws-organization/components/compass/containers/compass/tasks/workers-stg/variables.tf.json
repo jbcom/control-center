@@ -1,0 +1,8 @@
+{
+  "variable": {
+    "image_tag": {
+      "description": "Docker image tag that was built prior",
+      "type": "string"
+    }
+  }
+}

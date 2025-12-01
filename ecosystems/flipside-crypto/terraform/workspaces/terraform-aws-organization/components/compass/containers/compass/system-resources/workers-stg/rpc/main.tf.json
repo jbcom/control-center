@@ -1,0 +1,13 @@
+{
+  "module": {
+    "base": {
+      "context": "${local.context}",
+      "records_dir": "records/${local.workspaces_dir}",
+      "records_file_name": "rpc.json",
+      "rel_to_root": "${local.rel_to_root}",
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/architecture/container/architecture/architecture-system",
+      "tasks": "${local.context.tasks.compass}",
+      "vendors": "${local.vendors_data}"
+    }
+  }
+}

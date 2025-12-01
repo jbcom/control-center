@@ -1,0 +1,48 @@
+{
+  "import": [
+    {
+      "to": "googleworkspace_org_unit.contract",
+      "id": "id:03ph8a2z487cjen"
+    },
+    {
+      "to": "googleworkspace_org_unit.prehires",
+      "id": "id:03ph8a2z137u76i"
+    },
+    {
+      "to": "googleworkspace_org_unit.limitedaccess",
+      "id": "id:03ph8a2z2ssx043"
+    },
+    {
+      "to": "googleworkspace_org_unit.consultants",
+      "id": "id:03ph8a2z39ka970"
+    },
+    {
+      "to": "googleworkspace_org_unit.automation",
+      "id": "id:03ph8a2z3gt90ik"
+    },
+    {
+      "to": "googleworkspace_org_unit.users",
+      "id": "id:03ph8a2z0utjovi"
+    },
+    {
+      "to": "googleworkspace_org_unit.users_2fanotenforced",
+      "id": "id:03ph8a2z2oy5unu"
+    },
+    {
+      "to": "googleworkspace_org_unit.users_advancedmdm",
+      "id": "id:03ph8a2z0hsl6m9"
+    },
+    {
+      "to": "googleworkspace_org_unit.users_advancedmdm_advancedmdmautomaticvideoconferencing",
+      "id": "id:03ph8a2z4jg5u4u"
+    },
+    {
+      "to": "googleworkspace_org_unit.users_fiadministrators",
+      "id": "id:03ph8a2z3m3f5yu"
+    },
+    {
+      "to": "googleworkspace_org_unit.users_gemini",
+      "id": "id:03ph8a2z48yvudu"
+    }
+  ]
+}

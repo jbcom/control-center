@@ -1,0 +1,32 @@
+# Isolated Organizational Unit
+name: "Isolated"
+description: "Accounts with restricted network access and specialized purposes"
+
+classifications:
+  - "admin"
+
+environment: "global"
+
+# Accounts in this unit (listed by logical name)
+accounts:
+  # LiveQuery Demos
+  livequery_demos:
+    name: "livequery-demos"
+    email: "livequery-demos@flipsidecrypto.com"
+    classifications:
+      - "analytics"
+    control_tower_managed: true
+  
+  # Treasury Fireblocks Cosigners
+  treasury_fireblocks_cosigners:
+    name: "treasury-fireblocks-cosigners"
+    email: "treasury-fireblocks-cosigners@flipsidecrypto.com"
+    classifications:
+      - "networked"
+    control_tower_managed: true
+
+# Policy assignments for this unit
+policy_assignments:
+  # Service control policies
+  service_control:
+    - "deny_leave_organization"

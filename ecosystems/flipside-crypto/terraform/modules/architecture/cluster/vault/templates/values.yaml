@@ -1,0 +1,95 @@
+global:
+  enabled: true
+  tlsDisable: false
+
+server:
+  service:
+    enabled: true
+    port: 8200
+    targetPort: 8200
+
+  serviceAccount:
+    name: ${service_account_name}
+    create: false
+
+  dataStorage:
+    enabled: false
+
+  auditStorage:
+    enabled: true
+
+  dev:
+    enabled: false
+
+  standalone:
+    enabled: false
+
+  volumes:
+    - name: ${secret_name}
+      secret:
+        defaultMode: 420
+        secretName: ${secret_name}
+
+  volumeMounts:
+    - mountPath: /vault/tls
+      name: ${secret_name}
+      readOnly: true
+
+  ha:
+    enabled: true
+    replicas: 3
+
+    config: |
+      ui = true
+      
+      api_addr      = "https://${shared_san}:8200"
+      
+      listener "tcp" {
+        address         = "[::]:8200"
+        cluster_address = "[::]:8201"
+      
+        tls_disable     = "false"
+        tls_cert_file = "/vault/tls/vault.crt"
+        tls_key_file = "/vault/tls/vault.key"
+      
+        telemetry {
+          unauthenticated_metrics_access = "true"
+        }
+      }
+
+      seal "awskms" {
+        region     = "${region}"
+        kms_key_id = "${kms_key_arn}"
+      }
+
+      storage "s3" {
+        bucket       = "${s3_bucket_id}"
+        region       = "${region}"
+        max_parallel = "512"
+      }
+
+      ha_storage "dynamodb" {
+        ha_enabled = "true"
+        region     = "${region}"
+        table      = "${dynamodb_table_name}"
+
+        max_parallel   = "25"
+        read_capacity  = "5"
+        write_capacity = "5"
+      }
+
+      telemetry {
+        prometheus_retention_time = "12h"
+      }
+
+ui:
+  enabled: true
+  serviceType: "LoadBalancer"
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-type: "external"
+    service.beta.kubernetes.io/aws-load-balancer-nlb-target-type: "ip"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: "internal"
+    external-dns.alpha.kubernetes.io/hostname: "${shared_san}"
+
+csi:
+  enabled: true

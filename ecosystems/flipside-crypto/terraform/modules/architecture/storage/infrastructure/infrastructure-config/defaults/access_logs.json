@@ -1,0 +1,33 @@
+{
+  "access_log_bucket_name": "",
+  "access_log_bucket_prefix": null,
+  "account_id": "account_data[\"id\"]",
+  "accounts": [
+    "Staging",
+    "Production"
+  ],
+  "acl": "log-delivery-write",
+  "additional_tag_map": {},
+  "allow_ssl_requests_only": true,
+  "attributes": [],
+  "bucket_name": null,
+  "delimiter": null,
+  "descriptor_formats": {},
+  "enabled": true,
+  "environment": null,
+  "execution_role_arn": "account_data[\"execution_role_arn\"]",
+  "force_destroy": false,
+  "id_length_limit": null,
+  "label_order": [],
+  "lifecycle_configuration_rules": {},
+  "name": "each.key",
+  "namespace": null,
+  "network_map": {},
+  "private": false,
+  "public": false,
+  "regex_replace_chars": null,
+  "stage": null,
+  "tags": {},
+  "tenant": null,
+  "versioning_enabled": true
+}

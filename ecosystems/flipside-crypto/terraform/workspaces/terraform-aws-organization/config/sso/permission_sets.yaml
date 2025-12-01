@@ -1,0 +1,197 @@
+# AWS SSO Permission Sets Configuration
+# Compatible with aws-ia/terraform-aws-iam-identity-center module
+
+AWSAdministratorAccess:
+  description: "Provides full access to AWS services and resources"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "AWSBillingConductorReadOnlyAccess"
+    - "AWSBillingReadOnlyAccess"
+    - "AdministratorAccess"
+
+AWSServiceCatalogEndUserAccess:
+  description: "Provides access to the AWS Service Catalog end user console"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "AWSServiceCatalogEndUserFullAccess"
+  inline_policy: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "AWSControlTowerAccountFactoryAccess",
+          "Effect": "Allow",
+          "Action": [
+            "sso:GetProfile",
+            "sso:CreateProfile",
+            "sso:UpdateProfile",
+            "sso:AssociateProfile",
+            "sso:CreateApplicationInstance",
+            "sso:GetSSOStatus",
+            "sso:GetTrust",
+            "sso:CreateTrust",
+            "sso:UpdateTrust",
+            "sso:GetPeregrineStatus",
+            "sso:GetApplicationInstance",
+            "sso:ListDirectoryAssociations",
+            "sso:ListPermissionSets",
+            "sso:GetPermissionSet",
+            "sso:ProvisionApplicationInstanceForAWSAccount",
+            "sso:ProvisionApplicationProfileForAWSAccountInstance",
+            "sso:ProvisionSAMLProvider",
+            "sso:ListProfileAssociations",
+            "sso-directory:ListMembersInGroup",
+            "sso-directory:SearchGroups",
+            "sso-directory:SearchGroupsWithGroupName",
+            "sso-directory:SearchUsers",
+            "sso-directory:CreateUser",
+            "sso-directory:DescribeGroups",
+            "sso-directory:DescribeDirectory",
+            "sso-directory:GetUserPoolInfo",
+            "controltower:CreateManagedAccount",
+            "controltower:DescribeManagedAccount",
+            "controltower:DeregisterManagedAccount",
+            "s3:GetObject",
+            "organizations:describeOrganization",
+            "sso:DescribeRegisteredRegions"
+          ],
+          "Resource": "*"
+        }
+      ]
+    }
+
+AWSServiceCatalogAdminFullAccess:
+  description: "Provides full access to AWS Service Catalog admin capabilities"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "AWSServiceCatalogAdminFullAccess"
+
+AWSReadOnlyAccess:
+  description: "This policy grants permissions to view resources and basic metadata across all AWS services"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "ViewOnlyAccess"
+
+PowerUserAccess:
+  description: "Allow power user access to non-infrastructure accounts"
+  session_duration: "PT8H"
+  aws_managed_policies:
+    - "AWSCloud9User"
+    - "AWSCodePipeline_FullAccess"
+    - "IAMReadOnlyAccess"
+    - "PowerUserAccess"
+
+AWSOrganizationsFullAccess:
+  description: "Provides full access to AWS Organizations"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "AWSOrganizationsFullAccess"
+
+EngineeringAccess:
+  description: "Allow engineering access to the account"
+  session_duration: "PT8H"
+  aws_managed_policies:
+    - "AWSCloud9User"
+    - "AWSGlueConsoleFullAccess"
+    - "AmazonAthenaFullAccess"
+    - "ReadOnlyAccess"
+  inline_policy: |
+    {
+      "Statement": [
+        {
+          "Action": [
+            "s3:ListAllMyBuckets",
+            "s3:Get*",
+            "kms:List*",
+            "kms:Describe*",
+            "kms:Encrypt",
+            "kms:Decrypt",
+            "iam:List*",
+            "secretsmanager:List*",
+            "secretsmanager:DescribeSecret",
+            "ssm:Get*",
+            "ssm:Describe*",
+            "sqs:*"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        },
+        {
+          "Action": "s3:ListBucket",
+          "Effect": "Allow",
+          "Resource": "arn:aws:s3:::*"
+        },
+        {
+          "Action": "s3:*Object",
+          "Effect": "Allow",
+          "Resource": "arn:aws:s3:::*/*"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+
+BillingAccess:
+  description: "Allow billing access to the account"
+  session_duration: "PT8H"
+  inline_policy: |
+    {
+      "Statement": [
+        {
+          "Action": [
+            "aws-portal:*Usage",
+            "aws-portal:*PaymentMethods",
+            "aws-portal:*Billing"
+          ],
+          "Effect": "Allow",
+          "Resource": "*"
+        },
+        {
+          "Action": "aws-portal:*Account",
+          "Effect": "Deny",
+          "Resource": "*"
+        }
+      ],
+      "Version": "2012-10-17"
+    }
+
+AWSPowerUserAccess:
+  description: "Provides full access to AWS services and resources, but does not allow management of Users and groups"
+  session_duration: "PT1H"
+  aws_managed_policies:
+    - "AWSBillingConductorReadOnlyAccess"
+    - "AWSBillingReadOnlyAccess"
+    - "PowerUserAccess"
+
+FlipsideDiscordMgmt:
+  description: "Discord management permission set for Route53 access"
+  session_duration: "PT12H"
+  aws_managed_policies:
+    - "ReadOnlyAccess"
+  inline_policy: |
+    {
+      "Version": "2012-10-17",
+      "Statement": [
+        {
+          "Sid": "ListAllHostedZones",
+          "Effect": "Allow",
+          "Action": ["route53:ListHostedZones"],
+          "Resource": "*"
+        },
+        {
+          "Sid": "HostedZoneOwnerAccess",
+          "Effect": "Allow",
+          "Action": [
+            "route53:GetHostedZone",
+            "route53:ListResourceRecordSets",
+            "route53:ChangeResourceRecordSets",
+            "route53:GetChange",
+            "route53:ListTagsForResource",
+            "route53:ChangeTagsForResource"
+          ],
+          "Resource": [
+            "arn:aws:route53:::hostedzone/Z03890303O6VLFENXE088",
+            "arn:aws:route53:::change/*"
+          ]
+        }
+      ]
+    }

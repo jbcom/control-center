@@ -1,0 +1,16 @@
+name: Users
+description: Default user group for Flipside employees
+units:
+  2fanotenforced:
+    name: 2FANotEnforced
+  advancedmdm:
+    name: AdvancedMDM
+    units:
+      advancedmdmautomaticvideoconferencing:
+        name: AdvancedMDMAutomaticVideoConferencing
+    max_depth: 1
+  fiadministrators:
+    name: FiAdministrators
+  gemini:
+    name: Gemini
+max_depth: 2

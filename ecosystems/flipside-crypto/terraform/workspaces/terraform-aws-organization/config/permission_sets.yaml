@@ -1,0 +1,132 @@
+# Common policy configurations
+policies:
+  managed:
+    billing_readonly: &billing_readonly_policies
+      - AWSBillingConductorReadOnlyAccess
+      - AWSBillingReadOnlyAccess
+
+  inline:
+    cosigner_ec2: &cosigner_ec2_statement
+      Effect: Allow
+      Action: 
+        - ec2:List*
+        - ec2:Describe*
+      Resource: "*"
+
+    cosigner_ssm_describe: &cosigner_ssm_describe_statement
+      Effect: Allow
+      Action:
+        - ssm:GetConnectionStatus
+        - ssm:DescribeSessions
+        - ssm:DescribeInstanceProperties
+        - ssm:DescribeInstanceInformation
+        - ec2:DescribeInstances
+      Resource: "*"
+
+    cosigner_ssm_session: &cosigner_ssm_session_statement
+      Effect: Allow
+      Action:
+        - ssm:TerminateSession
+        - ssm:ResumeSession
+      Resource: "arn:aws:ssm:*:*:session/${aws:username}-*"
+
+    secrets_list: &secrets_list_statement
+      Effect: Allow
+      Action:
+        - secretsmanager:List*
+        - secretsmanager:DescribeSecret
+      Resource: "*"
+
+# Permission Set definitions
+permission_sets:
+  aws_administrator_access:
+    name: AWSAdministratorAccess
+    description: Provides full access to AWS services and resources
+    session_duration: PT1H
+    managed_policies:
+      - AdministratorAccess
+      - AWSBillingConductorReadOnlyAccess
+      - AWSBillingReadOnlyAccess
+
+  aws_power_user_access:
+    name: AWSPowerUserAccess
+    description: Provides full access to AWS services and resources, but does not allow management of Users and groups
+    session_duration: PT1H
+    managed_policies:
+      - PowerUserAccess
+      - AWSBillingConductorReadOnlyAccess
+      - AWSBillingReadOnlyAccess
+
+  aws_organizations_full_access:
+    name: AWSOrganizationsFullAccess
+    description: Provides full access to AWS Organizations
+    session_duration: PT1H
+    managed_policies:
+      - AWSOrganizationsFullAccess
+
+  aws_read_only_access:
+    name: AWSReadOnlyAccess
+    description: This policy grants permissions to view resources and basic metadata across all AWS services
+    session_duration: PT1H
+    managed_policies:
+      - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+
+  billing_access:
+    name: BillingAccess
+    description: Allow billing access to the account
+    session_duration: PT8H
+    inline_policy:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Action:
+            - aws-portal:*Usage
+            - aws-portal:*PaymentMethods
+            - aws-portal:*Billing
+          Resource: "*"
+        - Effect: Deny
+          Action: aws-portal:*Account
+          Resource: "*"
+
+  engineering_access:
+    name: EngineeringAccess
+    description: Allow engineering access to the account
+    session_duration: PT8H
+    managed_policies:
+      - AWSCloud9User
+      - AWSGlueConsoleFullAccess
+      - AmazonAthenaFullAccess
+      - ReadOnlyAccess
+    inline_policy:
+      Version: '2012-10-17'
+      Statement:
+        - Effect: Allow
+          Action:
+            - s3:ListAllMyBuckets
+            - s3:Get*
+            - kms:List*
+            - kms:Describe*
+            - kms:Encrypt
+            - kms:Decrypt
+            - iam:List*
+            - secretsmanager:List*
+            - secretsmanager:DescribeSecret
+            - ssm:Get*
+            - ssm:Describe*
+            - sqs:*
+          Resource: "*"
+        - Effect: Allow
+          Action: s3:ListBucket
+          Resource: "arn:aws:s3:::*"
+        - Effect: Allow
+          Action: s3:*Object
+          Resource: "arn:aws:s3:::*/*"
+
+  power_user_access:
+    name: PowerUserAccess
+    description: Allow power user access to non-infrastructure accounts
+    session_duration: PT8H
+    managed_policies:
+      - AWSCloud9User
+      - AWSCodePipeline_FullAccess
+      - PowerUserAccess

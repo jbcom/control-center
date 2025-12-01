@@ -1,0 +1,8 @@
+{
+  "module": {
+    "base": {
+      "context": "${local.context}",
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/architecture/container/policies"
+    }
+  }
+}

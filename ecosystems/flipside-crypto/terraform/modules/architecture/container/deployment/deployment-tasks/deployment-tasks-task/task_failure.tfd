@@ -1,0 +1,90 @@
+resource "aws_cloudwatch_event_rule" "task_failure" {
+  count = local.task_launched ? 1 : 0
+
+  name_prefix = "ecs-task-failure-"
+  description = "Watch for ${var.task_name} tasks that exit with non zero exit codes"
+
+  event_pattern = <<EOF
+  {
+    "source": [
+      "aws.ecs"
+    ],
+    "detail-type": [
+      "ECS Task State Change"
+    ],
+    "detail": {
+      "lastStatus": [
+        "STOPPED"
+      ],
+      "stoppedReason": [
+        "Essential container in task exited"
+      ],
+      "containers": {
+        "exitCode": [
+          {"anything-but": 0}
+        ]
+      },
+      "clusterArn": ["${local.cluster_arn}"],
+      "taskDefinitionArn": ["${local.task_definition_arn}"]
+    }
+  }
+  EOF
+
+  tags = local.tags
+}
+
+resource "aws_sns_topic" "task_failure" {
+  count = local.task_launched ? 1 : 0
+
+  name_prefix = "ecs-task-failure-"
+
+  tags = local.tags
+}
+
+locals {
+  task_failure_topic_arn = join("", aws_sns_topic.task_failure.*.arn)
+}
+
+data "aws_ssm_parameter" "datadog_sns_webhook" {
+  name = "/vendors/datadog_sns_webhook"
+}
+
+resource "aws_sns_topic_subscription" "task_failure_to_datadog" {
+  count = local.task_launched ? 1 : 0
+
+  topic_arn = local.task_failure_topic_arn
+  protocol  = "https"
+  endpoint  = data.aws_ssm_parameter.datadog_sns_webhook.value
+}
+
+resource "aws_cloudwatch_event_target" "sns_target" {
+  count = local.task_launched ? 1 : 0
+
+  rule  = join("", aws_cloudwatch_event_rule.task_failure.*.name)
+  arn   = local.task_failure_topic_arn
+  input = jsonencode({ "message" : "Task ${var.task_name} failed! Please check logs https://console.aws.amazon.com/cloudwatch/home#logsV2:log-groups/log-group/ecs/tasks/${var.task_name}" })
+}
+
+data "aws_iam_policy_document" "task_failure" {
+  count = local.task_launched ? 1 : 0
+
+  statement {
+    actions = ["SNS:Publish"]
+    effect  = "Allow"
+    resources = [
+      local.task_failure_topic_arn,
+    ]
+
+    principals {
+      type        = "Service"
+      identifiers = ["events.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_sns_topic_policy" "task_failure" {
+  count = local.task_launched ? 1 : 0
+
+  arn    = local.task_failure_topic_arn
+  policy = join("", data.aws_iam_policy_document.task_failure.*.json)
+}

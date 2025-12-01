@@ -1,0 +1,2 @@
+# Handler dependencies - boto3 is provided by Lambda runtime
+# No additional dependencies needed for this handler

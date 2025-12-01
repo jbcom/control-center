@@ -1,0 +1,7 @@
+{
+  "operation": "merge_secrets",
+  "config": {
+    "secrets_bucket": "your-secrets-bucket",
+    "records_key": "records/workspaces/secrets/merging.json"
+  }
+}

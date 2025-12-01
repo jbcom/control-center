@@ -1,0 +1,136 @@
+{
+  "data": {
+    "aws_caller_identity": {
+      "current": {}
+    },
+    "aws_partition": {
+      "current": {}
+    },
+    "aws_region": {
+      "current": {}
+    }
+  },
+  "locals": {
+    "account_id": "${data.aws_caller_identity.current.account_id}",
+    "context": "${module.context.context}",
+    "environment": "global",
+    "label_key_case": "title",
+    "name": "compass",
+    "partition": "${data.aws_partition.current.partition}",
+    "region": "${data.aws_region.current.name}",
+    "rel_to_root": "../..",
+    "root_dir": ".",
+    "secrets_dir": "",
+    "stage": "${local.region}",
+    "use_local_secrets": false,
+    "vendors_data": "${module.vendors.credentials}",
+    "workspace_dir": "./terraform/post-processing",
+    "workspace_name": "post-processing",
+    "workspaces_dir": "./terraform",
+    "workspaces_dir_name": "terraform"
+  },
+  "module": {
+    "context": {
+      "config": {
+        "config_dirs": [],
+        "merge_record": "records/terraform/infrastructure.json",
+        "merge_records": [],
+        "record_directories": {},
+        "state_key": "context",
+        "state_path": "terraform/state/compass/workspaces/generator/terraform.tfstate"
+      },
+      "environment": "${local.environment}",
+      "label_key_case": "${local.label_key_case}",
+      "name": "${local.name}",
+      "ordered_parent_config_dirs_merge": null,
+      "ordered_parent_records_merge": null,
+      "ordered_parent_sources_merge": null,
+      "parent_config_dirs": [],
+      "parent_records": [],
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/utils/context",
+      "stage": "${local.stage}",
+      "tags": {
+        "Organization": "FlipsideCrypto",
+        "Owner": "DevOps",
+        "Terraform": "terraform"
+      }
+    },
+    "vendors": {
+      "providers": {
+        "aws": "aws.vendor_secrets"
+      },
+      "source": "git@github.com:FlipsideCrypto/gitops.git//terraform/modules/secrets/vendors/vendors-remote"
+    }
+  },
+  "provider": {
+    "aws": [
+      {
+        "assume_role": {
+          "role_arn": "arn:aws:iam::957136710666:role/AWSControlTowerExecution"
+        },
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      },
+      {
+        "alias": "vendor_secrets",
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    ],
+    "cloudflare": {
+      "api_token": "${local.vendors_data.cloudflare_api_token}"
+    },
+    "sops": [
+      {
+        "kms": {
+          "arn": "arn:aws:kms:us-east-1:862006574860:alias/compass"
+        }
+      }
+    ]
+  },
+  "terraform": {
+    "backend": {
+      "s3": {
+        "bucket": "flipside-crypto-internal-tooling",
+        "dynamodb_table": "internal-tooling-terraform-state",
+        "encrypt": true,
+        "key": "terraform/state/compass/workspaces/post-processing/terraform.tfstate",
+        "region": "us-east-1",
+        "skip_credentials_validation": true,
+        "skip_metadata_api_check": true,
+        "skip_region_validation": true
+      }
+    },
+    "required_providers": {
+      "assert": {
+        "source": "bwoznicki/assert",
+        "version": "<= 0.0.1"
+      },
+      "aws": {
+        "source": "hashicorp/aws",
+        "version": "<= 5.84.0"
+      },
+      "cloudflare": {
+        "source": "cloudflare/cloudflare",
+        "version": "<= 4.6.0"
+      },
+      "json-formatter": {
+        "source": "TheNicholi/json-formatter",
+        "version": "<= 0.1.1"
+      },
+      "sops": {
+        "source": "allan-vennbio/sops",
+        "version": "<= 0.6.11"
+      },
+      "utils": {
+        "source": "cloudposse/utils",
+        "version": "<= 1.12.0"
+      }
+    },
+    "required_version": "~>1.7"
+  }
+}

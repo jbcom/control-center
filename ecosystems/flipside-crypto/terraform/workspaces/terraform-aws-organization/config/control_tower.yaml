@@ -1,0 +1,87 @@
+# AWS Control Tower Configuration
+# This file defines the Control Tower landing zone and controls configuration
+
+# Landing Zone Configuration
+landing_zone:
+  version: "3.3"
+  governed_regions:
+    - "us-east-1"
+  centralized_logging:
+    enabled: true
+    json_key: "LogArchive"  # Reference to the log_archive account in security.yaml
+    configurations:
+      logging_bucket:
+        retention_days: 365
+      access_logging_bucket:
+        retention_days: 3650
+  access_management:
+    enabled: true
+  security_roles:
+    json_key: "Audit"  # Reference to the audit account in security.yaml
+  
+  # Organization Structure for Control Tower
+  # This defines which units are part of Control Tower and their names
+  organization_structure:
+    security:
+      unit_key: "security"
+      landing_zone_name: "Security"
+    sandbox:
+      unit_key: "sandbox"
+      landing_zone_name: "Components"
+
+# Control Tower Controls Configuration
+# Each control is defined with its ID and target organizational units
+controls:
+  # CloudTrail Enabled
+  AWS-GR_CLOUDTRAIL_ENABLED:
+    description: "Ensures that CloudTrail is enabled in all accounts"
+    target_ous:
+      - "sandbox"
+      - "security"
+  
+  # Config Enabled
+  AWS-GR_CONFIG_ENABLED:
+    description: "Ensures that AWS Config is enabled in all accounts"
+    target_ous:
+      - "sandbox"
+      - "security"
+  
+  # CloudTrail CloudWatch Logs Enabled
+  AWS-GR_CLOUDTRAIL_CLOUDWATCH_LOGS_ENABLED:
+    description: "Ensures that CloudTrail logs are sent to CloudWatch Logs"
+    target_ous:
+      - "sandbox"
+      - "security"
+  
+  # CloudWatch Events Change Prohibited
+  AWS-GR_CLOUDWATCH_EVENTS_CHANGE_PROHIBITED:
+    description: "Ensures that CloudWatch Events configuration cannot be changed"
+    target_ous:
+      - "sandbox"
+      - "security"
+  
+  # CloudTrail Change Prohibited
+  AWS-GR_CLOUDTRAIL_CHANGE_PROHIBITED:
+    description: "Ensures that CloudTrail configuration cannot be changed"
+    target_ous:
+      - "sandbox"
+      - "security"
+
+# Controls with Parameters
+# Some controls require additional parameters to function properly
+# Examples include:
+#
+# 1. AWS-GR_RESTRICTED_COMMON_PORTS - Restricts access to common ports
+# 2. AWS-GR_RESTRICT_ROOT_USER_ACCESS_KEYS - Restricts root user access keys with age parameters
+# 3. AWS-GR_RESTRICT_S3_CROSS_REGION_REPLICATION - Restricts S3 replication with allowed regions
+#
+# Uncomment and modify the example below if you need to use controls with parameters
+#
+# controls_with_params:
+#   AWS-GR_RESTRICTED_COMMON_PORTS:
+#     description: "Restricts access to common ports"
+#     parameters:
+#       blockedPort1: ["20", "21", "22"]
+#       blockedPort2: ["23", "25"]
+#     target_ous:
+#       - "sandbox"

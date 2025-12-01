@@ -1,0 +1,104 @@
+{
+  "data": {
+    "env_sensitive": {
+      "GOOGLE_SERVICE_ACCOUNT": {
+        "id": "GOOGLE_SERVICE_ACCOUNT",
+        "required": true
+      }
+    }
+  },
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli link_google_billing_account",
+              "environment": {
+                "GOOGLE_SERVICE_ACCOUNT": "${data.env_sensitive.GOOGLE_SERVICE_ACCOUNT.value}",
+                "billing_account_id": "${self.triggers_replace.billing_account_id}",
+                "billing_account_name": "${self.triggers_replace.billing_account_name}",
+                "checksum": "${self.triggers_replace.checksum}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "params": "${self.triggers_replace.params}",
+                "project_id": "${self.triggers_replace.project_id}",
+                "service_account_file": "${self.triggers_replace.service_account_file}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "billing_account_id": "${try(nonsensitive(var.billing_account_id), var.billing_account_id)}",
+          "billing_account_name": "${try(nonsensitive(var.billing_account_name), var.billing_account_name)}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "project_id": "${try(nonsensitive(var.project_id), var.project_id)}",
+          "service_account_file": "${try(nonsensitive(base64encode(jsonencode(var.service_account_file))), base64encode(jsonencode(var.service_account_file)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "billing_account_id": {
+      "default": null,
+      "type": "string"
+    },
+    "billing_account_name": {
+      "default": "Primary",
+      "type": "string"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "project_id": {
+      "type": "string"
+    },
+    "service_account_file": {
+      "default": null,
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

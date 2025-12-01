@@ -1,0 +1,92 @@
+{
+  "data": {
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "preprocess_aws_organization"
+        ],
+        "query": {
+          "aws_organization": "${try(nonsensitive(base64encode(jsonencode(var.aws_organization))), base64encode(jsonencode(var.aws_organization)))}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "domains": "${try(nonsensitive(base64encode(jsonencode(var.domains))), base64encode(jsonencode(var.domains)))}",
+          "google_organization": "${try(nonsensitive(base64encode(jsonencode(var.google_organization))), base64encode(jsonencode(var.google_organization)))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "tags": "${try(nonsensitive(base64encode(jsonencode(var.tags))), base64encode(jsonencode(var.tags)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"organization\"]))}"
+  },
+  "output": {
+    "organization": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "aws_organization": {
+      "type": "any"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "domains": {
+      "type": "any"
+    },
+    "google_organization": {
+      "default": null,
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "tags": {
+      "default": null,
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

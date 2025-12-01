@@ -1,0 +1,113 @@
+# FSC Control Center Ecosystem
+# 
+# Defines the package graph and relationships within this monorepo
+# Used by agents to understand dependencies and change impact
+
+[ecosystem]
+name = "fsc"
+description = "FlipsideCrypto Control Center"
+version = "0.1.0"
+
+# ===========================================
+# External Dependencies (from jbcom)
+# ===========================================
+
+[dependencies.jbcom]
+# Packages we consume from jbcom ecosystem
+packages = [
+  "vendor-connectors",  # Cloud provider SDKs (boto3, hvac, google-api, slack-sdk, etc.)
+  "lifecyclelogging",   # Logging framework
+]
+
+# ===========================================
+# Internal Python Package
+# ===========================================
+
+[packages.terraform-modules]
+type = "python"
+path = "lib/terraform_modules"
+description = "Terraform module data sources and null resources"
+cli = "tm_cli"
+status = "migrated"
+migrated_from = "FlipsideCrypto/terraform-modules"
+
+# ===========================================
+# Terraform Modules
+# ===========================================
+
+[terraform.modules]
+path = "terraform/modules"
+count = 30  # Module categories
+
+[terraform.modules.aws]
+path = "terraform/modules/aws"
+description = "AWS infrastructure modules"
+migrated_from = "FlipsideCrypto/terraform-modules"
+
+[terraform.modules.google]
+path = "terraform/modules/google"
+description = "Google Cloud infrastructure modules"
+migrated_from = "FlipsideCrypto/terraform-modules"
+
+[terraform.modules.github]
+path = "terraform/modules/github"
+description = "GitHub organization/repo modules"
+migrated_from = "FlipsideCrypto/terraform-modules"
+
+[terraform.modules.terraform]
+path = "terraform/modules/terraform"
+description = "Terraform pipeline generation modules"
+migrated_from = "FlipsideCrypto/terraform-modules"
+
+# ===========================================
+# Terraform Workspaces
+# ===========================================
+
+[terraform.workspaces]
+path = "terraform/workspaces"
+state_registry = "config/state-paths.yaml"
+total_workspaces = 41  # With valid state keys
+
+[terraform.workspaces.terraform-aws-organization]
+path = "terraform/workspaces/terraform-aws-organization"
+description = "AWS organization resources (34 workspaces)"
+migrated_from = "FlipsideCrypto/terraform-aws-organization"
+status = "migrated"
+
+[terraform.workspaces.terraform-google-organization]
+path = "terraform/workspaces/terraform-google-organization"
+description = "Google Cloud organization resources (7 workspaces)"
+migrated_from = "FlipsideCrypto/terraform-google-organization"
+status = "migrated"
+
+# ===========================================
+# Configuration
+# ===========================================
+
+[config]
+defaults = "config/defaults.yaml"
+pipelines = "config/pipelines.yaml"
+state_paths = "config/state-paths.yaml"
+
+[config.terraform]
+version = "1.13.1"
+
+[config.python]
+version = "3.13.5"
+
+[config.backend]
+bucket = "flipside-crypto-internal-tooling"
+dynamodb_table = "internal-tooling-terraform-state"
+region = "us-east-1"
+
+# ===========================================
+# Agent Configuration
+# ===========================================
+
+[agent]
+memory_bank = "memory-bank"
+rules = ".ruler/AGENTS.md"
+
+[agent.fleet]
+counterparty = "jbcom-control-center"
+token_env = "GITHUB_JBCOM_TOKEN"

@@ -1,0 +1,119 @@
+{
+  "resource": {
+    "terraform_data": {
+      "default": {
+        "provisioner": [
+          {
+            "local-exec": {
+              "command": "tm_cli permanent_record",
+              "environment": {
+                "checksum": "${self.triggers_replace.checksum}",
+                "cleanup_records_dir": "${self.triggers_replace.cleanup_records_dir}",
+                "debug_markers": "${self.triggers_replace.debug_markers}",
+                "expand_records": "${self.triggers_replace.expand_records}",
+                "log_file_name": "${self.triggers_replace.log_file_name}",
+                "params": "${self.triggers_replace.params}",
+                "records": "${self.triggers_replace.records}",
+                "records_dir": "${self.triggers_replace.records_dir}",
+                "records_file_ext": "${self.triggers_replace.records_file_ext}",
+                "records_file_name": "${self.triggers_replace.records_file_name}",
+                "save_empty_records": "${self.triggers_replace.save_empty_records}",
+                "verbose": "${self.triggers_replace.verbose}",
+                "verbosity": "${self.triggers_replace.verbosity}",
+                "workspace_dir": "${self.triggers_replace.workspace_dir}"
+              }
+            }
+          }
+        ],
+        "triggers_replace": {
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "cleanup_records_dir": "${try(nonsensitive(var.cleanup_records_dir), var.cleanup_records_dir)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "expand_records": "${try(nonsensitive(var.expand_records), var.expand_records)}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "records": "${try(nonsensitive(base64encode(jsonencode(var.records))), base64encode(jsonencode(var.records)))}",
+          "records_dir": "${try(nonsensitive(var.records_dir), var.records_dir)}",
+          "records_file_ext": "${try(nonsensitive(var.records_file_ext), var.records_file_ext)}",
+          "records_file_name": "${try(nonsensitive(var.records_file_name), var.records_file_name)}",
+          "save_empty_records": "${try(nonsensitive(var.save_empty_records), var.save_empty_records)}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}",
+          "workspace_dir": "${coalesce(var.workspace_dir, basename(abspath(path.root)))}"
+        }
+      }
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "cleanup_records_dir": {
+      "default": null,
+      "type": "any"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "expand_records": {
+      "default": false,
+      "type": "bool"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "records": {
+      "type": "any"
+    },
+    "records_dir": {
+      "default": "records",
+      "type": "string"
+    },
+    "records_file_ext": {
+      "default": ".json",
+      "type": "string"
+    },
+    "records_file_name": {
+      "default": null,
+      "type": "string"
+    },
+    "save_empty_records": {
+      "default": false,
+      "type": "bool"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    },
+    "workspace_dir": {
+      "default": null,
+      "type": "string"
+    }
+  }
+}

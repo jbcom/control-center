@@ -1,0 +1,96 @@
+{
+  "data": {
+    "env_sensitive": {
+      "GOOGLE_SERVICE_ACCOUNT": {
+        "id": "GOOGLE_SERVICE_ACCOUNT",
+        "required": true
+      }
+    },
+    "external": {
+      "default": {
+        "program": [
+          "tm_cli",
+          "get_flipsidecrypto_team_membership"
+        ],
+        "query": {
+          "GOOGLE_SERVICE_ACCOUNT": "${data.env_sensitive.GOOGLE_SERVICE_ACCOUNT.value}",
+          "calendar_shares_by_email": "${try(nonsensitive(base64encode(jsonencode(var.calendar_shares_by_email))), base64encode(jsonencode(var.calendar_shares_by_email)))}",
+          "checksum": "${try(nonsensitive(var.checksum), var.checksum)}",
+          "debug_markers": "${try(nonsensitive(jsonencode(var.debug_markers)), jsonencode(var.debug_markers))}",
+          "existing_google_groups": "${try(nonsensitive(base64encode(jsonencode(var.existing_google_groups))), base64encode(jsonencode(var.existing_google_groups)))}",
+          "existing_google_users": "${try(nonsensitive(base64encode(jsonencode(var.existing_google_users))), base64encode(jsonencode(var.existing_google_users)))}",
+          "log_file_name": "${try(nonsensitive(var.log_file_name), var.log_file_name)}",
+          "params": "${try(nonsensitive(base64encode(jsonencode(var.params))), base64encode(jsonencode(var.params)))}",
+          "verbose": "${try(nonsensitive(var.verbose), var.verbose)}",
+          "verbosity": "${try(nonsensitive(var.verbosity), var.verbosity)}"
+        }
+      }
+    }
+  },
+  "locals": {
+    "results": "${jsondecode(base64decode(data.external.default.result[\"team_membership\"]))}"
+  },
+  "output": {
+    "team_membership": {
+      "description": "Data query results",
+      "value": "${local.results}"
+    }
+  },
+  "terraform": {
+    "required_providers": {
+      "env": {
+        "source": "tcarreira/env",
+        "version": ">=0.2.0"
+      },
+      "external": {
+        "source": "hashicorp/external",
+        "version": ">=2.3.1"
+      }
+    },
+    "required_version": ">=1.6"
+  },
+  "variable": {
+    "calendar_shares_by_email": {
+      "default": null,
+      "type": "any"
+    },
+    "checksum": {
+      "default": "",
+      "description": "Optional checksum to use for triggering resource updates",
+      "type": "string"
+    },
+    "debug_markers": {
+      "default": [],
+      "description": "Identifiers to generate verbose debug statements for",
+      "type": "list(string)"
+    },
+    "existing_google_groups": {
+      "default": null,
+      "type": "any"
+    },
+    "existing_google_users": {
+      "default": null,
+      "type": "any"
+    },
+    "log_file_name": {
+      "default": "run.log",
+      "description": "Port library parameter",
+      "type": "string"
+    },
+    "params": {
+      "default": {},
+      "description": "Override for multiple params",
+      "type": "any"
+    },
+    "verbose": {
+      "default": false,
+      "description": "Port library parameter",
+      "type": "bool"
+    },
+    "verbosity": {
+      "default": 1,
+      "description": "Port library parameter",
+      "type": "number"
+    }
+  }
+}

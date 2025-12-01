@@ -1,0 +1,10 @@
+{
+  "address": "https://vault.flipside.services/",
+  "namespace": "eng/data-platform",
+  "required_environment_variables": [
+    "vault_namespace",
+    "vault_role_id",
+    "vault_secret_id",
+    "vault_url"
+  ]
+}
