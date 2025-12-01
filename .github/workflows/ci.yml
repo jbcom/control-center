@@ -215,6 +215,7 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: required-checks-pass
     runs-on: ubuntu-latest
+    environment: pypi  # Required for PyPI Trusted Publishing OIDC
 
     permissions:
       contents: write
