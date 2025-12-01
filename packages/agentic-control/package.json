@@ -93,11 +93,10 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jbcom/jbcom-control-center.git",
-    "directory": "packages/agentic-control"
+    "url": "https://github.com/jbcom/agentic-control.git"
   },
-  "homepage": "https://github.com/jbcom/jbcom-control-center/tree/main/packages/agentic-control#readme",
+  "homepage": "https://github.com/jbcom/agentic-control#readme",
   "bugs": {
-    "url": "https://github.com/jbcom/jbcom-control-center/issues"
+    "url": "https://github.com/jbcom/agentic-control/issues"
   }
 }

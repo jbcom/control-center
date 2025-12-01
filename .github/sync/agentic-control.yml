@@ -1,0 +1,17 @@
+# Sync configuration for agentic-control package
+# Syncs from monorepo to public individual repo
+
+group:
+  - files:
+      - source: packages/agentic-control/
+        dest: .
+        exclude: |
+          .git
+          .github
+          node_modules
+          dist
+          coverage
+          .DS_Store
+          *.log
+    repos: |
+      jbcom/agentic-control
