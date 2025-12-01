@@ -1,0 +1,24 @@
+{
+  "$schema": "https://agentic-control.dev/schema/config.json",
+  "tokens": {
+    "organizations": {
+      "jbcom": {
+        "name": "jbcom",
+        "tokenEnvVar": "GITHUB_JBCOM_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": false
+      },
+      "FlipsideCrypto": {
+        "name": "FlipsideCrypto",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": true
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN",
+    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultRepository": "jbcom/jbcom-control-center",
+  "logLevel": "info"
+}
