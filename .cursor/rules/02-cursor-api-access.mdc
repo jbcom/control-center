@@ -1,0 +1,119 @@
+# 02-Cursor API Access and Agent Introspection
+
+**Priority**: HIGH - This rule enables self-recovery and agent coordination.
+
+## Context
+
+You are running as a Cursor Background Agent. You have access to the Cursor API via `CURSOR_API_KEY` in your environment.
+
+## Available Environment Variables
+
+```bash
+# These are set in your environment:
+CURSOR_API_KEY      # API key for Cursor services
+CURSOR_AGENT=1      # Indicates you are a background agent
+HOSTNAME=cursor     # Your container hostname
+```
+
+## How to Access the Cursor API
+
+The Cursor API is accessible via MCP (Model Context Protocol). You need to:
+
+1. **Install mcp-proxy** (if not already):
+   ```bash
+   pip install mcp-proxy
+   export PATH="/home/ubuntu/.local/bin:$PATH"
+   ```
+
+2. **Use cursor-background-agent-mcp-server**:
+   ```bash
+   # The MCP protocol requires an initialization handshake
+   (
+     echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"agent","version":"1.0"}}}'
+     sleep 2
+     echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"<TOOL>","arguments":{<ARGS>}}}'
+     sleep 5
+   ) | timeout 30 npx -y cursor-background-agent-mcp-server
+   ```
+
+## Available MCP Tools
+
+| Tool | Description |
+|------|-------------|
+| `listAgents` | List all background agents for your account |
+| `getAgentStatus` | Get status of a specific agent |
+| `getAgentConversation` | Get full conversation (RUNNING agents only!) |
+| `listRepositories` | List accessible repositories |
+| `listModels` | List available AI models |
+| `launchAgent` | Start a new background agent |
+| `addFollowup` | Send message to a running agent |
+
+## Critical Limitations
+
+### Conversation Data Expires!
+
+**EXPIRED/DELETED agents have PURGED conversations.**
+
+When you try to retrieve a conversation for an expired agent:
+```json
+{"error": {"code": -32603, "message": "Tool execution failed", "data": {"message": "Cursor API error: 409 Conflict", "details": {"error": "Agent is deleted"}}}}
+```
+
+### Implication for Recovery:
+
+**You CANNOT recover conversations after expiration.**
+
+This means:
+1. Important conversations MUST be archived WHILE the agent is still running
+2. Session summaries from `listAgents` are the only data preserved
+3. Recovery tooling like `replay_agent_session.py` requires the JSON to be saved BEFORE expiration
+
+## Archiving Your Own Conversation
+
+To archive YOUR current conversation for future recovery:
+
+```bash
+export PATH="/home/ubuntu/.local/bin:$PATH"
+MY_AGENT_ID="<your-agent-id>"  # Get from listAgents
+
+(
+  echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"agent","version":"1.0"}}}'
+  sleep 2
+  echo "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"getAgentConversation\",\"arguments\":{\"agentId\":\"$MY_AGENT_ID\"}}}"
+  sleep 10
+) | timeout 30 npx -y cursor-background-agent-mcp-server | tail -1 | jq -r '.result.content[0].text' > /workspace/memory-bank/recovery/conversation-${MY_AGENT_ID}.json
+```
+
+## Self-Discovery Pattern
+
+When you need to understand your environment:
+
+```bash
+# 1. Check if you're a Cursor agent
+echo "CURSOR_AGENT=$CURSOR_AGENT"
+echo "CURSOR_API_KEY length: ${#CURSOR_API_KEY}"
+
+# 2. List all agents (find yourself)
+export PATH="/home/ubuntu/.local/bin:$PATH"
+(
+  echo '{"jsonrpc":"2.0","id":0,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"agent","version":"1.0"}}}'
+  sleep 2
+  echo '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listAgents","arguments":{}}}'
+  sleep 5
+) | timeout 20 npx -y cursor-background-agent-mcp-server | tail -1 | jq '.result.content[0].text | fromjson | .agents[] | select(.status == "RUNNING")'
+```
+
+## When Recovery is Needed but Conversation is Expired
+
+If you need to recover work from an expired agent:
+
+1. **Check the summary** - `listAgents` returns summaries for all agents
+2. **Check GitHub artifacts** - The agent's PR, branch, and commits still exist
+3. **Check the wiki** - jbcom-control-center may have archived notes
+4. **Check memory-bank/recovery/** - Previous agents may have archived conversations
+
+**DO NOT** repeatedly try to fetch expired conversations - it will always return 409.
+
+---
+
+*This rule was created through self-discovery during session bc-a95ea075-a47a-482f-bf69-5d16b78a2c4c*

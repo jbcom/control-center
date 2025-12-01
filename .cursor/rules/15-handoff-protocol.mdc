@@ -1,0 +1,89 @@
+---
+alwaysApply: true
+description: Agent-to-agent handoff protocol
+globs: ["**/*"]
+priority: 3
+---
+
+# Agent Handoff Protocol
+
+## Living Memory Pattern
+
+Each agent becomes the **living memory** of previous agents by:
+1. Reading `memory-bank/` files
+2. Understanding context and decisions
+3. Continuing work seamlessly
+
+## Session Start
+
+```bash
+# Always check context first
+cat memory-bank/activeContext.md
+cat memory-bank/progress.md
+
+# Check for handoff document
+if [ -f "AGENT_HANDOFF.md" ]; then cat AGENT_HANDOFF.md; fi
+```
+
+## Before Ending Session
+
+```bash
+# 1. Update active context
+cat > memory-bank/activeContext.md << 'EOF'
+# Active Context
+
+## Current Status: <status>
+<description>
+
+## For Next Agent
+<instructions>
+EOF
+
+# 2. Update progress
+cat >> memory-bank/progress.md << 'EOF'
+
+## Session: $(date +%Y-%m-%d)
+
+### Completed
+- [x] <task>
+
+### In Progress
+- [ ] <task>
+EOF
+
+# 3. Commit
+git add memory-bank/
+git commit -m "docs: update memory bank for handoff"
+```
+
+## Memory Bank Files
+
+| File | Purpose |
+|------|---------|
+| `activeContext.md` | Current state and focus |
+| `progress.md` | Session-by-session log |
+| `projectbrief.md` | Project overview |
+
+## Cross-Control-Center Handoff
+
+When handing to jbcom:
+
+```bash
+# Document locally
+cat >> memory-bank/activeContext.md << 'EOF'
+
+## Handoff to jbcom Control Center
+**Date**: $(date +%Y-%m-%d)
+**Reason**: <reason>
+EOF
+
+# Create jbcom issue
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create \
+  --repo jbcom/jbcom-control-center \
+  --title "🔄 Handoff from FSC: <task>" \
+  --body "<context>"
+```
+
+## Full Documentation
+
+See `docs/AGENT-HANDOFF-PROTOCOL.md`
