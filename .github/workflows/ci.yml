@@ -16,18 +16,12 @@ concurrency:
   cancel-in-progress: true
 
 # Workflow-level permissions
-# NOTE: Using PYPI_TOKEN for PyPI publishing (not Trusted Publishing/OIDC)
-# Therefore id-token and attestations permissions are NOT needed
-# To migrate to Trusted Publishing:
-#   - Remove PYPI_TOKEN secret usage from workflow
-#   - Add id-token: write and attestations: write permissions
-#   - Set attestations: true in pypi-publish step
-#   - Set attest-build-provenance-github: true in build step
-#   - Configure trusted publisher on PyPI for this repo/workflow
+# Using Trusted Publishing for both PyPI and npm (OIDC)
 permissions:
   contents: read
   pull-requests: write
   pages: write
+  id-token: write  # Required for Trusted Publishing (PyPI + npm)
 
 jobs:
   # ============================================
@@ -214,7 +208,7 @@ jobs:
           jobs: ${{ toJSON(needs) }}
 
   # ============================================
-  # RELEASE (main only)
+  # RELEASE (main only) - Python + Node.js packages
   # ============================================
   release:
     name: Release ${{ matrix.package }}
@@ -224,26 +218,35 @@ jobs:
 
     permissions:
       contents: write
-      # NOTE: id-token NOT needed when using PYPI_TOKEN (API token auth)
-      # id-token: write is only needed for Trusted Publishing (OIDC)
+      id-token: write  # Required for Trusted Publishing (PyPI + npm OIDC)
 
     strategy:
       fail-fast: false
-      # Release one at a time in dependency order (extended-data-types first, vendor-connectors last)
+      # Release one at a time in dependency order
       max-parallel: 1
       matrix:
         # Order matters! Packages listed in dependency order for sequential release
         include:
+          # Python packages (PyPI)
           - package: extended-data-types
             repo: jbcom/extended-data-types
+            type: python
           - package: lifecyclelogging
             repo: jbcom/lifecyclelogging
+            type: python
           - package: directed-inputs-class
             repo: jbcom/directed-inputs-class
+            type: python
           - package: python-terraform-bridge
             repo: jbcom/python-terraform-bridge
+            type: python
           - package: vendor-connectors
             repo: jbcom/vendor-connectors
+            type: python
+          # Node.js packages (npm)
+          - package: agentic-control
+            repo: jbcom/agentic-control
+            type: nodejs
 
     steps:
       - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
@@ -251,21 +254,27 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
-
-      - name: Install semantic-release
-        run: uv tool install python-semantic-release
-
       - name: Git config
         run: |
           git config --global user.name "jbcom-bot"
           git config --global user.email "jbcom-bot@users.noreply.github.com"
 
-      - name: Check if release needed
-        id: check
+      # ----------------------------------------
+      # Python Setup (for python packages)
+      # ----------------------------------------
+      - name: Setup UV (Python)
+        if: matrix.type == 'python'
+        uses: hynek/setup-cached-uv@757bedc3f972eb7227a1aa657651f15a8527c817  # v2.3.0
+
+      - name: Install python-semantic-release
+        if: matrix.type == 'python'
+        run: uv tool install python-semantic-release
+
+      - name: Check if Python release needed
+        if: matrix.type == 'python'
+        id: check-python
         working-directory: packages/${{ matrix.package }}
         run: |
-          # PSR will output the new version if a release is needed, or nothing if not
           NEW_VERSION=$(semantic-release --noop version --print || true)
           if [ -n "$NEW_VERSION" ]; then
             echo "should_release=true" >> $GITHUB_OUTPUT
@@ -274,48 +283,146 @@ jobs:
             echo "should_release=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Release version
-        if: steps.check.outputs.should_release == 'true'
+      - name: Release Python version
+        if: matrix.type == 'python' && steps.check-python.outputs.should_release == 'true'
         working-directory: packages/${{ matrix.package }}
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          # Let PSR handle version bump, commit, tag, and push
-          semantic-release version
+        run: semantic-release version
 
-      - name: Download built packages
-        if: steps.check.outputs.should_release == 'true'
+      - name: Download Python packages
+        if: matrix.type == 'python' && steps.check-python.outputs.should_release == 'true'
         uses: actions/download-artifact@018cc2cf5baa6db3ef3c5f8a56943fffe632ef53  # v6.0.0
         with:
           name: Packages-${{ matrix.package }}
           path: dist
 
-      - name: Publish to PyPI
-        if: steps.check.outputs.should_release == 'true'
+      - name: Publish to PyPI (Trusted Publishing)
+        if: matrix.type == 'python' && steps.check-python.outputs.should_release == 'true'
         uses: pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e  # v1.13.0
         with:
-          password: ${{ secrets.PYPI_TOKEN }}
           skip-existing: true
-          # Attestations require Trusted Publishing (OIDC), not API tokens
-          # Since we use PYPI_TOKEN, attestations must be disabled
-          attestations: false
+          attestations: true  # Enable with Trusted Publishing
 
-      - name: Create GitHub Release
-        if: steps.check.outputs.should_release == 'true'
+      - name: Create Python GitHub Release
+        if: matrix.type == 'python' && steps.check-python.outputs.should_release == 'true'
         uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe  # v2.4.2
         with:
-          tag_name: ${{ matrix.package }}-v${{ steps.check.outputs.version }}
-          name: ${{ matrix.package }} v${{ steps.check.outputs.version }}
+          tag_name: ${{ matrix.package }}-v${{ steps.check-python.outputs.version }}
+          name: ${{ matrix.package }} v${{ steps.check-python.outputs.version }}
           files: dist/*
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
+      # ----------------------------------------
+      # Node.js Setup (for nodejs packages)
+      # ----------------------------------------
+      - name: Setup Node.js
+        if: matrix.type == 'nodejs'
+        uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup pnpm
+        if: matrix.type == 'nodejs'
+        uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
+        with:
+          version: 9.15.0
+
+      - name: Install Node.js dependencies
+        if: matrix.type == 'nodejs'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check if Node.js release needed
+        if: matrix.type == 'nodejs'
+        id: check-nodejs
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          LAST_TAG=$(git describe --tags --match "${{ matrix.package }}-v*" --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            echo "No previous tag found, checking if initial release"
+            echo "should_release=false" >> $GITHUB_OUTPUT
+          else
+            CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- packages/${{ matrix.package }}/ | wc -l)
+            if [ "$CHANGES" -gt 0 ]; then
+              echo "Found $CHANGES changed files since $LAST_TAG"
+              echo "should_release=true" >> $GITHUB_OUTPUT
+              
+              # Determine version bump from commits
+              FEAT_COUNT=$(git log "$LAST_TAG"..HEAD --oneline -- packages/${{ matrix.package }}/ | grep -iE "^[a-f0-9]+ feat" | wc -l || echo 0)
+              BREAKING=$(git log "$LAST_TAG"..HEAD --oneline -- packages/${{ matrix.package }}/ | grep -iE "BREAKING" | wc -l || echo 0)
+              
+              CURRENT=$(echo "$LAST_TAG" | sed "s/${{ matrix.package }}-v//")
+              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+              
+              if [ "$BREAKING" -gt 0 ]; then
+                MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+              elif [ "$FEAT_COUNT" -gt 0 ]; then
+                MINOR=$((MINOR + 1)); PATCH=0
+              else
+                PATCH=$((PATCH + 1))
+              fi
+              
+              echo "new_version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+            else
+              echo "No changes found"
+              echo "should_release=false" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Update package.json version
+        if: matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: |
+          pnpm version ${{ steps.check-nodejs.outputs.new_version }} --no-git-tag-version
+          git add package.json
+          git commit -m "chore(${{ matrix.package }}): release v${{ steps.check-nodejs.outputs.new_version }}"
+
+      - name: Build Node.js package
+        if: matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: pnpm run build
+
+      - name: Create Node.js tag and push
+        if: matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true'
+        run: |
+          git tag "${{ matrix.package }}-v${{ steps.check-nodejs.outputs.new_version }}"
+          git push origin main --tags
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - name: Publish to npm (Trusted Publishing)
+        if: matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true'
+        working-directory: packages/${{ matrix.package }}
+        run: pnpm publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Create Node.js GitHub Release
+        if: matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true'
+        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe  # v2.4.2
+        with:
+          tag_name: ${{ matrix.package }}-v${{ steps.check-nodejs.outputs.new_version }}
+          name: ${{ matrix.package }} v${{ steps.check-nodejs.outputs.new_version }}
+          body: |
+            ## ${{ matrix.package }} v${{ steps.check-nodejs.outputs.new_version }}
+            
+            Install: `npm install ${{ matrix.package }}`
+            
+            See [README](https://github.com/${{ matrix.repo }}#readme) for usage.
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      # ----------------------------------------
+      # Sync to public repo (both Python and Node.js)
+      # ----------------------------------------
       - name: Sync to public repo
-        if: steps.check.outputs.should_release == 'true'
+        if: (matrix.type == 'python' && steps.check-python.outputs.should_release == 'true') || (matrix.type == 'nodejs' && steps.check-nodejs.outputs.should_release == 'true')
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619  # v1.21.1
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync/${{ matrix.package }}.yml
-          COMMIT_BODY: "🚀 Synced from monorepo release v${{ steps.check.outputs.version }}"
+          COMMIT_BODY: "🚀 Synced from monorepo release"
 
   # ============================================
   # DOCS (main only)
@@ -381,124 +488,3 @@ jobs:
           user_name: jbcom-bot
           user_email: jbcom-bot@users.noreply.github.com
 
-  # ============================================
-  # RELEASE AGENTIC-CONTROL TO NPM (main only)
-  # ============================================
-  release-npm:
-    name: Release agentic-control to npm
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: required-checks-pass
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: write
-
-    steps:
-      - uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3  # v6.0.0
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - uses: actions/setup-node@2028fbc5c25fe9cf00d9f06a71cc4710d4507903  # v6.0.0
-        with:
-          node-version: "22"
-          registry-url: "https://registry.npmjs.org"
-
-      - uses: pnpm/action-setup@fe02b34f77f8bc703788d5817da081398fad5dd2  # v4.0.0
-        with:
-          version: 9.15.0
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Git config
-        run: |
-          git config --global user.name "jbcom-bot"
-          git config --global user.email "jbcom-bot@users.noreply.github.com"
-
-      - name: Check for changes and version bump
-        id: version
-        working-directory: packages/agentic-control
-        run: |
-          # Check if there are relevant changes since last tag
-          LAST_TAG=$(git describe --tags --match "agentic-control-v*" --abbrev=0 2>/dev/null || echo "")
-          
-          if [ -z "$LAST_TAG" ]; then
-            echo "No previous tag found, will create initial release"
-            echo "should_release=true" >> $GITHUB_OUTPUT
-            echo "new_version=1.0.0" >> $GITHUB_OUTPUT
-          else
-            # Check for changes in agentic-control since last tag
-            CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- packages/agentic-control/ | wc -l)
-            if [ "$CHANGES" -gt 0 ]; then
-              echo "Found $CHANGES changed files since $LAST_TAG"
-              echo "should_release=true" >> $GITHUB_OUTPUT
-              
-              # Determine version bump from commits
-              FEAT_COUNT=$(git log "$LAST_TAG"..HEAD --oneline -- packages/agentic-control/ | grep -iE "^[a-f0-9]+ feat" | wc -l || echo 0)
-              FIX_COUNT=$(git log "$LAST_TAG"..HEAD --oneline -- packages/agentic-control/ | grep -iE "^[a-f0-9]+ fix" | wc -l || echo 0)
-              BREAKING=$(git log "$LAST_TAG"..HEAD --oneline -- packages/agentic-control/ | grep -iE "BREAKING" | wc -l || echo 0)
-              
-              # Parse current version
-              CURRENT=$(echo "$LAST_TAG" | sed 's/agentic-control-v//')
-              IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
-              
-              if [ "$BREAKING" -gt 0 ]; then
-                MAJOR=$((MAJOR + 1))
-                MINOR=0
-                PATCH=0
-              elif [ "$FEAT_COUNT" -gt 0 ]; then
-                MINOR=$((MINOR + 1))
-                PATCH=0
-              else
-                PATCH=$((PATCH + 1))
-              fi
-              
-              echo "new_version=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
-            else
-              echo "No changes found"
-              echo "should_release=false" >> $GITHUB_OUTPUT
-            fi
-          fi
-
-      - name: Update package.json version
-        if: steps.version.outputs.should_release == 'true'
-        working-directory: packages/agentic-control
-        run: |
-          pnpm version ${{ steps.version.outputs.new_version }} --no-git-tag-version
-          git add package.json
-          git commit -m "chore(agentic-control): release v${{ steps.version.outputs.new_version }}"
-
-      - name: Build package
-        if: steps.version.outputs.should_release == 'true'
-        working-directory: packages/agentic-control
-        run: pnpm run build
-
-      - name: Create git tag
-        if: steps.version.outputs.should_release == 'true'
-        run: |
-          git tag "agentic-control-v${{ steps.version.outputs.new_version }}"
-          git push origin main --tags
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Publish to npm
-        if: steps.version.outputs.should_release == 'true'
-        working-directory: packages/agentic-control
-        run: pnpm publish --access public --no-git-checks
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Create GitHub Release
-        if: steps.version.outputs.should_release == 'true'
-        uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe  # v2.4.2
-        with:
-          tag_name: agentic-control-v${{ steps.version.outputs.new_version }}
-          name: agentic-control v${{ steps.version.outputs.new_version }}
-          body: |
-            ## agentic-control v${{ steps.version.outputs.new_version }}
-            
-            Install: `npm install agentic-control`
-            
-            See [README](https://github.com/jbcom/jbcom-control-center/tree/main/packages/agentic-control#readme) for usage.
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
