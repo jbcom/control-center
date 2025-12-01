@@ -408,6 +408,7 @@ ${analysis.recommendations.map(r => `- ${r}`).join("\n")}
    */
   private prepareConversationText(messages: ConversationMessage[], maxTokens = 100000): string {
     const maxChars = maxTokens * 4;
+    const APPROX_CHARS_PER_MESSAGE = 500;
     
     let text = messages
       .map((m, i) => {
@@ -419,9 +420,9 @@ ${analysis.recommendations.map(r => `- ${r}`).join("\n")}
     if (text.length > maxChars) {
       const firstPart = text.slice(0, Math.floor(maxChars * 0.2));
       const lastPart = text.slice(-Math.floor(maxChars * 0.8));
-      // Calculate actual truncation based on character difference, not arbitrary number
       const truncatedChars = text.length - (firstPart.length + lastPart.length);
-      text = `${firstPart}\n\n[... approximately ${Math.ceil(truncatedChars / 500)} messages truncated (${truncatedChars} chars) ...]\n\n${lastPart}`;
+      const estimatedMessages = Math.ceil(truncatedChars / APPROX_CHARS_PER_MESSAGE);
+      text = `${firstPart}\n\n[... approximately ${estimatedMessages} messages truncated (${truncatedChars} chars) ...]\n\n${lastPart}`;
     }
 
     return text;

@@ -634,7 +634,6 @@ program
   .description("Create a sample configuration file")
   .option("--force", "Overwrite existing config file")
   .action((opts) => {
-    const { existsSync } = require("node:fs");
     const configPath = "agentic.config.json";
     
     if (existsSync(configPath) && !opts.force) {

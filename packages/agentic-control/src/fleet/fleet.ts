@@ -460,15 +460,13 @@ export class Fleet {
 
     // Run both loops concurrently
     await Promise.all([
-      this.outboundLoop(config, owner, repo, agentIds, outboundInterval),
+      this.outboundLoop(config, agentIds, outboundInterval),
       this.inboundLoop(config, owner, repo, agentIds, processedCommentIds, inboundInterval),
     ]);
   }
 
   private async outboundLoop(
     config: CoordinationConfig,
-    _owner: string,
-    _repo: string,
     agentIds: Set<string>,
     interval: number
   ): Promise<void> {

@@ -67,18 +67,12 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
 # These are installed globally via pnpm for all future agents
 # ============================================
 
-# Ruler - AI agent instruction management
-# Used to regenerate .cursorrules, copilot-instructions.md, etc. from .ruler/ sources
-# Version pinned for reproducible builds
-RUN pnpm add -g @intellectronica/ruler@^1.0.0 && \
-    ruler --version
-
-# Claude Code - Anthropic's AI coding assistant CLI
-# Requires ANTHROPIC_API_KEY environment variable at runtime
-# Using pnpm for consistency with other global tools
-# Version pinned for reproducible builds
-RUN pnpm add -g @anthropic-ai/claude-code@^0.2.0 && \
-    claude --version || echo "Claude installed (requires API key for full verification)"
+# Global Node.js tools - version pinned for reproducible builds
+# - Ruler: AI agent instruction management
+# - Claude Code: Anthropic's AI coding assistant CLI
+RUN pnpm add -g @intellectronica/ruler@^1.0.0 @anthropic-ai/claude-code@^0.2.0 && \
+    ruler --version && \
+    (claude --version || echo "Claude installed (requires API key for full verification)")
 
 # ============================================
 # AI CLI Tools (Python-based)
