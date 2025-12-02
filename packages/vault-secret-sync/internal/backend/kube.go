@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/hashicorp/vault/sdk/logical"
 	log "github.com/sirupsen/logrus"
