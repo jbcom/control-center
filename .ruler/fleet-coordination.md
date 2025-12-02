@@ -1,29 +1,61 @@
 # Fleet Coordination
 
-## cursor-fleet Package
+## agentic-control Package
 
-The `@jbcom/cursor-fleet` package in `packages/cursor-fleet/` provides agent orchestration.
+The `agentic-control` package in `packages/agentic-control/` provides unified agent orchestration with automatic token switching.
 
 ### Commands
 
 ```bash
 # List agents
-cursor-fleet list [--running]
+agentic fleet list [--running]
 
-# Spawn agent
-cursor-fleet spawn --repo owner/repo --task "Task description"
+# Spawn agent (auto-selects token based on repo org)
+agentic fleet spawn <repo-url> "<task>" --ref <branch>
 
 # Send follow-up message
-cursor-fleet followup <agent-id> "Message"
+agentic fleet followup <agent-id> "Message"
 
-# Monitor specific agents until done
-cursor-fleet monitor <agent-id1> <agent-id2>
-
-# Watch fleet for state changes
-cursor-fleet watch --poll 30000
+# Get fleet summary
+agentic fleet summary
 
 # Run bidirectional coordinator
-cursor-fleet coordinate --pr <number> --agents <id1,id2>
+agentic fleet coordinate --pr <number> --repo <owner/repo>
+
+# Check token configuration
+agentic tokens status
+agentic tokens for-repo <owner/repo>
+
+# AI-powered triage
+agentic triage analyze <agent-id> --output report.md
+agentic triage review --base main --head HEAD
+```
+
+### Configuration
+
+All configuration is in `agentic.config.json`:
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": {
+        "name": "jbcom",
+        "tokenEnvVar": "GITHUB_JBCOM_TOKEN"
+      },
+      "": {
+        "name": "",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN"
+      },
+      "": {
+        "name": "",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN"
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-5-20250929"
+}
 ```
 
 ## Coordination Channel (Hold-Open PR)
@@ -86,7 +118,7 @@ The `coordinate` command runs two concurrent loops:
 ## Programmatic Usage
 
 ```typescript
-import { Fleet } from "@jbcom/cursor-fleet";
+import { Fleet } from "agentic-control";
 
 const fleet = new Fleet();
 
@@ -100,8 +132,6 @@ await fleet.coordinate({
 // Or individual methods
 await fleet.spawn({ repository: "owner/repo", task: "Do something" });
 await fleet.followup("bc-xxx", "Status check");
-const comments = fleet.fetchPRComments("owner/repo", 251);
-fleet.postPRComment("owner/repo", 251, "Update");
 ```
 
 ## process-compose Integration
@@ -110,13 +140,14 @@ Add to `process-compose.yml`:
 
 ```yaml
 fleet-coordinator:
-  command: "node packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR} --agents ${AGENT_IDS}"
+  command: "node packages/agentic-control/dist/cli.js fleet coordinate --pr ${COORDINATION_PR} --repo jbcom/jbcom-control-center"
   environment:
     - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
+    - "GITHUB_FSC_TOKEN=${GITHUB_FSC_TOKEN}"
     - "CURSOR_API_KEY=${CURSOR_API_KEY}"
 ```
 
 Run with:
 ```bash
-COORDINATION_PR=251 AGENT_IDS=bc-xxx,bc-yyy process-compose up fleet-coordinator
+COORDINATION_PR=251 process-compose up fleet-coordinator
 ```

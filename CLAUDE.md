@@ -2,9 +2,9 @@
 
 <!-- Source: .ruler/AGENTS.md -->
 
-# AI Agent Guidelines for jbcom-control-center
+# AI Agent Guidelines for Unified Control Center
 
-**This is the monorepo for jbcom Python ecosystem packages.** All packages are managed here with unified CI/CD.
+**Single control surface for jbcom +  ecosystems.**
 
 ## 🚨 MANDATORY FIRST: SESSION START
 
@@ -12,40 +12,73 @@
 ```bash
 # 1. Read core agent rules
 cat .ruler/AGENTS.md
-cat .ruler/fleet-coordination.md
+cat ECOSYSTEM.toml
 
 # 2. Check active GitHub Issues for context
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue list --label "agent-session" --state open
 
 # 3. Check your fleet tooling
-node packages/cursor-fleet/dist/cli.js list --running
+agentic fleet list --running
 ```
 
 ### Your Tools:
 | Tool | Command | Purpose |
 |------|---------|---------|
-| Fleet management | `cursor-fleet list/spawn/followup` | Manage Cursor background agents |
-| Fleet coordination | `cursor-fleet coordinate --pr N` | Bidirectional agent coordination |
-| Sub-agent spawn | `cursor-fleet spawn <repo> <task>` | Spawn agents in repos |
+| Fleet management | `agentic fleet list/spawn/followup` | Manage Cursor background agents |
+| Fleet coordination | `agentic fleet coordinate --pr N` | Bidirectional agent coordination |
+| Triage | `agentic triage analyze <session>` | AI-powered session analysis |
+| GitHub | `agentic github pr/issue` | Token-aware GitHub operations |
 
 ## 🔑 CRITICAL: Authentication
 
-**ALWAYS use `GITHUB_JBCOM_TOKEN` for ALL jbcom repo operations:**
+**Token switching is AUTOMATIC based on repository organization:**
 ```bash
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "..." --body "..."
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 123 --squash --delete-branch
+# jbcom repos → uses GITHUB_JBCOM_TOKEN
+agentic github pr create --repo jbcom/extended-data-types
+
+#  repos → uses GITHUB_FSC_TOKEN
+agentic github pr create --repo /terraform-modules
+
+# PR reviews ALWAYS use GITHUB_JBCOM_TOKEN
 ```
 
-## 📦 Monorepo Structure
+**Manual operations:**
+```bash
+# jbcom
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
 
+# 
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create ...
+```
+
+## 📦 Repository Structure
+
+### jbcom Ecosystem (Python/Node.js Packages)
 ```
 packages/
-├── extended-data-types/      # Foundational utilities
-├── lifecyclelogging/         # Structured logging
-├── directed-inputs-class/    # Input handling (decorators + legacy)
-├── python-terraform-bridge/  # Terraform integration
-├── vendor-connectors/        # Cloud vendor connectors (AWS, Google, GitHub)
-└── cursor-fleet/             # TypeScript - Agent fleet management
+├── extended-data-types/      # Foundation (Python → PyPI)
+├── lifecyclelogging/         # Logging (Python → PyPI)
+├── directed-inputs-class/    # Validation (Python → PyPI)
+├── python-terraform-bridge/  # Terraform utils (Python → PyPI)
+├── vendor-connectors/        # Cloud SDKs (Python → PyPI)
+└── agentic-control/          # Agent orchestration (Node.js → npm)
+```
+
+###  Ecosystem (Infrastructure)
+```
+ecosystems//
+├── terraform/
+│   ├── modules/              # 100+ reusable modules
+│   │   ├── aws/              # AWS (70+ modules)
+│   │   ├── google/           # GCP (38 modules)
+│   │   └── github/           # GitHub management
+│   └── workspaces/           # 44 live workspaces
+│       ├── terraform-aws-organization/
+│       └── terraform-google-organization/
+├── sam/                      # AWS Lambda apps
+├── lib/                      # Python libraries
+├── config/                   # State paths, pipelines
+└── memory-bank/              # Agent context
 ```
 
 ## 🚀 CI/CD & Release Workflow
@@ -237,23 +270,35 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUMBER> --squash --delete-branch
 
 ### Spawn Sub-Agents
 ```bash
-# Spawn agent in another repo
-node packages/cursor-fleet/dist/cli.js spawn \
-  "https://github.com/jbcom/vendor-connectors" \
-  "Fix CI failures" \
-  --ref main
+# Spawn agent in another repo (auto-selects token based on org)
+agentic fleet spawn "https://github.com/jbcom/vendor-connectors" "Fix CI failures" --ref main
+
+# For  repos (also uses GITHUB_FSC_TOKEN automatically)
+agentic fleet spawn "https://github.com//cluster-ops" "Complete PR" --ref proposal/vault-secret-sync
 
 # Send followup to running agent
-node packages/cursor-fleet/dist/cli.js followup <agent-id> "Update: ..."
+agentic fleet followup <agent-id> "Update: ..."
 
 # Monitor agents
-node packages/cursor-fleet/dist/cli.js list --running
+agentic fleet list --running
+
+# Check which token will be used for a repo
+agentic tokens for-repo /cluster-ops
 ```
 
 ### Bidirectional Coordination
 ```bash
 # Start coordinator (uses PR for communication)
-node packages/cursor-fleet/dist/cli.js coordinate --pr 251 --repo jbcom/jbcom-control-center
+agentic fleet coordinate --pr 251 --repo jbcom/jbcom-control-center
+```
+
+### AI Triage & Analysis
+```bash
+# Analyze agent session
+agentic triage analyze <agent-id> --output report.md
+
+# Code review
+agentic triage review --base main --head HEAD
 ```
 
 ---
@@ -702,7 +747,7 @@ When you receive an issue labeled `copilot`:
 
 ## Working with Auto-Generated Issues
 
-Issues created by `cursor-fleet analyze` have this structure:
+Issues created by `agentic triage analyze` have this structure:
 ```markdown
 ## Summary
 [Description of the task]
@@ -732,7 +777,7 @@ jbcom-control-center/
 │   ├── lifecyclelogging/        # Logging utilities
 │   ├── directed-inputs-class/   # Input validation
 │   ├── vendor-connectors/       # External service connectors
-│   ├── cursor-fleet/            # Agent fleet management (Node.js)
+│   ├── agentic-control/         # Agent orchestration toolkit (Node.js)
 │   └── python-terraform-bridge/ # Terraform utilities
 ├── .ruler/                      # Agent instructions (source of truth)
 ├── .github/workflows/           # CI/CD workflows
@@ -939,9 +984,9 @@ ruff format --check .
 pytest
 
 # TypeScript packages
-cd packages/cursor-fleet
-npm run build
-npm test  # if tests exist
+cd packages/agentic-control
+pnpm build
+pnpm test  # if tests exist
 ```
 
 ## Common Mistakes to Avoid
@@ -975,16 +1020,19 @@ def process(data: dict[str, Any]) -> dict[str, Any]:
     return data
 ```
 
-## Integration with cursor-fleet
+## Integration with agentic-control
 
 If you need to understand what previous agents did:
 
 ```bash
 # Analyze a previous agent session
-cursor-fleet analyze bc-xxx-xxx --output report.md
+agentic triage analyze bc-xxx-xxx --output report.md
 
 # Review code before pushing
-cursor-fleet review --base main --head HEAD
+agentic triage review --base main --head HEAD
+
+# Check token status
+agentic tokens status
 ```
 
 ## Questions?
@@ -1018,6 +1066,26 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/extended-data-types
 ```
 
 The default `GH_TOKEN` does NOT have jbcom access. NEVER use bare `gh` commands for jbcom repos.
+
+## 🎛️ agentic-control Configuration
+
+This workspace uses `agentic-control` for fleet management and triage. Configuration is in `/workspace/agentic.config.json`:
+
+- **jbcom** repos → `GITHUB_JBCOM_TOKEN`
+- **** repos → `GITHUB_FSC_TOKEN`
+- **PR reviews** always use `GITHUB_JBCOM_TOKEN` for consistent identity
+
+Use the CLI:
+```bash
+# Check token status
+agentic tokens status
+
+# Spawn agent with explicit model
+agentic fleet spawn https://github.com/jbcom/repo "Task" --model claude-sonnet-4-20250514
+
+# Analyze a session
+agentic triage analyze bc-xxx-xxx -o report.md
+```
 
 ## 🚨 CRITICAL: Long-Running PR Workflow for Multi-Merge Sessions
 
@@ -1331,216 +1399,222 @@ When possible avoid:
 
 <!-- Source: .ruler/ecosystem.md -->
 
-# Ecosystem Repositories
+# Unified Control Center Ecosystem
 
-This control center manages the jbcom Python library ecosystem via **MONOREPO ARCHITECTURE**.
+This control center manages **TWO ecosystems** from a single repository:
 
----
-
-## 🏗️ ARCHITECTURE: All Code Lives Here
-
-**ALL Python ecosystem code is in `packages/` in this repository.**
-
-```
-jbcom-control-center/packages/
-├── extended-data-types/    → syncs to → jbcom/extended-data-types → PyPI
-├── lifecyclelogging/       → syncs to → jbcom/lifecyclelogging → PyPI
-├── directed-inputs-class/  → syncs to → jbcom/directed-inputs-class → PyPI
-└── vendor-connectors/      → syncs to → jbcom/vendor-connectors → PyPI
-```
-
-### Workflow
-1. **Edit** code in `packages/`
-2. **PR** to control-center main
-3. **Sync workflow** creates PRs in public repos
-4. **Merge** public PRs → CI → PyPI release
-
-### Why Monorepo
-- ✅ No cloning external repos
-- ✅ No GitHub API gymnastics
-- ✅ Single source of truth
-- ✅ Cross-package changes in ONE PR
-- ✅ Dependencies always aligned
+| Ecosystem | Path | Output |
+|-----------|------|--------|
+| **jbcom** | `packages/` | PyPI + npm |
+| **** | `ecosystems//` | AWS/GCP infrastructure |
 
 ---
 
-## 📦 Package Details
+## 🏗️ ARCHITECTURE
 
-### 1. extended-data-types (FOUNDATION)
-**Location:** `packages/extended-data-types/`
-**PyPI:** `extended-data-types`
-**Public Repo:** `jbcom/extended-data-types`
-
-The foundation library - ALL other packages depend on this.
-
-**Provides:**
-- Re-exported libraries: `gitpython`, `inflection`, `lark`, `orjson`, `python-hcl2`, `ruamel.yaml`, `sortedcontainers`, `wrapt`
-- Utilities: `strtobool`, `strtopath`, `make_raw_data_export_safe`, `get_unique_signature`
-- Serialization: `decode_yaml`, `encode_yaml`, `decode_json`, `encode_json`
-- Collections: `flatten_map`, `filter_map`, and more
-
-**Rule:** Before adding ANY dependency to other packages, check if extended-data-types provides it.
-
-### 2. lifecyclelogging
-**Location:** `packages/lifecyclelogging/`
-**PyPI:** `lifecyclelogging`
-**Public Repo:** `jbcom/lifecyclelogging`
-
-Structured lifecycle logging with automatic sanitization.
-
-**Depends on:** extended-data-types
-
-### 3. directed-inputs-class
-**Location:** `packages/directed-inputs-class/`
-**PyPI:** `directed-inputs-class`
-**Public Repo:** `jbcom/directed-inputs-class`
-
-Declarative input validation and processing.
-
-**Depends on:** extended-data-types
-
-### 4. vendor-connectors
-**Location:** `packages/vendor-connectors/`
-**PyPI:** `vendor-connectors`
-**Public Repo:** `jbcom/vendor-connectors`
-
-Unified vendor connectors (AWS, GCP, GitHub, Slack, Vault, Zoom).
-
-**Depends on:** extended-data-types, lifecyclelogging, directed-inputs-class
+```
+jbcom-control-center/
+├── packages/                          # jbcom ecosystem
+│   ├── extended-data-types/           # → PyPI
+│   ├── lifecyclelogging/              # → PyPI
+│   ├── directed-inputs-class/         # → PyPI
+│   ├── python-terraform-bridge/       # → PyPI
+│   ├── vendor-connectors/             # → PyPI
+│   └── agentic-control/               # → npm
+│
+├── ecosystems//        #  ecosystem
+│   ├── terraform/
+│   │   ├── modules/                   # 100+ reusable modules
+│   │   └── workspaces/                # 44 live workspaces
+│   ├── sam/                           # AWS Lambda apps
+│   ├── lib/                           # Python libraries
+│   └── config/                        # State paths, pipelines
+│
+└── ECOSYSTEM.toml                     # Unified manifest
+```
 
 ---
 
-## 🔗 Dependency Chain
+## 📦 jbcom Packages
+
+### Python (PyPI)
+
+| Package | Description | Public Repo |
+|---------|-------------|-------------|
+| extended-data-types | Foundation utilities | jbcom/extended-data-types |
+| lifecyclelogging | Structured logging | jbcom/lifecyclelogging |
+| directed-inputs-class | Input validation | jbcom/directed-inputs-class |
+| python-terraform-bridge | Terraform utils | jbcom/python-terraform-bridge |
+| vendor-connectors | Cloud SDKs | jbcom/vendor-connectors |
+
+### Node.js (npm)
+
+| Package | Description | Public Repo |
+|---------|-------------|-------------|
+| agentic-control | Agent orchestration | jbcom/agentic-control |
+
+### Dependency Chain
 
 ```
-extended-data-types (FOUNDATION)
+extended-data-types (foundation)
 ├── lifecyclelogging
 ├── directed-inputs-class
-└── vendor-connectors (depends on BOTH)
-```
+├── python-terraform-bridge
+└── vendor-connectors (depends on all above)
 
-**Release Order:** Always release in this order:
-1. extended-data-types
-2. lifecyclelogging
-3. directed-inputs-class
-4. vendor-connectors
-
----
-
-## 🔧 Working With Packages
-
-### Edit Code
-```bash
-# Just edit files directly!
-vim packages/extended-data-types/src/extended_data_types/type_utils.py
-vim packages/vendor-connectors/pyproject.toml
-```
-
-### Run Tests
-```bash
-cd packages/extended-data-types && pip install -e ".[tests]" && pytest
-cd packages/lifecyclelogging && pip install -e ".[tests]" && pytest
-```
-
-### Align Dependencies
-```bash
-# Update version across all packages
-sed -i 's/extended-data-types>=.*/extended-data-types>=2025.11.200/' \
-  packages/*/pyproject.toml
-```
-
-### Create PR
-```bash
-git checkout -b fix/whatever
-git add -A && git commit -m "Fix: description"
-git push -u origin fix/whatever
-gh pr create --title "Fix: whatever"
+agentic-control (independent Node.js package)
 ```
 
 ---
 
-## 🔄 Sync Configuration
+## 🏢  Infrastructure
 
-### Files
-- `packages/ECOSYSTEM.toml` - Source of truth
-- `.github/sync.yml` - What syncs where
-- `.github/workflows/sync-packages.yml` - Sync workflow
+### Terraform Modules (100+)
 
-### Triggers
-- Push to main with `packages/**` changes
-- Manual workflow dispatch
-- Release published
+| Category | Path | Count |
+|----------|------|-------|
+| AWS | `terraform/modules/aws/` | 70+ |
+| Google | `terraform/modules/google/` | 38 |
+| GitHub | `terraform/modules/github/` | 10+ |
+| Terraform | `terraform/modules/terraform/` | 5 |
 
-### Secret
-`CI_GITHUB_TOKEN` from Doppler - has write access to all jbcom repos
+### Terraform Workspaces (44)
+
+| Organization | Path | Count |
+|--------------|------|-------|
+| AWS | `terraform/workspaces/terraform-aws-organization/` | 37 |
+| Google | `terraform/workspaces/terraform-google-organization/` | 7 |
+
+### SAM Applications
+
+| App | Purpose |
+|-----|---------|
+| secrets-config | Secrets configuration |
+| secrets-merging | Secrets merging |
+| secrets-syncing | Secrets syncing |
+
+---
+
+## 🔑 Token Configuration
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": { "tokenEnvVar": "GITHUB_JBCOM_TOKEN" },
+      "": { "tokenEnvVar": "GITHUB_FSC_TOKEN" }
+    },
+    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+  }
+}
+```
+
+**Token switching is automatic** via `agentic-control`.
+
+---
+
+## 🔄 Release Flow
+
+### Python Packages
+```
+Conventional commit → PSR version bump → PyPI publish → Public repo sync
+```
+
+### Node.js Package
+```
+Conventional commit → CI version bump → npm publish → Public repo sync
+```
+
+### Terraform
+```
+Edit → Plan → Apply (manual with appropriate credentials)
+```
+
+---
+
+## 🔧 Working With Each Ecosystem
+
+### jbcom Packages
+
+```bash
+# Edit
+vim packages/extended-data-types/src/extended_data_types/utils.py
+
+# Test
+tox -e extended-data-types
+
+# PR
+git checkout -b fix/something
+git commit -m "fix(edt): description"
+git push -u origin fix/something
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create
+```
+
+###  Infrastructure
+
+```bash
+# Navigate
+cd ecosystems//terraform/workspaces/terraform-aws-organization/security
+
+# Plan
+terraform plan
+
+# Apply (requires AWS credentials)
+terraform apply
+```
+
+### agentic-control
+
+```bash
+# Build
+cd packages/agentic-control && pnpm build
+
+# Test
+pnpm test
+
+# Use CLI
+agentic fleet list
+agentic triage analyze <session>
+```
 
 ---
 
 ## ⚠️ Rules
 
 ### DO
-- ✅ Edit code in `packages/` directly
-- ✅ Use regular git for this repo
-- ✅ Check `packages/ECOSYSTEM.toml` for relationships
-- ✅ Use extended-data-types utilities
-- ✅ Release in dependency order
+- ✅ Use `agentic-control` for cross-ecosystem operations
+- ✅ Let token switching happen automatically
+- ✅ Check `ECOSYSTEM.toml` for relationships
+- ✅ Use conventional commits with scopes
 
 ### DON'T
-- ❌ Clone external repos - code is HERE
-- ❌ Add duplicate utilities
-- ❌ Skip the sync workflow
-- ❌ Push directly to main (use PRs)
-
----
-
-## 🎯 Eliminate Duplication
-
-### Check Before Adding Dependencies
-Always check `packages/extended-data-types/pyproject.toml` first.
-
-### Red Flags
-- `utils.py` > 100 lines → duplicating extended-data-types
-- Direct `import inflection` → should use extended-data-types
-- Custom JSON/YAML functions → use `encode_json`, `decode_yaml`
-
-### Correct Pattern
-```python
-# ✅ Use foundation library
-from extended_data_types import strtobool, make_raw_data_export_safe
-
-# ❌ Don't reimplement
-def my_str_to_bool(val):
-    return val.lower() in ("true", "yes", "1")
-```
+- ❌ Hardcode tokens
+- ❌ Mix ecosystem concerns in single commits
+- ❌ Push directly to main
+- ❌ Modify Terraform state manually
 
 ---
 
 ## 📊 Health Checks
 
-### Check Public Repo CI
 ```bash
-for repo in extended-data-types lifecyclelogging directed-inputs-class vendor-connectors; do
-  gh run list --repo jbcom/$repo --limit 3
+# Check Python packages
+for pkg in extended-data-types lifecyclelogging directed-inputs-class vendor-connectors; do
+  GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/$pkg --limit 1
 done
-```
 
-### Check PyPI Versions
-```bash
-pip index versions extended-data-types
-pip index versions lifecyclelogging
-pip index versions vendor-connectors
-```
+# Check agentic-control
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/agentic-control --limit 1
 
-### Trigger Manual Sync
-```bash
-gh workflow run "Sync Packages to Public Repos" --repo jbcom/jbcom-control-center
+# Check agent fleet
+agentic fleet list --running
 ```
 
 ---
 
-**Source of Truth:** `packages/ECOSYSTEM.toml`
-**All code is in:** `packages/`
-**Sync handles:** Pushing to public repos and PyPI
+**Manifest:** `ECOSYSTEM.toml`
+**Agent Config:** `agentic.config.json`
+**Token Docs:** `docs/TOKEN-MANAGEMENT.md`
 
 
 
@@ -1588,6 +1662,53 @@ uvx pre-commit run --files .github/workflows/ci.yml
 uvx pre-commit run yamllint --files .github/workflows/ci.yml
 uvx pre-commit run --all-files
 ```
+
+---
+
+## 🤖 Anthropic Model Selection (CRITICAL)
+
+**ALWAYS use the correct model IDs. To get the latest available models:**
+
+```bash
+curl -s "https://api.anthropic.com/v1/models" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
+```
+
+### Current Models (as of 2025-12)
+
+| Model | ID | Use Case |
+|-------|-----|----------|
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT - Haiku has schema issues) |
+| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues, avoid for triage |
+| Opus 4.1 | `claude-opus-4-1-20250805` | Previous generation |
+| Opus 4 | `claude-opus-4-20250514` | Previous generation |
+| Sonnet 4 | `claude-sonnet-4-20250514` | Previous generation |
+| Sonnet 3.7 | `claude-3-7-sonnet-20250219` | Legacy |
+
+### Model Naming Convention
+
+```
+claude-{variant}-{major}-{minor}-{date}
+         │         │       │       │
+         │         │       │       └── YYYYMMDD release date
+         │         │       └── Minor version (5, 1, etc.)
+         │         └── Major version (4, 3, etc.)
+         └── haiku, sonnet, or opus
+```
+
+**Examples:**
+- ❌ `claude-4-opus` - WRONG (old naming)
+- ❌ `claude-opus-4-5-20250514` - WRONG (date mismatch, Opus 4.5 is 20251101)
+- ✅ `claude-sonnet-4-5-20250929` - CORRECT (Sonnet 4.5, DEFAULT)
+
+### When to Update Models
+
+Run the curl command above periodically to check for new models. Update:
+1. `/workspace/agentic.config.json` - `defaultModel` field
+2. `/workspace/packages/agentic-control/src/core/config.ts` - `DEFAULT_CONFIG.defaultModel`
+3. This documentation
 
 ---
 
@@ -2037,30 +2158,62 @@ pnpm add -D typescript       # Development
 
 # Fleet Coordination
 
-## cursor-fleet Package
+## agentic-control Package
 
-The `@jbcom/cursor-fleet` package in `packages/cursor-fleet/` provides agent orchestration.
+The `agentic-control` package in `packages/agentic-control/` provides unified agent orchestration with automatic token switching.
 
 ### Commands
 
 ```bash
 # List agents
-cursor-fleet list [--running]
+agentic fleet list [--running]
 
-# Spawn agent
-cursor-fleet spawn --repo owner/repo --task "Task description"
+# Spawn agent (auto-selects token based on repo org)
+agentic fleet spawn <repo-url> "<task>" --ref <branch>
 
 # Send follow-up message
-cursor-fleet followup <agent-id> "Message"
+agentic fleet followup <agent-id> "Message"
 
-# Monitor specific agents until done
-cursor-fleet monitor <agent-id1> <agent-id2>
-
-# Watch fleet for state changes
-cursor-fleet watch --poll 30000
+# Get fleet summary
+agentic fleet summary
 
 # Run bidirectional coordinator
-cursor-fleet coordinate --pr <number> --agents <id1,id2>
+agentic fleet coordinate --pr <number> --repo <owner/repo>
+
+# Check token configuration
+agentic tokens status
+agentic tokens for-repo <owner/repo>
+
+# AI-powered triage
+agentic triage analyze <agent-id> --output report.md
+agentic triage review --base main --head HEAD
+```
+
+### Configuration
+
+All configuration is in `agentic.config.json`:
+
+```json
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": {
+        "name": "jbcom",
+        "tokenEnvVar": "GITHUB_JBCOM_TOKEN"
+      },
+      "": {
+        "name": "",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN"
+      },
+      "": {
+        "name": "",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN"
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-5-20250929"
+}
 ```
 
 ## Coordination Channel (Hold-Open PR)
@@ -2123,7 +2276,7 @@ The `coordinate` command runs two concurrent loops:
 ## Programmatic Usage
 
 ```typescript
-import { Fleet } from "@jbcom/cursor-fleet";
+import { Fleet } from "agentic-control";
 
 const fleet = new Fleet();
 
@@ -2137,8 +2290,6 @@ await fleet.coordinate({
 // Or individual methods
 await fleet.spawn({ repository: "owner/repo", task: "Do something" });
 await fleet.followup("bc-xxx", "Status check");
-const comments = fleet.fetchPRComments("owner/repo", 251);
-fleet.postPRComment("owner/repo", 251, "Update");
 ```
 
 ## process-compose Integration
@@ -2147,15 +2298,16 @@ Add to `process-compose.yml`:
 
 ```yaml
 fleet-coordinator:
-  command: "node packages/cursor-fleet/dist/cli.js coordinate --pr ${COORDINATION_PR} --agents ${AGENT_IDS}"
+  command: "node packages/agentic-control/dist/cli.js fleet coordinate --pr ${COORDINATION_PR} --repo jbcom/jbcom-control-center"
   environment:
     - "GITHUB_JBCOM_TOKEN=${GITHUB_JBCOM_TOKEN}"
+    - "GITHUB_FSC_TOKEN=${GITHUB_FSC_TOKEN}"
     - "CURSOR_API_KEY=${CURSOR_API_KEY}"
 ```
 
 Run with:
 ```bash
-COORDINATION_PR=251 AGENT_IDS=bc-xxx,bc-yyy process-compose up fleet-coordinator
+COORDINATION_PR=251 process-compose up fleet-coordinator
 ```
 
 

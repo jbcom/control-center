@@ -44,7 +44,7 @@ This creates `agentic.config.json`:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "my-org/my-repo"
 }
 ```
@@ -73,7 +73,7 @@ agentic fleet list --running
 ### 5. Spawn an Agent
 
 ```bash
-agentic fleet spawn https://github.com/my-org/my-repo "Fix the CI workflow" --model claude-sonnet-4-20250514
+agentic fleet spawn https://github.com/my-org/my-repo "Fix the CI workflow" --model claude-sonnet-4-5-20250929
 ```
 
 ### 6. Analyze a Session
@@ -110,7 +110,7 @@ agentic fleet list --running
 agentic fleet summary
 
 # Spawn a new agent (with explicit model!)
-agentic fleet spawn <repo> <task> --model claude-sonnet-4-20250514
+agentic fleet spawn <repo> <task> --model claude-sonnet-4-5-20250929
 
 # Send followup message
 agentic fleet followup <agent-id> "Status update?"
@@ -170,10 +170,28 @@ Create `agentic.config.json` in your project root:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "my-company/my-repo",
   "logLevel": "info"
 }
+```
+
+### Model Selection
+
+Use Claude Sonnet 4.5 for triage (Haiku has schema issues), and Claude Opus 4.5 for complex analysis:
+
+| Model | ID | Use Case |
+|-------|-----|----------|
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT) |
+| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues |
+
+**To get the latest available models:**
+
+```bash
+curl -s "https://api.anthropic.com/v1/models" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
 ```
 
 ### Environment Variables
@@ -238,7 +256,7 @@ const agents = await fleet.list();
 await fleet.spawn({
   repository: "https://github.com/my-company/my-repo",
   task: "Fix the bug",
-  model: "claude-sonnet-4-20250514",
+  model: "claude-sonnet-4-5-20250929",
 });
 
 // Token-aware operations

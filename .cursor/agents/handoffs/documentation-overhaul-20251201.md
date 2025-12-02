@@ -107,7 +107,7 @@ For each package in `packages/`:
 
 ### Agent Rule Consistency
 All `.ruler/*.md` and `.cursor/rules/*.mdc` files must:
-- Reference `agentic-control` CLI (not old `cursor-fleet`)
+- Reference `agentic-control` CLI (not old `agentic-control`)
 - Document both ecosystems
 - Include correct token env vars
 - Have consistent formatting
