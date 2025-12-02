@@ -54,6 +54,7 @@
     "@octokit/rest": "^21.1.1",
     "ai": "^5.0.104",
     "commander": "^13.1.0",
+    "cosmiconfig": "9.0.0",
     "env-var": "^7.5.0",
     "zod": "^3.24.4"
   },

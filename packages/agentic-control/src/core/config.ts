@@ -1,13 +1,16 @@
 /**
  * Configuration Management for agentic-control
  * 
- * Handles loading configuration from multiple sources:
- * 1. Programmatic configuration (highest priority)
- * 2. Environment variables
- * 3. Config files (agentic.config.json, .agenticrc)
- * 4. Built-in defaults (lowest priority)
+ * Uses cosmiconfig for standard config file discovery and loading.
+ * Searches for configuration in:
+ *   - agentic.config.json
+ *   - agentic.config.js
+ *   - agentic.config.cjs
+ *   - .agenticrc
+ *   - .agenticrc.json
+ *   - package.json "agentic" key
  * 
- * NO hardcoded organization or token values - all user-configurable.
+ * Priority: CLI args > env vars > config file > defaults
  * 
  * @example Config file (agentic.config.json):
  * ```json
@@ -15,19 +18,17 @@
  *   "tokens": {
  *     "organizations": {
  *       "my-org": { "name": "my-org", "tokenEnvVar": "MY_ORG_TOKEN" }
- *     },
- *     "defaultTokenEnvVar": "GITHUB_TOKEN",
- *     "prReviewTokenEnvVar": "GITHUB_TOKEN"
+ *     }
  *   },
  *   "defaultModel": "claude-sonnet-4-20250514",
- *   "defaultRepository": "my-org/my-repo",
- *   "logLevel": "info"
+ *   "fleet": {
+ *     "autoCreatePr": true
+ *   }
  * }
  * ```
  */
 
-import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { cosmiconfigSync } from "cosmiconfig";
 import type { TokenConfig } from "./types.js";
 import { setTokenConfig } from "./tokens.js";
 
@@ -35,11 +36,20 @@ import { setTokenConfig } from "./tokens.js";
 // Configuration Types
 // ============================================
 
+export interface FleetConfig {
+  /** Auto-create PR when agent completes */
+  autoCreatePr?: boolean;
+  /** Open PR as Cursor GitHub App */
+  openAsCursorGithubApp?: boolean;
+  /** Skip adding user as reviewer */
+  skipReviewerRequest?: boolean;
+}
+
 export interface AgenticConfig {
   /** Token configuration for multi-org access */
   tokens?: Partial<TokenConfig>;
   
-  /** Default model for AI operations (user-configurable) */
+  /** Default model for Anthropic triage operations */
   defaultModel?: string;
   
   /** Default repository for fleet operations */
@@ -56,75 +66,53 @@ export interface AgenticConfig {
   
   /** Cursor API configuration */
   cursor?: {
-    /** API key environment variable name (NOT the key itself!) */
+    /** API key environment variable name */
     apiKeyEnvVar?: string;
-    /** Base URL for Cursor API (defaults to official API) */
+    /** Base URL for Cursor API */
     baseUrl?: string;
   };
 
-  /** Anthropic API configuration (for triage operations ONLY) */
+  /** Anthropic API configuration (for triage operations) */
   anthropic?: {
-    /** API key environment variable name (NOT the key itself!) */
+    /** API key environment variable name */
     apiKeyEnvVar?: string;
-    /** Default model for AI operations */
-    defaultModel?: string;
   };
+
+  /** Fleet default options */
+  fleet?: FleetConfig;
 }
 
 // ============================================
-// Default Configuration
+// Cosmiconfig Setup
 // ============================================
 
-const DEFAULT_CONFIG: AgenticConfig = {
-  // Default model for ANTHROPIC TRIAGE OPERATIONS ONLY
-  // This has NOTHING to do with Cursor fleet spawning - Cursor selects its own models.
-  // 
-  // To get latest Anthropic models:
-  //   curl -s "https://api.anthropic.com/v1/models" -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"
-  // 
-  // This should be overridden via agentic.config.json or AGENTIC_MODEL env var
-  defaultModel: undefined,
-  logLevel: "info",
-  verbose: false,
-  // Cursor defaults (for fleet operations)
-  cursor: {
-    apiKeyEnvVar: "CURSOR_API_KEY",
-  },
-  // Anthropic defaults (for triage operations)
-  anthropic: {
-    apiKeyEnvVar: "ANTHROPIC_API_KEY",
-  },
-};
+const MODULE_NAME = "agentic";
+
+const explorer = cosmiconfigSync(MODULE_NAME, {
+  searchPlaces: [
+    "package.json",
+    "agentic.config.json",
+    "agentic.config.js",
+    "agentic.config.cjs",
+    ".agenticrc",
+    ".agenticrc.json",
+    ".agenticrc.js",
+    ".agenticrc.cjs",
+  ],
+});
 
 // ============================================
 // Configuration State
 // ============================================
 
-let config: AgenticConfig = { ...DEFAULT_CONFIG };
+let config: AgenticConfig = {};
 let configLoaded = false;
+let configPath: string | null = null;
 
 // ============================================
-// Configuration Loading
+// Environment Variable Loading
 // ============================================
 
-/**
- * Load configuration from a JSON file
- */
-function loadJsonConfig(filePath: string): Partial<AgenticConfig> | null {
-  try {
-    if (!existsSync(filePath)) {
-      return null;
-    }
-    const content = readFileSync(filePath, "utf-8");
-    return JSON.parse(content);
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Load configuration from environment variables
- */
 function loadEnvConfig(): Partial<AgenticConfig> {
   const envConfig: Partial<AgenticConfig> = {};
 
@@ -154,73 +142,52 @@ function loadEnvConfig(): Partial<AgenticConfig> {
     envConfig.verbose = true;
   }
 
-  // Cursor API configuration
-  if (process.env.AGENTIC_CURSOR_API_KEY_VAR) {
-    envConfig.cursor = {
-      ...envConfig.cursor,
-      apiKeyEnvVar: process.env.AGENTIC_CURSOR_API_KEY_VAR,
-    };
-  }
-
-  // Anthropic configuration
-  if (process.env.AGENTIC_ANTHROPIC_API_KEY_VAR) {
-    envConfig.anthropic = {
-      ...envConfig.anthropic,
-      apiKeyEnvVar: process.env.AGENTIC_ANTHROPIC_API_KEY_VAR,
-    };
-  }
-
   return envConfig;
 }
 
-/**
- * Find and load configuration from the filesystem
- * Searches in order: current directory, workspace root, home directory
- */
-function findConfigFile(): string | null {
-  const configNames = [
-    "agentic.config.json",
-    ".agenticrc",
-    ".agenticrc.json",
-    ".agentic-control.json",
-  ];
-  
-  const searchPaths = [
-    process.cwd(),
-    process.env.WORKSPACE_PATH,
-    process.env.HOME,
-  ].filter((p): p is string => typeof p === "string" && p.length > 0);
+// ============================================
+// Configuration Loading
+// ============================================
 
-  for (const searchPath of searchPaths) {
-    for (const configName of configNames) {
-      const filePath = join(searchPath, configName);
-      if (existsSync(filePath)) {
-        return filePath;
-      }
+/**
+ * Deep merge configuration objects
+ */
+function mergeConfig(base: AgenticConfig, overrides: Partial<AgenticConfig>): AgenticConfig {
+  const result = { ...base };
+  
+  for (const [key, value] of Object.entries(overrides)) {
+    if (value === undefined) continue;
+    
+    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      (result as Record<string, unknown>)[key] = {
+        ...(base as Record<string, unknown>)[key] as object,
+        ...value,
+      };
+    } else {
+      (result as Record<string, unknown>)[key] = value;
     }
   }
-
-  return null;
+  
+  return result;
 }
 
 /**
  * Initialize configuration from all sources
- * Priority: programmatic overrides > env vars > config file > defaults
+ * Priority: programmatic overrides > env vars > config file
  */
 export function initConfig(overrides?: Partial<AgenticConfig>): AgenticConfig {
-  // Start with defaults
-  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
-
-  // Load from config file if found
-  const configFile = findConfigFile();
-  if (configFile) {
-    const fileConfig = loadJsonConfig(configFile);
-    if (fileConfig) {
-      config = mergeConfig(config, fileConfig);
-    }
+  // Search for config file using cosmiconfig
+  const result = explorer.search();
+  
+  if (result && !result.isEmpty) {
+    config = result.config as AgenticConfig;
+    configPath = result.filepath;
+  } else {
+    config = {};
+    configPath = null;
   }
 
-  // Load from environment
+  // Merge environment variables
   const envConfig = loadEnvConfig();
   config = mergeConfig(config, envConfig);
 
@@ -239,26 +206,24 @@ export function initConfig(overrides?: Partial<AgenticConfig>): AgenticConfig {
 }
 
 /**
- * Deep merge configuration objects
+ * Load config from a specific file path
  */
-function mergeConfig(base: AgenticConfig, overrides: Partial<AgenticConfig>): AgenticConfig {
-  const result = { ...base };
+export function loadConfigFromPath(filepath: string): AgenticConfig {
+  const result = explorer.load(filepath);
   
-  for (const [key, value] of Object.entries(overrides)) {
-    if (value === undefined) continue;
+  if (result && !result.isEmpty) {
+    config = result.config as AgenticConfig;
+    configPath = result.filepath;
     
-    if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-      // Deep merge objects
-      (result as Record<string, unknown>)[key] = {
-        ...(base as Record<string, unknown>)[key] as object,
-        ...value,
-      };
-    } else {
-      (result as Record<string, unknown>)[key] = value;
+    if (config.tokens) {
+      setTokenConfig(config.tokens);
     }
+    
+    configLoaded = true;
+    return config;
   }
   
-  return result;
+  throw new Error(`Failed to load config from ${filepath}`);
 }
 
 // ============================================
@@ -267,7 +232,6 @@ function mergeConfig(base: AgenticConfig, overrides: Partial<AgenticConfig>): Ag
 
 /**
  * Get the current configuration
- * Initializes if not already done
  */
 export function getConfig(): AgenticConfig {
   if (!configLoaded) {
@@ -277,23 +241,30 @@ export function getConfig(): AgenticConfig {
 }
 
 /**
- * Update configuration
+ * Get path to loaded config file
+ */
+export function getConfigPath(): string | null {
+  return configPath;
+}
+
+/**
+ * Update configuration at runtime
  */
 export function setConfig(updates: Partial<AgenticConfig>): void {
   config = mergeConfig(config, updates);
   
-  // Also update token config if provided
   if (updates.tokens) {
     setTokenConfig(updates.tokens);
   }
 }
 
 /**
- * Reset configuration to defaults (useful for testing)
+ * Reset configuration (useful for testing)
  */
 export function resetConfig(): void {
-  config = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+  config = {};
   configLoaded = false;
+  configPath = null;
 }
 
 /**
@@ -314,10 +285,23 @@ export function isVerbose(): boolean {
 }
 
 /**
- * Get the default model for AI operations
+ * Get the default model for Anthropic operations
  */
 export function getDefaultModel(): string {
-  return config.defaultModel ?? DEFAULT_CONFIG.defaultModel!;
+  if (!configLoaded) {
+    initConfig();
+  }
+  return config.defaultModel ?? "claude-sonnet-4-20250514";
+}
+
+/**
+ * Get fleet defaults
+ */
+export function getFleetDefaults(): FleetConfig {
+  if (!configLoaded) {
+    initConfig();
+  }
+  return config.fleet ?? {};
 }
 
 /**
@@ -381,5 +365,3 @@ export const log = {
     }
   },
 };
-
-// Initialize lazily - don't auto-init on import to avoid side effects

@@ -20,7 +20,7 @@ import {
   getConfiguredOrgs,
   extractOrg,
 } from "./core/tokens.js";
-import { initConfig, getDefaultModel, getConfig } from "./core/config.js";
+import { initConfig, getDefaultModel, getConfig, getFleetDefaults } from "./core/config.js";
 import type { Agent } from "./core/types.js";
 import { VERSION } from "./index.js";
 
@@ -202,23 +202,29 @@ fleetCmd
   .argument("<repo>", "Repository URL (https://github.com/org/repo)")
   .argument("<task>", "Task description")
   .option("--ref <ref>", "Git ref (branch, tag, commit)", "main")
-  .option("--auto-pr", "Auto-create PR when agent completes")
+  .option("--auto-pr", "Auto-create PR when agent completes (or set in config)")
+  .option("--no-auto-pr", "Disable auto-create PR")
   .option("--branch <name>", "Custom branch name for the agent")
-  .option("--as-app", "Open PR as Cursor GitHub App instead of user")
+  .option("--as-app", "Open PR as Cursor GitHub App (or set in config)")
   .option("--json", "Output as JSON")
   .action(async (repo, task, opts) => {
     try {
       const fleet = new Fleet();
+      const defaults = getFleetDefaults();
+      
+      // Merge CLI options with config defaults
+      const autoCreatePr = opts.autoPr ?? defaults.autoCreatePr ?? false;
+      const openAsCursorGithubApp = opts.asApp ?? defaults.openAsCursorGithubApp ?? false;
       
       const result = await fleet.spawn({
         repository: repo,
         task,
         ref: opts.ref,
-        target: (opts.autoPr || opts.branch || opts.asApp) ? {
-          autoCreatePr: opts.autoPr,
+        target: {
+          autoCreatePr,
           branchName: opts.branch,
-          openAsCursorGithubApp: opts.asApp,
-        } : undefined,
+          openAsCursorGithubApp,
+        },
       });
 
       if (!result.success) {
@@ -235,7 +241,7 @@ fleetCmd
         console.log(`Repo:   ${repo}`);
         console.log(`Ref:    ${opts.ref}`);
         if (opts.branch) console.log(`Branch: ${opts.branch}`);
-        if (opts.autoPr) console.log(`Auto PR: enabled`);
+        if (autoCreatePr) console.log(`Auto PR: enabled`);
       }
     } catch (err) {
       console.error("❌ Spawn failed:", err instanceof Error ? err.message : err);

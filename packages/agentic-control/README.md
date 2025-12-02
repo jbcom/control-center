@@ -44,8 +44,12 @@ This creates `agentic.config.json`:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-5-20250929",
-  "defaultRepository": "my-org/my-repo"
+  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultRepository": "my-org/my-repo",
+  "fleet": {
+    "autoCreatePr": false,
+    "openAsCursorGithubApp": false
+  }
 }
 ```
 
@@ -73,7 +77,7 @@ agentic fleet list --running
 ### 5. Spawn an Agent
 
 ```bash
-agentic fleet spawn https://github.com/my-org/my-repo "Fix the CI workflow" --model claude-sonnet-4-5-20250929
+agentic fleet spawn https://github.com/my-org/my-repo "Fix the CI workflow" --auto-pr
 ```
 
 ### 6. Analyze a Session
@@ -109,8 +113,11 @@ agentic fleet list --running
 # Get fleet summary
 agentic fleet summary
 
-# Spawn a new agent (with explicit model!)
-agentic fleet spawn <repo> <task> --model claude-sonnet-4-5-20250929
+# Spawn a new agent
+agentic fleet spawn <repo> <task>
+
+# Spawn with options
+agentic fleet spawn <repo> <task> --ref feature-branch --auto-pr --branch my-branch
 
 # Send followup message
 agentic fleet followup <agent-id> "Status update?"
@@ -118,6 +125,9 @@ agentic fleet followup <agent-id> "Status update?"
 # Run coordination loop
 agentic fleet coordinate --pr 123 --repo my-org/my-repo
 ```
+
+> **Note**: Model selection for fleet agents is handled by Cursor internally.
+> The `--model` flag only applies to triage operations (Anthropic API).
 
 ### AI Triage
 
@@ -152,7 +162,7 @@ agentic handoff takeover <predecessor-id> 123 my-new-branch
 
 ### Configuration File
 
-Create `agentic.config.json` in your project root:
+Create `agentic.config.json` in your project root (or run `agentic init`):
 
 ```json
 {
@@ -170,23 +180,30 @@ Create `agentic.config.json` in your project root:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-5-20250929",
+  "defaultModel": "claude-sonnet-4-20250514",
   "defaultRepository": "my-company/my-repo",
-  "logLevel": "info"
+  "logLevel": "info",
+  "fleet": {
+    "autoCreatePr": true,
+    "openAsCursorGithubApp": false
+  }
 }
 ```
 
-### Model Selection
+Config is loaded using [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig).
+Searches for: `agentic.config.json`, `.agenticrc`, `package.json` "agentic" key.
 
-Use Claude Sonnet 4.5 for triage (Haiku has schema issues), and Claude Opus 4.5 for complex analysis:
+### Model Selection (Triage Only)
+
+The `defaultModel` in config applies to **triage operations** (Anthropic API).
+Fleet operations use Cursor's model selection - you cannot specify a model when spawning agents.
 
 | Model | ID | Use Case |
 |-------|-----|----------|
-| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT) |
-| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
-| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues |
+| **Sonnet 4** | `claude-sonnet-4-20250514` | Triage, general work (DEFAULT) |
+| **Opus 4** | `claude-opus-4-20250514` | Complex reasoning, deep analysis |
 
-**To get the latest available models:**
+**To get the latest available Anthropic models:**
 
 ```bash
 curl -s "https://api.anthropic.com/v1/models" \
@@ -256,7 +273,7 @@ const agents = await fleet.list();
 await fleet.spawn({
   repository: "https://github.com/my-company/my-repo",
   task: "Fix the bug",
-  model: "claude-sonnet-4-5-20250929",
+  target: { autoCreatePr: true },
 });
 
 // Token-aware operations

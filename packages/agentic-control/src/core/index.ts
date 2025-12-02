@@ -32,11 +32,18 @@ export {
 export {
   initConfig,
   getConfig,
+  getConfigPath,
+  loadConfigFromPath,
   setConfig,
+  resetConfig,
   getConfigValue,
   isVerbose,
   getDefaultModel,
+  getFleetDefaults,
   getLogLevel,
+  getCursorApiKey,
+  getAnthropicApiKey,
   log,
   type AgenticConfig,
+  type FleetConfig,
 } from "./config.js";
