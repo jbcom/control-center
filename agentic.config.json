@@ -13,6 +13,12 @@
         "tokenEnvVar": "GITHUB_FSC_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
+      },
+      "fsc-platform": {
+        "name": "fsc-platform",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",
