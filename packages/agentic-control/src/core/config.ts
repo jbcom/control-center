@@ -84,7 +84,8 @@ export interface AgenticConfig {
 
 const DEFAULT_CONFIG: AgenticConfig = {
   // AI model - uses Claude Opus 4.5 as sensible default for Cursor
-  defaultModel: "claude-4-5-opus-20250514",
+  // To get latest models: curl -s "https://api.anthropic.com/v1/models" -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"
+  defaultModel: "claude-opus-4-5-20251101",
   logLevel: "info",
   verbose: false,
   // Cursor defaults
@@ -94,7 +95,7 @@ const DEFAULT_CONFIG: AgenticConfig = {
   // Anthropic defaults
   anthropic: {
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    defaultModel: "claude-4-5-opus-20250514",
+    defaultModel: "claude-opus-4-5-20251101",
   },
 };
 
