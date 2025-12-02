@@ -23,6 +23,7 @@ const MAX_REPO_LENGTH = 200;
 const DEFAULT_MAX_RETRIES = 3;
 const DEFAULT_RETRY_DELAY = 1000; // 1 second
 const MAX_RETRY_DELAY = 30000; // 30 seconds
+const JITTER_FACTOR = 0.5; // Up to 50% random jitter added to retry delay
 
 /** HTTP status codes that should trigger a retry */
 const RETRYABLE_STATUS_CODES = new Set([
@@ -185,7 +186,7 @@ function isRetryableError(statusCode: number | undefined, error: unknown): boole
 function calculateRetryDelay(attempt: number, baseDelay: number): number {
   // Exponential backoff with jitter: delay = baseDelay * 2^attempt + random jitter
   const exponentialDelay = baseDelay * Math.pow(2, attempt);
-  const jitter = Math.random() * baseDelay * 0.5; // Up to 50% jitter
+  const jitter = Math.random() * baseDelay * JITTER_FACTOR;
   return Math.min(exponentialDelay + jitter, MAX_RETRY_DELAY);
 }
 

@@ -15,8 +15,24 @@ const mockFetch = vi.fn();
 global.fetch = mockFetch;
 
 // Import after mocking
-import { CursorAPI } from "../src/fleet/cursor-api.js";
-import { Fleet } from "../src/fleet/fleet.js";
+import { CursorAPI, type SpawnErrorCategory } from "../src/fleet/cursor-api.js";
+import { Fleet, type SpawnResult } from "../src/fleet/fleet.js";
+import type { Result, Agent } from "../src/core/types.js";
+
+/**
+ * Helper type for API results with error categorization
+ */
+type ExtendedResult<T> = Result<T> & { 
+  category?: SpawnErrorCategory; 
+  retryable?: boolean;
+};
+
+/**
+ * Type guard to check if result has extended properties
+ */
+function hasErrorCategory(result: Result<unknown>): result is ExtendedResult<unknown> {
+  return "category" in result || "retryable" in result;
+}
 
 describe("CursorAPI", () => {
   const originalEnv = { ...process.env };
@@ -62,23 +78,23 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: "   " }, // Whitespace-only text
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Prompt text cannot be empty");
-      expect((result as { category?: string }).category).toBe("validation");
-      expect((result as { retryable?: boolean }).retryable).toBe(false);
+      expect(result.category).toBe("validation");
+      expect(result.retryable).toBe(false);
     });
 
     it("returns validation error for missing repository slash", async () => {
       const result = await api.launchAgent({
         prompt: { text: "Test task" },
         source: { repository: "invalid-repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("Repository must be in format");
-      expect((result as { category?: string }).category).toBe("validation");
+      expect(result.category).toBe("validation");
     });
 
     it("returns validation error for prompt exceeding max length", async () => {
@@ -86,11 +102,11 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: longPrompt },
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("exceeds maximum length");
-      expect((result as { category?: string }).category).toBe("validation");
+      expect(result.category).toBe("validation");
     });
 
     it("returns validation error for invalid ref", async () => {
@@ -122,10 +138,10 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: "Test" },
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
-      expect((result as { category?: string }).category).toBe("authentication");
+      expect(result.category).toBe("authentication");
     });
 
     it("categorizes 403 as authorization error", async () => {
@@ -138,10 +154,10 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: "Test" },
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
-      expect((result as { category?: string }).category).toBe("authorization");
+      expect(result.category).toBe("authorization");
     });
 
     it("categorizes 429 as rate_limit error and marks as retryable", async () => {
@@ -154,11 +170,11 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: "Test" },
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
-      expect((result as { category?: string }).category).toBe("rate_limit");
-      expect((result as { retryable?: boolean }).retryable).toBe(true);
+      expect(result.category).toBe("rate_limit");
+      expect(result.retryable).toBe(true);
     });
 
     it("categorizes 500 as server error and marks as retryable", async () => {
@@ -171,11 +187,11 @@ describe("CursorAPI", () => {
       const result = await api.launchAgent({
         prompt: { text: "Test" },
         source: { repository: "owner/repo" },
-      });
+      }) as ExtendedResult<Agent>;
 
       expect(result.success).toBe(false);
-      expect((result as { category?: string }).category).toBe("server");
-      expect((result as { retryable?: boolean }).retryable).toBe(true);
+      expect(result.category).toBe("server");
+      expect(result.retryable).toBe(true);
     });
   });
 
