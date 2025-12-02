@@ -109,7 +109,7 @@ func (q *SQSQueue) Subscribe(ctx context.Context) (chan event.VaultEvent, error)
 					QueueUrl:            &q.Url,
 					MaxNumberOfMessages: 1,
 					VisibilityTimeout:   20,
-					WaitTimeSeconds:     0,
+					WaitTimeSeconds:     20, // Long polling for efficiency
 				})
 
 				if err != nil {

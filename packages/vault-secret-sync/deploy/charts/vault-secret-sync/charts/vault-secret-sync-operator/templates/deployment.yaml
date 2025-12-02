@@ -36,7 +36,13 @@ spec:
           securityContext:
             {{- toYaml .Values.SecurityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          args: ["-config", "/config/config.yaml", "-operator", "-enable-leader-election"]
+          args:
+            - "-config"
+            - "/config/config.yaml"
+            - "-operator"
+            {{- if .Values.leaderElection.enabled }}
+            - "-enable-leader-election"
+            {{- end }}
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - containerPort: {{ include "vault-secret-sync-operator.metricsPort" . }}

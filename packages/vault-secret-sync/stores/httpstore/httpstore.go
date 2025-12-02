@@ -232,9 +232,6 @@ func (h *HTTPClient) WriteSecret(ctx context.Context, meta metav1.ObjectMeta, pa
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		return nil, fmt.Errorf("failed to write secret: %s", resp.Status)
-	}
 	if len(h.SuccessCodes) == 0 {
 		h.SuccessCodes = []int{http.StatusOK, http.StatusCreated, http.StatusAccepted, http.StatusNoContent}
 	}

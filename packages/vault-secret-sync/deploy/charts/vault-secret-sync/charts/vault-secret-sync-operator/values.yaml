@@ -5,6 +5,10 @@
 # the configuration for the operator
 existingConfigMap: ""
 config: {}
+
+# Leader election configuration for HA deployments
+leaderElection:
+  enabled: true
 # # The log level for the application. Can be one of "debug", "info", "warn", "error", "fatal", or "panic".
 # log:
 #   level: "debug" # The log level for the application. Can be one of "debug", "info", "warn", "error", "fatal", or "panic".

@@ -206,6 +206,14 @@ func (in *StoreConfig) DeepCopyInto(out *StoreConfig) {
 		in, out := &in.AWS, &out.AWS
 		*out = (*in).DeepCopy()
 	}
+	if in.IdentityCenter != nil {
+		in, out := &in.IdentityCenter, &out.IdentityCenter
+		*out = (*in).DeepCopy()
+	}
+	if in.Doppler != nil {
+		in, out := &in.Doppler, &out.Doppler
+		*out = (*in).DeepCopy()
+	}
 	if in.GCP != nil {
 		in, out := &in.GCP, &out.GCP
 		*out = (*in).DeepCopy()

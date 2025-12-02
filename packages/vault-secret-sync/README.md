@@ -208,7 +208,7 @@ Filters can be applied to the sync to include or exclude secrets based on either
       - "foo/bar/hello-[0-9]+"
       exclude:
       - "foo/bar/no[^abc]+"
-    paths:
+    path:
       include:
       - "foo/bar/hello"
       exclude:
