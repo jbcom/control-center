@@ -18,7 +18,7 @@
 export * from "./core/index.js";
 
 // Fleet management
-export { Fleet, type FleetConfig, type CoordinationConfig } from "./fleet/index.js";
+export { Fleet, type FleetConfig, type CoordinationConfig, type SpawnContext } from "./fleet/index.js";
 export { CursorAPI, type CursorAPIOptions } from "./fleet/index.js";
 
 // AI Triage

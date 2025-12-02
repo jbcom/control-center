@@ -234,6 +234,11 @@ import {
   getTokenForRepo,
   setTokenConfig,
   addOrganization,
+  removeOrganization,
+  isOrgConfigured,
+  resetTokenConfig,
+  getCursorApiKey,
+  getAnthropicApiKey,
 } from "agentic-control";
 
 // Configure organizations programmatically
@@ -242,6 +247,11 @@ addOrganization({
   tokenEnvVar: "GITHUB_COMPANY_TOKEN",
 });
 
+// Check if an org is configured
+if (isOrgConfigured("my-company")) {
+  console.log("my-company is ready");
+}
+
 // Or configure everything at once
 setTokenConfig({
   organizations: {
@@ -249,6 +259,9 @@ setTokenConfig({
   },
   prReviewTokenEnvVar: "GITHUB_TOKEN",
 });
+
+// Remove an organization dynamically
+removeOrganization("temp-org");
 
 // Fleet management
 const fleet = new Fleet();
@@ -263,9 +276,12 @@ await fleet.spawn({
 const token = getTokenForRepo("my-company/my-repo");
 // Returns value of GITHUB_COMPANY_TOKEN
 
-// AI Analysis (requires repo to be set)
-const analyzer = new AIAnalyzer({ repo: "my-company/my-repo" });
-const result = await analyzer.quickTriage("Error in deployment");
+// Check if API keys are available
+if (getCursorApiKey() && getAnthropicApiKey()) {
+  // AI Analysis (requires repo to be set)
+  const analyzer = new AIAnalyzer({ repo: "my-company/my-repo" });
+  const result = await analyzer.quickTriage("Error in deployment");
+}
 ```
 
 ## Token Switching Logic
