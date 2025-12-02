@@ -169,7 +169,7 @@ func syncDeleteWorker(ctx context.Context, sc *SyncClients, j SyncJob, dest chan
 			errChan <- nil
 			continue
 		}
-		if shouldDryRun(j, d, sc.Source.GetPath(), d.GetPath()) {
+		if shouldDryRun(ctx, j, d, sc.Source.GetPath(), d.GetPath()) {
 			errChan <- nil
 			continue
 		}

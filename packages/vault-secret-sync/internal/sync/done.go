@@ -19,13 +19,15 @@ func handleSyncError(ctx context.Context, err error, j SyncJob, startTime time.T
 
 	namespace, name := j.SyncConfig.Namespace, j.SyncConfig.Name
 	observeWorkerError(namespace, name, startTime)
-	backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusFailed)
-	if err := notifications.Trigger(ctx, v1alpha1.NotificationMessage{
+	if statusErr := backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusFailed); statusErr != nil {
+		l.WithError(statusErr).Error("failed to set sync status")
+	}
+	if notifyErr := notifications.Trigger(ctx, v1alpha1.NotificationMessage{
 		Message:         fmt.Sprintf("error syncing: %s", err),
 		Event:           v1alpha1.NotificationEventSyncFailure,
 		VaultSecretSync: j.SyncConfig,
-	}); err != nil {
-		l.Error(err)
+	}); notifyErr != nil {
+		l.WithError(notifyErr).Error("failed to send notification")
 	}
 	return err
 }
@@ -37,13 +39,15 @@ func handleSyncSuccess(ctx context.Context, j SyncJob, startTime time.Time) erro
 
 	namespace, name := j.SyncConfig.Namespace, j.SyncConfig.Name
 	observeWorkerSuccess(namespace, name, startTime)
-	backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusSuccess)
-	if err := notifications.Trigger(ctx, v1alpha1.NotificationMessage{
+	if statusErr := backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusSuccess); statusErr != nil {
+		l.WithError(statusErr).Error("failed to set sync status")
+	}
+	if notifyErr := notifications.Trigger(ctx, v1alpha1.NotificationMessage{
 		Message:         "sync success",
 		Event:           v1alpha1.NotificationEventSyncSuccess,
 		VaultSecretSync: j.SyncConfig,
-	}); err != nil {
-		l.Error(err)
+	}); notifyErr != nil {
+		l.WithError(notifyErr).Error("failed to send notification")
 	}
 	return nil
 }

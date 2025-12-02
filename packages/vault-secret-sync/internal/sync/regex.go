@@ -23,7 +23,7 @@ func manualRegexSyncWorker(ctx context.Context, j SyncJob, taskCh chan manualSyn
 			errCh <- nil
 			continue
 		}
-		if shouldDryRun(j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
+		if shouldDryRun(ctx, j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
 			errCh <- nil
 			continue
 		}
@@ -144,7 +144,7 @@ func regexSyncWorker(ctx context.Context, j SyncJob, taskCh chan syncTask, errCh
 			errCh <- nil
 			continue
 		}
-		if shouldDryRun(j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
+		if shouldDryRun(ctx, j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
 			errCh <- nil
 			continue
 		}
@@ -241,7 +241,7 @@ func manualRegexDeleteWorker(ctx context.Context, j SyncJob, taskCh chan manualD
 			errCh <- nil
 			continue
 		}
-		if shouldDryRun(j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
+		if shouldDryRun(ctx, j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
 			errCh <- nil
 			continue
 		}
@@ -326,7 +326,7 @@ func regexDeleteWorker(ctx context.Context, j SyncJob, taskCh chan deleteTask, e
 			errCh <- nil
 			continue
 		}
-		if shouldDryRun(j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
+		if shouldDryRun(ctx, j, task.dest, j.SyncConfig.Spec.Source.GetPath(), task.rewritePath) {
 			errCh <- nil
 			continue
 		}

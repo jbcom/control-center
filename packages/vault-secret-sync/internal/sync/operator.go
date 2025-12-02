@@ -19,8 +19,13 @@ func Operator(ctx context.Context, backendParams map[string]any, workerPoolSize,
 		l.Error(err)
 		return
 	}
-	// start the event queue
-	go EventProcessor(ctx, workerPoolSize, numSubscriptions)
+	// start the event queue with error handling
+	go func() {
+		if err := EventProcessor(ctx, workerPoolSize, numSubscriptions); err != nil {
+			l.WithError(err).Error("event processor failed")
+			metrics.RegisterServiceHealth("operator", metrics.ServiceHealthStatusCritical)
+		}
+	}()
 	// wait for context to be done
 	<-ctx.Done()
 	metrics.RegisterServiceHealth("operator", metrics.ServiceHealthStatusCritical)

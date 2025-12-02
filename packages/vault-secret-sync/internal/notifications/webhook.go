@@ -15,6 +15,7 @@ import (
 )
 
 func triggerWebhook(ctx context.Context, message v1alpha1.NotificationMessage, webhook v1alpha1.WebhookNotification) error {
+	l := log.WithFields(log.Fields{"action": "triggerWebhook"})
 	if webhook.Method == "" && config.Config.Notifications.Webhook.Method != "" {
 		webhook.Method = config.Config.Notifications.Webhook.Method
 	}
@@ -40,13 +41,13 @@ func triggerWebhook(ctx context.Context, message v1alpha1.NotificationMessage, w
 	// Create the HTTP request
 	req, err := http.NewRequestWithContext(ctx, webhook.Method, webhook.URL, &payloadBuffer)
 	if err != nil {
-		log.WithError(err).Error("failed to create webhook request")
+		l.WithError(err).Error("failed to create webhook request")
 		return fmt.Errorf("failed to create webhook request: %v", err)
 	}
 	if webhook.HeaderSecret != nil && *webhook.HeaderSecret != "" {
 		sc, err := kubesecret.GetSecret(ctx, message.VaultSecretSync.Namespace, *webhook.HeaderSecret)
 		if err != nil {
-			log.WithError(err).Error("failed to get secret for webhook headers")
+			l.WithError(err).Error("failed to get secret for webhook headers")
 			return err
 		}
 		for key, value := range sc {
@@ -61,42 +62,48 @@ func triggerWebhook(ctx context.Context, message v1alpha1.NotificationMessage, w
 	// Execute the request
 	resp, err := c.Do(req)
 	if err != nil {
-		log.WithError(err).Error("failed to execute webhook request")
+		l.WithError(err).Error("failed to execute webhook request")
 		return fmt.Errorf("failed to execute webhook request: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		body, err := io.ReadAll(resp.Body)
 		if err != nil {
-			backend.WriteEvent(
+			if writeErr := backend.WriteEvent(
 				ctx,
 				message.VaultSecretSync.Namespace,
 				message.VaultSecretSync.Name,
 				"Warning",
 				string(backend.SyncStatusFailed),
 				fmt.Sprintf("webhook request failed with status %d", resp.StatusCode),
-			)
-			log.WithError(err).Error("failed to read response body")
+			); writeErr != nil {
+				l.WithError(writeErr).Error("failed to write event")
+			}
+			l.WithError(err).Error("failed to read response body")
 			return fmt.Errorf("webhook request failed with status %d", resp.StatusCode)
 		}
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("webhook request failed with status %d: %s", resp.StatusCode, body),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		return fmt.Errorf("webhook request failed with status %d: %s", resp.StatusCode, body)
 	}
-	backend.WriteEvent(
+	if writeErr := backend.WriteEvent(
 		ctx,
 		message.VaultSecretSync.Namespace,
 		message.VaultSecretSync.Name,
 		"Normal",
 		"WebhookSent",
 		"webhook request successful",
-	)
+	); writeErr != nil {
+		l.WithError(writeErr).Error("failed to write event")
+	}
 	return nil
 }
 

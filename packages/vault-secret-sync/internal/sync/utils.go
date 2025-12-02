@@ -196,7 +196,7 @@ func CreateOne(ctx context.Context, j SyncJob, source, dest SyncClient, sourcePa
 		return handleCreateOneError(ctx, serr, j, dest, sourcePath, destPath)
 	}
 
-	if shouldDryRun(j, dest, sourcePath, destPath) {
+	if shouldDryRun(ctx, j, dest, sourcePath, destPath) {
 		return nil
 	}
 

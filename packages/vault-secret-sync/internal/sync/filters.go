@@ -24,7 +24,7 @@ func shouldFilterSecret(j SyncJob, sourcePath, destPath string) bool {
 }
 
 // shouldDryRun checks if the sync should be a dry run
-func shouldDryRun(j SyncJob, dest SyncClient, sourcePath, destPath string) bool {
+func shouldDryRun(ctx context.Context, j SyncJob, dest SyncClient, sourcePath, destPath string) bool {
 	l := log.WithFields(log.Fields{
 		"action":     "shouldDryRun",
 		"sourcePath": sourcePath,
@@ -32,28 +32,36 @@ func shouldDryRun(j SyncJob, dest SyncClient, sourcePath, destPath string) bool 
 	})
 	if j.SyncConfig.Spec.Suspend != nil && *j.SyncConfig.Spec.Suspend {
 		l.Info("sync suspended")
-		backend.SetSyncStatus(context.TODO(), j.SyncConfig, backend.SyncStatusSuspended)
-		backend.WriteEvent(
-			context.TODO(),
+		if err := backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusSuspended); err != nil {
+			l.WithError(err).Error("failed to set sync status")
+		}
+		if err := backend.WriteEvent(
+			ctx,
 			j.SyncConfig.Namespace,
 			j.SyncConfig.Name,
 			"Normal",
 			string(backend.SyncStatusSuspended),
 			fmt.Sprintf("sync suspended: %s to %s: %s", sourcePath, dest.Driver(), destPath),
-		)
+		); err != nil {
+			l.WithError(err).Error("failed to write event")
+		}
 		return true
 	}
 	if j.SyncConfig.Spec.DryRun != nil && *j.SyncConfig.Spec.DryRun {
 		l.Info("dry run")
-		backend.SetSyncStatus(context.TODO(), j.SyncConfig, backend.SyncStatusDryRun)
-		backend.WriteEvent(
-			context.TODO(),
+		if err := backend.SetSyncStatus(ctx, j.SyncConfig, backend.SyncStatusDryRun); err != nil {
+			l.WithError(err).Error("failed to set sync status")
+		}
+		if err := backend.WriteEvent(
+			ctx,
 			j.SyncConfig.Namespace,
 			j.SyncConfig.Name,
 			"Normal",
 			string(backend.SyncStatusDryRun),
 			fmt.Sprintf("dry run: synced %s to %s: %s", sourcePath, dest.Driver(), destPath),
-		)
+		); err != nil {
+			l.WithError(err).Error("failed to write event")
+		}
 		return true
 	}
 	return false

@@ -41,14 +41,16 @@ func sendSlackNotification(ctx context.Context, message v1alpha1.NotificationMes
 	payload := map[string]string{"text": messagePayload(message, slack.Body)}
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("failed to marshal Slack notification payload: %v", err),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		l.WithError(err).Error("failed to marshal Slack notification payload")
 		return err
 	}
@@ -57,40 +59,46 @@ func sendSlackNotification(ctx context.Context, message v1alpha1.NotificationMes
 	}
 	resp, err := http.Post(*slack.URL, "application/json", bytes.NewBuffer(payloadBytes))
 	if err != nil {
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("failed to send Slack notification: %v", err),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		l.WithError(err).Error("failed to send Slack notification")
 		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("failed to send Slack notification, status code: %d", resp.StatusCode),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		err := fmt.Errorf("failed to send Slack notification, status code: %d", resp.StatusCode)
 		l.WithError(err).Error("failed to send Slack notification")
 		return err
 	}
-	backend.WriteEvent(
+	if writeErr := backend.WriteEvent(
 		ctx,
 		message.VaultSecretSync.Namespace,
 		message.VaultSecretSync.Name,
 		"Normal",
 		"SlackNotificationSent",
 		"Slack notification sent successfully",
-	)
+	); writeErr != nil {
+		l.WithError(writeErr).Error("failed to write event")
+	}
 	l.Info("Slack notification sent successfully")
 	return nil
 }

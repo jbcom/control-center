@@ -112,9 +112,9 @@ func LoadFile(f string) error {
 	if _, err := os.Stat(cfp); os.IsNotExist(err) {
 		cfp = "/config/config.yaml"
 	}
-	// if file doesn't exit, fall back to other methods
-	if _, err := os.Stat(f); os.IsNotExist(err) {
-		l.Debugf("config file not found: %s", f)
+	// if file still doesn't exist after fallback, use env/defaults
+	if _, err := os.Stat(cfp); os.IsNotExist(err) {
+		l.Debugf("config file not found: %s (also tried fallback)", f)
 		if err := Config.SetFromEnv(); err != nil {
 			return err
 		}
@@ -123,7 +123,7 @@ func LoadFile(f string) error {
 		}
 		return nil
 	}
-	fd, err := os.Open(f)
+	fd, err := os.Open(cfp)
 	if err != nil {
 		return err
 	}

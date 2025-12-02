@@ -64,14 +64,16 @@ func sendEmailNotification(ctx context.Context, message v1alpha1.NotificationMes
 	l.Debugf("sending email notification: %v", email)
 	m, err := createEmail(message, email)
 	if err != nil {
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("failed to create email notification: %v", err),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		return err
 	}
 	if email.Host == "" && config.Config.Notifications.Email.Host != "" {
@@ -102,24 +104,28 @@ func sendEmailNotification(ctx context.Context, message v1alpha1.NotificationMes
 		d.TLSConfig = &tls.Config{InsecureSkipVerify: true}
 	}
 	if err := d.DialAndSend(m); err != nil {
-		backend.WriteEvent(
+		if writeErr := backend.WriteEvent(
 			ctx,
 			message.VaultSecretSync.Namespace,
 			message.VaultSecretSync.Name,
 			"Warning",
 			string(backend.SyncStatusFailed),
 			fmt.Sprintf("failed to send email notification: %v", err),
-		)
+		); writeErr != nil {
+			l.WithError(writeErr).Error("failed to write event")
+		}
 		return err
 	}
-	backend.WriteEvent(
+	if writeErr := backend.WriteEvent(
 		ctx,
 		message.VaultSecretSync.Namespace,
 		message.VaultSecretSync.Name,
 		"Normal",
 		"EmailSent",
 		"Email notification sent successfully",
-	)
+	); writeErr != nil {
+		l.WithError(writeErr).Error("failed to write event")
+	}
 	return nil
 }
 
