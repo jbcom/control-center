@@ -17,7 +17,7 @@ spec:
       {{- include "vault-secret-sync-events.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.PodAnnotations }}
+      {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -30,11 +30,11 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "vault-secret-sync-events.serviceAccountName" . }}
       securityContext:
-        {{- toYaml .Values.PodSecurityContext | nindent 8 }}
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: {{ .Chart.Name }}
           securityContext:
-            {{- toYaml .Values.SecurityContext | nindent 12 }}
+            {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           args: ["-config", "/config/config.yaml", "-events"]
           imagePullPolicy: {{ .Values.image.pullPolicy }}
