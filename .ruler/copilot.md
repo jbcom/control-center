@@ -26,7 +26,7 @@ When you receive an issue labeled `copilot`:
 
 ## Working with Auto-Generated Issues
 
-Issues created by `cursor-fleet analyze` have this structure:
+Issues created by `agentic triage analyze` have this structure:
 ```markdown
 ## Summary
 [Description of the task]
@@ -56,7 +56,7 @@ jbcom-control-center/
 │   ├── lifecyclelogging/        # Logging utilities
 │   ├── directed-inputs-class/   # Input validation
 │   ├── vendor-connectors/       # External service connectors
-│   ├── cursor-fleet/            # Agent fleet management (Node.js)
+│   ├── agentic-control/         # Agent orchestration toolkit (Node.js)
 │   └── python-terraform-bridge/ # Terraform utilities
 ├── .ruler/                      # Agent instructions (source of truth)
 ├── .github/workflows/           # CI/CD workflows
@@ -263,9 +263,9 @@ ruff format --check .
 pytest
 
 # TypeScript packages
-cd packages/cursor-fleet
-npm run build
-npm test  # if tests exist
+cd packages/agentic-control
+pnpm build
+pnpm test  # if tests exist
 ```
 
 ## Common Mistakes to Avoid
@@ -299,16 +299,19 @@ def process(data: dict[str, Any]) -> dict[str, Any]:
     return data
 ```
 
-## Integration with cursor-fleet
+## Integration with agentic-control
 
 If you need to understand what previous agents did:
 
 ```bash
 # Analyze a previous agent session
-cursor-fleet analyze bc-xxx-xxx --output report.md
+agentic triage analyze bc-xxx-xxx --output report.md
 
 # Review code before pushing
-cursor-fleet review --base main --head HEAD
+agentic triage review --base main --head HEAD
+
+# Check token status
+agentic tokens status
 ```
 
 ## Questions?

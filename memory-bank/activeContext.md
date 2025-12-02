@@ -1,48 +1,60 @@
-# Active Context - Unified Control Center
+# Active Context
 
-## Current Status: OPERATIONAL
+## Current Status: HANDOFF IN PROGRESS
 
-The unified jbcom control center is fully operational with both jbcom and FlipsideCrypto ecosystems under single management.
+**Date**: 2025-12-02T05:30:00Z  
+**Predecessor Agent**: Current session (cursor/fleet-tooling-agent-recovery-and-management-claude-4.5-opus-high-thinking-c9e9)
 
-## What Was Accomplished (via triage analyze)
+## Active Agents
 
-### Agent bc-fcfe779a (10 completed tasks)
-1. **Created agentic-control npm package** - Unified CLI consolidating fleet, triage, and handoff tooling
-2. **Intelligent token switching** - Auto-switches between GITHUB_FSC_TOKEN and GITHUB_JBCOM_TOKEN
-3. **Absorbed fsc-control-center** - 1950 files, 188k+ lines into ecosystems/flipside-crypto/
-4. **Created public agentic-control repository** - OSS package for community
-5. **Unified CI/CD matrix** - Single ci.yml for Python and Node.js releases
-6. **Security vulnerability fixes** - Command injection, ReDoS, SSRF, token leakage
-7. **OSS package configuration** - Removed hardcoded values, fully configurable
-8. **Fleet management** - Explicit model specification (claude-sonnet-4-20250514)
-9. **Documentation overhaul** - TOKEN-MANAGEMENT.md, RELEASE-PROCESS.md, agent rules
-10. **ECOSYSTEM.toml manifest** - Tracks both jbcom and FlipsideCrypto ecosystems
+### 1. vault-secret-sync Agent
+- **ID**: `bc-d68dcb7c-9938-45e3-afb4-3551a92a052e`
+- **URL**: https://cursor.com/agents?id=bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
+- **Repository**: jbcom/vault-secret-sync
+- **Branch**: feat/doppler-store-and-cicd
+- **PR**: https://github.com/jbcom/vault-secret-sync/pull/1
+- **Mission**: Complete CI resolution, publish Docker/Helm, merge PR
 
-### Agent bc-375d2d54 (7 completed tasks)
-1. **10 specialized agents configuration** - Control Center, Infrastructure, Security, Lambda Ops, etc.
-2. **Smart Task Router** - Python-based intelligent routing system
-3. **Fleet Orchestration System** - Diamond pattern hub-and-spoke coordination
-4. **Comprehensive Monitoring System** - Health scoring, alert rules, audit trails
-5. **Automated Workflows** - Dependency updates, infrastructure deployments
-6. **Capability Matrix** - 10 capability domains mapped to agents
-7. **agentic-control configuration structure** - YAML files, scripts, documentation
+### 2. cluster-ops (REQUIRES MANUAL INTERVENTION)
+- **Repository**: fsc-platform/cluster-ops
+- **Branch**: proposal/vault-secret-sync
+- **PR**: https://github.com/fsc-platform/cluster-ops/pull/154
+- **Status**: ⚠️ Cloud agents cannot access this repo (permission issue)
+- **Action Needed**: Spawn local agent or handle manually after vault-secret-sync completes
 
-## Outstanding Tasks (GitHub Issues Created)
-- #302: Improve fleet agent spawning reliability
-- #303: Monitor and maintain npm package
+## Coordination Dependencies
 
-## Key Artifacts
-- `/workspace/packages/agentic-control/` - Unified CLI package
-- `/workspace/ecosystems/flipside-crypto/` - Absorbed FSC repository
-- `/workspace/ECOSYSTEM.toml` - Unified ecosystem manifest
-- `/workspace/docs/TOKEN-MANAGEMENT.md` - Token switching documentation
-- `/workspace/docs/RELEASE-PROCESS.md` - Release documentation
+```
+vault-secret-sync Agent (bc-d68dcb7c)
+         │
+         ▼ publishes Docker/Helm
+         │
+cluster-ops Agent (bc-a92c71bd)
+         │
+         ▼ uses published artifacts
+         │
+    Human Review
+```
 
-## CI/CD Status
-- Main branch: GREEN
-- PyPI publishing: Working (uses PYPI_TOKEN)
-- npm publishing: Working (uses OIDC Trusted Publishing)
+## User Action Needed
 
----
-*Generated via agentic-control triage analyze*
-*Timestamp: 2025-12-01*
+Both agents are instructed to request user action when needed for:
+- GHCR access tokens
+- Repository authentication
+- Registry permissions
+
+Watch for PR comments with format:
+```
+🚨 USER ACTION REQUIRED: [description]
+```
+
+## For Next Agent
+
+If you are the successor agent:
+1. Check status of both spawned agents using `agentic-control status <agent-id>`
+2. Monitor their progress via the coordination PR
+3. Intervene if blocked
+
+## Handoff Complete
+
+This session's work on vault-secret-sync and cluster-ops has been delegated to specialized agents.

@@ -13,12 +13,18 @@
         "tokenEnvVar": "GITHUB_FSC_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
+      },
+      "fsc-platform": {
+        "name": "fsc-platform",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "jbcom/jbcom-control-center",
   "logLevel": "info"
 }

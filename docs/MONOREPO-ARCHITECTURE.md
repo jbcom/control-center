@@ -11,7 +11,7 @@ The control center agent should have direct access to ALL infrastructure code. N
 ```
 fsc-control-center/
 ├── packages/                          # TypeScript/Python tooling
-│   ├── cursor-fleet/                  # Agent management (from @jbcom)
+│   ├── agentic-control/               # Agent orchestration toolkit
 │   ├── pipeline-generator/            # Workflow generation
 │   └── secrets-manager/               # Secrets lambda (Go)
 │
