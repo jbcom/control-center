@@ -3,4 +3,4 @@
 .DS_Store
 data/
 config.yaml
-devcerts/
+devcerts/vault-secret-sync
