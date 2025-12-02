@@ -18,7 +18,7 @@
 import { generateObject } from "ai";
 import { z } from "zod";
 import { spawnSync } from "node:child_process";
-import { getTriageConfig, getTriageApiKey, log, getConfig } from "../core/config.js";
+import { getTriageConfig, getDefaultApiKeyEnvVar, log, getConfig } from "../core/config.js";
 import { getEnvForPRReview } from "../core/tokens.js";
 import type { 
   Conversation, 
@@ -199,25 +199,25 @@ export class AIAnalyzer {
     
     this.providerName = options.provider ?? triageConfig.provider ?? "anthropic";
     this.model = options.model ?? triageConfig.model ?? "claude-sonnet-4-20250514";
-    this.apiKey = options.apiKey ?? getTriageApiKey() ?? "";
     this.repo = options.repo ?? getConfig().defaultRepository;
 
+    // Determine the correct API key, respecting provider overrides
+    // If provider was overridden via options, use that provider's env var
+    const effectiveProvider = options.provider ?? triageConfig.provider ?? "anthropic";
+    const envVarName = (options.provider && options.provider !== triageConfig.provider)
+      ? getDefaultApiKeyEnvVar(effectiveProvider)
+      : (triageConfig.apiKeyEnvVar ?? getDefaultApiKeyEnvVar(effectiveProvider));
+    
+    this.apiKey = options.apiKey ?? process.env[envVarName] ?? "";
+
     if (!this.apiKey) {
-      const envVar = triageConfig.apiKeyEnvVar ?? this.getDefaultEnvVar();
+      // Note: We intentionally include the env var NAME (not value) in error messages
+      // to help users configure their environment correctly
+      const hint = getDefaultApiKeyEnvVar(effectiveProvider);
       throw new Error(
         `API key required for ${this.providerName} provider.\n` +
-        `Set ${envVar} environment variable or pass apiKey option.`
+        `Set ${hint} environment variable or pass apiKey option.`
       );
-    }
-  }
-
-  private getDefaultEnvVar(): string {
-    switch (this.providerName) {
-      case "openai": return "OPENAI_API_KEY";
-      case "google": return "GOOGLE_API_KEY";
-      case "mistral": return "MISTRAL_API_KEY";
-      case "azure": return "AZURE_API_KEY";
-      default: return "ANTHROPIC_API_KEY";
     }
   }
 

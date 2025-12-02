@@ -353,7 +353,9 @@ fleetCmd
       const defaults = getFleetDefaults();
       
       // Merge CLI options with config defaults
-      const autoCreatePr = opts.autoPr ?? defaults.autoCreatePr ?? false;
+      // Note: Commander sets opts.autoPr to false for --no-auto-pr, true for --auto-pr, undefined for neither
+      // We need to check if it was explicitly set (not undefined) before falling back to defaults
+      const autoCreatePr = opts.autoPr !== undefined ? opts.autoPr : (defaults.autoCreatePr ?? false);
       const openAsCursorGithubApp = opts.asApp ?? defaults.openAsCursorGithubApp ?? false;
       
       const result = await fleet.spawn({
@@ -1000,9 +1002,12 @@ program
 
       let selectedModel: string | undefined;
 
+      let shouldFallbackToCommon = false;
+      
       if (modelChoice === "list-cursor") {
         if (!hasCursorKey) {
           console.log("⚠️  CURSOR_API_KEY not found. Falling back to common models.");
+          shouldFallbackToCommon = true;
         } else {
           try {
             console.log("🔍 Fetching available Cursor models...");
@@ -1016,14 +1021,16 @@ program
               });
             } else {
               console.log("⚠️  Could not fetch models. Falling back to common models.");
+              shouldFallbackToCommon = true;
             }
           } catch (err) {
             console.log(`⚠️  Error fetching models: ${err instanceof Error ? err.message : err}`);
+            shouldFallbackToCommon = true;
           }
         }
       }
 
-      if (!selectedModel && modelChoice === "common") {
+      if (!selectedModel && (modelChoice === "common" || shouldFallbackToCommon)) {
         const commonModels: Record<string, { value: string; name: string }[]> = {
           anthropic: [
             { value: "claude-sonnet-4-20250514", name: "Claude Sonnet 4 (recommended)" },

@@ -44,6 +44,7 @@ export {
   getLogLevel,
   getCursorApiKey,
   getTriageApiKey,
+  getDefaultApiKeyEnvVar,
   log,
   type AgenticConfig,
   type FleetConfig,

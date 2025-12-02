@@ -121,13 +121,16 @@ let configPath: string | null = null;
 function loadEnvConfig(): Partial<AgenticConfig> {
   const envConfig: Partial<AgenticConfig> = {};
 
+  // Build triage config from environment variables
+  const triageFromEnv: Partial<TriageConfig> = {};
   if (process.env.AGENTIC_MODEL) {
-    // Map to triage model for backwards compatibility
-    envConfig.triage = { model: process.env.AGENTIC_MODEL };
+    triageFromEnv.model = process.env.AGENTIC_MODEL;
   }
-
   if (process.env.AGENTIC_PROVIDER) {
-    envConfig.triage = { ...envConfig.triage, provider: process.env.AGENTIC_PROVIDER };
+    triageFromEnv.provider = process.env.AGENTIC_PROVIDER;
+  }
+  if (Object.keys(triageFromEnv).length > 0) {
+    envConfig.triage = triageFromEnv;
   }
 
   if (process.env.AGENTIC_REPOSITORY) {
@@ -169,8 +172,13 @@ function mergeConfig(base: AgenticConfig, overrides: Partial<AgenticConfig>): Ag
     if (value === undefined) continue;
     
     if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+      const baseValue = (base as Record<string, unknown>)[key];
+      // Only spread baseValue if it's a non-null object
+      const baseObj = (typeof baseValue === "object" && baseValue !== null && !Array.isArray(baseValue)) 
+        ? baseValue 
+        : {};
       (result as Record<string, unknown>)[key] = {
-        ...(base as Record<string, unknown>)[key] as object,
+        ...baseObj,
         ...value,
       };
     } else {
@@ -342,18 +350,9 @@ export function getCursorApiKey(): string | undefined {
 }
 
 /**
- * Get triage API key from configured environment variable
- */
-export function getTriageApiKey(): string | undefined {
-  const triageConfig = getTriageConfig();
-  const envVar = triageConfig.apiKeyEnvVar ?? getDefaultApiKeyEnvVar(triageConfig.provider);
-  return process.env[envVar];
-}
-
-/**
  * Get default API key env var for a provider
  */
-function getDefaultApiKeyEnvVar(provider?: string): string {
+export function getDefaultApiKeyEnvVar(provider?: string): string {
   switch (provider) {
     case "openai": return "OPENAI_API_KEY";
     case "google": return "GOOGLE_API_KEY";
@@ -363,6 +362,17 @@ function getDefaultApiKeyEnvVar(provider?: string): string {
     default:
       return "ANTHROPIC_API_KEY";
   }
+}
+
+/**
+ * Get triage API key from configured environment variable
+ * @param providerOverride - Optional provider to use instead of config value
+ */
+export function getTriageApiKey(providerOverride?: string): string | undefined {
+  const triageConfig = getTriageConfig();
+  const provider = providerOverride ?? triageConfig.provider;
+  const envVar = triageConfig.apiKeyEnvVar ?? getDefaultApiKeyEnvVar(provider);
+  return process.env[envVar];
 }
 
 // ============================================
