@@ -75,6 +75,7 @@
     "@ai-sdk/azure": { "optional": true }
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^2.0.0",
     "@types/node": "^22.19.1",
     "@vitest/coverage-v8": "^3.1.4",
     "tsx": "4.21.0",
@@ -103,10 +104,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/jbcom/agentic-control.git"
+    "url": "https://github.com/jbcom/jbcom-oss-ecosystem.git",
+    "directory": "packages/agentic-control"
   },
-  "homepage": "https://github.com/jbcom/agentic-control#readme",
+  "homepage": "https://github.com/jbcom/jbcom-oss-ecosystem/tree/main/packages/agentic-control#readme",
   "bugs": {
-    "url": "https://github.com/jbcom/agentic-control/issues"
+    "url": "https://github.com/jbcom/jbcom-oss-ecosystem/issues"
   }
 }

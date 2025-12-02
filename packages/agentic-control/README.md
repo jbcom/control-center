@@ -12,6 +12,7 @@
 - **🔍 AI-Powered Triage** - Analyze conversations, review code, extract tasks
 - **🤝 Station-to-Station Handoff** - Seamless agent continuity across sessions
 - **🔐 Multi-Org Support** - Manage agents across multiple GitHub organizations
+- **🔌 Pluggable AI Providers** - Choose your preferred AI provider (Anthropic, OpenAI, Google, etc.)
 - **🔒 Security First** - No hardcoded values, all configuration is user-provided
 
 ## Installation
@@ -22,6 +23,27 @@ npm install -g agentic-control
 pnpm add -g agentic-control
 ```
 
+### Installing AI Providers
+
+AI triage features require installing a provider SDK. Install the one you need:
+
+```bash
+# Anthropic (recommended)
+pnpm add @ai-sdk/anthropic
+
+# OpenAI
+pnpm add @ai-sdk/openai
+
+# Google AI
+pnpm add @ai-sdk/google
+
+# Mistral
+pnpm add @ai-sdk/mistral
+
+# Azure OpenAI
+pnpm add @ai-sdk/azure
+```
+
 ## Quick Start
 
 ### 1. Initialize Configuration
@@ -30,7 +52,13 @@ pnpm add -g agentic-control
 agentic init
 ```
 
-This creates `agentic.config.json`:
+The `init` command is intelligent:
+- Detects your Git repository from `git remote`
+- Scans for existing tokens in your environment (`GITHUB_*_TOKEN`, etc.)
+- Interactively prompts for missing configuration (if terminal is interactive)
+- Generates a working `agentic.config.json`
+
+Example generated config:
 
 ```json
 {
@@ -44,11 +72,15 @@ This creates `agentic.config.json`:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
   "defaultRepository": "my-org/my-repo",
   "fleet": {
     "autoCreatePr": false,
     "openAsCursorGithubApp": false
+  },
+  "triage": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "apiKeyEnvVar": "ANTHROPIC_API_KEY"
   }
 }
 ```
@@ -58,7 +90,7 @@ This creates `agentic.config.json`:
 ```bash
 export GITHUB_TOKEN="ghp_xxx"           # Default token
 export GITHUB_MY_ORG_TOKEN="ghp_xxx"    # Organization-specific token
-export ANTHROPIC_API_KEY="sk-xxx"       # For AI features
+export ANTHROPIC_API_KEY="sk-xxx"       # For AI triage (or your provider's key)
 export CURSOR_API_KEY="xxx"             # For fleet management
 ```
 
@@ -88,6 +120,16 @@ agentic triage analyze bc-xxx-xxx -o report.md --create-issues
 
 ## Commands
 
+### Configuration
+
+```bash
+# Initialize configuration (interactive)
+agentic init
+
+# Non-interactive initialization
+agentic init --non-interactive
+```
+
 ### Token Management
 
 ```bash
@@ -110,6 +152,9 @@ agentic fleet list
 # List only running agents
 agentic fleet list --running
 
+# List available Cursor models
+agentic fleet models
+
 # Get fleet summary
 agentic fleet summary
 
@@ -127,7 +172,7 @@ agentic fleet coordinate --pr 123 --repo my-org/my-repo
 ```
 
 > **Note**: Model selection for fleet agents is handled by Cursor internally.
-> The `--model` flag only applies to triage operations (Anthropic API).
+> You cannot specify a model when spawning agents. Use `agentic fleet models` to see available models.
 
 ### AI Triage
 
@@ -143,6 +188,9 @@ agentic triage analyze <agent-id> -o report.md
 
 # Create issues from analysis
 agentic triage analyze <agent-id> --create-issues
+
+# Use specific model (overrides config)
+agentic triage analyze <agent-id> --model claude-opus-4-20250514
 ```
 
 ### Handoff Protocol
@@ -180,12 +228,16 @@ Create `agentic.config.json` in your project root (or run `agentic init`):
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
   "defaultRepository": "my-company/my-repo",
   "logLevel": "info",
   "fleet": {
     "autoCreatePr": true,
     "openAsCursorGithubApp": false
+  },
+  "triage": {
+    "provider": "anthropic",
+    "model": "claude-sonnet-4-20250514",
+    "apiKeyEnvVar": "ANTHROPIC_API_KEY"
   }
 }
 ```
@@ -193,22 +245,61 @@ Create `agentic.config.json` in your project root (or run `agentic init`):
 Config is loaded using [cosmiconfig](https://github.com/cosmiconfig/cosmiconfig).
 Searches for: `agentic.config.json`, `.agenticrc`, `package.json` "agentic" key.
 
-### Model Selection (Triage Only)
+### AI Provider Configuration
 
-The `defaultModel` in config applies to **triage operations** (Anthropic API).
-Fleet operations use Cursor's model selection - you cannot specify a model when spawning agents.
+Configure your preferred AI provider in the `triage` section:
 
-| Model | ID | Use Case |
-|-------|-----|----------|
-| **Sonnet 4** | `claude-sonnet-4-20250514` | Triage, general work (DEFAULT) |
-| **Opus 4** | `claude-opus-4-20250514` | Complex reasoning, deep analysis |
+| Provider | Package | `provider` value | Default API Key Env |
+|----------|---------|------------------|---------------------|
+| **Anthropic** | `@ai-sdk/anthropic` | `anthropic` | `ANTHROPIC_API_KEY` |
+| **OpenAI** | `@ai-sdk/openai` | `openai` | `OPENAI_API_KEY` |
+| **Google AI** | `@ai-sdk/google` | `google` | `GOOGLE_API_KEY` |
+| **Mistral** | `@ai-sdk/mistral` | `mistral` | `MISTRAL_API_KEY` |
+| **Azure** | `@ai-sdk/azure` | `azure` | `AZURE_API_KEY` |
 
-**To get the latest available Anthropic models:**
+Example with OpenAI:
+
+```json
+{
+  "triage": {
+    "provider": "openai",
+    "model": "gpt-4o",
+    "apiKeyEnvVar": "OPENAI_API_KEY"
+  }
+}
+```
+
+### Fleet Configuration
+
+The `fleet` section configures default options for spawning agents:
+
+```json
+{
+  "fleet": {
+    "autoCreatePr": false,
+    "openAsCursorGithubApp": false,
+    "skipReviewerRequest": false
+  }
+}
+```
+
+| Option | Description | Default |
+|--------|-------------|---------|
+| `autoCreatePr` | Auto-create PR when agent completes | `false` |
+| `openAsCursorGithubApp` | Open PR as Cursor GitHub App | `false` |
+| `skipReviewerRequest` | Don't add user as reviewer | `false` |
+
+CLI flags override config file defaults:
 
 ```bash
-curl -s "https://api.anthropic.com/v1/models" \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
+# Override autoCreatePr
+agentic fleet spawn <repo> <task> --auto-pr
+
+# Override openAsCursorGithubApp
+agentic fleet spawn <repo> <task> --as-app
+
+# Set custom branch name
+agentic fleet spawn <repo> <task> --branch feature/my-fix
 ```
 
 ### Environment Variables
@@ -217,9 +308,11 @@ curl -s "https://api.anthropic.com/v1/models" \
 |----------|-------------|----------|
 | `GITHUB_TOKEN` | Default GitHub token | Recommended |
 | `GITHUB_<ORG>_TOKEN` | Organization-specific tokens | Per org |
-| `ANTHROPIC_API_KEY` | Anthropic API key | For AI features |
+| `ANTHROPIC_API_KEY` | Anthropic API key | For Anthropic triage |
+| `OPENAI_API_KEY` | OpenAI API key | For OpenAI triage |
 | `CURSOR_API_KEY` | Cursor API key | For fleet ops |
 | `AGENTIC_MODEL` | Default AI model | Optional |
+| `AGENTIC_PROVIDER` | Default AI provider | Optional |
 | `AGENTIC_REPOSITORY` | Default repository | Optional |
 | `AGENTIC_LOG_LEVEL` | Log level (debug/info/warn/error) | Optional |
 
@@ -280,9 +373,17 @@ await fleet.spawn({
 const token = getTokenForRepo("my-company/my-repo");
 // Returns value of GITHUB_COMPANY_TOKEN
 
-// AI Analysis (requires repo to be set)
+// AI Analysis with default provider (from config)
 const analyzer = new AIAnalyzer({ repo: "my-company/my-repo" });
 const result = await analyzer.quickTriage("Error in deployment");
+
+// AI Analysis with specific provider
+const openaiAnalyzer = new AIAnalyzer({ 
+  repo: "my-company/my-repo",
+  provider: "openai",
+  model: "gpt-4o",
+  apiKey: process.env.OPENAI_API_KEY,
+});
 ```
 
 ## Token Switching Logic
@@ -314,12 +415,12 @@ agentic-control/
 │   ├── core/           # Types, tokens, config
 │   │   ├── types.ts    # Shared type definitions
 │   │   ├── tokens.ts   # Intelligent token switching
-│   │   └── config.ts   # Configuration management
+│   │   └── config.ts   # Configuration management (cosmiconfig)
 │   ├── fleet/          # Cursor agent fleet management
 │   │   ├── fleet.ts    # High-level Fleet API
-│   │   └── cursor-api.ts
+│   │   └── cursor-api.ts   # Direct Cursor API client
 │   ├── triage/         # AI-powered analysis
-│   │   └── analyzer.ts # Claude-based analysis
+│   │   └── analyzer.ts # Multi-provider AI analysis
 │   ├── github/         # Token-aware GitHub ops
 │   │   └── client.ts   # Multi-org GitHub client
 │   ├── handoff/        # Agent continuity
@@ -337,12 +438,16 @@ This package is designed with security in mind:
 - **Safe subprocess execution** - Uses `spawnSync` instead of shell interpolation
 - **Token sanitization** - Tokens are never logged or exposed in error messages
 - **ReDoS protection** - Regex patterns are designed to prevent denial of service
+- **No credential patterns in docs** - We don't document third-party API key formats
 
 ## Development
 
 ```bash
 # Install dependencies
 pnpm install
+
+# Run CLI from source (no build required)
+pnpm run agentic
 
 # Build
 pnpm run build
@@ -368,4 +473,4 @@ MIT © [Jon Bogaty](https://github.com/jbcom)
 
 ---
 
-**Part of the [jbcom-control-center](https://github.com/jbcom/jbcom-control-center) ecosystem**
+**Part of the [jbcom-oss-ecosystem](https://github.com/jbcom/jbcom-oss-ecosystem)**

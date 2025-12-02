@@ -329,6 +329,41 @@ export interface DiamondConfig {
 }
 
 // ============================================
+// Configuration Types
+// ============================================
+
+/**
+ * Fleet defaults configuration
+ */
+export interface FleetConfig {
+  /** Auto-create PR when agent completes */
+  autoCreatePr?: boolean;
+  /** Open PR as Cursor GitHub App instead of user */
+  openAsCursorGithubApp?: boolean;
+  /** Skip adding user as reviewer */
+  skipReviewerRequest?: boolean;
+}
+
+/**
+ * AI Triage configuration
+ * 
+ * Supported providers (install corresponding package):
+ * - anthropic: @ai-sdk/anthropic
+ * - openai: @ai-sdk/openai  
+ * - google: @ai-sdk/google
+ * - mistral: @ai-sdk/mistral
+ * - azure: @ai-sdk/azure
+ */
+export interface TriageConfig {
+  /** AI provider to use */
+  provider?: string;
+  /** Model to use for analysis */
+  model?: string;
+  /** Environment variable name for API key */
+  apiKeyEnvVar?: string;
+}
+
+// ============================================
 // GitHub Types
 // ============================================
 

@@ -1,19 +1,24 @@
 /**
- * AI Analyzer - Uses Claude for fast triage and assessment
+ * AI Analyzer - Provider-agnostic AI triage and assessment
  * 
- * Automatically analyzes:
- * - Conversation history for completed/outstanding tasks
- * - Code changes for issues and improvements
- * - Creates GitHub issues from analysis
+ * Supports multiple AI providers via Vercel AI SDK:
+ * - anthropic (@ai-sdk/anthropic)
+ * - openai (@ai-sdk/openai)
+ * - google (@ai-sdk/google)
+ * - mistral (@ai-sdk/mistral)
+ * - azure (@ai-sdk/azure)
  * 
- * All configuration is user-provided - no hardcoded values.
+ * Install the provider you need:
+ *   pnpm add @ai-sdk/anthropic
+ * 
+ * Configure in agentic.config.json:
+ *   { "triage": { "provider": "anthropic", "model": "claude-sonnet-4-20250514" } }
  */
 
-import { createAnthropic } from "@ai-sdk/anthropic";
 import { generateObject } from "ai";
 import { z } from "zod";
 import { spawnSync } from "node:child_process";
-import { getDefaultModel, log, getConfig } from "../core/config.js";
+import { getTriageConfig, getTriageApiKey, log, getConfig } from "../core/config.js";
 import { getEnvForPRReview } from "../core/tokens.js";
 import type { 
   Conversation, 
@@ -89,14 +94,70 @@ const TriageSchema = z.object({
 });
 
 // ============================================
+// Provider Loading
+// ============================================
+
+type ProviderFactory = (config: { apiKey: string }) => unknown;
+
+const PROVIDER_PACKAGES: Record<string, string> = {
+  anthropic: "@ai-sdk/anthropic",
+  openai: "@ai-sdk/openai",
+  google: "@ai-sdk/google",
+  mistral: "@ai-sdk/mistral",
+  azure: "@ai-sdk/azure",
+};
+
+const PROVIDER_FACTORIES: Record<string, string> = {
+  anthropic: "createAnthropic",
+  openai: "createOpenAI",
+  google: "createGoogleGenerativeAI",
+  mistral: "createMistral",
+  azure: "createAzure",
+};
+
+async function loadProvider(providerName: string, apiKey: string): Promise<(model: string) => unknown> {
+  const packageName = PROVIDER_PACKAGES[providerName];
+  const factoryName = PROVIDER_FACTORIES[providerName];
+  
+  if (!packageName || !factoryName) {
+    throw new Error(
+      `Unknown provider: ${providerName}\n` +
+      `Supported providers: ${Object.keys(PROVIDER_PACKAGES).join(", ")}`
+    );
+  }
+
+  try {
+    const module = await import(packageName);
+    const factory = module[factoryName] as ProviderFactory;
+    
+    if (typeof factory !== "function") {
+      throw new Error(`Factory ${factoryName} not found in ${packageName}`);
+    }
+    
+    const provider = factory({ apiKey });
+    return (model: string) => (provider as (model: string) => unknown)(model);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ERR_MODULE_NOT_FOUND") {
+      throw new Error(
+        `Provider package not installed: ${packageName}\n` +
+        `Install it with: pnpm add ${packageName}`
+      );
+    }
+    throw err;
+  }
+}
+
+// ============================================
 // Types
 // ============================================
 
 export interface AIAnalyzerOptions {
-  /** Anthropic API key (defaults to ANTHROPIC_API_KEY env var) */
-  apiKey?: string;
+  /** AI provider: anthropic, openai, google, mistral, azure */
+  provider?: string;
   /** Model to use */
   model?: string;
+  /** API key (defaults to provider-specific env var) */
+  apiKey?: string;
   /** Repository for GitHub operations (required for issue creation) */
   repo?: string;
 }
@@ -106,20 +167,44 @@ export interface AIAnalyzerOptions {
 // ============================================
 
 export class AIAnalyzer {
-  private anthropic: ReturnType<typeof createAnthropic>;
+  private providerName: string;
   private model: string;
+  private apiKey: string;
   private repo: string | undefined;
+  private providerFn: ((model: string) => unknown) | null = null;
 
   constructor(options: AIAnalyzerOptions = {}) {
-    const apiKey = options.apiKey ?? process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      throw new Error("ANTHROPIC_API_KEY is required for AI analysis");
-    }
-
-    this.anthropic = createAnthropic({ apiKey });
-    this.model = options.model ?? getDefaultModel();
-    // No hardcoded default - repo must be explicitly configured for issue creation
+    const triageConfig = getTriageConfig();
+    
+    this.providerName = options.provider ?? triageConfig.provider ?? "anthropic";
+    this.model = options.model ?? triageConfig.model ?? "claude-sonnet-4-20250514";
+    this.apiKey = options.apiKey ?? getTriageApiKey() ?? "";
     this.repo = options.repo ?? getConfig().defaultRepository;
+
+    if (!this.apiKey) {
+      const envVar = triageConfig.apiKeyEnvVar ?? this.getDefaultEnvVar();
+      throw new Error(
+        `API key required for ${this.providerName} provider.\n` +
+        `Set ${envVar} environment variable or pass apiKey option.`
+      );
+    }
+  }
+
+  private getDefaultEnvVar(): string {
+    switch (this.providerName) {
+      case "openai": return "OPENAI_API_KEY";
+      case "google": return "GOOGLE_API_KEY";
+      case "mistral": return "MISTRAL_API_KEY";
+      case "azure": return "AZURE_API_KEY";
+      default: return "ANTHROPIC_API_KEY";
+    }
+  }
+
+  private async getProvider(): Promise<(model: string) => unknown> {
+    if (!this.providerFn) {
+      this.providerFn = await loadProvider(this.providerName, this.apiKey);
+    }
+    return this.providerFn;
   }
 
   /**
@@ -133,11 +218,12 @@ export class AIAnalyzer {
    * Analyze a conversation to extract completed/outstanding tasks
    */
   async analyzeConversation(conversation: Conversation): Promise<AnalysisResult> {
+    const provider = await this.getProvider();
     const messages = conversation.messages || [];
     const conversationText = this.prepareConversationText(messages);
 
     const { object } = await generateObject({
-      model: this.anthropic(this.model),
+      model: provider(this.model) as Parameters<typeof generateObject>[0]["model"],
       schema: TaskAnalysisSchema,
       prompt: `Analyze this agent conversation and extract:
 1. COMPLETED TASKS - What was actually finished and merged/deployed
@@ -192,8 +278,10 @@ ${conversationText}`,
    * Review code changes and identify issues
    */
   async reviewCode(diff: string, context?: string): Promise<CodeReviewResult> {
+    const provider = await this.getProvider();
+    
     const { object } = await generateObject({
-      model: this.anthropic(this.model),
+      model: provider(this.model) as Parameters<typeof generateObject>[0]["model"],
       schema: CodeReviewSchema,
       prompt: `Review this code diff and identify:
 1. ISSUES - Security, bugs, performance problems
@@ -235,8 +323,10 @@ ${diff}`,
    * Quick triage - fast assessment of what needs attention
    */
   async quickTriage(input: string): Promise<TriageResult> {
+    const provider = await this.getProvider();
+    
     const { object } = await generateObject({
-      model: this.anthropic(this.model),
+      model: provider(this.model) as Parameters<typeof generateObject>[0]["model"],
       schema: TriageSchema,
       prompt: `Quickly triage this input and determine:
 1. Priority level (critical/high/medium/low/info)
@@ -398,7 +488,7 @@ ${analysis.blockers.map(b => `
 ${analysis.recommendations.map(r => `- ${r}`).join("\n")}
 
 ---
-*Generated by agentic-control AI Analyzer using Claude ${this.model}*
+*Generated by agentic-control AI Analyzer using ${this.providerName}/${this.model}*
 *Timestamp: ${new Date().toISOString()}*
 `;
   }

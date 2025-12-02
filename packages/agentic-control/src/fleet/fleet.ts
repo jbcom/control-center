@@ -276,6 +276,16 @@ export class Fleet {
     return this.api.listRepositories();
   }
 
+  /**
+   * List available Cursor models
+   */
+  async listModels(): Promise<Result<string[]>> {
+    if (!this.api) {
+      return { success: false, error: "Cursor API not available" };
+    }
+    return this.api.listModels();
+  }
+
   // ============================================
   // Diamond Pattern Orchestration
   // ============================================

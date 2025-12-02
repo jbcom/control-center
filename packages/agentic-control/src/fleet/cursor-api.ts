@@ -255,4 +255,15 @@ export class CursorAPI {
     if (!result.success) return { success: false, error: result.error };
     return { success: true, data: result.data?.repositories ?? [] };
   }
+
+  /**
+   * List available models
+   * 
+   * API Spec: https://cursor.com/docs/cloud-agent/api/endpoints#list-models
+   */
+  async listModels(): Promise<Result<string[]>> {
+    const result = await this.request<{ models: string[] }>("/models");
+    if (!result.success) return { success: false, error: result.error };
+    return { success: true, data: result.data?.models ?? [] };
+  }
 }

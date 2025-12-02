@@ -272,6 +272,34 @@ fleetCmd
   });
 
 fleetCmd
+  .command("models")
+  .description("List available Cursor models")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.listModels();
+      
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        console.log("=== Available Cursor Models ===\n");
+        for (const model of result.data ?? []) {
+          console.log(`  - ${model}`);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to list models:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+fleetCmd
   .command("summary")
   .description("Get fleet summary")
   .option("--json", "Output as JSON")
@@ -671,7 +699,6 @@ program
 
     // Detect standard tokens
     const hasGithubToken = !!process.env.GITHUB_TOKEN;
-    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
 
     // Build base config from detected values
     const config: Record<string, unknown> = {

@@ -40,10 +40,12 @@ export {
   isVerbose,
   getDefaultModel,
   getFleetDefaults,
+  getTriageConfig,
   getLogLevel,
   getCursorApiKey,
-  getAnthropicApiKey,
+  getTriageApiKey,
   log,
   type AgenticConfig,
   type FleetConfig,
+  type TriageConfig,
 } from "./config.js";

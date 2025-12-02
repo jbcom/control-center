@@ -120,7 +120,12 @@ function loadEnvConfig(): Partial<AgenticConfig> {
   const envConfig: Partial<AgenticConfig> = {};
 
   if (process.env.AGENTIC_MODEL) {
-    envConfig.defaultModel = process.env.AGENTIC_MODEL;
+    // Map to triage model for backwards compatibility
+    envConfig.triage = { model: process.env.AGENTIC_MODEL };
+  }
+
+  if (process.env.AGENTIC_PROVIDER) {
+    envConfig.triage = { ...envConfig.triage, provider: process.env.AGENTIC_PROVIDER };
   }
 
   if (process.env.AGENTIC_REPOSITORY) {
@@ -335,11 +340,27 @@ export function getCursorApiKey(): string | undefined {
 }
 
 /**
- * Get Anthropic API key from configured environment variable
+ * Get triage API key from configured environment variable
  */
-export function getAnthropicApiKey(): string | undefined {
-  const envVar = config.anthropic?.apiKeyEnvVar ?? "ANTHROPIC_API_KEY";
+export function getTriageApiKey(): string | undefined {
+  const triageConfig = getTriageConfig();
+  const envVar = triageConfig.apiKeyEnvVar ?? getDefaultApiKeyEnvVar(triageConfig.provider);
   return process.env[envVar];
+}
+
+/**
+ * Get default API key env var for a provider
+ */
+function getDefaultApiKeyEnvVar(provider?: string): string {
+  switch (provider) {
+    case "openai": return "OPENAI_API_KEY";
+    case "google": return "GOOGLE_API_KEY";
+    case "mistral": return "MISTRAL_API_KEY";
+    case "azure": return "AZURE_API_KEY";
+    case "anthropic":
+    default:
+      return "ANTHROPIC_API_KEY";
+  }
 }
 
 // ============================================
