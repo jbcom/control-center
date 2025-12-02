@@ -83,8 +83,8 @@ export interface AgenticConfig {
 // ============================================
 
 const DEFAULT_CONFIG: AgenticConfig = {
-  // AI model - uses Claude 4 Opus as sensible default for Cursor
-  defaultModel: "claude-4-opus",
+  // AI model - uses Claude Opus 4 as sensible default for Cursor
+  defaultModel: "claude-opus-4-20250514",
   logLevel: "info",
   verbose: false,
   // Cursor defaults

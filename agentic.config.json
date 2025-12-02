@@ -18,7 +18,7 @@
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
   },
-  "defaultModel": "claude-sonnet-4-20250514",
+  "defaultModel": "claude-opus-4-20250514",
   "defaultRepository": "jbcom/jbcom-control-center",
   "logLevel": "info"
 }
