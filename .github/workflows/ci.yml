@@ -535,6 +535,16 @@ jobs:
             type=semver,pattern={{major}},value=${{ steps.check.outputs.new_version }}
             type=raw,value=latest
 
+      - name: Validate version format
+        if: steps.check.outputs.should_release == 'true'
+        run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format: $VERSION (expected: MAJOR.MINOR.PATCH)"
+            exit 1
+          fi
+          echo "Version $VERSION is valid"
+
       - name: Build and push Docker image
         if: steps.check.outputs.should_release == 'true'
         uses: docker/build-push-action@14487ce63c7a62a4a324b0bfb37086795e31c6c1  # v6.16.0
@@ -546,6 +556,8 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
 
       - name: Set up Helm
         if: steps.check.outputs.should_release == 'true'
@@ -557,9 +569,16 @@ jobs:
         if: steps.check.outputs.should_release == 'true'
         working-directory: packages/vault-secret-sync
         run: |
+          VERSION="${{ steps.check.outputs.new_version }}"
+          # Validate version format before using in sed (prevents command injection)
+          if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Invalid version format"
+            exit 1
+          fi
+          
           # Update chart version
-          sed -i "s/^version:.*/version: ${{ steps.check.outputs.new_version }}/" deploy/charts/vault-secret-sync/Chart.yaml
-          sed -i "s/^appVersion:.*/appVersion: \"${{ steps.check.outputs.new_version }}\"/" deploy/charts/vault-secret-sync/Chart.yaml
+          sed -i "s/^version:.*/version: $VERSION/" deploy/charts/vault-secret-sync/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"$VERSION\"/" deploy/charts/vault-secret-sync/Chart.yaml
           
           # Package chart
           helm package deploy/charts/vault-secret-sync -d /tmp/helm-charts
