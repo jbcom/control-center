@@ -83,9 +83,13 @@ export interface AgenticConfig {
 // ============================================
 
 const DEFAULT_CONFIG: AgenticConfig = {
-  // AI model - uses Claude Opus 4.5 as sensible default for Cursor
+  // AI model - uses Claude Haiku 4.5 for fast triage operations
   // To get latest models: curl -s "https://api.anthropic.com/v1/models" -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"
-  defaultModel: "claude-opus-4-5-20251101",
+  // Available models (2025-12):
+  //   - claude-opus-4-5-20251101   (Claude Opus 4.5 - most capable)
+  //   - claude-sonnet-4-5-20250929 (Claude Sonnet 4.5 - balanced)
+  //   - claude-haiku-4-5-20251001  (Claude Haiku 4.5 - fast/cheap, use for triage)
+  defaultModel: "claude-haiku-4-5-20251001",
   logLevel: "info",
   verbose: false,
   // Cursor defaults
@@ -95,7 +99,7 @@ const DEFAULT_CONFIG: AgenticConfig = {
   // Anthropic defaults
   anthropic: {
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    defaultModel: "claude-opus-4-5-20251101",
+    defaultModel: "claude-haiku-4-5-20251001",
   },
 };
 

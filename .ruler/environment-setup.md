@@ -43,6 +43,53 @@ uvx pre-commit run --all-files
 
 ---
 
+## 🤖 Anthropic Model Selection (CRITICAL)
+
+**ALWAYS use the correct model IDs. To get the latest available models:**
+
+```bash
+curl -s "https://api.anthropic.com/v1/models" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
+```
+
+### Current Models (as of 2025-12)
+
+| Model | ID | Use Case |
+|-------|-----|----------|
+| **Haiku 4.5** | `claude-haiku-4-5-20251001` | Fast triage, quick analysis (DEFAULT for agentic-control) |
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | General agent work, balanced |
+| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Opus 4.1 | `claude-opus-4-1-20250805` | Previous generation |
+| Opus 4 | `claude-opus-4-20250514` | Previous generation |
+| Sonnet 4 | `claude-sonnet-4-20250514` | Previous generation |
+| Sonnet 3.7 | `claude-3-7-sonnet-20250219` | Legacy |
+
+### Model Naming Convention
+
+```
+claude-{variant}-{major}-{minor}-{date}
+         │         │       │       │
+         │         │       │       └── YYYYMMDD release date
+         │         │       └── Minor version (5, 1, etc.)
+         │         └── Major version (4, 3, etc.)
+         └── haiku, sonnet, or opus
+```
+
+**Examples:**
+- ❌ `claude-4-opus` - WRONG (old naming)
+- ❌ `claude-opus-4-5-20250514` - WRONG (date mismatch)
+- ✅ `claude-haiku-4-5-20251001` - CORRECT
+
+### When to Update Models
+
+Run the curl command above periodically to check for new models. Update:
+1. `/workspace/agentic.config.json` - `defaultModel` field
+2. `/workspace/packages/agentic-control/src/core/config.ts` - `DEFAULT_CONFIG.defaultModel`
+3. This documentation
+
+---
+
 ## Overview
 
 This workspace can run in **TWO DIFFERENT ENVIRONMENTS**:
