@@ -62,9 +62,10 @@ func initQueue() error {
 	// since the memory queue is not shared between processes
 	// it can only be used in single-binary mode
 	if queueType == queue.QueueTypeMemory {
-		if (config.Config.Operator == nil || (config.Config.Operator.Enabled == nil || !*config.Config.Operator.Enabled)) &&
-			(config.Config.Events == nil || config.Config.Events.Enabled == nil || !*config.Config.Events.Enabled) {
-			return errors.New("memory queue can only be used in single-binary mode")
+		isOperatorEnabled := config.Config.Operator != nil && config.Config.Operator.Enabled != nil && *config.Config.Operator.Enabled
+		isEventsEnabled := config.Config.Events != nil && config.Config.Events.Enabled != nil && *config.Config.Events.Enabled
+		if !isOperatorEnabled || !isEventsEnabled {
+			return errors.New("memory queue can only be used in single-binary mode (both operator and events must be enabled)")
 		}
 	}
 	if err := queue.Init(queueType, queueParams); err != nil {
