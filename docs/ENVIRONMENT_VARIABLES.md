@@ -26,8 +26,8 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 | `COPILOT_MCP_CURSOR_API_KEY` | `CURSOR_API_KEY` | Cursor Background Agent API access |
 
 **Used in:**
-- `packages/cursor-fleet/src/cursor-api.ts`
-- `packages/cursor-fleet/src/mcp-client.ts`
+- `packages/agentic-control/src/cursor-api.ts`
+- `packages/agentic-control/src/mcp-client.ts`
 - `packages/ai-triage/src/mcp-clients.ts`
 
 ### GitHub
@@ -37,9 +37,9 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 | `COPILOT_MCP_GITHUB_TOKEN` | `GITHUB_JBCOM_TOKEN`, `GITHUB_TOKEN` | GitHub API, PR operations, MCP server |
 
 **Used in:**
-- `packages/cursor-fleet/src/fleet.ts`
-- `packages/cursor-fleet/src/handoff.ts`
-- `packages/cursor-fleet/src/ai-analyzer.ts`
+- `packages/agentic-control/src/fleet.ts`
+- `packages/agentic-control/src/handoff.ts`
+- `packages/agentic-control/src/ai-analyzer.ts`
 - `packages/ai-triage/src/mcp-clients.ts`
 
 ### Anthropic
@@ -49,7 +49,7 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 | `COPILOT_MCP_ANTHROPIC_API_KEY` | `ANTHROPIC_API_KEY` | Claude AI analysis, code review, triage |
 
 **Used in:**
-- `packages/cursor-fleet/src/ai-analyzer.ts`
+- `packages/agentic-control/src/ai-analyzer.ts`
 
 ### Context7 (Optional)
 
@@ -71,7 +71,7 @@ export GITHUB_JBCOM_TOKEN="your-github-token"
 export ANTHROPIC_API_KEY="your-anthropic-key"
 
 # Run tools
-cursor-fleet list
+agentic-control list
 ai-triage mcp status
 ```
 
@@ -82,7 +82,7 @@ ai-triage mcp status
 # Listed in: COPILOT_AGENT_INJECTED_SECRET_NAMES
 
 # Run the same tools - they automatically use COPILOT_MCP_* versions
-cursor-fleet list
+agentic-control list
 ai-triage mcp status
 ```
 
@@ -90,7 +90,7 @@ ai-triage mcp status
 
 ```typescript
 // You can test the priority order:
-import { CursorAPI } from "@jbcom/cursor-fleet";
+import { CursorAPI } from "@jbcom/agentic-control";
 
 // 1. Explicit parameter (highest priority)
 const api1 = new CursorAPI({ apiKey: "explicit-key" });
@@ -283,9 +283,9 @@ console.log("Set COPILOT_MCP_NEWSERVICE_API_KEY or NEWSERVICE_API_KEY");
 ## References
 
 - **Copilot Agent Injection:** `COPILOT_AGENT_INJECTED_SECRET_NAMES` environment variable
-- **cursor-fleet package:** `packages/cursor-fleet/README.md`
+- **agentic-control package:** `packages/agentic-control/README.md`
 - **ai-triage package:** `packages/ai-triage/package.json`
-- **Investigation:** `packages/cursor-fleet/docs/FOLLOWUP_INVESTIGATION.md`
+- **Investigation:** `packages/agentic-control/docs/FOLLOWUP_INVESTIGATION.md`
 
 ---
 

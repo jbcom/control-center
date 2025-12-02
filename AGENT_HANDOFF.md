@@ -156,17 +156,17 @@ Both agents are instructed to post PR comments when they need user action:
 
 ```bash
 # Check agent status
-node packages/cursor-fleet/dist/cli.js status bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
-node packages/cursor-fleet/dist/cli.js status bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
+node packages/agentic-control/dist/cli.js status bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
+node packages/agentic-control/dist/cli.js status bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
 
 # Monitor all agents
-node packages/cursor-fleet/dist/cli.js monitor bc-d68dcb7c-9938-45e3-afb4-3551a92a052e bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
+node packages/agentic-control/dist/cli.js monitor bc-d68dcb7c-9938-45e3-afb4-3551a92a052e bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
 
 # Send followup if needed
-node packages/cursor-fleet/dist/cli.js followup bc-d68dcb7c-9938-45e3-afb4-3551a92a052e "Status update please"
+node packages/agentic-control/dist/cli.js followup bc-d68dcb7c-9938-45e3-afb4-3551a92a052e "Status update please"
 
 # View conversation
-node packages/cursor-fleet/dist/cli.js conversation bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
+node packages/agentic-control/dist/cli.js conversation bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
 ```
 
 ---

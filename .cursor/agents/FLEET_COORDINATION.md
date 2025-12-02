@@ -58,7 +58,7 @@ Sub-agents report by commenting on the coordination PR:
 
 ```bash
 # Via CLI
-cursor-fleet coordinate --pr 251 --agents bc-d28321ca,bc-8e620589
+agentic-control coordinate --pr 251 --agents bc-d28321ca,bc-8e620589
 
 # Or via process-compose
 COORDINATION_PR=251 AGENT_IDS=bc-d28321ca,bc-8e620589 process-compose up fleet-coordinator
@@ -69,7 +69,7 @@ COORDINATION_PR=251 AGENT_IDS=bc-d28321ca,bc-8e620589 process-compose up fleet-c
 The coordination is built into the `Fleet` class:
 
 ```typescript
-import { Fleet } from "@jbcom/cursor-fleet";
+import { Fleet } from "@jbcom/agentic-control";
 
 const fleet = new Fleet();
 

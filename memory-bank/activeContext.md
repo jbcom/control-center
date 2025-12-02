@@ -51,7 +51,7 @@ Watch for PR comments with format:
 ## For Next Agent
 
 If you are the successor agent:
-1. Check status of both spawned agents using `cursor-fleet status <agent-id>`
+1. Check status of both spawned agents using `agentic-control status <agent-id>`
 2. Monitor their progress via the coordination PR
 3. Intervene if blocked
 

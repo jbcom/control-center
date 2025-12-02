@@ -266,23 +266,35 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUMBER> --squash --delete-branch
 
 ### Spawn Sub-Agents
 ```bash
-# Spawn agent in another repo
-node packages/cursor-fleet/dist/cli.js spawn \
-  "https://github.com/jbcom/vendor-connectors" \
-  "Fix CI failures" \
-  --ref main
+# Spawn agent in another repo (auto-selects token based on org)
+agentic fleet spawn "https://github.com/jbcom/vendor-connectors" "Fix CI failures" --ref main
+
+# For fsc-platform repos (also uses GITHUB_FSC_TOKEN automatically)
+agentic fleet spawn "https://github.com/fsc-platform/cluster-ops" "Complete PR" --ref proposal/vault-secret-sync
 
 # Send followup to running agent
-node packages/cursor-fleet/dist/cli.js followup <agent-id> "Update: ..."
+agentic fleet followup <agent-id> "Update: ..."
 
 # Monitor agents
-node packages/cursor-fleet/dist/cli.js list --running
+agentic fleet list --running
+
+# Check which token will be used for a repo
+agentic tokens for-repo fsc-platform/cluster-ops
 ```
 
 ### Bidirectional Coordination
 ```bash
 # Start coordinator (uses PR for communication)
-node packages/cursor-fleet/dist/cli.js coordinate --pr 251 --repo jbcom/jbcom-control-center
+agentic fleet coordinate --pr 251 --repo jbcom/jbcom-control-center
+```
+
+### AI Triage & Analysis
+```bash
+# Analyze agent session
+agentic triage analyze <agent-id> --output report.md
+
+# Code review
+agentic triage review --base main --head HEAD
 ```
 
 ---
