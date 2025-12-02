@@ -646,7 +646,7 @@ program
 
 program
   .command("init")
-  .description("Create a sample configuration file")
+  .description("Initialize configuration by detecting environment")
   .option("--force", "Overwrite existing config file")
   .action((opts) => {
     const configPath = "agentic.config.json";
@@ -655,32 +655,90 @@ program
       console.error(`❌ ${configPath} already exists. Use --force to overwrite.`);
       process.exit(1);
     }
+
+    console.log("🔍 Detecting environment...\n");
+
+    // Detect repository from git remote
+    let defaultRepository: string | undefined;
+    try {
+      const gitRemote = spawnSync("git", ["remote", "get-url", "origin"], { encoding: "utf-8" });
+      if (gitRemote.status === 0 && gitRemote.stdout) {
+        const url = gitRemote.stdout.trim();
+        // Parse GitHub URL: https://github.com/owner/repo.git or git@github.com:owner/repo.git
+        const match = url.match(/github\.com[/:]([\w-]+)\/([\w.-]+?)(?:\.git)?$/);
+        if (match) {
+          defaultRepository = `${match[1]}/${match[2]}`;
+          console.log(`📦 Detected repository: ${defaultRepository}`);
+        }
+      }
+    } catch {
+      // Not in a git repo, that's fine
+    }
+
+    // Detect GitHub token environment variables
+    const tokenEnvVars = Object.keys(process.env)
+      .filter(k => k.startsWith("GITHUB_") && k.endsWith("_TOKEN") && process.env[k])
+      .sort();
     
-    const sampleConfig = {
+    const organizations: Record<string, { name: string; tokenEnvVar: string }> = {};
+    
+    for (const envVar of tokenEnvVars) {
+      // GITHUB_MYORG_TOKEN -> myorg
+      const match = envVar.match(/^GITHUB_(.+)_TOKEN$/);
+      if (match && match[1] !== "") {
+        const orgName = match[1].toLowerCase().replace(/_/g, "-");
+        organizations[orgName] = {
+          name: orgName,
+          tokenEnvVar: envVar,
+        };
+        console.log(`🔑 Found token: ${envVar} → org "${orgName}"`);
+      }
+    }
+
+    // Check for standard tokens
+    const hasGithubToken = !!process.env.GITHUB_TOKEN;
+    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+    const hasCursorKey = !!process.env.CURSOR_API_KEY;
+
+    if (hasGithubToken) console.log("🔑 Found: GITHUB_TOKEN");
+    if (hasAnthropicKey) console.log("🔑 Found: ANTHROPIC_API_KEY");
+    if (hasCursorKey) console.log("🔑 Found: CURSOR_API_KEY");
+
+    // Build config
+    const config: Record<string, unknown> = {
       "$schema": "https://agentic-control.dev/schema/config.json",
       "tokens": {
-        "organizations": {
-          "my-org": {
-            "name": "my-org",
-            "tokenEnvVar": "GITHUB_MY_ORG_TOKEN"
-          }
-        },
-        "defaultTokenEnvVar": "GITHUB_TOKEN",
-        "prReviewTokenEnvVar": "GITHUB_TOKEN"
+        "organizations": Object.keys(organizations).length > 0 ? organizations : undefined,
+        "defaultTokenEnvVar": hasGithubToken ? "GITHUB_TOKEN" : undefined,
+        "prReviewTokenEnvVar": hasGithubToken ? "GITHUB_TOKEN" : undefined,
       },
-      "defaultModel": "claude-sonnet-4-20250514",
-      "defaultRepository": "my-org/my-repo",
+      "defaultModel": hasAnthropicKey ? "claude-sonnet-4-20250514" : undefined,
+      "defaultRepository": defaultRepository,
       "logLevel": "info",
       "fleet": {
         "autoCreatePr": false,
-        "openAsCursorGithubApp": false
-      }
+      },
     };
+
+    // Clean up undefined values
+    const cleanConfig = JSON.parse(JSON.stringify(config, (_, v) => v === undefined ? undefined : v));
     
-    writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2) + "\n");
-    console.log(`✅ Created ${configPath}`);
-    console.log("\nEdit this file to configure your organizations and tokens.");
-    console.log("See https://github.com/jbcom/agentic-control#configuration for details.");
+    writeFileSync(configPath, JSON.stringify(cleanConfig, null, 2) + "\n");
+    console.log(`\n✅ Created ${configPath}`);
+    
+    // Report what's missing
+    const missing: string[] = [];
+    if (!hasGithubToken) missing.push("GITHUB_TOKEN");
+    if (!hasAnthropicKey) missing.push("ANTHROPIC_API_KEY (required for triage)");
+    if (!hasCursorKey) missing.push("CURSOR_API_KEY (required for fleet)");
+    if (!defaultRepository) missing.push("defaultRepository (not in a git repo)");
+    
+    if (missing.length > 0) {
+      console.log("\n⚠️  Missing (set these for full functionality):");
+      for (const m of missing) {
+        console.log(`   - ${m}`);
+      }
+    }
   });
 
 // ============================================
