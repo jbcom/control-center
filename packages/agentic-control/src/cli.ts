@@ -646,9 +646,10 @@ program
 
 program
   .command("init")
-  .description("Initialize configuration by detecting environment")
+  .description("Initialize configuration")
   .option("--force", "Overwrite existing config file")
-  .action((opts) => {
+  .option("--non-interactive", "Skip prompts, use detected values only")
+  .action(async (opts) => {
     const configPath = "agentic.config.json";
     
     if (existsSync(configPath) && !opts.force) {
@@ -656,89 +657,81 @@ program
       process.exit(1);
     }
 
-    console.log("🔍 Detecting environment...\n");
-
-    // Detect repository from git remote
-    let defaultRepository: string | undefined;
-    try {
-      const gitRemote = spawnSync("git", ["remote", "get-url", "origin"], { encoding: "utf-8" });
-      if (gitRemote.status === 0 && gitRemote.stdout) {
-        const url = gitRemote.stdout.trim();
-        // Parse GitHub URL: https://github.com/owner/repo.git or git@github.com:owner/repo.git
-        const match = url.match(/github\.com[/:]([\w-]+)\/([\w.-]+?)(?:\.git)?$/);
-        if (match) {
-          defaultRepository = `${match[1]}/${match[2]}`;
-          console.log(`📦 Detected repository: ${defaultRepository}`);
-        }
-      }
-    } catch {
-      // Not in a git repo, that's fine
-    }
-
-    // Detect GitHub token environment variables
-    const tokenEnvVars = Object.keys(process.env)
-      .filter(k => k.startsWith("GITHUB_") && k.endsWith("_TOKEN") && process.env[k])
-      .sort();
+    const isInteractive = process.stdout.isTTY && !opts.nonInteractive;
     
+    // Detect org-specific tokens (GITHUB_*_TOKEN pattern)
     const organizations: Record<string, { name: string; tokenEnvVar: string }> = {};
-    
-    for (const envVar of tokenEnvVars) {
-      // GITHUB_MYORG_TOKEN -> myorg
+    for (const envVar of Object.keys(process.env)) {
       const match = envVar.match(/^GITHUB_(.+)_TOKEN$/);
-      if (match && match[1] !== "") {
+      if (match && match[1] && process.env[envVar]) {
         const orgName = match[1].toLowerCase().replace(/_/g, "-");
-        organizations[orgName] = {
-          name: orgName,
-          tokenEnvVar: envVar,
-        };
-        console.log(`🔑 Found token: ${envVar} → org "${orgName}"`);
+        organizations[orgName] = { name: orgName, tokenEnvVar: envVar };
       }
     }
 
-    // Check for standard tokens
+    // Detect standard tokens
     const hasGithubToken = !!process.env.GITHUB_TOKEN;
     const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
-    const hasCursorKey = !!process.env.CURSOR_API_KEY;
 
-    if (hasGithubToken) console.log("🔑 Found: GITHUB_TOKEN");
-    if (hasAnthropicKey) console.log("🔑 Found: ANTHROPIC_API_KEY");
-    if (hasCursorKey) console.log("🔑 Found: CURSOR_API_KEY");
-
-    // Build config
+    // Build base config from detected values
     const config: Record<string, unknown> = {
-      "$schema": "https://agentic-control.dev/schema/config.json",
-      "tokens": {
-        "organizations": Object.keys(organizations).length > 0 ? organizations : undefined,
-        "defaultTokenEnvVar": hasGithubToken ? "GITHUB_TOKEN" : undefined,
-        "prReviewTokenEnvVar": hasGithubToken ? "GITHUB_TOKEN" : undefined,
+      tokens: {
+        organizations: Object.keys(organizations).length > 0 ? organizations : {},
+        defaultTokenEnvVar: hasGithubToken ? "GITHUB_TOKEN" : "GITHUB_TOKEN",
+        prReviewTokenEnvVar: hasGithubToken ? "GITHUB_TOKEN" : "GITHUB_TOKEN",
       },
-      "defaultModel": hasAnthropicKey ? "claude-sonnet-4-20250514" : undefined,
-      "defaultRepository": defaultRepository,
-      "logLevel": "info",
-      "fleet": {
-        "autoCreatePr": false,
+      defaultModel: "claude-sonnet-4-20250514",
+      logLevel: "info",
+      fleet: {
+        autoCreatePr: false,
       },
     };
 
-    // Clean up undefined values
-    const cleanConfig = JSON.parse(JSON.stringify(config, (_, v) => v === undefined ? undefined : v));
-    
-    writeFileSync(configPath, JSON.stringify(cleanConfig, null, 2) + "\n");
-    console.log(`\n✅ Created ${configPath}`);
-    
-    // Report what's missing
-    const missing: string[] = [];
-    if (!hasGithubToken) missing.push("GITHUB_TOKEN");
-    if (!hasAnthropicKey) missing.push("ANTHROPIC_API_KEY (required for triage)");
-    if (!hasCursorKey) missing.push("CURSOR_API_KEY (required for fleet)");
-    if (!defaultRepository) missing.push("defaultRepository (not in a git repo)");
-    
-    if (missing.length > 0) {
-      console.log("\n⚠️  Missing (set these for full functionality):");
-      for (const m of missing) {
-        console.log(`   - ${m}`);
+    // Interactive prompts for missing values
+    if (isInteractive) {
+      const { input, confirm } = await import("@inquirer/prompts");
+      
+      // Ask for default repository if not detected
+      const repoAnswer = await input({
+        message: "Default repository (owner/repo, or leave empty):",
+        default: "",
+      });
+      if (repoAnswer) {
+        config.defaultRepository = repoAnswer;
+      }
+
+      // Ask about fleet defaults
+      const autoPr = await confirm({
+        message: "Auto-create PRs when agents complete?",
+        default: false,
+      });
+      (config.fleet as Record<string, unknown>).autoCreatePr = autoPr;
+
+      // Ask for additional orgs
+      const addOrg = await confirm({
+        message: "Add organization-specific token mappings?",
+        default: false,
+      });
+      
+      if (addOrg) {
+        let adding = true;
+        while (adding) {
+          const orgName = await input({ message: "Organization name:" });
+          const tokenVar = await input({ 
+            message: `Environment variable for ${orgName}:`,
+            default: `GITHUB_${orgName.toUpperCase().replace(/-/g, "_")}_TOKEN`,
+          });
+          (config.tokens as Record<string, unknown>).organizations = {
+            ...((config.tokens as Record<string, unknown>).organizations as object),
+            [orgName]: { name: orgName, tokenEnvVar: tokenVar },
+          };
+          adding = await confirm({ message: "Add another organization?", default: false });
+        }
       }
     }
+    
+    writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
+    console.log(`✅ Created ${configPath}`);
   });
 
 // ============================================
