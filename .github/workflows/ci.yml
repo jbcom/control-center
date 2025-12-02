@@ -472,23 +472,23 @@ jobs:
 
       - name: Check if release needed
         id: check
-        working-directory: packages/vault-secret-sync
         run: |
           LAST_TAG=$(git describe --tags --match "vault-secret-sync-v*" --abbrev=0 2>/dev/null || echo "")
+          PKG_PATH="packages/vault-secret-sync"
           
           if [ -z "$LAST_TAG" ]; then
             echo "No previous tag - initial release"
             echo "should_release=true" >> $GITHUB_OUTPUT
             echo "new_version=0.1.0" >> $GITHUB_OUTPUT
           else
-            CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- . | wc -l)
+            CHANGES=$(git diff --name-only "$LAST_TAG"..HEAD -- "$PKG_PATH/" | wc -l)
             if [ "$CHANGES" -gt 0 ]; then
               echo "Found $CHANGES changed files since $LAST_TAG"
               echo "should_release=true" >> $GITHUB_OUTPUT
               
               # Determine version bump
-              FEAT_COUNT=$(git log "$LAST_TAG"..HEAD --oneline -- . | grep -iE "^[a-f0-9]+ feat" | wc -l || echo 0)
-              BREAKING=$(git log "$LAST_TAG"..HEAD --oneline -- . | grep -iE "BREAKING" | wc -l || echo 0)
+              FEAT_COUNT=$(git log "$LAST_TAG"..HEAD --oneline -- "$PKG_PATH/" | grep -iE "^[a-f0-9]+ feat" | wc -l || echo 0)
+              BREAKING=$(git log "$LAST_TAG"..HEAD --oneline -- "$PKG_PATH/" | grep -iE "BREAKING" | wc -l || echo 0)
               
               CURRENT=$(echo "$LAST_TAG" | sed "s/vault-secret-sync-v//")
               IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"

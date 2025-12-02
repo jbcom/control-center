@@ -111,7 +111,7 @@ config: {}
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jbcom/vault-secret-sync
+  repository: docker.io/jbcom/vault-secret-sync
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""

@@ -1,8 +1,18 @@
 # Active Context - Unified Control Center
 
-## Current Status: RECOVERY & TAKEOVER IN PROGRESS
+## Current Status: VAULT-SECRET-SYNC INTEGRATION IN PROGRESS
 
-Agent `bc-57959d6c` has recovered and taken over from agent `bc-f49e8766`.
+Agent `bc-57959d6c` has recovered from `bc-f49e8766` and is now integrating vault-secret-sync into the monorepo.
+
+### PR #311: vault-secret-sync Monorepo Integration
+- **Status**: CI running, AI peer reviews requested
+- **URL**: https://github.com/jbcom/jbcom-control-center/pull/311
+- **Features**:
+  - Full Go source in `packages/vault-secret-sync/`
+  - CI/CD: build, test, lint for Go
+  - Docker Hub publishing: `docker.io/jbcom/vault-secret-sync`
+  - Helm OCI publishing: `oci://docker.io/jbcom/vault-secret-sync`
+  - Sync to jbcom/vault-secret-sync fork
 
 ## Recovery Summary (Agent bc-f49e8766)
 
