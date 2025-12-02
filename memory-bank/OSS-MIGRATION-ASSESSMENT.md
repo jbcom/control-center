@@ -183,11 +183,23 @@ robertlestak/vault-secret-sync (UPSTREAM)
 Just like `jbcom/extended-data-types`, `jbcom/vendor-connectors` etc. are CONTAINERS that receive synced code from the source repo - the fork should be a CONTAINER that receives synced upstream-worthy contributions.
 
 #### What needs to happen:
-1. **RESET the fork** - remove the polluting PR #1 changes, sync from upstream
+1. **RESET fork main** - sync with upstream (robertlestak/vault-secret-sync main)
 2. **ALL jbcom-specific code stays in OSS ecosystem ONLY** (Doppler, AWS Identity Center, our CI)
-3. **Add repo-file-sync-action** to OSS ecosystem CI for upstream contributions
-4. **Add agentic instructions** for when/how to cut contributions to fork → upstream
-5. **Fork becomes CONTAINER** - we sync TO it, we don't develop IN it
+3. **Upstream contributions via feature branches:**
+   - Identify upstream-worthy changes (human approval)
+   - Create feature branch in fork (off main = upstream)
+   - Check out SPECIFIC FILES from OSS (not cherry-pick - it's a monorepo)
+   - PR: `jbcom:feature/x` → `robertlestak:main`
+   - React to feedback, iterate, or withdraw
+   - Once merged → fork main syncs → delete feature branch
+4. **Track via GitHub Issues** - each contribution tracked, documented
+5. **Human-agent mixed governance** - agents draft, humans approve, agents implement feedback, humans decide
+
+#### This provides a CONTRIBUTING.md model:
+- Same workflow WE use for upstream = workflow OTHERS use for us
+- Works for humans AND agents
+- Documented by example (our vault-secret-sync contributions)
+- Dog-fooding: we follow what we expect from contributors
 
 ---
 
