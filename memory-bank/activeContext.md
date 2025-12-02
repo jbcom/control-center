@@ -2,47 +2,77 @@
 
 ## Current Status: OPERATIONAL
 
-The unified jbcom control center is fully operational with both jbcom and FlipsideCrypto ecosystems under single management.
+Agent `bc-e8225222-21ef-4fb0-b670-d12ae80e7ebb` recovered and analyzed using agentic-control tooling with correct model configuration.
 
-## What Was Accomplished (via triage analyze)
+## Recovery Session (2025-12-02)
 
-### Agent bc-fcfe779a (10 completed tasks)
-1. **Created agentic-control npm package** - Unified CLI consolidating fleet, triage, and handoff tooling
-2. **Intelligent token switching** - Auto-switches between GITHUB_FSC_TOKEN and GITHUB_JBCOM_TOKEN
-3. **Absorbed fsc-control-center** - 1950 files, 188k+ lines into ecosystems/flipside-crypto/
-4. **Created public agentic-control repository** - OSS package for community
-5. **Unified CI/CD matrix** - Single ci.yml for Python and Node.js releases
-6. **Security vulnerability fixes** - Command injection, ReDoS, SSRF, token leakage
-7. **OSS package configuration** - Removed hardcoded values, fully configurable
-8. **Fleet management** - Explicit model specification (claude-sonnet-4-20250514)
-9. **Documentation overhaul** - TOKEN-MANAGEMENT.md, RELEASE-PROCESS.md, agent rules
-10. **ECOSYSTEM.toml manifest** - Tracks both jbcom and FlipsideCrypto ecosystems
+### What Was Fixed
+1. **Model configuration** - Fixed invalid model names in `agentic.config.json` and `config.ts`
+   - Changed from `claude-4-opus` (WRONG) to `claude-sonnet-4-5-20250929` (CORRECT)
+   - Documented how to fetch latest models from Anthropic API
+   - Haiku 4.5 has structured output issues - use Sonnet 4.5 for triage
 
-### Agent bc-375d2d54 (7 completed tasks)
-1. **10 specialized agents configuration** - Control Center, Infrastructure, Security, Lambda Ops, etc.
-2. **Smart Task Router** - Python-based intelligent routing system
-3. **Fleet Orchestration System** - Diamond pattern hub-and-spoke coordination
-4. **Comprehensive Monitoring System** - Health scoring, alert rules, audit trails
-5. **Automated Workflows** - Dependency updates, infrastructure deployments
-6. **Capability Matrix** - 10 capability domains mapped to agents
-7. **agentic-control configuration structure** - YAML files, scripts, documentation
+### How to Get Latest Anthropic Models
+```bash
+curl -s "https://api.anthropic.com/v1/models" \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
+```
 
-## Outstanding Tasks (GitHub Issues Created)
-- #302: Improve fleet agent spawning reliability
-- #303: Monitor and maintain npm package
+### Current Models (2025-12)
+| Model | ID | Use Case |
+|-------|-----|----------|
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT) |
+| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues |
 
-## Key Artifacts
-- `/workspace/packages/agentic-control/` - Unified CLI package
-- `/workspace/ecosystems/flipside-crypto/` - Absorbed FSC repository
-- `/workspace/ECOSYSTEM.toml` - Unified ecosystem manifest
-- `/workspace/docs/TOKEN-MANAGEMENT.md` - Token switching documentation
-- `/workspace/docs/RELEASE-PROCESS.md` - Release documentation
+## Recovered Agent Summary (bc-e8225222)
 
-## CI/CD Status
-- Main branch: GREEN
-- PyPI publishing: Working (uses PYPI_TOKEN)
-- npm publishing: Working (uses OIDC Trusted Publishing)
+**Status**: FINISHED
+**Completed**: 14 tasks
+**Outstanding**: 8 tasks
+**Blockers**: 4 critical items
+
+### Key Accomplishments
+1. Fixed PyPI publishing (switched from OIDC to PYPI_TOKEN)
+2. Recovered chronology from 20 agents
+3. Cleaned up 2,325 lines of false documentation
+4. Created secrets infrastructure unification proposal (PROPOSAL.md)
+5. Set up terraform-modules cleanup tracking (issues #225, #227-229)
+6. Created SAM approach (PR #44) and vault-secret-sync approach (PR #43)
+7. Created cluster-ops deployment (PR #154)
+
+### Outstanding Work
+1. **CRITICAL**: FSC department head decision on secrets approach
+2. **CRITICAL**: Integrate FSC-specific patterns into vault-secret-sync
+3. **HIGH**: Determine queue strategy (Redis HA in cluster-ops)
+4. **HIGH**: Request AI peer review on all PRs
+5. Move sync functions to SAM
+6. Remove cloud operations from terraform-modules
+7. Refactor terraform-modules (~550KB → ~80KB)
+
+### Key Blockers
+- vault-secret-sync needs FSC-specific patterns (not generic)
+- Queue strategy undetermined (review cluster-ops Redis HA)
+- No AI peer review requested on PRs
+- Department head decision required on SAM vs vault-secret-sync
+
+## For Next Agent
+
+1. **Use agentic-control properly**:
+   ```bash
+   cd /workspace && node packages/agentic-control/dist/cli.js triage analyze <agent-id> -o report.md
+   ```
+
+2. **Check model config first** - if triage fails, verify model ID format
+
+3. **Outstanding PRs to review**:
+   - data-platform-secrets-syncing: #43, #44
+   - cluster-ops: #154
+   - terraform-aws-secretsmanager: #52
+   - terraform-modules: #226
+   - jbcom-control-center: #308
 
 ---
-*Generated via agentic-control triage analyze*
-*Timestamp: 2025-12-01*
+*Generated via agentic-control triage analyze with claude-sonnet-4-5-20250929*
+*Timestamp: 2025-12-02*

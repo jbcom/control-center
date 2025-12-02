@@ -44,7 +44,7 @@ This creates `agentic.config.json`:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-haiku-4-5-20251001",
+  "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "my-org/my-repo"
 }
 ```
@@ -170,7 +170,7 @@ Create `agentic.config.json` in your project root:
     "defaultTokenEnvVar": "GITHUB_TOKEN",
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
-  "defaultModel": "claude-haiku-4-5-20251001",
+  "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "my-company/my-repo",
   "logLevel": "info"
 }
@@ -178,13 +178,13 @@ Create `agentic.config.json` in your project root:
 
 ### Model Selection
 
-Use Claude Haiku 4.5 for fast triage operations, Claude Sonnet 4.5 for balanced work, and Claude Opus 4.5 for complex analysis:
+Use Claude Sonnet 4.5 for triage (Haiku has schema issues), and Claude Opus 4.5 for complex analysis:
 
 | Model | ID | Use Case |
 |-------|-----|----------|
-| Haiku 4.5 | `claude-haiku-4-5-20251001` | Fast triage, quick analysis |
-| Sonnet 4.5 | `claude-sonnet-4-5-20250929` | General agent work, balanced |
-| Opus 4.5 | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT) |
+| **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues |
 
 **To get the latest available models:**
 

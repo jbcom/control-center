@@ -57,9 +57,9 @@ curl -s "https://api.anthropic.com/v1/models" \
 
 | Model | ID | Use Case |
 |-------|-----|----------|
-| **Haiku 4.5** | `claude-haiku-4-5-20251001` | Fast triage, quick analysis (DEFAULT for agentic-control) |
-| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | General agent work, balanced |
+| **Sonnet 4.5** | `claude-sonnet-4-5-20250929` | Triage, general work (DEFAULT - Haiku has schema issues) |
 | **Opus 4.5** | `claude-opus-4-5-20251101` | Complex reasoning, deep analysis |
+| Haiku 4.5 | `claude-haiku-4-5-20251001` | ⚠️ Has structured output issues, avoid for triage |
 | Opus 4.1 | `claude-opus-4-1-20250805` | Previous generation |
 | Opus 4 | `claude-opus-4-20250514` | Previous generation |
 | Sonnet 4 | `claude-sonnet-4-20250514` | Previous generation |
