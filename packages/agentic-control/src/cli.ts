@@ -699,6 +699,9 @@ program
 
     // Detect standard tokens
     const hasGithubToken = !!process.env.GITHUB_TOKEN;
+    const hasCursorKey = !!process.env.CURSOR_API_KEY;
+    const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY;
 
     // Build base config from detected values
     const config: Record<string, unknown> = {
@@ -707,16 +710,19 @@ program
         defaultTokenEnvVar: hasGithubToken ? "GITHUB_TOKEN" : "GITHUB_TOKEN",
         prReviewTokenEnvVar: hasGithubToken ? "GITHUB_TOKEN" : "GITHUB_TOKEN",
       },
-      defaultModel: "claude-sonnet-4-20250514",
       logLevel: "info",
       fleet: {
         autoCreatePr: false,
+      },
+      triage: {
+        provider: hasAnthropicKey ? "anthropic" : hasOpenAIKey ? "openai" : "anthropic",
+        // model will be set below
       },
     };
 
     // Interactive prompts for missing values
     if (isInteractive) {
-      const { input, confirm } = await import("@inquirer/prompts");
+      const { input, confirm, select } = await import("@inquirer/prompts");
       
       // Ask for default repository if not detected
       const repoAnswer = await input({
@@ -734,7 +740,110 @@ program
       });
       (config.fleet as Record<string, unknown>).autoCreatePr = autoPr;
 
+      // === AI PROVIDER & MODEL SELECTION ===
+      console.log("\n📊 AI Triage Configuration\n");
+      
+      // Select provider
+      const provider = await select({
+        message: "AI provider for triage operations:",
+        choices: [
+          { value: "anthropic", name: "Anthropic (Claude)" + (hasAnthropicKey ? " ✅ key detected" : "") },
+          { value: "openai", name: "OpenAI (GPT)" + (hasOpenAIKey ? " ✅ key detected" : "") },
+          { value: "google", name: "Google AI (Gemini)" },
+          { value: "mistral", name: "Mistral" },
+          { value: "azure", name: "Azure OpenAI" },
+        ],
+        default: hasAnthropicKey ? "anthropic" : hasOpenAIKey ? "openai" : "anthropic",
+      });
+      (config.triage as Record<string, unknown>).provider = provider;
+
+      // Model selection
+      const modelChoice = await select({
+        message: "How would you like to configure the AI model?",
+        choices: [
+          { value: "list-cursor", name: "List available Cursor models (requires CURSOR_API_KEY)" + (hasCursorKey ? " ✅" : " ⚠️") },
+          { value: "common", name: "Choose from common models" },
+          { value: "manual", name: "Enter model ID manually" },
+          { value: "auto", name: "Auto (no default - use provider's default)" },
+        ],
+      });
+
+      let selectedModel: string | undefined;
+
+      if (modelChoice === "list-cursor") {
+        if (!hasCursorKey) {
+          console.log("⚠️  CURSOR_API_KEY not found. Falling back to common models.");
+        } else {
+          try {
+            console.log("🔍 Fetching available Cursor models...");
+            const fleet = new Fleet();
+            const modelsResult = await fleet.listModels();
+            
+            if (modelsResult.success && modelsResult.data && modelsResult.data.length > 0) {
+              selectedModel = await select({
+                message: "Select a model:",
+                choices: modelsResult.data.map(m => ({ value: m, name: m })),
+              });
+            } else {
+              console.log("⚠️  Could not fetch models. Falling back to common models.");
+            }
+          } catch (err) {
+            console.log(`⚠️  Error fetching models: ${err instanceof Error ? err.message : err}`);
+          }
+        }
+      }
+
+      if (!selectedModel && modelChoice === "common") {
+        const commonModels: Record<string, { value: string; name: string }[]> = {
+          anthropic: [
+            { value: "claude-sonnet-4-20250514", name: "Claude Sonnet 4 (recommended)" },
+            { value: "claude-opus-4-20250514", name: "Claude Opus 4 (most capable)" },
+            { value: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5" },
+            { value: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5 (fastest)" },
+          ],
+          openai: [
+            { value: "gpt-4o", name: "GPT-4o (recommended)" },
+            { value: "gpt-4-turbo", name: "GPT-4 Turbo" },
+            { value: "gpt-4", name: "GPT-4" },
+            { value: "gpt-3.5-turbo", name: "GPT-3.5 Turbo (fastest)" },
+          ],
+          google: [
+            { value: "gemini-1.5-pro", name: "Gemini 1.5 Pro (recommended)" },
+            { value: "gemini-1.5-flash", name: "Gemini 1.5 Flash (fastest)" },
+            { value: "gemini-1.0-pro", name: "Gemini 1.0 Pro" },
+          ],
+          mistral: [
+            { value: "mistral-large-latest", name: "Mistral Large (recommended)" },
+            { value: "mistral-medium-latest", name: "Mistral Medium" },
+            { value: "mistral-small-latest", name: "Mistral Small (fastest)" },
+          ],
+          azure: [
+            { value: "gpt-4o", name: "GPT-4o (deployment name)" },
+            { value: "gpt-4", name: "GPT-4 (deployment name)" },
+          ],
+        };
+
+        const providerModels = commonModels[provider as string] ?? commonModels.anthropic;
+        selectedModel = await select({
+          message: `Select ${provider} model:`,
+          choices: providerModels,
+        });
+      }
+
+      if (!selectedModel && modelChoice === "manual") {
+        selectedModel = await input({
+          message: "Enter model ID:",
+          default: provider === "anthropic" ? "claude-sonnet-4-20250514" : "gpt-4o",
+        });
+      }
+
+      if (selectedModel) {
+        (config.triage as Record<string, unknown>).model = selectedModel;
+      }
+      // If "auto" was selected, don't set a model - let the provider use its default
+
       // Ask for additional orgs
+      console.log("\n🔐 Organization Tokens\n");
       const addOrg = await confirm({
         message: "Add organization-specific token mappings?",
         default: false,
@@ -755,10 +864,27 @@ program
           adding = await confirm({ message: "Add another organization?", default: false });
         }
       }
+    } else {
+      // Non-interactive: set sensible defaults
+      (config.triage as Record<string, unknown>).model = hasAnthropicKey 
+        ? "claude-sonnet-4-20250514" 
+        : hasOpenAIKey 
+          ? "gpt-4o" 
+          : "claude-sonnet-4-20250514";
     }
     
     writeFileSync(configPath, JSON.stringify(config, null, 2) + "\n");
-    console.log(`✅ Created ${configPath}`);
+    console.log(`\n✅ Created ${configPath}`);
+    
+    // Show summary
+    const triage = config.triage as Record<string, unknown>;
+    console.log("\n📋 Configuration Summary:");
+    console.log(`   Provider: ${triage.provider}`);
+    console.log(`   Model: ${triage.model ?? "(auto - provider default)"}`);
+    if (config.defaultRepository) {
+      console.log(`   Default Repo: ${config.defaultRepository}`);
+    }
+    console.log(`   Auto-create PRs: ${(config.fleet as Record<string, unknown>).autoCreatePr}`);
   });
 
 // ============================================
