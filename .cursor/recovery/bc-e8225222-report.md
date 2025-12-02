@@ -18,7 +18,7 @@ Deleted 2,325 lines of outdated/false documentation including agentic-control-se
 
 
 ### ✅ Fixed invalid model in agentic.config.json
-Changed model from invalid 'claude-4-opus' to 'claude-sonnet-4-20250514'
+Changed model from invalid 'claude-4-opus' to 'claude-sonnet-4-5-20250929'
 
 
 ### ✅ Created FlipsideCrypto RUNBOOK.md

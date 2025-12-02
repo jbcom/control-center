@@ -78,8 +78,8 @@ claude-{variant}-{major}-{minor}-{date}
 
 **Examples:**
 - ❌ `claude-4-opus` - WRONG (old naming)
-- ❌ `claude-opus-4-5-20250514` - WRONG (date mismatch)
-- ✅ `claude-haiku-4-5-20251001` - CORRECT
+- ❌ `claude-opus-4-5-20250514` - WRONG (date mismatch, Opus 4.5 is 20251101)
+- ✅ `claude-sonnet-4-5-20250929` - CORRECT (Sonnet 4.5, DEFAULT)
 
 ### When to Update Models
 
