@@ -15,13 +15,12 @@
 - **PR**: https://github.com/jbcom/vault-secret-sync/pull/1
 - **Mission**: Complete CI resolution, publish Docker/Helm, merge PR
 
-### 2. cluster-ops Agent
-- **ID**: `bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c`
-- **URL**: https://cursor.com/agents?id=bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c
+### 2. cluster-ops (REQUIRES MANUAL INTERVENTION)
 - **Repository**: fsc-platform/cluster-ops
 - **Branch**: proposal/vault-secret-sync
 - **PR**: https://github.com/fsc-platform/cluster-ops/pull/154
-- **Mission**: Complete secrets sync integration, address all AI feedback
+- **Status**: ⚠️ Cloud agents cannot access this repo (permission issue)
+- **Action Needed**: Spawn local agent or handle manually after vault-secret-sync completes
 
 ## Coordination Dependencies
 

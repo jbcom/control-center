@@ -49,13 +49,21 @@ The work has been completed and delegated to specialized agents for finalization
 
 | Field | Value |
 |-------|-------|
-| **Agent ID** | `bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c` |
-| **URL** | https://cursor.com/agents?id=bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c |
 | **Repository** | fsc-platform/cluster-ops |
 | **Branch** | `proposal/vault-secret-sync` |
 | **PR** | https://github.com/fsc-platform/cluster-ops/pull/154 |
+| **Status** | ⚠️ **REQUIRES MANUAL INTERVENTION** |
 
-**Mission:**
+**Issue:** Cursor Cloud agents are erroring when trying to access `fsc-platform/cluster-ops`. This is likely a permissions issue - the repository may not be accessible to Cursor's cloud agent infrastructure.
+
+**Manual Steps Required:**
+1. Wait for vault-secret-sync PR #1 to merge (Agent 1 is handling this)
+2. Clone cluster-ops locally or spawn a local agent
+3. Update Helm values to use published `ghcr.io/jbcom/vault-secret-sync` image
+4. Request AI reviews and address feedback
+5. Prepare for human review
+
+**Mission (for manual/local agent):**
 - Complete secrets sync integration
 - Update to use jbcom/vault-secret-sync fork
 - Address all AI review feedback
@@ -149,10 +157,10 @@ Both agents are instructed to post PR comments when they need user action:
 ```bash
 # Check agent status
 node packages/cursor-fleet/dist/cli.js status bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
-node packages/cursor-fleet/dist/cli.js status bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c
+node packages/cursor-fleet/dist/cli.js status bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
 
 # Monitor all agents
-node packages/cursor-fleet/dist/cli.js monitor bc-d68dcb7c-9938-45e3-afb4-3551a92a052e bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c
+node packages/cursor-fleet/dist/cli.js monitor bc-d68dcb7c-9938-45e3-afb4-3551a92a052e bc-431709c7-7516-4df0-9459-3d7bfc07b8e1
 
 # Send followup if needed
 node packages/cursor-fleet/dist/cli.js followup bc-d68dcb7c-9938-45e3-afb4-3551a92a052e "Status update please"
