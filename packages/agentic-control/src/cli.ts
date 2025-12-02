@@ -380,6 +380,90 @@ const triageCmd = program
   .description("AI-powered triage and analysis");
 
 triageCmd
+  .command("models")
+  .description("List available AI models for triage")
+  .option("--provider <name>", "Provider to list models for (anthropic, openai, google, mistral)")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    // Common models by provider
+    const modelsByProvider: Record<string, { id: string; name: string; description: string }[]> = {
+      anthropic: [
+        { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Balanced performance (recommended)" },
+        { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "Most capable, complex reasoning" },
+        { id: "claude-sonnet-4-5-20250929", name: "Claude Sonnet 4.5", description: "Latest Sonnet release" },
+        { id: "claude-opus-4-5-20251101", name: "Claude Opus 4.5", description: "Latest Opus release" },
+        { id: "claude-haiku-4-5-20251001", name: "Claude Haiku 4.5", description: "Fastest, lightweight tasks" },
+      ],
+      openai: [
+        { id: "gpt-4o", name: "GPT-4o", description: "Flagship multimodal (recommended)" },
+        { id: "gpt-4o-mini", name: "GPT-4o Mini", description: "Fast and affordable" },
+        { id: "gpt-4-turbo", name: "GPT-4 Turbo", description: "Previous flagship" },
+        { id: "gpt-4", name: "GPT-4", description: "Original GPT-4" },
+        { id: "gpt-3.5-turbo", name: "GPT-3.5 Turbo", description: "Fast, cost-effective" },
+        { id: "o1", name: "o1", description: "Advanced reasoning" },
+        { id: "o1-mini", name: "o1-mini", description: "Fast reasoning" },
+      ],
+      google: [
+        { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Most capable (recommended)" },
+        { id: "gemini-1.5-flash", name: "Gemini 1.5 Flash", description: "Fast and efficient" },
+        { id: "gemini-1.5-flash-8b", name: "Gemini 1.5 Flash 8B", description: "Lightweight, high volume" },
+        { id: "gemini-1.0-pro", name: "Gemini 1.0 Pro", description: "Previous generation" },
+      ],
+      mistral: [
+        { id: "mistral-large-latest", name: "Mistral Large", description: "Most capable (recommended)" },
+        { id: "mistral-medium-latest", name: "Mistral Medium", description: "Balanced" },
+        { id: "mistral-small-latest", name: "Mistral Small", description: "Fast and efficient" },
+        { id: "codestral-latest", name: "Codestral", description: "Code-optimized" },
+        { id: "open-mixtral-8x22b", name: "Mixtral 8x22B", description: "Open-weight MoE" },
+      ],
+      azure: [
+        { id: "gpt-4o", name: "GPT-4o", description: "Use your Azure deployment name" },
+        { id: "gpt-4", name: "GPT-4", description: "Use your Azure deployment name" },
+        { id: "gpt-35-turbo", name: "GPT-3.5 Turbo", description: "Use your Azure deployment name" },
+      ],
+    };
+
+    const providers = opts.provider ? [opts.provider] : Object.keys(modelsByProvider);
+    
+    if (opts.json) {
+      const result = providers.reduce((acc, p) => {
+        if (modelsByProvider[p]) {
+          acc[p] = modelsByProvider[p];
+        }
+        return acc;
+      }, {} as Record<string, typeof modelsByProvider.anthropic>);
+      output(result, true);
+      return;
+    }
+
+    console.log("=== Available AI Models for Triage ===\n");
+    
+    for (const provider of providers) {
+      const models = modelsByProvider[provider];
+      if (!models) {
+        console.log(`Unknown provider: ${provider}\n`);
+        continue;
+      }
+      
+      console.log(`📦 ${provider.toUpperCase()}`);
+      console.log("-".repeat(60));
+      for (const model of models) {
+        console.log(`  ${model.id.padEnd(30)} ${model.description}`);
+      }
+      console.log();
+    }
+
+    console.log("💡 Configure in agentic.config.json:");
+    console.log('   { "triage": { "provider": "anthropic", "model": "claude-sonnet-4-20250514" } }');
+    console.log();
+    console.log("📚 For live model lists, check provider documentation:");
+    console.log("   Anthropic: https://docs.anthropic.com/en/docs/about-claude/models");
+    console.log("   OpenAI:    https://platform.openai.com/docs/models");
+    console.log("   Google:    https://ai.google.dev/gemini-api/docs/models/gemini");
+    console.log("   Mistral:   https://docs.mistral.ai/getting-started/models/");
+  });
+
+triageCmd
   .command("quick")
   .description("Quick AI triage of text input")
   .argument("<input>", "Text to triage (or - for stdin)")
