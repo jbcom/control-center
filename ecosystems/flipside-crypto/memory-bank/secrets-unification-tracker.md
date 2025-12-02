@@ -27,13 +27,13 @@ Consolidating secrets syncing/merging from 3 repos into unified architecture wit
 
 ### terraform-modules
 
-| Issue | Description | Status |
-|-------|-------------|--------|
+| Issue / PR | Description | Status |
+|------------|-------------|--------|
 | #225 | Move sync_flipsidecrypto_users_and_groups to SAM | 🔄 Open |
 | #227 | Remove cloud operations from TerraformNullResource | 🔄 Open |
 | #228 | Refactor library to focus on pipeline generation | 🔄 Open |
 | #229 | Remove cloud data fetching methods | 🔄 Open |
-| PR #226 | Cleanup PR (CLEANUP_PLAN.md) | 🔄 Open |
+| #226 | Cleanup PR (CLEANUP_PLAN.md) | 🔄 Open |
 
 ### cluster-ops (fsc-platform)
 
@@ -62,9 +62,8 @@ data-platform-secrets-syncing (SAM pipeline)
 
 ### Proposed (Unified with vault-secret-sync)
 ```
-OpenBao → Audit Log → vault-secret-sync → AWS Secrets Manager
-                            ↓
-                     Also syncs to KV2 merge stores
+OpenBao → Audit Log → vault-secret-sync ┬→ AWS Secrets Manager
+                                        └→ KV2 merge stores
 ```
 
 ## Next Steps After Decision
