@@ -664,7 +664,11 @@ program
       },
       "defaultModel": "claude-sonnet-4-20250514",
       "defaultRepository": "my-org/my-repo",
-      "logLevel": "info"
+      "logLevel": "info",
+      "fleet": {
+        "autoCreatePr": false,
+        "openAsCursorGithubApp": false
+      }
     };
     
     writeFileSync(configPath, JSON.stringify(sampleConfig, null, 2) + "\n");
