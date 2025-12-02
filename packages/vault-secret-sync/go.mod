@@ -7,7 +7,6 @@ replace github.com/pires/go-proxyproto v1.0.0 => github.com/pires/go-proxyproto 
 
 require (
 	cloud.google.com/go/secretmanager v1.13.4
-	github.com/GoKillers/libsodium-go v0.0.0-20171022220152-dd733721c3cb
 	github.com/alicebob/miniredis/v2 v2.33.0
 	github.com/aws/aws-sdk-go-v2 v1.30.3
 	github.com/aws/aws-sdk-go-v2/config v1.27.27
@@ -31,6 +30,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.9.0
 	go.uber.org/zap v1.27.0
+	golang.org/x/crypto v0.25.0
 	golang.org/x/oauth2 v0.21.0
 	golang.org/x/time v0.5.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df

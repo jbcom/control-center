@@ -3,6 +3,7 @@ package github
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -15,12 +16,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoKillers/libsodium-go/cryptobox"
 	"github.com/robertlestak/vault-secret-sync/pkg/driver"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/google/go-github/v62/github"
 	"github.com/jferrl/go-githubauth"
+	"golang.org/x/crypto/nacl/box"
 	"golang.org/x/oauth2"
 	"golang.org/x/time/rate"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -698,12 +699,20 @@ func (g *GitHubClient) EncryptSecret(ctx context.Context, name, plainText string
 		return nil, err
 	}
 
-	d, serr := cryptobox.CryptoBoxSeal([]byte(plainText), []byte(keyDec))
-	if serr != 0 {
-		return nil, fmt.Errorf("error encrypting secret: %d", serr)
+	// Convert the decoded key to a 32-byte array for nacl/box
+	var recipientKey [32]byte
+	if len(keyDec) != 32 {
+		return nil, fmt.Errorf("invalid public key length: expected 32, got %d", len(keyDec))
+	}
+	copy(recipientKey[:], keyDec)
+
+	// Use pure-Go nacl/box SealAnonymous (equivalent to libsodium crypto_box_seal)
+	encrypted, err := box.SealAnonymous(nil, []byte(plainText), &recipientKey, rand.Reader)
+	if err != nil {
+		return nil, fmt.Errorf("error encrypting secret: %w", err)
 	}
 
-	es.EncryptedValue = base64.StdEncoding.EncodeToString(d)
+	es.EncryptedValue = base64.StdEncoding.EncodeToString(encrypted)
 	return es, nil
 }
 
