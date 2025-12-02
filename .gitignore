@@ -152,3 +152,8 @@
 /ecosystems/flipside-crypto/terraform/modules/terraform/AGENTS.md.bak
 /ecosystems/flipside-crypto/terraform/modules/terraform/CLAUDE.md
 /ecosystems/flipside-crypto/terraform/modules/terraform/CLAUDE.md.bak
+
+# Node.js dependencies
+node_modules/
+package-lock.json
+

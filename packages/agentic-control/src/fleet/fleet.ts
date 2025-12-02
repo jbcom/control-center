@@ -14,7 +14,7 @@
 
 import { writeFile, mkdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
-import { CursorAPI, type CursorAPIOptions } from "./cursor-api.js";
+import { CursorAPI, type CursorAPIOptions, type SpawnErrorCategory } from "./cursor-api.js";
 import { GitHubClient } from "../github/client.js";
 import { extractOrg } from "../core/tokens.js";
 import { getDefaultModel, log } from "../core/config.js";
@@ -58,6 +58,40 @@ export interface SpawnContext {
   metadata?: Record<string, unknown>;
 }
 
+/**
+ * Extended spawn result with additional error context
+ */
+export interface SpawnResult extends Result<Agent> {
+  /** Error category for better handling */
+  category?: SpawnErrorCategory;
+  /** Whether the error is potentially recoverable with retry */
+  retryable?: boolean;
+}
+
+/**
+ * Generate actionable error message based on error category
+ */
+function getActionableErrorMessage(category: SpawnErrorCategory | undefined, originalError: string): string {
+  switch (category) {
+    case "authentication":
+      return `${originalError}\n\n🔑 Action: Check that CURSOR_API_KEY is set correctly and is valid.`;
+    case "authorization":
+      return `${originalError}\n\n🔐 Action: Verify you have access to the repository and the API key has the correct permissions.`;
+    case "rate_limit":
+      return `${originalError}\n\n⏳ Action: Wait a few minutes and try again. Consider reducing spawn frequency.`;
+    case "network":
+      return `${originalError}\n\n🌐 Action: Check your network connection. Verify the Cursor API is reachable.`;
+    case "timeout":
+      return `${originalError}\n\n⏱️ Action: The request timed out. Try again or increase the timeout setting.`;
+    case "server":
+      return `${originalError}\n\n🔧 Action: Cursor API server error. This is usually temporary - try again in a few minutes.`;
+    case "validation":
+      return `${originalError}\n\n📝 Action: Check your input parameters (repository URL, task text, git ref).`;
+    default:
+      return originalError;
+  }
+}
+
 // ============================================
 // Fleet Class
 // ============================================
@@ -66,6 +100,7 @@ export class Fleet {
   private api: CursorAPI | null;
   private archivePath: string;
   private useDirectApi: boolean;
+  private initError: string | null = null;
 
   constructor(config: FleetConfig = {}) {
     this.archivePath = config.archivePath ?? "./memory-bank/recovery";
@@ -75,13 +110,16 @@ export class Fleet {
       this.api = new CursorAPI({
         apiKey: config.apiKey,
         timeout: config.timeout,
+        maxRetries: config.maxRetries,
+        retryDelay: config.retryDelay,
       });
       this.useDirectApi = true;
-    } catch {
-      // API key not available
+    } catch (err) {
+      // API key not available - save the error for better messaging
       this.api = null;
       this.useDirectApi = false;
-      log.debug("CursorAPI not available, some operations will fail");
+      this.initError = err instanceof Error ? err.message : String(err);
+      log.debug("CursorAPI not available:", this.initError);
     }
   }
 
@@ -90,6 +128,13 @@ export class Fleet {
    */
   isApiAvailable(): boolean {
     return this.useDirectApi && this.api !== null;
+  }
+
+  /**
+   * Get the initialization error if API is not available
+   */
+  getInitError(): string | null {
+    return this.initError;
   }
 
   // ============================================
@@ -151,11 +196,25 @@ export class Fleet {
   /**
    * Spawn a new agent with model specification
    * 
+   * Includes improved error handling with:
+   * - Automatic retry for transient failures
+   * - Actionable error messages
+   * - Error categorization for better handling decisions
+   * 
    * @param options - Spawn options including repository, task, ref, context, and model
+   * @returns SpawnResult with agent data or actionable error message
    */
-  async spawn(options: SpawnOptions & { context?: SpawnContext }): Promise<Result<Agent>> {
+  async spawn(options: SpawnOptions & { context?: SpawnContext }): Promise<SpawnResult> {
     if (!this.api) {
-      return { success: false, error: "Cursor API not available" };
+      const errorMessage = this.initError 
+        ? `Cursor API not available: ${this.initError}`
+        : "Cursor API not available. Ensure CURSOR_API_KEY is set in your environment.";
+      return { 
+        success: false, 
+        error: errorMessage,
+        category: "authentication",
+        retryable: false,
+      };
     }
 
     const task = this.buildTaskWithContext(options.task, options.context);
@@ -163,7 +222,7 @@ export class Fleet {
 
     log.info(`Spawning agent in ${options.repository} (model: ${model})`);
 
-    return this.api.launchAgent({
+    const result = await this.api.launchAgent({
       prompt: { text: task },
       source: {
         repository: options.repository,
@@ -171,6 +230,25 @@ export class Fleet {
       },
       model,
     });
+
+    // Enhance error message with actionable guidance
+    if (!result.success) {
+      const category = (result as SpawnResult).category;
+      const retryable = (result as SpawnResult).retryable;
+      const actionableError = getActionableErrorMessage(category, result.error ?? "Unknown error");
+      
+      log.warn(`Spawn failed (category: ${category ?? "unknown"}, retryable: ${retryable ?? false}): ${result.error}`);
+      
+      return {
+        success: false,
+        error: actionableError,
+        category,
+        retryable,
+      };
+    }
+
+    log.info(`Agent spawned successfully: ${result.data?.id}`);
+    return result;
   }
 
   /**

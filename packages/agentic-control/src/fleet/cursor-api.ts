@@ -2,7 +2,7 @@
  * CursorAPI - Direct HTTP client for Cursor Background Agent API
  * 
  * Bypasses MCP for direct API access with better performance and reliability.
- * Adapted from cursor-fleet with enhanced error handling.
+ * Adapted from cursor-fleet with enhanced error handling and retry logic.
  */
 
 import type { Agent, Conversation, Repository, Result } from "../core/types.js";
@@ -19,6 +19,34 @@ const MAX_PROMPT_LENGTH = 100000;
 /** Maximum repository name length */
 const MAX_REPO_LENGTH = 200;
 
+/** Default retry configuration */
+const DEFAULT_MAX_RETRIES = 3;
+const DEFAULT_RETRY_DELAY = 1000; // 1 second
+const MAX_RETRY_DELAY = 30000; // 30 seconds
+
+/** HTTP status codes that should trigger a retry */
+const RETRYABLE_STATUS_CODES = new Set([
+  408, // Request Timeout
+  429, // Too Many Requests
+  500, // Internal Server Error
+  502, // Bad Gateway
+  503, // Service Unavailable
+  504, // Gateway Timeout
+]);
+
+/**
+ * Error categories for better error handling
+ */
+export type SpawnErrorCategory = 
+  | "validation" // Input validation failed
+  | "authentication" // API key invalid or missing
+  | "authorization" // Not authorized to access repository
+  | "rate_limit" // Rate limited by API
+  | "network" // Network/connectivity issues
+  | "timeout" // Request timed out
+  | "server" // Server-side error
+  | "unknown"; // Unclassified error
+
 export interface CursorAPIOptions {
   /** API key (defaults to CURSOR_API_KEY env var) */
   apiKey?: string;
@@ -26,52 +54,76 @@ export interface CursorAPIOptions {
   timeout?: number;
   /** API base URL (default: https://api.cursor.com/v0) */
   baseUrl?: string;
+  /** Maximum number of retry attempts for transient failures (default: 3) */
+  maxRetries?: number;
+  /** Initial delay between retries in ms (default: 1000) */
+  retryDelay?: number;
 }
 
 /**
- * Validates an agent ID to prevent injection attacks
+ * Validates an agent ID to prevent injection attacks.
+ * Returns a Result instead of throwing for consistent error handling.
  */
-function validateAgentId(agentId: string): void {
+function validateAgentId(agentId: string): Result<void> {
   if (!agentId || typeof agentId !== "string") {
-    throw new Error("Agent ID is required and must be a string");
+    return { success: false, error: "Agent ID is required and must be a string" };
   }
   if (agentId.length > 100) {
-    throw new Error("Agent ID exceeds maximum length (100 characters)");
+    return { success: false, error: "Agent ID exceeds maximum length (100 characters)" };
   }
   if (!AGENT_ID_PATTERN.test(agentId)) {
-    throw new Error("Agent ID contains invalid characters (only alphanumeric and hyphens allowed)");
+    return { success: false, error: "Agent ID contains invalid characters (only alphanumeric and hyphens allowed)" };
   }
+  return { success: true };
 }
 
 /**
- * Validates prompt text
+ * Validates prompt text.
+ * Returns a Result instead of throwing for consistent error handling.
  */
-function validatePromptText(text: string): void {
+function validatePromptText(text: string): Result<void> {
   if (!text || typeof text !== "string") {
-    throw new Error("Prompt text is required and must be a string");
+    return { success: false, error: "Prompt text is required and must be a string" };
   }
   if (text.trim().length === 0) {
-    throw new Error("Prompt text cannot be empty");
+    return { success: false, error: "Prompt text cannot be empty" };
   }
   if (text.length > MAX_PROMPT_LENGTH) {
-    throw new Error(`Prompt text exceeds maximum length (${MAX_PROMPT_LENGTH} characters)`);
+    return { success: false, error: `Prompt text exceeds maximum length (${MAX_PROMPT_LENGTH} characters)` };
   }
+  return { success: true };
 }
 
 /**
- * Validates repository name
+ * Validates repository name.
+ * Returns a Result instead of throwing for consistent error handling.
  */
-function validateRepository(repository: string): void {
+function validateRepository(repository: string): Result<void> {
   if (!repository || typeof repository !== "string") {
-    throw new Error("Repository is required and must be a string");
+    return { success: false, error: "Repository is required and must be a string" };
   }
   if (repository.length > MAX_REPO_LENGTH) {
-    throw new Error(`Repository name exceeds maximum length (${MAX_REPO_LENGTH} characters)`);
+    return { success: false, error: `Repository name exceeds maximum length (${MAX_REPO_LENGTH} characters)` };
   }
   // Basic format check: owner/repo or URL
   if (!repository.includes("/")) {
-    throw new Error("Repository must be in format 'owner/repo' or a valid URL");
+    return { success: false, error: "Repository must be in format 'owner/repo' or a valid URL" };
   }
+  return { success: true };
+}
+
+/**
+ * Validates git ref.
+ * Returns a Result instead of throwing for consistent error handling.
+ */
+function validateRef(ref: string | undefined): Result<void> {
+  if (ref === undefined) {
+    return { success: true };
+  }
+  if (typeof ref !== "string" || ref.length > 200) {
+    return { success: false, error: "Invalid ref: must be a string under 200 characters" };
+  }
+  return { success: true };
 }
 
 /**
@@ -86,10 +138,70 @@ function sanitizeError(error: unknown): string {
     .replace(/token[=:]\s*["']?[a-zA-Z0-9._-]+["']?/gi, "token=[REDACTED]");
 }
 
+/**
+ * Categorize an error for better handling decisions
+ */
+function categorizeError(statusCode: number | undefined, errorMessage: string): SpawnErrorCategory {
+  if (statusCode === 401) return "authentication";
+  if (statusCode === 403) return "authorization";
+  if (statusCode === 429) return "rate_limit";
+  if (statusCode && statusCode >= 500) return "server";
+  if (statusCode === 408) return "timeout";
+  if (errorMessage.includes("timeout")) return "timeout";
+  if (errorMessage.includes("network") || errorMessage.includes("ECONNREFUSED") || 
+      errorMessage.includes("ENOTFOUND") || errorMessage.includes("fetch failed")) {
+    return "network";
+  }
+  return "unknown";
+}
+
+/**
+ * Check if an error is retryable based on status code or error type
+ */
+function isRetryableError(statusCode: number | undefined, error: unknown): boolean {
+  // Check status code
+  if (statusCode && RETRYABLE_STATUS_CODES.has(statusCode)) {
+    return true;
+  }
+  
+  // Check for network errors
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    if (message.includes("econnreset") || 
+        message.includes("econnrefused") ||
+        message.includes("etimedout") ||
+        message.includes("fetch failed") ||
+        message.includes("network")) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * Calculate delay for next retry with exponential backoff
+ */
+function calculateRetryDelay(attempt: number, baseDelay: number): number {
+  // Exponential backoff with jitter: delay = baseDelay * 2^attempt + random jitter
+  const exponentialDelay = baseDelay * Math.pow(2, attempt);
+  const jitter = Math.random() * baseDelay * 0.5; // Up to 50% jitter
+  return Math.min(exponentialDelay + jitter, MAX_RETRY_DELAY);
+}
+
+/**
+ * Sleep for a specified duration
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export class CursorAPI {
   private readonly apiKey: string;
   private readonly timeout: number;
   private readonly baseUrl: string;
+  private readonly maxRetries: number;
+  private readonly retryDelay: number;
 
   constructor(options: CursorAPIOptions = {}) {
     // Check for API key in order: options, CURSOR_API_KEY
@@ -98,6 +210,8 @@ export class CursorAPI {
     // Security: Only allow baseUrl via explicit programmatic configuration
     // Do NOT allow env var override to prevent SSRF attacks
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
+    this.maxRetries = options.maxRetries ?? DEFAULT_MAX_RETRIES;
+    this.retryDelay = options.retryDelay ?? DEFAULT_RETRY_DELAY;
     
     if (!this.apiKey) {
       throw new Error("CURSOR_API_KEY is required. Set it in environment or pass to constructor.");
@@ -111,10 +225,21 @@ export class CursorAPI {
     return !!process.env.CURSOR_API_KEY;
   }
 
-  private async request<T>(endpoint: string, method: string = "GET", body?: object): Promise<Result<T>> {
+  /**
+   * Make an HTTP request with retry logic for transient failures
+   */
+  private async request<T>(
+    endpoint: string, 
+    method: string = "GET", 
+    body?: object,
+    retryCount: number = 0
+  ): Promise<Result<T> & { category?: SpawnErrorCategory; retryable?: boolean }> {
     const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeout);
+
+    let statusCode: number | undefined;
+    let lastError: unknown;
 
     try {
       const response = await fetch(url, {
@@ -127,6 +252,8 @@ export class CursorAPI {
         signal: controller.signal,
       });
 
+      statusCode = response.status;
+
       if (!response.ok) {
         const errorText = await response.text();
         let details: string;
@@ -137,9 +264,23 @@ export class CursorAPI {
           details = sanitizeError(errorText);
         }
         
+        const errorMessage = `API Error ${response.status}: ${details}`;
+        const category = categorizeError(statusCode, errorMessage);
+        const retryable = isRetryableError(statusCode, new Error(errorMessage));
+        
+        // Retry if this is a retryable error and we haven't exceeded max retries
+        if (retryable && retryCount < this.maxRetries) {
+          clearTimeout(timeoutId);
+          const delay = calculateRetryDelay(retryCount, this.retryDelay);
+          await sleep(delay);
+          return this.request<T>(endpoint, method, body, retryCount + 1);
+        }
+        
         return {
           success: false,
-          error: `API Error ${response.status}: ${details}`,
+          error: errorMessage,
+          category,
+          retryable,
         };
       }
 
@@ -160,14 +301,49 @@ export class CursorAPI {
       } catch {
         return { 
           success: false, 
-          error: "Invalid JSON response from API" 
+          error: "Invalid JSON response from API",
+          category: "unknown",
+          retryable: false,
         };
       }
     } catch (error) {
+      lastError = error;
+      
       if (error instanceof Error && error.name === "AbortError") {
-        return { success: false, error: `Request timeout after ${this.timeout}ms` };
+        const errorMessage = `Request timeout after ${this.timeout}ms`;
+        const retryable = retryCount < this.maxRetries;
+        
+        // Retry timeouts
+        if (retryable) {
+          clearTimeout(timeoutId);
+          const delay = calculateRetryDelay(retryCount, this.retryDelay);
+          await sleep(delay);
+          return this.request<T>(endpoint, method, body, retryCount + 1);
+        }
+        
+        return { 
+          success: false, 
+          error: errorMessage,
+          category: "timeout",
+          retryable: true, // Still retryable in principle, just exceeded max
+        };
       }
-      return { success: false, error: sanitizeError(error) };
+      
+      // Check if this is a retryable network error
+      if (isRetryableError(undefined, error) && retryCount < this.maxRetries) {
+        clearTimeout(timeoutId);
+        const delay = calculateRetryDelay(retryCount, this.retryDelay);
+        await sleep(delay);
+        return this.request<T>(endpoint, method, body, retryCount + 1);
+      }
+      
+      const errorMessage = sanitizeError(error);
+      return { 
+        success: false, 
+        error: errorMessage,
+        category: categorizeError(undefined, errorMessage),
+        retryable: isRetryableError(undefined, lastError),
+      };
     } finally {
       clearTimeout(timeoutId);
     }
@@ -186,7 +362,9 @@ export class CursorAPI {
    * Get status of a specific agent
    */
   async getAgentStatus(agentId: string): Promise<Result<Agent>> {
-    validateAgentId(agentId);
+    const validation = validateAgentId(agentId);
+    if (!validation.success) return validation as Result<Agent>;
+    
     const encodedId = encodeURIComponent(agentId);
     return this.request<Agent>(`/agents/${encodedId}`);
   }
@@ -195,26 +373,47 @@ export class CursorAPI {
    * Get conversation history for an agent
    */
   async getAgentConversation(agentId: string): Promise<Result<Conversation>> {
-    validateAgentId(agentId);
+    const validation = validateAgentId(agentId);
+    if (!validation.success) return validation as Result<Conversation>;
+    
     const encodedId = encodeURIComponent(agentId);
     return this.request<Conversation>(`/agents/${encodedId}/conversation`);
   }
 
   /**
-   * Launch a new agent
+   * Launch a new agent with improved error handling and retry logic
    */
   async launchAgent(options: {
     prompt: { text: string };
     source: { repository: string; ref?: string };
     model?: string;
-  }): Promise<Result<Agent>> {
-    validatePromptText(options.prompt.text);
-    validateRepository(options.source.repository);
+  }): Promise<Result<Agent> & { category?: SpawnErrorCategory; retryable?: boolean }> {
+    // Validate all inputs upfront and return Result instead of throwing
+    const promptValidation = validatePromptText(options.prompt.text);
+    if (!promptValidation.success) {
+      return { 
+        ...promptValidation as Result<Agent>, 
+        category: "validation",
+        retryable: false,
+      };
+    }
     
-    if (options.source.ref !== undefined) {
-      if (typeof options.source.ref !== "string" || options.source.ref.length > 200) {
-        throw new Error("Invalid ref: must be a string under 200 characters");
-      }
+    const repoValidation = validateRepository(options.source.repository);
+    if (!repoValidation.success) {
+      return { 
+        ...repoValidation as Result<Agent>, 
+        category: "validation",
+        retryable: false,
+      };
+    }
+    
+    const refValidation = validateRef(options.source.ref);
+    if (!refValidation.success) {
+      return { 
+        ...refValidation as Result<Agent>, 
+        category: "validation",
+        retryable: false,
+      };
     }
     
     return this.request<Agent>("/agents", "POST", options);
@@ -224,8 +423,12 @@ export class CursorAPI {
    * Send a follow-up message to an agent
    */
   async addFollowup(agentId: string, prompt: { text: string }): Promise<Result<void>> {
-    validateAgentId(agentId);
-    validatePromptText(prompt.text);
+    const idValidation = validateAgentId(agentId);
+    if (!idValidation.success) return idValidation as Result<void>;
+    
+    const promptValidation = validatePromptText(prompt.text);
+    if (!promptValidation.success) return promptValidation as Result<void>;
+    
     const encodedId = encodeURIComponent(agentId);
     return this.request<void>(`/agents/${encodedId}/followup`, "POST", { prompt });
   }
