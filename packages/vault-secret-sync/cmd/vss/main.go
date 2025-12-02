@@ -53,8 +53,9 @@ func initQueue() error {
 	queueType := config.Config.Queue.Type
 	queueParams := config.Config.Queue.Params
 	queueType = cmp.Or(queueType, queue.QueueTypeMemory)
-	dedupe := config.Config.Events.Dedupe
-	if dedupe == nil || *dedupe {
+	// Safe nil check for Events.Dedupe
+	dedupe := config.Config.Events != nil && config.Config.Events.Dedupe != nil && *config.Config.Events.Dedupe
+	if config.Config.Events == nil || dedupe {
 		queue.Dedupe = true
 	}
 	// if queue type is memory and we don't also see both the operator
@@ -62,9 +63,11 @@ func initQueue() error {
 	// since the memory queue is not shared between processes
 	// it can only be used in single-binary mode
 	if queueType == queue.QueueTypeMemory {
-		if (config.Config.Operator == nil || (config.Config.Operator.Enabled == nil || !*config.Config.Operator.Enabled)) &&
-			(config.Config.Events == nil || config.Config.Events.Enabled == nil || !*config.Config.Events.Enabled) {
-			return errors.New("memory queue can only be used in single-binary mode")
+		isOperatorEnabled := config.Config.Operator != nil && config.Config.Operator.Enabled != nil && *config.Config.Operator.Enabled
+		isEventsEnabled := config.Config.Events != nil && config.Config.Events.Enabled != nil && *config.Config.Events.Enabled
+		// if either is enabled, but not both, it's not a valid single-binary mode for memory queue
+		if (isOperatorEnabled || isEventsEnabled) && !(isOperatorEnabled && isEventsEnabled) {
+			return errors.New("memory queue can only be used in single-binary mode (both operator and events must be enabled)")
 		}
 	}
 	if err := queue.Init(queueType, queueParams); err != nil {
