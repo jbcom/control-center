@@ -1,12 +1,11 @@
-# vault-secret-sync (jbcom fork)
+# vault-secret-sync
 
 Real-time secret synchronization from OpenBao/Vault to multiple destinations.
 
 ## Architecture
 
 ```
-jbcom-control-center (monorepo)
-└── ecosystems/jbcom/vault-secret-sync/
+jbcom-control-center/packages/vault-secret-sync/
     └── [Go source code]
             ↓
     [CI builds & publishes]
@@ -40,7 +39,7 @@ docker pull jbcom/vault-secret-sync:latest
 docker pull jbcom/vault-secret-sync:v0.1.0
 ```
 
-**Helm Chart** (OCI):
+**Helm Chart** (OCI artifact on Docker Hub):
 ```bash
 helm pull oci://docker.io/jbcom/vault-secret-sync --version 0.1.0
 helm install vault-secret-sync oci://docker.io/jbcom/vault-secret-sync
@@ -48,16 +47,32 @@ helm install vault-secret-sync oci://docker.io/jbcom/vault-secret-sync
 
 ## Development
 
-Code lives in this monorepo directory. Changes trigger:
+Code lives in `packages/vault-secret-sync/`. Changes trigger:
 1. CI builds Docker image + Helm chart
-2. Publishes to Docker Hub
+2. Publishes to Docker Hub (image + Helm OCI)
 3. Syncs to jbcom/vault-secret-sync fork
+
+## Local Development
+
+```bash
+# Build
+go build -o vault-secret-sync ./cmd/...
+
+# Test
+go test ./...
+
+# Lint
+golangci-lint run
+
+# Docker build
+docker build -t jbcom/vault-secret-sync:dev .
+```
 
 ## Upstream Contributions
 
 When contributing back to upstream:
 1. Create PR in jbcom/vault-secret-sync fork
-2. Test with FSC infrastructure
+2. Test with FSC infrastructure  
 3. Open upstream PR to robertlestak/vault-secret-sync
 4. Reference jbcom fork PR for context
 
