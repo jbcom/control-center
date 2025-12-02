@@ -287,13 +287,36 @@ export interface HandoffResult {
 
 /**
  * Options for spawning a new agent
+ * 
+ * API Spec: https://cursor.com/docs/cloud-agent/api/endpoints
  */
 export interface SpawnOptions {
+  /** GitHub repository URL (e.g., https://github.com/org/repo) */
   repository: string;
+  /** Task description for the agent */
   task: string;
+  /** Git ref (branch, tag, commit) - defaults to "main" */
   ref?: string;
+  /** Coordination context (for multi-agent orchestration) */
   context?: Record<string, unknown>;
-  model?: string;
+  /** Target configuration */
+  target?: {
+    /** Auto-create PR when agent completes */
+    autoCreatePr?: boolean;
+    /** Custom branch name */
+    branchName?: string;
+    /** Open PR as Cursor GitHub App instead of user */
+    openAsCursorGithubApp?: boolean;
+    /** Skip adding user as reviewer */
+    skipReviewerRequest?: boolean;
+  };
+  /** Webhook for status notifications */
+  webhook?: {
+    /** URL to receive notifications */
+    url: string;
+    /** Secret for payload verification (min 32 chars) */
+    secret?: string;
+  };
 }
 
 /**

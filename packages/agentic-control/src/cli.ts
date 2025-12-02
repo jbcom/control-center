@@ -201,17 +201,24 @@ fleetCmd
   .description("Spawn a new agent")
   .argument("<repo>", "Repository URL (https://github.com/org/repo)")
   .argument("<task>", "Task description")
-  .option("--ref <ref>", "Git ref", "main")
+  .option("--ref <ref>", "Git ref (branch, tag, commit)", "main")
+  .option("--auto-pr", "Auto-create PR when agent completes")
+  .option("--branch <name>", "Custom branch name for the agent")
+  .option("--as-app", "Open PR as Cursor GitHub App instead of user")
   .option("--json", "Output as JSON")
   .action(async (repo, task, opts) => {
     try {
       const fleet = new Fleet();
       
-      // NOTE: Cursor API does not accept model parameter - model is selected by Cursor
       const result = await fleet.spawn({
         repository: repo,
         task,
         ref: opts.ref,
+        target: (opts.autoPr || opts.branch || opts.asApp) ? {
+          autoCreatePr: opts.autoPr,
+          branchName: opts.branch,
+          openAsCursorGithubApp: opts.asApp,
+        } : undefined,
       });
 
       if (!result.success) {
@@ -227,38 +234,11 @@ fleetCmd
         console.log(`Status: ${result.data?.status}`);
         console.log(`Repo:   ${repo}`);
         console.log(`Ref:    ${opts.ref}`);
+        if (opts.branch) console.log(`Branch: ${opts.branch}`);
+        if (opts.autoPr) console.log(`Auto PR: enabled`);
       }
     } catch (err) {
       console.error("❌ Spawn failed:", err instanceof Error ? err.message : err);
-      process.exit(1);
-    }
-  });
-
-fleetCmd
-  .command("models")
-  .description("List available models for Cursor agents")
-  .option("--json", "Output as JSON")
-  .action(async (opts) => {
-    try {
-      const fleet = new Fleet();
-      const result = await fleet.listModels();
-
-      if (!result.success) {
-        console.error(`❌ ${result.error}`);
-        process.exit(1);
-      }
-
-      if (opts.json) {
-        output(result.data, true);
-      } else {
-        console.log("=== Available Models ===\n");
-        for (const model of result.data?.models ?? []) {
-          const rec = model.recommended ? " (recommended)" : "";
-          console.log(`  ${model.name}${rec}`);
-        }
-      }
-    } catch (err) {
-      console.error("❌ List models failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });

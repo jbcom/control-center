@@ -203,15 +203,27 @@ export class CursorAPI {
   /**
    * Launch a new agent
    * 
-   * NOTE: The Cursor Background Agent API does NOT accept a model parameter.
-   * Model selection is handled by Cursor internally. If you need to see
-   * available models, use listModels().
-   * 
-   * See: https://docs.cursor.com/en/background-agent/api/overview
+   * API Spec: https://cursor.com/docs/cloud-agent/api/endpoints
    */
   async launchAgent(options: {
-    prompt: { text: string };
-    source: { repository: string; ref?: string };
+    prompt: { 
+      text: string;
+      images?: Array<{ data: string; dimension?: { width: number; height: number } }>;
+    };
+    source: { 
+      repository: string; 
+      ref?: string;
+    };
+    target?: {
+      autoCreatePr?: boolean;
+      branchName?: string;
+      openAsCursorGithubApp?: boolean;
+      skipReviewerRequest?: boolean;
+    };
+    webhook?: {
+      url: string;
+      secret?: string;
+    };
   }): Promise<Result<Agent>> {
     validatePromptText(options.prompt.text);
     validateRepository(options.source.repository);
@@ -223,16 +235,6 @@ export class CursorAPI {
     }
     
     return this.request<Agent>("/agents", "POST", options);
-  }
-
-  /**
-   * List available models for background agents
-   * 
-   * Use this to discover what models Cursor supports, rather than
-   * assuming Anthropic model IDs work.
-   */
-  async listModels(): Promise<Result<{ models: Array<{ name: string; recommended: boolean }> }>> {
-    return this.request("/models", "GET");
   }
 
   /**

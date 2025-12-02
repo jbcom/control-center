@@ -17,7 +17,7 @@ import { dirname, join } from "node:path";
 import { CursorAPI, type CursorAPIOptions } from "./cursor-api.js";
 import { GitHubClient } from "../github/client.js";
 import { extractOrg } from "../core/tokens.js";
-import { getDefaultModel, log } from "../core/config.js";
+import { log } from "../core/config.js";
 import type {
   Agent,
   AgentStatus,
@@ -151,12 +151,9 @@ export class Fleet {
   /**
    * Spawn a new agent
    * 
-   * NOTE: The Cursor Background Agent API does NOT accept a model parameter.
-   * Model selection is handled by Cursor internally. The `model` field in
-   * SpawnOptions is IGNORED for fleet operations - it only applies to
-   * Anthropic-based triage operations.
+   * API Spec: https://cursor.com/docs/cloud-agent/api/endpoints
    * 
-   * @param options - Spawn options including repository, task, ref, and context
+   * @param options - Spawn options including repository, task, ref, target, and webhook
    */
   async spawn(options: SpawnOptions & { context?: SpawnContext }): Promise<Result<Agent>> {
     if (!this.api) {
@@ -173,17 +170,9 @@ export class Fleet {
         repository: options.repository,
         ref: options.ref ?? "main",
       },
+      target: options.target,
+      webhook: options.webhook,
     });
-  }
-
-  /**
-   * List available models for Cursor agents
-   */
-  async listModels(): Promise<Result<{ models: Array<{ name: string; recommended: boolean }> }>> {
-    if (!this.api) {
-      return { success: false, error: "Cursor API not available" };
-    }
-    return this.api.listModels();
   }
 
   /**
