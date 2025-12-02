@@ -63,7 +63,7 @@ data-platform-secrets-syncing (SAM pipeline)
 ### Proposed (Unified with vault-secret-sync)
 ```
 OpenBao → Audit Log → vault-secret-sync ┬→ AWS Secrets Manager
-                                        └→ KV2 merge stores
+                                        └→ Also syncs to KV2 merge stores
 ```
 
 ## Next Steps After Decision
