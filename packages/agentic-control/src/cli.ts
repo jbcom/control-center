@@ -202,17 +202,16 @@ fleetCmd
   .argument("<repo>", "Repository URL (https://github.com/org/repo)")
   .argument("<task>", "Task description")
   .option("--ref <ref>", "Git ref", "main")
-  .option("--model <model>", "AI model to use", getDefaultModel())
   .option("--json", "Output as JSON")
   .action(async (repo, task, opts) => {
     try {
       const fleet = new Fleet();
       
+      // NOTE: Cursor API does not accept model parameter - model is selected by Cursor
       const result = await fleet.spawn({
         repository: repo,
         task,
         ref: opts.ref,
-        model: opts.model,
       });
 
       if (!result.success) {
@@ -226,10 +225,40 @@ fleetCmd
         console.log("=== Agent Spawned ===\n");
         console.log(`ID:     ${result.data?.id}`);
         console.log(`Status: ${result.data?.status}`);
-        console.log(`Model:  ${opts.model}`);
+        console.log(`Repo:   ${repo}`);
+        console.log(`Ref:    ${opts.ref}`);
       }
     } catch (err) {
       console.error("❌ Spawn failed:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+fleetCmd
+  .command("models")
+  .description("List available models for Cursor agents")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.listModels();
+
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        console.log("=== Available Models ===\n");
+        for (const model of result.data?.models ?? []) {
+          const rec = model.recommended ? " (recommended)" : "";
+          console.log(`  ${model.name}${rec}`);
+        }
+      }
+    } catch (err) {
+      console.error("❌ List models failed:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });

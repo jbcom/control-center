@@ -63,14 +63,6 @@
     "typescript": "^5.7.0",
     "vitest": "^3.1.4"
   },
-  "peerDependencies": {
-    "cursor-background-agent-mcp-server": "^1.0.0"
-  },
-  "peerDependenciesMeta": {
-    "cursor-background-agent-mcp-server": {
-      "optional": true
-    }
-  },
   "engines": {
     "node": ">=20.0.0"
   },

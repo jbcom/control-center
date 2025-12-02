@@ -61,15 +61,8 @@ export interface AgenticConfig {
     /** Base URL for Cursor API (defaults to official API) */
     baseUrl?: string;
   };
-  
-  /** MCP server configuration */
-  mcp?: {
-    serverPath?: string;
-    command?: string;
-    args?: string[];
-  };
 
-  /** Anthropic API configuration */
+  /** Anthropic API configuration (for triage operations ONLY) */
   anthropic?: {
     /** API key environment variable name (NOT the key itself!) */
     apiKeyEnvVar?: string;
@@ -79,27 +72,27 @@ export interface AgenticConfig {
 }
 
 // ============================================
-// Default Configuration (NO HARDCODED VALUES)
+// Default Configuration
 // ============================================
 
 const DEFAULT_CONFIG: AgenticConfig = {
-  // AI model - uses Claude Sonnet 4.5 for triage (Haiku 4.5 has schema issues)
-  // To get latest models: curl -s "https://api.anthropic.com/v1/models" -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"
-  // Available models (2025-12):
-  //   - claude-opus-4-5-20251101   (Claude Opus 4.5 - most capable)
-  //   - claude-sonnet-4-5-20250929 (Claude Sonnet 4.5 - balanced, DEFAULT)
-  //   - claude-haiku-4-5-20251001  (Claude Haiku 4.5 - fast but has structured output issues)
-  defaultModel: "claude-sonnet-4-5-20250929",
+  // Default model for ANTHROPIC TRIAGE OPERATIONS ONLY
+  // This has NOTHING to do with Cursor fleet spawning - Cursor selects its own models.
+  // 
+  // To get latest Anthropic models:
+  //   curl -s "https://api.anthropic.com/v1/models" -H "x-api-key: $ANTHROPIC_API_KEY" -H "anthropic-version: 2023-06-01"
+  // 
+  // This should be overridden via agentic.config.json or AGENTIC_MODEL env var
+  defaultModel: undefined,
   logLevel: "info",
   verbose: false,
-  // Cursor defaults
+  // Cursor defaults (for fleet operations)
   cursor: {
     apiKeyEnvVar: "CURSOR_API_KEY",
   },
-  // Anthropic defaults
+  // Anthropic defaults (for triage operations)
   anthropic: {
     apiKeyEnvVar: "ANTHROPIC_API_KEY",
-    defaultModel: "claude-sonnet-4-5-20250929",
   },
 };
 
