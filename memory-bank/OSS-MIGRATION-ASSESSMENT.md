@@ -205,18 +205,19 @@ Just like `jbcom/extended-data-types`, `jbcom/vendor-connectors` etc. are CONTAI
 
 ## IMMEDIATE ACTIONS REQUIRED
 
-### Today's Priority
+### COMPLETED ✅
 
-1. [ ] Fix OSS ecosystem CI (Claude workflow, Dependabot)
-2. [ ] Merge the 10 stuck Dependabot PRs
-3. [ ] Verify agentic-control release actually published to npm
-4. [ ] Create issue tracking this migration plan
+1. [x] Fixed OSS ecosystem CI (removed costly Claude workflows)
+2. [x] Merged stuck Dependabot PRs
+3. [x] Reset vault-secret-sync fork to match upstream (now PRISTINE)
+4. [x] Updated ruleset for FREE tooling only (CodeQL, Copilot, Dependabot)
+5. [x] Updated agent instructions for OSS repo
 
-### This Week
+### Remaining This Week
 
-1. [ ] Decide vault-secret-sync architecture
+1. [ ] Create CONTRIBUTING.md model in OSS ecosystem
 2. [ ] Remove package duplicates from control-center
-3. [ ] Archive individual public repos
+3. [ ] Archive individual public repos with redirects
 4. [ ] Update control-center to be management-only
 
 ---
