@@ -912,12 +912,18 @@ program
     const isInteractive = process.stdout.isTTY && !opts.nonInteractive;
     
     // Detect org-specific tokens (GITHUB_*_TOKEN pattern)
+    // Security: Only allow alphanumeric and underscore in org name extraction
     const organizations: Record<string, { name: string; tokenEnvVar: string }> = {};
+    const SAFE_ORG_PATTERN = /^GITHUB_([A-Za-z0-9_]+)_TOKEN$/;
     for (const envVar of Object.keys(process.env)) {
-      const match = envVar.match(/^GITHUB_(.+)_TOKEN$/);
+      const match = envVar.match(SAFE_ORG_PATTERN);
       if (match && match[1] && process.env[envVar]) {
+        // Normalize to lowercase, replace underscores with hyphens
         const orgName = match[1].toLowerCase().replace(/_/g, "-");
-        organizations[orgName] = { name: orgName, tokenEnvVar: envVar };
+        // Additional validation: org names must be reasonable length
+        if (orgName.length > 0 && orgName.length <= 39) {
+          organizations[orgName] = { name: orgName, tokenEnvVar: envVar };
+        }
       }
     }
 

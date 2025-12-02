@@ -91,17 +91,19 @@ export interface AgenticConfig {
 
 const MODULE_NAME = "agentic";
 
+// Security: Only allow JSON config files to prevent code execution
+// JavaScript config files could execute arbitrary code during require()
 const explorer = cosmiconfigSync(MODULE_NAME, {
   searchPlaces: [
     "package.json",
     "agentic.config.json",
-    "agentic.config.js",
-    "agentic.config.cjs",
     ".agenticrc",
     ".agenticrc.json",
-    ".agenticrc.js",
-    ".agenticrc.cjs",
   ],
+  // Security: Disable loaders that execute code
+  loaders: {
+    ".json": (_filepath: string, content: string) => JSON.parse(content),
+  },
 });
 
 // ============================================

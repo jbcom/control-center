@@ -99,39 +99,60 @@ const TriageSchema = z.object({
 
 type ProviderFactory = (config: { apiKey: string }) => unknown;
 
-const PROVIDER_PACKAGES: Record<string, string> = {
-  anthropic: "@ai-sdk/anthropic",
-  openai: "@ai-sdk/openai",
-  google: "@ai-sdk/google",
-  mistral: "@ai-sdk/mistral",
-  azure: "@ai-sdk/azure",
-};
+// Security: Explicit allowlist of supported providers and their packages
+// Dynamic imports are only allowed for these pre-defined packages
+const PROVIDER_CONFIG = {
+  anthropic: { package: "@ai-sdk/anthropic", factory: "createAnthropic" },
+  openai: { package: "@ai-sdk/openai", factory: "createOpenAI" },
+  google: { package: "@ai-sdk/google", factory: "createGoogleGenerativeAI" },
+  mistral: { package: "@ai-sdk/mistral", factory: "createMistral" },
+  azure: { package: "@ai-sdk/azure", factory: "createAzure" },
+} as const;
 
-const PROVIDER_FACTORIES: Record<string, string> = {
-  anthropic: "createAnthropic",
-  openai: "createOpenAI",
-  google: "createGoogleGenerativeAI",
-  mistral: "createMistral",
-  azure: "createAzure",
-};
+type SupportedProvider = keyof typeof PROVIDER_CONFIG;
+
+function isValidProvider(name: string): name is SupportedProvider {
+  return name in PROVIDER_CONFIG;
+}
 
 async function loadProvider(providerName: string, apiKey: string): Promise<(model: string) => unknown> {
-  const packageName = PROVIDER_PACKAGES[providerName];
-  const factoryName = PROVIDER_FACTORIES[providerName];
-  
-  if (!packageName || !factoryName) {
+  // Security: Validate provider name against explicit allowlist
+  if (!isValidProvider(providerName)) {
     throw new Error(
       `Unknown provider: ${providerName}\n` +
-      `Supported providers: ${Object.keys(PROVIDER_PACKAGES).join(", ")}`
+      `Supported providers: ${Object.keys(PROVIDER_CONFIG).join(", ")}`
     );
   }
 
+  const config = PROVIDER_CONFIG[providerName];
+
   try {
-    const module = await import(packageName);
-    const factory = module[factoryName] as ProviderFactory;
+    // Security: Only import from pre-defined allowlist - no user input in import path
+    let module: Record<string, unknown>;
+    switch (providerName) {
+      case "anthropic":
+        module = await import("@ai-sdk/anthropic");
+        break;
+      case "openai":
+        module = await import("@ai-sdk/openai");
+        break;
+      case "google":
+        module = await import("@ai-sdk/google");
+        break;
+      case "mistral":
+        module = await import("@ai-sdk/mistral");
+        break;
+      case "azure":
+        module = await import("@ai-sdk/azure");
+        break;
+      default:
+        throw new Error(`Provider ${providerName} not implemented`);
+    }
+    
+    const factory = module[config.factory] as ProviderFactory;
     
     if (typeof factory !== "function") {
-      throw new Error(`Factory ${factoryName} not found in ${packageName}`);
+      throw new Error(`Factory ${config.factory} not found in ${config.package}`);
     }
     
     const provider = factory({ apiKey });
@@ -139,8 +160,8 @@ async function loadProvider(providerName: string, apiKey: string): Promise<(mode
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ERR_MODULE_NOT_FOUND") {
       throw new Error(
-        `Provider package not installed: ${packageName}\n` +
-        `Install it with: pnpm add ${packageName}`
+        `Provider package not installed: ${config.package}\n` +
+        `Install it with: pnpm add ${config.package}`
       );
     }
     throw err;
