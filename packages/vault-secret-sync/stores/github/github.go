@@ -3,7 +3,7 @@ package github
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
+	cryptorand "crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -707,7 +707,7 @@ func (g *GitHubClient) EncryptSecret(ctx context.Context, name, plainText string
 	copy(recipientKey[:], keyDec)
 
 	// Use pure-Go nacl/box SealAnonymous (equivalent to libsodium crypto_box_seal)
-	encrypted, err := box.SealAnonymous(nil, []byte(plainText), &recipientKey, rand.Reader)
+	encrypted, err := box.SealAnonymous(nil, []byte(plainText), &recipientKey, cryptorand.Reader)
 	if err != nil {
 		return nil, fmt.Errorf("error encrypting secret: %w", err)
 	}

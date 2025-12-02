@@ -118,12 +118,8 @@ func main() {
 	cliFlagProvided := *startOperator || *startEvent
 	enabledTrue := true
 
-	// Start metrics server with error handling
-	go func() {
-		if err := metrics.Start(config.Config.Metrics.Port, config.Config.Metrics.Security.TLS); err != nil {
-			l.WithError(err).Error("metrics server failed")
-		}
-	}()
+	// Start metrics server
+	go metrics.Start(config.Config.Metrics.Port, config.Config.Metrics.Security.TLS)
 
 	if (!cliFlagProvided && config.Config.Operator != nil && config.Config.Operator.Enabled != nil && *config.Config.Operator.Enabled) || *startOperator {
 		// Ensure Operator config exists before accessing it
@@ -159,7 +155,7 @@ func main() {
 	if (!cliFlagProvided && config.Config.Events != nil && config.Config.Events.Enabled != nil && *config.Config.Events.Enabled) || *startEvent {
 		// Ensure Events config exists before accessing it
 		if config.Config.Events == nil {
-			config.Config.Events = &config.EventsConfig{}
+			config.Config.Events = &config.EventServer{}
 		}
 		config.Config.Events.Enabled = &enabledTrue
 		startServers = append(startServers, "event")
