@@ -260,39 +260,6 @@ func (c *GcpClient) createSecret(ctx context.Context, name string, secret []byte
 	return nil
 }
 
-func (c *GcpClient) updateSecret(ctx context.Context, name string, secret map[string]any) error {
-	l := log.WithFields(log.Fields{
-		"action":   "updateSecret",
-		"name":     name,
-		"fullName": c.fullName(name),
-		"driver":   c.Driver(),
-	})
-	l.Trace("start")
-	defer l.Trace("end")
-	secretString, err := json.Marshal(secret)
-	if err != nil {
-		l.Errorf("error: %v", err)
-		return err
-	}
-	// parent := "projects/my-project/secrets/my-secret"
-	crc32c := crc32.MakeTable(crc32.Castagnoli)
-	checksum := int64(crc32.Checksum(secretString, crc32c))
-
-	req := &secretmanagerpb.AddSecretVersionRequest{
-		Parent: c.fullName(name),
-		Payload: &secretmanagerpb.SecretPayload{
-			Data:       secretString,
-			DataCrc32C: &checksum,
-		},
-	}
-	result, err := c.client.AddSecretVersion(ctx, req)
-	if err != nil {
-		return fmt.Errorf("failed to add secret version: %w", err)
-	}
-	l.WithField("result", result).Trace("end")
-	return nil
-}
-
 func (g *GcpClient) WriteSecret(ctx context.Context, meta metav1.ObjectMeta, path string, secrets []byte) ([]byte, error) {
 	l := log.WithFields(log.Fields{
 		"action":   "WriteSecret",

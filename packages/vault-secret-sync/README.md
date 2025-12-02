@@ -1,24 +1,47 @@
 # HashiCorp Vault Secret Sync
 
-vault-secret-sync provides fully automated real-time secret syncronization from HashiCorp Vault to other remote secret stores. This enables you to take advantage of natively integrated cloud secret stores while maintaining an authoratative single source of truth in Vault. Both Open Source and Enterprise versions of Vault are supported.
+> **Maintained by jbcom** | [Original by robertlestak](https://github.com/robertlestak/vault-secret-sync)
 
-Currently, the following secret stores are supported:
+vault-secret-sync provides fully automated real-time secret synchronization from HashiCorp Vault to other remote secret stores. This enables you to take advantage of natively integrated cloud secret stores while maintaining an authoritative single source of truth in Vault. Both Open Source and Enterprise versions of Vault are supported.
+
+## Supported Secret Stores
 
 - Vault (kv2)
 - AWS Secrets Manager
-- AWS Identity Center (account discovery)
+- AWS Identity Center (account discovery) ✨
 - GCP Secret Manager
 - GitHub Repository / Organization
-- Doppler
+- Doppler ✨
 
-## jbcom Fork Enhancements
+✨ = jbcom enhancement
 
-This fork ([jbcom/vault-secret-sync](https://github.com/jbcom/vault-secret-sync)) adds:
+## jbcom Ownership & Enhancements
 
-- **Doppler Store**: Sync secrets to Doppler projects/configs
-- **AWS Identity Center Store**: Dynamic account discovery based on SSO group membership
-- **CI/CD**: Automated testing, Docker image publishing, and Helm chart releases
-- **Security Fixes**: URL parameter escaping, credential logging redaction
+**Current Maintainer**: jbcom  
+**Repository**: Part of [jbcom-control-center](https://github.com/jbcom/jbcom-control-center) monorepo  
+**Package Path**: `packages/vault-secret-sync`  
+**Docker Image**: `docker.io/jbcom/vault-secret-sync`  
+**Helm Chart**: `oci://docker.io/jbcom/vault-secret-sync`
+
+### What We Added
+
+| Feature | Description |
+|---------|-------------|
+| **Doppler Store** | Sync secrets to Doppler projects/configs |
+| **AWS Identity Center** | Dynamic account discovery via SSO group membership |
+| **Full CI/CD** | Automated testing, multi-arch Docker builds, Helm OCI publishing |
+| **SBOM & Provenance** | Supply chain security attestations on all images |
+| **Code Quality** | Dead code removal, proper error handling, context propagation |
+
+### Why We Forked
+
+We needed tight integration with our infrastructure:
+- Custom cloud provider support (Doppler, AWS Identity Center)
+- Monorepo integration with unified CI/CD
+- Code quality improvements for production reliability
+- Clear ownership and maintenance guarantees
+
+See [CHANGELOG.md](./CHANGELOG.md) for detailed changes and upstream contribution plans.
 
 ## High Level Architecture
 
@@ -448,7 +471,7 @@ Similar to `CronJob` resources, you can suspend the sync operation by setting th
 
 ```yaml
 spec:
-  syncDelete: false
+  suspend: true
 ```
 
-This will prevent the operator from deleting secrets in the destination secret store when they are deleted in the source. Note that with this flag set, there may be a divergence between the source and destination secret stores if secrets are deleted in the source but that is not reflected in the destination. However this may be necessary if you have a many-to-one configuration where multiple source paths are synced to a single destination path, and you do not want to delete the entire destination path when a single source path is deleted/recreated.
+This will pause all sync operations for this resource until the flag is set back to `false`.

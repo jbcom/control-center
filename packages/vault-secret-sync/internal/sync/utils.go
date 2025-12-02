@@ -78,33 +78,6 @@ func insertSliceString(a []string, index int, value string) []string {
 	return a
 }
 
-// countRegexMatches counts the number of regex matches across all destinations
-func countRegexMatches(ctx context.Context, sc *SyncClients) (int, error) {
-	l := log.WithFields(log.Fields{"action": "countRegexMatches"})
-	l.Trace("start")
-
-	highestNonRegexPath := findHighestNonRegexPath(sc.Source.GetPath())
-	list, err := LoopWildcardRecursive(ctx, sc.Source, highestNonRegexPath)
-	if err != nil {
-		return 0, err
-	}
-
-	rx, err := regexp.Compile(sc.Source.GetPath())
-	if err != nil {
-		return 0, err
-	}
-
-	matchCount := 0
-	for _, p := range list {
-		if rx.MatchString(p) {
-			matchCount += len(sc.Dest)
-		}
-	}
-
-	l.WithField("matchCount", matchCount).Debug("counted regex matches")
-	return matchCount, nil
-}
-
 // isRegexPath determines if the provided string is a regex or a literal path
 func isRegexPath(path string) bool {
 	if !strings.ContainsAny(path, "[](){}+*?|") {
@@ -350,32 +323,6 @@ func ManualTrigger(ctx context.Context, cfg v1alpha1.VaultSecretSync, op logical
 		Manual:    true,
 	}
 	return queue.Q.Push(evt)
-}
-
-func countDeleteRegexMatches(ctx context.Context, sc *SyncClients, j SyncJob) (int, error) {
-	l := log.WithFields(log.Fields{"action": "countDeleteRegexMatches"})
-	l.Trace("start")
-
-	highestNonRegexPath := findHighestNonRegexPath(sc.Source.GetPath())
-	list, err := LoopWildcardRecursive(ctx, sc.Source, highestNonRegexPath)
-	if err != nil {
-		return 0, err
-	}
-
-	rx, err := regexp.Compile(sc.Source.GetPath())
-	if err != nil {
-		return 0, err
-	}
-
-	matchCount := 0
-	for _, p := range list {
-		if rx.MatchString(p) {
-			matchCount += len(sc.Dest)
-		}
-	}
-
-	l.WithField("matchCount", matchCount).Debug("counted regex matches")
-	return matchCount, nil
 }
 
 func doSync(ctx context.Context, j SyncJob) error {

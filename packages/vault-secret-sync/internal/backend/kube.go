@@ -92,7 +92,7 @@ func WriteEvent(ctx context.Context, namespace string, name string, Event string
 }
 
 // AnnotationOperations handles annotations on VaultSecretSync objects
-func AnnotationOperations(r *VaultSecretSyncReconciler, vaultSecretSync *v1alpha1.VaultSecretSync) error {
+func AnnotationOperations(ctx context.Context, r *VaultSecretSyncReconciler, vaultSecretSync *v1alpha1.VaultSecretSync) error {
 	l := log.WithFields(log.Fields{
 		"action": "annotationOperations",
 	})
@@ -112,7 +112,7 @@ func AnnotationOperations(r *VaultSecretSyncReconciler, vaultSecretSync *v1alpha
 			op = logical.UpdateOperation
 		}
 		l.Debugf("operation: %s", op)
-		if err := ManualTrigger(context.Background(), *vaultSecretSync, op); err != nil {
+		if err := ManualTrigger(ctx, *vaultSecretSync, op); err != nil {
 			r.Recorder.Event(vaultSecretSync, "Warning", "ManualTrigger", "Failed to trigger force-sync sync")
 			return err
 		}
@@ -123,7 +123,7 @@ func AnnotationOperations(r *VaultSecretSyncReconciler, vaultSecretSync *v1alpha
 		delete(vaultSecretSync.ObjectMeta.Annotations, "op")
 
 		// Update the VaultSecretSync object
-		if err := r.Update(context.Background(), vaultSecretSync, client.FieldOwner("vault-secret-sync-controller")); err != nil {
+		if err := r.Update(ctx, vaultSecretSync, client.FieldOwner("vault-secret-sync-controller")); err != nil {
 			l.Errorf("failed to update object: %v", err)
 			return err
 		}
@@ -179,7 +179,7 @@ func setSyncStatusKube(ctx context.Context, sc v1alpha1.VaultSecretSync, status 
 	s.Status.SyncDestinations = len(s.Spec.Dest)
 	s.Status.Hash = objHash
 	l.Debugf("updating status: %+v", s.Status)
-	if err := Reconciler.Status().Update(context.Background(), s, client.FieldOwner("vault-secret-sync-controller")); err != nil {
+	if err := Reconciler.Status().Update(ctx, s, client.FieldOwner("vault-secret-sync-controller")); err != nil {
 		l.Errorf("failed to update status: %v", err)
 		return err
 	}
@@ -279,7 +279,7 @@ func (r *VaultSecretSyncReconciler) Reconcile(ctx context.Context, req ctrl.Requ
 		}
 	}
 
-	if err := AnnotationOperations(r, vaultSecretSync); err != nil {
+	if err := AnnotationOperations(ctx, r, vaultSecretSync); err != nil {
 		l.Errorf("failed to process annotations: %v", err)
 		return ctrl.Result{}, err
 	}
@@ -369,7 +369,7 @@ func (b *KubernetesBackend) setupOperator(ctx context.Context) error {
 	go func(ctx context.Context) {
 		if err := mgr.Start(ctx); err != nil {
 			setupLog.Error(err, "problem running manager")
-			os.Exit(1)
+			l.WithError(err).Fatal("manager failed - terminating")
 		}
 	}(ctx)
 	return nil

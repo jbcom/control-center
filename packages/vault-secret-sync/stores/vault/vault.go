@@ -173,26 +173,6 @@ func (vc *VaultClient) Login(ctx context.Context) error {
 	return nil
 }
 
-func tokenEnvTemplate(t string) string {
-	l := log.WithFields(log.Fields{
-		"action": "tokenEnvTemplate",
-	})
-	l.Trace("start")
-	if !strings.Contains(t, "{{") {
-		return ""
-	}
-	evs := strings.Split(t, "{{")
-	if len(evs) < 2 {
-		return ""
-	}
-	evs = strings.Split(strings.TrimSpace(evs[1]), "}}")
-	if len(evs) < 2 {
-		return ""
-	}
-	ev := evs[0]
-	return os.Getenv(ev)
-}
-
 func (vc *VaultClient) Init(ctx context.Context) error {
 	if err := vc.NewToken(ctx); err != nil {
 		return err

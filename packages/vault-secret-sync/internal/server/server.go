@@ -212,7 +212,11 @@ func handleVaultEvents(w http.ResponseWriter, r *http.Request) {
 		}
 		// using a background context to ensure the event is processed even if the request is cancelled
 		ctx := context.Background()
-		go processVaultEvent(ctx, ve)
+		go func(ctx context.Context, ve event.AuditEvent) {
+			if err := processVaultEvent(ctx, ve); err != nil {
+				log.WithError(err).WithField("eventId", ve.Event.Request.ID).Error("failed to process vault event")
+			}
+		}(ctx, ve)
 	}
 	l.Trace("end")
 }
