@@ -277,6 +277,8 @@ export class CursorAPI {
       url: string;
       secret?: string;
     };
+    /** Model to use (e.g., gpt-5.1-codex, claude-4.5-opus-high-thinking) */
+    model?: string;
   }): Promise<Result<Agent>> {
     validatePromptText(options.prompt.text);
     validateRepository(options.source.repository);
