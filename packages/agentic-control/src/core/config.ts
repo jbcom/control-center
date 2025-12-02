@@ -45,12 +45,18 @@ export interface FleetConfig {
   skipReviewerRequest?: boolean;
 }
 
+export interface TriageConfig {
+  /** AI provider: anthropic, openai, google, mistral, azure */
+  provider?: string;
+  /** Model ID for the provider */
+  model?: string;
+  /** API key environment variable name */
+  apiKeyEnvVar?: string;
+}
+
 export interface AgenticConfig {
   /** Token configuration for multi-org access */
   tokens?: Partial<TokenConfig>;
-  
-  /** Default model for Anthropic triage operations */
-  defaultModel?: string;
   
   /** Default repository for fleet operations */
   defaultRepository?: string;
@@ -72,14 +78,11 @@ export interface AgenticConfig {
     baseUrl?: string;
   };
 
-  /** Anthropic API configuration (for triage operations) */
-  anthropic?: {
-    /** API key environment variable name */
-    apiKeyEnvVar?: string;
-  };
-
   /** Fleet default options */
   fleet?: FleetConfig;
+
+  /** Triage (AI analysis) configuration */
+  triage?: TriageConfig;
 }
 
 // ============================================
@@ -285,13 +288,25 @@ export function isVerbose(): boolean {
 }
 
 /**
- * Get the default model for Anthropic operations
+ * Get triage configuration
  */
-export function getDefaultModel(): string {
+export function getTriageConfig(): TriageConfig {
   if (!configLoaded) {
     initConfig();
   }
-  return config.defaultModel ?? "claude-sonnet-4-20250514";
+  return config.triage ?? {
+    provider: "anthropic",
+    model: "claude-sonnet-4-20250514",
+    apiKeyEnvVar: "ANTHROPIC_API_KEY",
+  };
+}
+
+/**
+ * Get the default model for triage operations
+ * @deprecated Use getTriageConfig() instead
+ */
+export function getDefaultModel(): string {
+  return getTriageConfig().model ?? "claude-sonnet-4-20250514";
 }
 
 /**
