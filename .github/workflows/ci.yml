@@ -211,13 +211,16 @@ jobs:
       - name: Install libsodium
         run: sudo apt-get update && sudo apt-get install -y libsodium-dev
 
-      - name: Download dependencies
+      - name: Download and verify dependencies
         working-directory: packages/vault-secret-sync
-        run: go mod download
+        run: |
+          go mod download
+          go mod tidy
+          go mod verify
 
       - name: Build
         working-directory: packages/vault-secret-sync
-        run: go build -o vault-secret-sync ./cmd/...
+        run: CGO_ENABLED=0 go build -o vault-secret-sync ./cmd/...
 
       - name: Upload binary
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4.6.2
@@ -241,9 +244,13 @@ jobs:
       - name: Install libsodium
         run: sudo apt-get update && sudo apt-get install -y libsodium-dev
 
+      - name: Download dependencies
+        working-directory: packages/vault-secret-sync
+        run: go mod download
+
       - name: Run tests
         working-directory: packages/vault-secret-sync
-        run: go test -v -race ./...
+        run: CGO_ENABLED=1 go test -v -race ./...
 
   vault-secret-sync-lint:
     name: Lint vault-secret-sync
@@ -260,11 +267,16 @@ jobs:
       - name: Install libsodium
         run: sudo apt-get update && sudo apt-get install -y libsodium-dev
 
+      - name: Download dependencies first
+        working-directory: packages/vault-secret-sync
+        run: go mod download
+
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v6
         with:
           version: v1.62.2
           working-directory: packages/vault-secret-sync
+          args: --timeout=5m
 
   # ============================================
   # REQUIRED CHECKS
