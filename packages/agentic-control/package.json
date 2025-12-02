@@ -52,6 +52,7 @@
   },
   "dependencies": {
     "@ai-sdk/anthropic": "^2.0.50",
+    "@inquirer/prompts": "8.0.1",
     "@modelcontextprotocol/sdk": "^1.23.0",
     "@octokit/rest": "^21.1.1",
     "ai": "^5.0.104",
