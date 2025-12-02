@@ -15,8 +15,7 @@ RUN go mod download && go mod verify
 # Copy the source code
 COPY . .
 
-# Run tests
-RUN CGO_ENABLED=0 go test ./...
+# Note: Tests are run in CI separately (some require CGO/libsodium)
 
 # Build static binary
 RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-w -s" -o /bin/vss cmd/vss/*.go
