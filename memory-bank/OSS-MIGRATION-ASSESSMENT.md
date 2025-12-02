@@ -35,7 +35,7 @@
 |------------|------|--------|-----------|
 | jbcom-control-center | Monorepo | Active, has packages/ | Management layer ONLY |
 | jbcom-oss-ecosystem | Public monorepo | Active, has packages/ | SOLE source for OSS packages |
-| vault-secret-sync | Fork of robertlestak/vault-secret-sync | Active, merged PR #1 | Upstream fork ONLY |
+| vault-secret-sync | Fork of robertlestak/vault-secret-sync | **POLLUTED** - 1 ahead, 46 BEHIND upstream | PRISTINE upstream mirror |
 | extended-data-types | Individual repo | Active, NOT archived | ARCHIVED with redirect |
 | vendor-connectors | Individual repo | Active, NOT archived | ARCHIVED with redirect |
 | lifecyclelogging | Individual repo | Active, NOT archived | ARCHIVED with redirect |
@@ -77,6 +77,20 @@
 | ❌ failure | Claude workflow misconfigured |
 | ❌ failure | Dependabot auto-merge failing |
 | 🔵 Open PRs | 10 Dependabot PRs stuck |
+
+---
+
+## THE PATTERN: Container Repos
+
+The individual repos (extended-data-types, vendor-connectors, etc.) are **ALREADY** zero-CI containers. They have NO workflows - the control-center syncs TO them via repo-file-sync-action.
+
+This is the SAME pattern that vault-secret-sync fork SHOULD follow:
+- **Zero CI** in the container/fork
+- **Source repo** (control-center → OSS ecosystem) does all CI/CD
+- **Sync action** pushes targeted content to containers/forks
+- **Container/fork** is just a clean mirror for public consumption or upstream contribution
+
+The MISTAKE was adding CI/CD directly to the vault-secret-sync fork instead of keeping it pristine.
 
 ---
 
@@ -134,17 +148,42 @@ jbcom-oss-ecosystem/
    ```
 4. **Update control-center CI** to not publish packages
 
-### Phase 4: vault-secret-sync Reconciliation
+### Phase 4: vault-secret-sync Architecture (CRITICAL FIX)
 
-Current state:
-- jbcom/vault-secret-sync (fork) - has Doppler store, CI/CD (PR #1 merged)
-- packages/vault-secret-sync in control-center
-- packages/vault-secret-sync in oss-ecosystem
+**The previous agent POLLUTED the fork!** PR #1 added jbcom-specific stuff (Doppler store, CI/CD) directly to the fork. This was WRONG.
 
-Decision needed:
-- **Option A**: Fork stays as-is, OSS ecosystem gets copy that stays in sync
-- **Option B**: Fork archived, all development in OSS ecosystem
-- **Option C**: Fork is the source, control-center and OSS ecosystem removed
+#### Correct Architecture:
+
+```
+jbcom-oss-ecosystem/packages/vault-secret-sync
+    │ (OUR development - Doppler store, AWS Identity Center, our CI/CD)
+    │
+    ↓ repo-file-sync-action (syncs SPECIFIC upstream-worthy changes)
+    │
+jbcom/vault-secret-sync (FORK)
+    │ (PRISTINE - NO jbcom CI, NO jbcom-specific stores)
+    │ (Zero CI container - staging area for upstream PRs)
+    │
+    ↓ Manual PR creation
+    │
+robertlestak/vault-secret-sync (UPSTREAM)
+```
+
+#### What the FORK should be:
+- ✅ PRISTINE copy of upstream
+- ✅ ZERO CI - no workflows
+- ✅ Staging area for upstream contributions
+- ✅ Easy to pull upstream changes
+- ❌ NO Doppler store (that's jbcom-specific)
+- ❌ NO jbcom CI/CD workflows
+- ❌ NO jbcom Helm chart modifications
+
+#### What needs to happen:
+1. **RESET the fork** to match upstream (or close to it)
+2. **Move ALL jbcom-specific code** to OSS ecosystem only
+3. **Add repo-file-sync-action** to OSS ecosystem CI for upstream contributions
+4. **Add agentic instructions** for when/how to contribute upstream
+5. **Fork becomes read-only staging** - we only push targeted, upstreamable changes
 
 ---
 
