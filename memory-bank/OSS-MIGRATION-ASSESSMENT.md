@@ -156,13 +156,13 @@ jbcom-oss-ecosystem/
 
 ```
 jbcom-oss-ecosystem/packages/vault-secret-sync
-    │ (OUR development - Doppler store, AWS Identity Center, our CI/CD)
+    │ (ALL development happens HERE - Doppler store, AWS Identity Center, CI/CD)
     │
-    ↓ repo-file-sync-action (syncs SPECIFIC upstream-worthy changes)
+    ↓ repo-file-sync-action (syncs ONLY upstream-worthy changes)
     │
-jbcom/vault-secret-sync (FORK)
-    │ (PRISTINE - NO jbcom CI, NO jbcom-specific stores)
-    │ (Zero CI container - staging area for upstream PRs)
+jbcom/vault-secret-sync (OUR FORK - but as a CONTAINER)
+    │ (NOT ACTIVE - receives synced files, no development)
+    │ (ZERO CI - no workflows, just a staging area)
     │
     ↓ Manual PR creation
     │
@@ -170,20 +170,24 @@ robertlestak/vault-secret-sync (UPSTREAM)
 ```
 
 #### What the FORK should be:
-- ✅ PRISTINE copy of upstream
+- ✅ OUR fork - we own it
+- ✅ CONTAINER - passive, not actively developed in
 - ✅ ZERO CI - no workflows
-- ✅ Staging area for upstream contributions
-- ✅ Easy to pull upstream changes
-- ❌ NO Doppler store (that's jbcom-specific)
-- ❌ NO jbcom CI/CD workflows
-- ❌ NO jbcom Helm chart modifications
+- ✅ Receives ONLY upstream-worthy contributions via sync
+- ✅ Used to create PRs to upstream
+- ❌ NO active development
+- ❌ NO jbcom-specific CI/CD
+- ❌ NO jbcom-specific stores (those stay in OSS ecosystem only)
+
+#### Same pattern as package repos:
+Just like `jbcom/extended-data-types`, `jbcom/vendor-connectors` etc. are CONTAINERS that receive synced code from the source repo - the fork should be a CONTAINER that receives synced upstream-worthy contributions.
 
 #### What needs to happen:
-1. **RESET the fork** to match upstream (or close to it)
-2. **Move ALL jbcom-specific code** to OSS ecosystem only
+1. **RESET the fork** - remove the polluting PR #1 changes, sync from upstream
+2. **ALL jbcom-specific code stays in OSS ecosystem ONLY** (Doppler, AWS Identity Center, our CI)
 3. **Add repo-file-sync-action** to OSS ecosystem CI for upstream contributions
-4. **Add agentic instructions** for when/how to contribute upstream
-5. **Fork becomes read-only staging** - we only push targeted, upstreamable changes
+4. **Add agentic instructions** for when/how to cut contributions to fork → upstream
+5. **Fork becomes CONTAINER** - we sync TO it, we don't develop IN it
 
 ---
 
