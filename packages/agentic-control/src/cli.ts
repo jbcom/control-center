@@ -168,11 +168,20 @@ fleetCmd
   .command("list")
   .description("List all agents")
   .option("--running", "Show only running agents")
+  .option("--status <status>", "Filter by status (RUNNING, COMPLETED, FAILED, CANCELLED)")
   .option("--json", "Output as JSON")
   .action(async (opts) => {
     try {
       const fleet = new Fleet();
-      const result = opts.running ? await fleet.running() : await fleet.list();
+      let result;
+      
+      if (opts.running) {
+        result = await fleet.running();
+      } else if (opts.status) {
+        result = await fleet.listByStatus(opts.status.toUpperCase());
+      } else {
+        result = await fleet.list();
+      }
       
       if (!result.success) {
         console.error(`❌ ${result.error}`);
@@ -192,6 +201,137 @@ fleetCmd
       }
     } catch (err) {
       console.error("❌ Fleet list failed:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+fleetCmd
+  .command("repos")
+  .description("List available repositories")
+  .option("--json", "Output as JSON")
+  .action(async (opts) => {
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.repositories();
+      
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(result.data, true);
+      } else {
+        console.log("=== Available Repositories ===\n");
+        for (const repo of result.data ?? []) {
+          const visibility = repo.isPrivate ? "🔒" : "🌍";
+          console.log(`${visibility} ${repo.fullName} (${repo.defaultBranch})`);
+        }
+        console.log(`\nTotal: ${result.data?.length ?? 0} repositories`);
+      }
+    } catch (err) {
+      console.error("❌ Failed to list repositories:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+fleetCmd
+  .command("get")
+  .description("Get details for a specific agent")
+  .argument("<agent-id>", "Agent ID")
+  .option("--json", "Output as JSON")
+  .action(async (agentId, opts) => {
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.status(agentId);
+      
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      const agent = result.data;
+      if (!agent) {
+        console.error(`❌ Agent not found: ${agentId}`);
+        process.exit(1);
+      }
+
+      if (opts.json) {
+        output(agent, true);
+      } else {
+        console.log("=== Agent Details ===\n");
+        console.log(`ID:         ${agent.id}`);
+        console.log(`Name:       ${agent.name ?? "(unnamed)"}`);
+        console.log(`Status:     ${agent.status}`);
+        console.log(`Repository: ${agent.source?.repository ?? "N/A"}`);
+        console.log(`Ref:        ${agent.source?.ref ?? "N/A"}`);
+        if (agent.target?.branchName) {
+          console.log(`Branch:     ${agent.target.branchName}`);
+        }
+        if (agent.target?.prUrl) {
+          console.log(`PR:         ${agent.target.prUrl}`);
+        }
+        if (agent.target?.url) {
+          console.log(`URL:        ${agent.target.url}`);
+        }
+        if (agent.createdAt) {
+          console.log(`Created:    ${agent.createdAt}`);
+        }
+        if (agent.summary) {
+          console.log(`\nSummary:\n${agent.summary}`);
+        }
+        if (agent.error) {
+          console.log(`\n❌ Error:\n${agent.error}`);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to get agent:", err instanceof Error ? err.message : err);
+      process.exit(1);
+    }
+  });
+
+fleetCmd
+  .command("conversation")
+  .description("Get conversation history for an agent")
+  .argument("<agent-id>", "Agent ID")
+  .option("--json", "Output as JSON")
+  .option("-o, --output <path>", "Save to file")
+  .action(async (agentId, opts) => {
+    try {
+      const fleet = new Fleet();
+      const result = await fleet.conversation(agentId);
+      
+      if (!result.success) {
+        console.error(`❌ ${result.error}`);
+        process.exit(1);
+      }
+
+      const conv = result.data;
+      if (!conv) {
+        console.error(`❌ Conversation not found for agent: ${agentId}`);
+        process.exit(1);
+      }
+
+      if (opts.output) {
+        writeFileSync(opts.output, JSON.stringify(conv, null, 2));
+        console.log(`✅ Saved conversation to ${opts.output}`);
+        return;
+      }
+
+      if (opts.json) {
+        output(conv, true);
+      } else {
+        console.log(`=== Conversation (${conv.totalMessages} messages) ===\n`);
+        for (const msg of conv.messages ?? []) {
+          const role = msg.type === "user_message" ? "👤 USER" : "🤖 ASSISTANT";
+          const time = msg.timestamp ? ` (${msg.timestamp})` : "";
+          console.log(`${role}${time}:`);
+          console.log(msg.text);
+          console.log("\n" + "-".repeat(60) + "\n");
+        }
+      }
+    } catch (err) {
+      console.error("❌ Failed to get conversation:", err instanceof Error ? err.message : err);
       process.exit(1);
     }
   });
