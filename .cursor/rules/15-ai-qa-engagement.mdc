@@ -16,22 +16,32 @@ globs: ["**/*"]
 
 ## How to Request Review
 
-### Comment-Triggered Reviewers
-Post these commands as PR comments:
+### ⚠️ CRITICAL: Different Rules for Different Repos
+
+**FlipsideCrypto (FSC) repos** - Use paid AI reviewers:
 ```
 /gemini review       # Google Gemini Code Assist
 /q review            # Amazon Q Developer
-@copilot review      # GitHub Copilot (or enable auto-review in settings)
-@cursor review       # Cursor AI
-@coderabbitai review # CodeRabbit AI review
+@copilot review      # GitHub Copilot
 ```
 
-### Automatic Reviewers (via repo settings)
-These can also review automatically when enabled:
-- **Copilot** - Enable in Settings > Code security and analysis
-- **Cursor Bugbot** - Automatic on all PRs
+**jbcom repos (personal/OSS)** - Use FREE tooling ONLY:
+```
+@copilot review      # GitHub Copilot (FREE for public repos)
+```
+- ❌ Do NOT use `/gemini review` on jbcom repos
+- ❌ Do NOT use `/q review` on jbcom repos
+- ✅ CodeQL is automatic and FREE
+- ✅ Copilot code review is FREE for public repos
+- ✅ Dependabot is FREE
 
-All of the above are considered valid **QA agents** for this protocol.
+### Why the Difference?
+- FSC = Enterprise org with paid AI tooling budget
+- jbcom = Personal account, use FREE public repo benefits only
+
+### Automatic Reviewers
+- **Copilot** - Enable in Settings > Code security and analysis (FREE for public)
+- **CodeQL** - Automatic security scanning (FREE for public)
 
 ### Focused Reviews
 
@@ -126,65 +136,62 @@ When AI reviewers disagree with each other:
 
 ## Merge Checklist
 
-Before merging ANY PR:
-
+### For FSC Repos (FlipsideCrypto):
 - [ ] CI is green (all checks pass)
-- [ ] At least ONE AI review requested and completed (`/gemini review`, `/q review`, etc.)
-- [ ] ALL critical/high severity items resolved (fixed OR documented as false positive)
-- [ ] ALL medium severity items resolved or justified with technical reasoning
-- [ ] Responses posted to ALL feedback items (no ignored comments)
-- [ ] All review threads addressed (response posted to each)
-- [ ] Conflicts between AI reviewers resolved and documented
+- [ ] At least ONE AI review completed (`/gemini review`, `/q review`, or Copilot)
+- [ ] ALL critical/high severity items resolved
+- [ ] ALL medium severity items resolved or justified
+- [ ] Responses posted to ALL feedback items
+
+### For jbcom Repos (Personal/OSS):
+- [ ] CI is green (all checks pass)
+- [ ] CodeQL passes (no HIGH/CRITICAL security issues)
+- [ ] Copilot review feedback addressed (if any)
+- [ ] Dependabot PRs: auto-merge for minor/patch is OK
 
 ## Example Workflow
 
+### FSC Repos (FlipsideCrypto) - Paid AI Review
 ```bash
-# 1. Create PR with conventional commit scope
-# Scopes: edt (extended-data-types), dic (directed-inputs-class),
-#         connectors (vendor-connectors), bridge (python-terraform-bridge)
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve API validation bug"
+# 1. Create PR
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create --repo FlipsideCrypto/some-repo --title "fix: something"
 
 # 2. Request AI reviews (post as PR comment)
 # /gemini review
 # /q review
 
-# 3. Wait for reviews to complete (check PR page)
+# 3. Wait for reviews, address feedback, merge
+```
 
-# 4. Address each piece of feedback
-# - Fix code issues raised
-# - Reply to every comment with fix or justification
+### jbcom Repos (Personal/OSS) - FREE Tooling Only
+```bash
+# 1. Create PR
+GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --repo jbcom/jbcom-oss-ecosystem --title "fix: something"
 
-# 5. If significant changes made, re-request review
-# /gemini review
+# 2. Wait for automatic checks:
+#    - CodeQL (automatic, FREE)
+#    - Copilot review (automatic if enabled, FREE for public)
+#    - CI (tests, build, lint)
 
-# 6. Verify merge checklist complete
+# 3. Address any Copilot feedback
 
-# 7. Only after ALL feedback addressed:
+# 4. Merge when green
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
+
+# NOTE: Do NOT use /gemini or /q on jbcom repos!
 ```
 
 ## Repository Settings for Automatic AI Review
 
-To reduce manual effort, configure these GitHub repo settings:
+### For jbcom Repos (FREE tooling):
+1. **Copilot Code Review** - Settings > Code security and analysis > Enable
+2. **CodeQL** - Automatic for public repos
+3. **Dependabot** - Enable in Settings > Security
 
-### Enable Copilot Code Review (Recommended)
-1. Go to **Settings > Code security and analysis**
-2. Enable **Copilot code review**
-3. Copilot will automatically review all PRs
-
-### Rulesets for Required AI Reviews
-1. Go to **Settings > Rules > Rulesets**
-2. Create ruleset requiring specific status checks
-3. Add AI reviewer checks (e.g., `Cursor Bugbot`, `amazon-q-developer`)
-
-### CODEOWNERS (Optional)
-Add AI bot accounts to `.github/CODEOWNERS` if they have repo access:
-```
-# Auto-request AI reviews
-* @copilot-pull-request-reviewer
-```
-
-**Note:** Some AI reviewers (Gemini, Amazon Q) are triggered by comments only and cannot be auto-assigned.
+### For FSC Repos (Paid tooling):
+1. All the above, PLUS:
+2. **Gemini/Amazon Q** - Triggered via PR comments (`/gemini review`, `/q review`)
+3. **Rulesets** - Can require AI reviewer checks as status gates
 
 ## Enforcement
 
