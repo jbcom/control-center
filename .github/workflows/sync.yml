@@ -23,6 +23,10 @@ on:
         description: "Sync branch protection rules"
         type: boolean
         default: true
+      sync_pages:
+        description: "Sync GitHub Pages settings"
+        type: boolean
+        default: true
       dry_run:
         description: "Dry run (don't actually sync)"
         type: boolean
@@ -150,3 +154,44 @@ jobs:
         run: |
           echo "🔍 DRY RUN: Would apply branch protection to ${{ matrix.repo }}"
           echo "Settings: no required reviews, allow force pushes, linear history"
+
+  # ============================================
+  # GITHUB PAGES SYNC
+  # ============================================
+  sync-pages:
+    name: Sync GitHub Pages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.sync_pages)
+
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - jbcom/extended-data-types
+          - jbcom/lifecyclelogging
+          - jbcom/directed-inputs-class
+          - jbcom/python-terraform-bridge
+          - jbcom/vendor-connectors
+          - jbcom/agentic-control
+          - jbcom/cursor-rules
+
+    steps:
+      - name: Enable GitHub Pages for ${{ matrix.repo }}
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Enable GitHub Pages with GitHub Actions as build source
+          gh api repos/${{ matrix.repo }}/pages -X PUT --input - <<'EOF' || \
+          gh api repos/${{ matrix.repo }}/pages -X POST --input - <<'EOF'
+          {
+            "build_type": "workflow"
+          }
+          EOF
+          echo "✅ Enabled GitHub Pages for ${{ matrix.repo }}"
+
+      - name: Dry run - would enable Pages for ${{ matrix.repo }}
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "🔍 DRY RUN: Would enable GitHub Pages for ${{ matrix.repo }}"
+          echo "Settings: build_type=workflow (GitHub Actions)"
