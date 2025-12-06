@@ -76,24 +76,6 @@ Your markdown content here...
 
 **Not loaded by Cursor** - only for agents to reference when needed.
 
-## vs `.ruler/` Directory
-
-Different purposes:
-
-### `.cursor/rules/*.mdc` (THIS directory)
-- ✅ **Cursor background agent** reads these
-- ✅ Direct, immediate effect
-- ✅ No regeneration needed
-- ✅ Edit these for Cursor-specific behavior
-
-### `.ruler/*.md`
-- ✅ **Other agents** (Copilot, Claude, Aider) read generated files
-- ✅ Generates: `.cursorrules`, `.github/copilot-instructions.md`, `AGENTS.md`, `.claud`
-- ✅ Run `ruler apply` after editing
-- ✅ Cross-agent consistency
-
-**IMPORTANT**: `.cursorrules` is LEGACY. Cursor background agent uses `.cursor/rules/*.mdc` now.
-
 ## When to Add New Rules
 
 ### Add a new `.mdc` file when:
@@ -231,7 +213,6 @@ All rule changes go through PR process:
 When adding rules, update:
 - This README (if structural change)
 - `.cursor/README.md` (if user-facing)
-- `.ruler/cursor.md` (if affects other Cursor features)
 
 ## Questions?
 

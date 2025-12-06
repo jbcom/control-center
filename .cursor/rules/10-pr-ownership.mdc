@@ -39,14 +39,14 @@ Please verify the fix.
 @gemini-code-assist Thank you, but this conflicts with project rules:
 
 **Our approach**: <description>
-**Reference**: See `.ruler/AGENTS.md`
+**Reference**: See `.cursor/rules/`
 
 Happy to discuss if you see issues.
 ```
 
 ## Priority Order for Conflicting Feedback
 
-1. **Project rules** (`.ruler/AGENTS.md`) - Highest
+1. **Project rules** (`.cursor/rules/*.mdc`) - Highest
 2. **Security concerns** - Always address
 3. **Performance** - Evaluate with evidence
 4. **Style** - Defer to project config
@@ -64,4 +64,4 @@ Follow jbcom conventions when contributing upstream.
 
 ## Full Documentation
 
-See `docs/PR-OWNERSHIP-PROTOCOL.md`
+See `.cursor/rules/REFERENCE-pr-ownership-details.md`
