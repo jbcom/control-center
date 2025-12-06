@@ -44,7 +44,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_secrets != false)
+      (github.event_name == 'workflow_dispatch' && inputs.sync_secrets)
 
     strategy:
       fail-fast: false
@@ -101,7 +101,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_files != false)
+      (github.event_name == 'workflow_dispatch' && inputs.sync_files)
 
     steps:
       # actions/checkout v4.2.2
@@ -142,7 +142,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_branch_protection != false)
+      (github.event_name == 'workflow_dispatch' && inputs.sync_branch_protection)
 
     strategy:
       fail-fast: false
@@ -193,7 +193,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_pages != false)
+      (github.event_name == 'workflow_dispatch' && inputs.sync_pages)
 
     strategy:
       fail-fast: false
