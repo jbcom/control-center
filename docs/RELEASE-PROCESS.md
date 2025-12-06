@@ -169,7 +169,7 @@ Both PyPI and npm use token-based publishing:
 ## Secrets Sync
 
 Secrets are synced from this control center to all public repos via:
-- `.github/workflows/secrets-sync.yml`
+- `.github/workflows/sync.yml`
 - Uses `google/secrets-sync-action`
 
 ## Troubleshooting
