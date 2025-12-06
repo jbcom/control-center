@@ -2,17 +2,22 @@
 
 ## Overview
 
-The `ecosystems/flipside-crypto/` directory contains FlipsideCrypto's cloud infrastructure. This control center is the source of truth.
+This control center manages infrastructure that deploys to these FSC repositories:
 
-## Structure
+| Repo | Purpose | Token |
+|------|---------|-------|
+| `FlipsideCrypto/terraform-modules` | Reusable Terraform modules | `GITHUB_FSC_TOKEN` |
+| `fsc-platform/cluster-ops` | Kubernetes cluster operations | `GITHUB_FSC_TOKEN` |
+| `fsc-internal-tooling-administration/terraform-organization-administration` | Org-level Terraform | `GITHUB_FSC_TOKEN` |
+
+## Local Infrastructure
+
+The `ecosystems/flipside-crypto/` directory mirrors and extends these repos:
 
 ```
 ecosystems/flipside-crypto/
 ├── terraform/
 │   ├── modules/           # 100+ reusable modules
-│   │   ├── aws/           # 70+ AWS modules
-│   │   ├── google/        # 38 GCP modules
-│   │   └── github/        # GitHub management
 │   └── workspaces/        # 44 live workspaces
 ├── sam/                   # AWS Lambda apps
 ├── lib/terraform_modules/ # Python library
@@ -21,99 +26,129 @@ ecosystems/flipside-crypto/
 
 ## jbcom Package Dependencies
 
-The FSC infrastructure uses these jbcom packages:
+These FSC repos consume jbcom packages:
 
-| Package | Used In | Purpose |
+| Package | Used By | Purpose |
 |---------|---------|---------|
-| `vendor-connectors` | lib/, sam/ | AWS, GCP, Slack clients |
-| `lifecyclelogging` | lib/, sam/ | Structured logging |
-| `extended-data-types` | lib/ | Config utilities |
+| `vendor-connectors` | terraform-modules, cluster-ops | AWS, GCP, Slack clients |
+| `lifecyclelogging` | All | Structured logging |
+| `extended-data-types` | All | Config utilities |
 
-### Updating Package Versions
-
-When jbcom packages are released, update FSC:
+### Checking Package Versions in FSC Repos
 
 ```bash
-# Check current versions
-grep -r "vendor-connectors\|lifecyclelogging\|extended-data-types" \
-  ecosystems/flipside-crypto/lib/pyproject.toml \
-  ecosystems/flipside-crypto/sam/*/handler/requirements.txt
+# terraform-modules
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh api /repos/FlipsideCrypto/terraform-modules/contents/requirements.txt \
+  --jq '.content' | base64 -d | grep -E "vendor-connectors|lifecyclelogging|extended-data-types"
 
-# Update to new version
-# Edit pyproject.toml or requirements.txt
+# cluster-ops
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh api /repos/fsc-platform/cluster-ops/contents/requirements.txt \
+  --jq '.content' | base64 -d | grep -E "vendor-connectors|lifecyclelogging|extended-data-types"
+```
+
+### Updating FSC to Use New Package Versions
+
+After releasing a jbcom package:
+
+```bash
+# Clone the FSC repo
+GH_TOKEN="$GITHUB_FSC_TOKEN" git clone https://$GITHUB_FSC_TOKEN@github.com/FlipsideCrypto/terraform-modules.git /tmp/terraform-modules
+cd /tmp/terraform-modules
+
+# Update requirements
+# Edit requirements.txt or pyproject.toml with new versions
 
 # Test
-cd ecosystems/flipside-crypto/lib
 pip install -e .
 pytest
+
+# Create PR
+git checkout -b deps/update-jbcom-packages
+git add requirements.txt
+git commit -m "deps: update jbcom packages
+
+- vendor-connectors: X.Y.Z
+- lifecyclelogging: X.Y.Z"
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create --title "deps: update jbcom packages"
 ```
 
-## Token Usage
+## Token Configuration
 
-FSC operations use `GITHUB_FSC_TOKEN` (if pushing to FlipsideCrypto repos):
+| Org | Token | Repos |
+|-----|-------|-------|
+| FlipsideCrypto | `GITHUB_FSC_TOKEN` | terraform-modules |
+| fsc-platform | `GITHUB_FSC_TOKEN` | cluster-ops |
+| fsc-internal-tooling-administration | `GITHUB_FSC_TOKEN` | terraform-organization-administration |
+
+The `agentic` CLI handles token switching automatically based on org.
+
+## Key Operations
+
+### Check CI Status
 
 ```bash
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh <command> --repo FlipsideCrypto/<repo>
+# terraform-modules
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo FlipsideCrypto/terraform-modules --limit 5
+
+# cluster-ops
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo fsc-platform/cluster-ops --limit 5
 ```
 
-The `agentic` CLI handles this automatically.
-
-## Terraform Operations
+### View Open PRs
 
 ```bash
-# Navigate to workspace
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo fsc-platform/cluster-ops
+```
+
+### Spawn Agent to FSC Repo
+
+```bash
+agentic fleet spawn "https://github.com/FlipsideCrypto/terraform-modules" "Update to latest jbcom packages"
+agentic fleet spawn "https://github.com/fsc-platform/cluster-ops" "Fix CI"
+```
+
+## Local Development
+
+### Terraform
+
+```bash
 cd ecosystems/flipside-crypto/terraform/workspaces/terraform-aws-organization/<workspace>
-
-# Plan
+terraform init
 terraform plan
-
-# Apply (requires AWS creds)
-terraform apply
+terraform apply  # Requires AWS creds
 ```
 
-### State Management
-
-State is in S3:
-```
-s3://flipside-crypto-internal-tooling/terraform/state/{pipeline}/workspaces/{workspace}/
-```
-
-**Never modify state paths in `config/state-paths.yaml`** - they're immutable.
-
-## SAM Lambda Deployment
+### SAM Lambda
 
 ```bash
 cd ecosystems/flipside-crypto/sam/<app>
-
-# Build
 sam build
-
-# Deploy (requires AWS creds)
-sam deploy
+sam local invoke  # Test locally
+sam deploy        # Requires AWS creds
 ```
 
-## Common Tasks
-
-### Add New Terraform Module
-
-1. Create in `terraform/modules/{provider}/`
-2. Add README, variables.tf, outputs.tf
-3. Use in workspace
-
-### Update SAM Handler Dependencies
-
-1. Edit `sam/<app>/handler/requirements.txt`
-2. Test locally: `sam local invoke`
-3. Deploy: `sam deploy`
-
-### Sync to FlipsideCrypto Repos
-
-If changes need to go to public FlipsideCrypto repos, use the sync workflow or manual push:
+### Python Library
 
 ```bash
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh repo sync FlipsideCrypto/<repo>
+cd ecosystems/flipside-crypto/lib
+pip install -e .
+python -m terraform_modules --help
+```
+
+## Sync Relationship
+
+```
+jbcom-control-center (this repo)
+├── packages/vendor-connectors  ─────→  PyPI
+│                                         │
+│                                         ▼
+└── ecosystems/flipside-crypto/     FSC repos consume from PyPI
+                                    ├── FlipsideCrypto/terraform-modules
+                                    ├── fsc-platform/cluster-ops
+                                    └── fsc-internal-tooling-administration/...
 ```
 
 ---
 
-**Related**: [ecosystems/flipside-crypto/README.md](/ecosystems/flipside-crypto/README.md)
+**Related**: [docs/JBCOM-ECOSYSTEM-INTEGRATION.md](./JBCOM-ECOSYSTEM-INTEGRATION.md)

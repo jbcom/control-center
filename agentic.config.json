@@ -19,6 +19,12 @@
         "tokenEnvVar": "GITHUB_FSC_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
+      },
+      "fsc-internal-tooling-administration": {
+        "name": "fsc-internal-tooling-administration",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",

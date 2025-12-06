@@ -18,23 +18,18 @@ packages/
 
 ### FlipsideCrypto Ecosystem (Infrastructure → AWS/GCP)
 
+**Production Repos** (consume jbcom packages):
+- `FlipsideCrypto/terraform-modules` - Reusable Terraform modules
+- `fsc-platform/cluster-ops` - Kubernetes cluster operations
+- `fsc-internal-tooling-administration/terraform-organization-administration` - Org-level Terraform
+
+**Local Infrastructure** (in this repo):
 ```
 ecosystems/flipside-crypto/
-├── terraform/
-│   ├── modules/           # 30 module categories (100+ modules)
-│   │   ├── aws/           # AWS infrastructure
-│   │   ├── google/        # Google Cloud
-│   │   ├── github/        # GitHub management
-│   │   └── terraform/     # Pipeline generation
-│   └── workspaces/        # 44 workspaces
-│       ├── terraform-aws-organization/    # 37 AWS workspaces
-│       └── terraform-google-organization/ # 7 GCP workspaces
-├── sam/                   # AWS Lambda applications
-│   ├── secrets-config/
-│   ├── secrets-merging/
-│   └── secrets-syncing/
-├── lib/                   # Python libraries
-│   └── terraform_modules/
+├── terraform/modules/     # 100+ reusable modules
+├── terraform/workspaces/  # 44 workspaces
+├── sam/                   # AWS Lambda apps
+├── lib/terraform_modules/ # Python library
 └── config/                # State paths, pipelines
 ```
 
