@@ -1,76 +1,68 @@
 ---
 alwaysApply: true
-description: Core FSC Control Center rules and session initialization
+description: Core control center rules and session initialization
 globs: ["**/*"]
 ---
 
-# FSC Control Center - Core Agent Rules
+# jbcom Control Center - Core Rules
 
-## 🚨 SESSION START - READ FIRST
+## 🚨 SESSION START
 
-You are operating the **FSC Control Center**, the central orchestration hub for FlipsideCrypto infrastructure. This is an enterprise counterparty to the **jbcom Control Center**.
+This is **jbcom-control-center**, the unified control center for:
+- **jbcom packages**: Python/TypeScript/Go packages in `packages/`
+- **FSC infrastructure**: Terraform/SAM in `ecosystems/flipside-crypto/`
+- **Centralized configs**: Cursor rules synced to public repos
 
-### Mandatory First Steps
+### First Steps
 
 ```bash
-# 1. Understand current context
+# 1. Check context
 cat memory-bank/activeContext.md
 
 # 2. Check progress
 cat memory-bank/progress.md
-
-# 3. Review coordination state
-cat docs/COUNTERPARTY-COORDINATION.md
 ```
 
-## 🔑 Authentication (CRITICAL)
-
-### Token Usage
+## 🔑 Authentication
 
 | Token | Usage |
 |-------|-------|
-| `FLIPSIDE_GITHUB_TOKEN` | FSC org operations (default) |
-| `GITHUB_JBCOM_TOKEN` | jbcom ecosystem operations |
-
-### jbcom Operations ALWAYS Require Prefix
+| `GITHUB_JBCOM_TOKEN` | jbcom repos (default) |
+| `GITHUB_FSC_TOKEN` | FlipsideCrypto repos |
 
 ```bash
-# CORRECT - jbcom repos
+# jbcom repos
 GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list --repo jbcom/jbcom-control-center
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh api /repos/jbcom/extended-data-types
 
-# INCORRECT - will fail
-gh pr list --repo jbcom/jbcom-control-center  # ❌ Missing token
+# FlipsideCrypto repos (if needed)
+GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/<repo>
 ```
 
-## 📁 Key Files
+## 📁 Key Locations
 
-| File | Purpose |
+| Path | Purpose |
 |------|---------|
-| `config/pipelines.yaml` | Pipeline definitions |
-| `config/defaults.yaml` | Global defaults |
-| `memory-bank/*` | Session context and history |
-| `docs/COUNTERPARTY-COORDINATION.md` | jbcom coordination |
-| `.ruler/AGENTS.md` | Full agent instructions |
+| `packages/` | All jbcom packages |
+| `ecosystems/flipside-crypto/` | FSC infrastructure |
+| `cursor-rules/` | Centralized rules (synced out) |
+| `memory-bank/` | Session context |
+| `.github/workflows/` | CI/CD |
 
-## 🚫 Safety Rails
+## 🚫 Rules
 
-### Never Do
-- ❌ Edit `repository-files/` manually
-- ❌ Edit `.github/sync.yml` manually
+### Don't
 - ❌ Push to main without PR
-- ❌ Use default token for jbcom repos
+- ❌ Manually edit versions (use conventional commits)
+- ❌ Skip tests
 
-### Always Do
+### Do
 - ✅ Use PRs for changes
-- ✅ Update memory bank
-- ✅ Document decisions
-- ✅ Coordinate with jbcom for package updates
+- ✅ Update memory-bank on session end
+- ✅ Use conventional commits with scopes
 
-## 📚 Documentation Links
+## 📚 Docs
 
-- Full rules: `.ruler/AGENTS.md`
-- Counterparty: `docs/COUNTERPARTY-COORDINATION.md`
-- jbcom packages: `docs/JBCOM-ECOSYSTEM-INTEGRATION.md`
-- Handoff: `docs/AGENT-HANDOFF-PROTOCOL.md`
-- PR ownership: `docs/PR-OWNERSHIP-PROTOCOL.md`
+- Packages: `docs/JBCOM-ECOSYSTEM-INTEGRATION.md`
+- Releases: `docs/RELEASE-PROCESS.md`
+- FSC infra: `docs/FSC-INFRASTRUCTURE.md`
+- Tokens: `docs/TOKEN-MANAGEMENT.md`

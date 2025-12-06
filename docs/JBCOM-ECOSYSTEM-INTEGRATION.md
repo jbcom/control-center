@@ -81,41 +81,6 @@ pip index versions vendor-connectors
 pip show extended-data-types lifecyclelogging directed-inputs-class vendor-connectors 2>/dev/null | grep -E "^(Name|Version):"
 ```
 
-## Updating Dependencies
-
-### In terraform-modules
-
-1. **Check current versions**:
-   ```bash
-   grep -E "(extended-data-types|lifecyclelogging|directed-inputs-class|vendor-connectors)" requirements.txt pyproject.toml 2>/dev/null
-   ```
-
-2. **Update to new version**:
-   ```bash
-   # Edit requirements.txt or pyproject.toml
-   # Example: extended-data-types>=202511.4.0
-   ```
-
-3. **Test integration**:
-   ```bash
-   pip install -e .
-   pytest
-   ```
-
-4. **Create PR**:
-   ```bash
-   git checkout -b deps/update-jbcom-packages
-   git add requirements.txt pyproject.toml
-   git commit -m "deps: update jbcom packages to latest
-
-   - extended-data-types: X.Y.Z
-   - lifecyclelogging: X.Y.Z
-   - vendor-connectors: X.Y.Z
-
-   Changelog: https://github.com/jbcom/jbcom-control-center/releases"
-   gh pr create --title "deps: update jbcom packages" --body "Updates jbcom ecosystem packages"
-   ```
-
 ## Development
 
 All development happens in this control center:

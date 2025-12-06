@@ -35,8 +35,7 @@ ecosystems/flipside-crypto/
 │   └── secrets-syncing/
 ├── lib/                   # Python libraries
 │   └── terraform_modules/
-├── config/                # State paths, pipelines
-└── memory-bank/           # Agent context
+└── config/                # State paths, pipelines
 ```
 
 ## Quick Start
@@ -67,7 +66,7 @@ agentic init
 
 # Spawn agents
 agentic fleet spawn --repo jbcom/jbcom-control-center --task "Fix CI"
-agentic fleet spawn --repo FlipsideCrypto/fsc-control-center --task "Update modules"
+agentic fleet spawn --repo jbcom/vendor-connectors --task "Update dependencies"
 
 # Triage conversations
 agentic triage analyze <session-id>
