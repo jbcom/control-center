@@ -1,17 +1,20 @@
-# jbcom Ecosystem Integration Guide
+# jbcom Ecosystem
 
 ## Overview
 
-The jbcom ecosystem provides Python packages used by FlipsideCrypto infrastructure. This guide documents how to integrate, update, and contribute to these packages.
+This control center manages the jbcom package ecosystem. All packages are developed here and synced to individual public repos.
 
-## Package Registry
+## Packages
 
-| Package | PyPI Name | Repository | Role |
-|---------|-----------|------------|------|
-| extended-data-types | `extended-data-types` | `jbcom/extended-data-types` | Foundation utilities |
-| lifecyclelogging | `lifecyclelogging` | `jbcom/lifecyclelogging` | Structured logging |
-| directed-inputs-class | `directed-inputs-class` | `jbcom/directed-inputs-class` | Input validation |
-| vendor-connectors | `vendor-connectors` | `jbcom/vendor-connectors` | Cloud integrations |
+| Package | Type | Registry | Public Repo |
+|---------|------|----------|-------------|
+| extended-data-types | Python | PyPI | jbcom/extended-data-types |
+| lifecyclelogging | Python | PyPI | jbcom/lifecyclelogging |
+| directed-inputs-class | Python | PyPI | jbcom/directed-inputs-class |
+| python-terraform-bridge | Python | PyPI | jbcom/python-terraform-bridge |
+| vendor-connectors | Python | PyPI | jbcom/vendor-connectors |
+| agentic-control | TypeScript | npm | jbcom/agentic-control |
+| vault-secret-sync | Go | Docker Hub | jbcom/vault-secret-sync |
 
 ## Dependency Graph
 
@@ -36,19 +39,17 @@ extended-data-types (foundation - no dependencies)
 
 ## Versioning
 
-jbcom uses **CalVer-compatible Semantic Versioning**:
-- Format: `YYYYMM.MINOR.PATCH`
-- Example: `202511.3.0`
-- Major version is calendar-based (year+month)
-- Minor/patch follow semantic versioning rules
+jbcom uses **Semantic Versioning (SemVer)**:
+- Format: `MAJOR.MINOR.PATCH`
+- Driven by conventional commits via python-semantic-release
 
 ### Version Bump Rules
 
-| Commit Type | Bump | Example |
-|-------------|------|---------|
-| `feat(scope):` | Minor | `202511.3.0` → `202511.4.0` |
-| `fix(scope):` | Patch | `202511.3.0` → `202511.3.1` |
-| `feat!:` or `BREAKING CHANGE:` | Major | `202511.3.0` → `202512.0.0` |
+| Commit Type | Bump |
+|-------------|------|
+| `feat(scope):` | Minor (x.Y.0) |
+| `fix(scope):` | Patch (x.y.Z) |
+| `feat!:` or `BREAKING CHANGE:` | Major (X.0.0) |
 
 ## Checking for Updates
 
@@ -115,201 +116,54 @@ pip show extended-data-types lifecyclelogging directed-inputs-class vendor-conne
    gh pr create --title "deps: update jbcom packages" --body "Updates jbcom ecosystem packages"
    ```
 
-### In Other FSC Repos
+## Development
 
-Follow the same pattern, adapting to the repository's dependency management system.
-
-## Contributing Upstream
-
-### When to Contribute
-
-Contribute to jbcom when:
-- FSC needs a feature that would benefit the package
-- FSC found a bug in a jbcom package
-- FSC has an optimization that improves the package
-
-### Contribution Process
-
-#### 1. Clone jbcom Control Center
-
-```bash
-cd /tmp
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" git clone https://$GITHUB_JBCOM_TOKEN@github.com/jbcom/jbcom-control-center.git
-cd jbcom-control-center
-```
-
-#### 2. Understand the Structure
+All development happens in this control center:
 
 ```
 jbcom-control-center/
-├── packages/
+├── packages/                  # All packages
 │   ├── extended-data-types/
-│   │   ├── src/extended_data_types/
-│   │   ├── tests/
-│   │   └── pyproject.toml
 │   ├── lifecyclelogging/
 │   ├── directed-inputs-class/
-│   └── vendor-connectors/
-├── pyproject.toml          # Workspace root
-├── ECOSYSTEM.toml          # Package metadata
-└── .github/workflows/ci.yml
+│   ├── python-terraform-bridge/
+│   ├── vendor-connectors/
+│   ├── agentic-control/
+│   └── vault-secret-sync/
+├── cursor-rules/              # Centralized cursor rules (synced out)
+├── ecosystems/flipside-crypto/ # FSC infrastructure
+└── .github/workflows/         # CI/CD
 ```
 
-#### 3. Make Changes
+### Conventional Commit Scopes
 
-```bash
-# Create feature branch
-git checkout -b feat/fsc-<feature-name>
-
-# Make changes in appropriate package
-cd packages/extended-data-types
-# Edit src/, add tests
-
-# Run tests
-pytest
-
-# Run linting
-ruff check --fix src/ tests/
-ruff format src/ tests/
-
-# Run type checking
-mypy src/
-```
-
-#### 4. Commit with Conventional Format
-
-```bash
-# Conventional commit with scope
-git commit -m "feat(edt): add new utility function
-
-Adds X utility needed for FSC terraform-modules pipeline generation.
-
-- New function: do_thing()
-- Tests added
-- Documentation updated"
-```
-
-**Scope Reference**:
 | Scope | Package |
 |-------|---------|
 | `edt` | extended-data-types |
 | `logging` | lifecyclelogging |
 | `dic` | directed-inputs-class |
+| `bridge` | python-terraform-bridge |
 | `connectors` | vendor-connectors |
+| `agentic` | agentic-control |
+| `vss` | vault-secret-sync |
 
-#### 5. Create Pull Request
-
-```bash
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create \
-  --repo jbcom/jbcom-control-center \
-  --title "feat(edt): add new utility function" \
-  --body "## Summary
-Adds X utility function to extended-data-types.
-
-## Motivation
-FSC terraform-modules needs this for pipeline generation.
-
-## Changes
-- Added \`do_thing()\` function
-- Added unit tests
-- Updated documentation
-
-## Test Plan
-- [x] Unit tests pass
-- [x] Lint passes (ruff)
-- [x] Type check passes (mypy)
-
-## FSC Integration
-After merge and release, will be consumed by:
-- FlipsideCrypto/terraform-modules
-
----
-*Contributed by FSC Control Center*"
-```
-
-#### 6. Track in FSC
+### Running Tests
 
 ```bash
-# Create tracking issue in FSC
-gh issue create \
-  --repo FlipsideCrypto/fsc-control-center \
-  --title "🔗 Upstream: jbcom PR #<number>" \
-  --body "Tracking upstream contribution to jbcom.
+# Install tox
+uv tool install tox --with tox-uv --with tox-gh
 
-**PR**: https://github.com/jbcom/jbcom-control-center/pull/<number>
-**Package**: extended-data-types
-**Feature**: <description>
+# Run tests for a package
+tox -e extended-data-types
 
-## Status
-- [ ] PR created
-- [ ] PR reviewed
-- [ ] PR merged
-- [ ] Released to PyPI
-- [ ] FSC updated to use new version"
+# Run all
+tox -e extended-data-types,lifecyclelogging,directed-inputs-class,python-terraform-bridge,vendor-connectors
 ```
 
-## Monitoring jbcom Health
+### Release Process
 
-### Repository Status
-
-```bash
-# Control center health
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh api /repos/jbcom/jbcom-control-center --jq '{
-  open_issues: .open_issues_count,
-  open_prs: .open_issues_count,
-  last_push: .pushed_at
-}'
-
-# CI status
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh run list --repo jbcom/jbcom-control-center --limit 5
-```
-
-### Package Release Status
-
-```bash
-# Check each package's latest release
-for pkg in extended-data-types lifecyclelogging directed-inputs-class vendor-connectors; do
-  echo "=== $pkg ==="
-  GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh release view --repo jbcom/$pkg --json tagName,publishedAt,name 2>/dev/null || echo "No releases"
-done
-```
-
-## Troubleshooting
-
-### Import Errors
-
-If you see import errors after updating:
-
-```python
-# Check installed version
-import extended_data_types
-print(extended_data_types.__version__)
-
-# Check what's available
-dir(extended_data_types)
-```
-
-### Version Conflicts
-
-If packages have conflicting version requirements:
-
-```bash
-# Check dependency tree
-pip show extended-data-types --verbose | grep Requires
-pip show vendor-connectors --verbose | grep Requires
-
-# Check for conflicts
-pip check
-```
-
-### jbcom Wiki Reference
-
-For detailed jbcom documentation:
-- Core Guidelines: https://github.com/jbcom/jbcom-control-center/wiki/Core-Guidelines
-- Python Standards: https://github.com/jbcom/jbcom-control-center/wiki/Python-Standards
-- PR Ownership: https://github.com/jbcom/jbcom-control-center/wiki/PR-Ownership
+See [RELEASE-PROCESS.md](./RELEASE-PROCESS.md)
 
 ---
 
-**Last Updated**: 2025-11-28  
-**jbcom Wiki**: https://github.com/jbcom/jbcom-control-center/wiki
+**Related**: [RELEASE-PROCESS.md](./RELEASE-PROCESS.md), [TOKEN-MANAGEMENT.md](./TOKEN-MANAGEMENT.md)
