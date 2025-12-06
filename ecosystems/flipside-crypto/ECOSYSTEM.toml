@@ -106,7 +106,6 @@ region = "us-east-1"
 
 [agent]
 memory_bank = "memory-bank"
-rules = ".ruler/AGENTS.md"
 
 [agent.fleet]
 counterparty = "jbcom-control-center"

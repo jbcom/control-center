@@ -1,132 +1,67 @@
-# Unified Control Center
+# jbcom Control Center
 
-**Single control surface for jbcom + FlipsideCrypto ecosystems.**
+Central control surface for managing jbcom public repositories and FlipsideCrypto infrastructure.
 
-## What's Managed
+## What This Repo Does
 
-### jbcom Ecosystem (Python Packages → PyPI)
+1. **Syncs secrets** to all jbcom public repos (daily)
+2. **Syncs cursor-rules** to all jbcom public repos (on push)
+3. **Holds FSC infrastructure** (Terraform, SAM, Python libs)
+
+## Structure
 
 ```
-packages/
-├── extended-data-types/    → PyPI: extended-data-types
-├── lifecyclelogging/       → PyPI: lifecyclelogging
-├── directed-inputs-class/  → PyPI: directed-inputs-class
-├── python-terraform-bridge/→ PyPI: python-terraform-bridge
-├── vendor-connectors/      → PyPI: vendor-connectors
-└── agentic-control/        → npm: agentic-control
+.
+├── .github/
+│   ├── sync.yml              # Sync workflow
+│   └── workflows/sync.yml    # Secrets + file sync
+├── cursor-rules/             # Centralized rules (synced out)
+│   ├── core/                 # Fundamentals, PR workflow
+│   ├── languages/            # Python, TypeScript, Go
+│   ├── workflows/            # Releases, CI
+│   ├── Dockerfile            # Universal dev environment
+│   └── environment.json      # Cursor config
+├── ecosystems/flipside-crypto/  # FSC infrastructure
+│   ├── terraform/            # Modules + workspaces
+│   ├── sam/                  # Lambda apps
+│   └── lib/                  # Python utilities
+├── docs/                     # Documentation
+└── memory-bank/              # Agent context
 ```
 
-### FlipsideCrypto Ecosystem (Infrastructure → AWS/GCP)
+## Target Repos
 
-**Production Repos** (consume jbcom packages):
-- `FlipsideCrypto/terraform-modules` - Reusable Terraform modules
-- `fsc-platform/cluster-ops` - Kubernetes cluster operations
-- `fsc-internal-tooling-administration/terraform-organization-administration` - Org-level Terraform
+Secrets and cursor-rules sync to:
+- `jbcom/extended-data-types`
+- `jbcom/lifecyclelogging`
+- `jbcom/directed-inputs-class`
+- `jbcom/python-terraform-bridge`
+- `jbcom/vendor-connectors`
+- `jbcom/agentic-control`
+- `jbcom/vault-secret-sync`
+- `jbcom/cursor-rules`
 
-**Local Infrastructure** (in this repo):
-```
-ecosystems/flipside-crypto/
-├── terraform/modules/     # 100+ reusable modules
-├── terraform/workspaces/  # 44 workspaces
-├── sam/                   # AWS Lambda apps
-├── lib/terraform_modules/ # Python library
-└── config/                # State paths, pipelines
-```
+## FSC Production Repos
 
-## Quick Start
-
-```bash
-# Python packages
-uv sync
-cd packages/extended-data-types && pytest
-
-# Node.js (agentic-control)
-pnpm install
-cd packages/agentic-control && pnpm test
-
-# Terraform (FlipsideCrypto)
-cd ecosystems/flipside-crypto/terraform/workspaces/<workspace>
-terraform init && terraform plan
-```
-
-## Agent Orchestration
-
-This repo includes `agentic-control` - a unified CLI for AI agent management:
-
-```bash
-npm install -g agentic-control
-
-# Initialize configuration
-agentic init
-
-# Spawn agents
-agentic fleet spawn --repo jbcom/jbcom-control-center --task "Fix CI"
-agentic fleet spawn --repo jbcom/vendor-connectors --task "Update dependencies"
-
-# Triage conversations
-agentic triage analyze <session-id>
-```
+These consume jbcom packages:
+- `FlipsideCrypto/terraform-modules`
+- `fsc-platform/cluster-ops`
+- `fsc-internal-tooling-administration/terraform-organization-administration`
 
 ## Token Configuration
 
 ```bash
-# jbcom repos
-export GITHUB_JBCOM_TOKEN="..."
-
-# FlipsideCrypto repos
-export GITHUB_FSC_TOKEN="..."
-
-# Default operations
-export GITHUB_TOKEN="$GITHUB_JBCOM_TOKEN"
+export GITHUB_JBCOM_TOKEN="..."  # jbcom repos
+export GITHUB_FSC_TOKEN="..."    # FlipsideCrypto repos
 ```
 
-All PR reviews use `GITHUB_JBCOM_TOKEN` regardless of target repo.
+## Workflows
 
-## CI/CD
-
-| Ecosystem | Registry | Trigger |
-|-----------|----------|---------|
-| jbcom Python | PyPI | Merge to main + conventional commit |
-| agentic-control | npm | Merge to main + changes detected |
-| FlipsideCrypto | N/A | Terraform apply (manual) |
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `ECOSYSTEM.toml` | Unified ecosystem manifest |
-| `agentic.config.json` | Agent token/org configuration |
-| `packages/*/pyproject.toml` | Python package config |
-| `packages/agentic-control/package.json` | Node.js package config |
-| `ecosystems/flipside-crypto/config/` | Terraform state paths |
-| `.github/workflows/ci.yml` | Unified CI (Python + Node.js) |
-
-## Versioning
-
-- **Python packages**: SemVer via python-semantic-release
-- **agentic-control**: SemVer via conventional commits
-- **Terraform**: State-managed, no version tags
-
-Commit format:
-```bash
-feat(edt): new utility         # → extended-data-types minor
-fix(connectors): handle null   # → vendor-connectors patch
-feat(agentic-control): fleet   # → agentic-control minor
-```
-
-## Cross-Ecosystem Dependencies
-
-```
-jbcom (packages)
-├── extended-data-types (foundation)
-├── lifecyclelogging
-├── directed-inputs-class
-├── vendor-connectors
-│   └── used by → FlipsideCrypto (infrastructure)
-└── agentic-control
-    └── orchestrates → both ecosystems
-```
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `sync.yml` | Daily schedule | Sync secrets to public repos |
+| `sync.yml` | Push to cursor-rules/** | Sync files to public repos |
 
 ---
 
-See `ECOSYSTEM.toml` for complete manifest.
+See `docs/` for detailed documentation.
