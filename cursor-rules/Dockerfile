@@ -95,7 +95,12 @@ RUN corepack enable && \
 # =============================================================================
 # PROCESS COMPOSE
 # =============================================================================
-RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-compose/main/scripts/get-pc.sh)" -- -b /usr/local/bin && \
+RUN PROCESS_COMPOSE_VERSION="v1.35.2" && \
+    ARCH=$(dpkg --print-architecture) && \
+    curl -sSL "" \
+        -o /tmp/process-compose.tar.gz && \
+    tar -xzf /tmp/process-compose.tar.gz -C /usr/local/bin process-compose && \
+    rm /tmp/process-compose.tar.gz && \
     process-compose version
 
 # =============================================================================
