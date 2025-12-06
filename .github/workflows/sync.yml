@@ -35,7 +35,7 @@ jobs:
   sync-secrets:
     name: Sync secrets
     runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' && inputs.sync_secrets
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.sync_secrets)
 
     strategy:
       fail-fast: false
