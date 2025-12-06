@@ -79,7 +79,7 @@ jobs:
   sync-files:
     name: Sync files
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch' && inputs.sync_files
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.sync_files)
 
     steps:
       - uses: actions/checkout@v4
