@@ -196,5 +196,5 @@ Check:
 ## Related
 
 - [`.github/workflows/ci.yml`](/.github/workflows/ci.yml) - CI configuration
-- [`.github/workflows/secrets-sync.yml`](/.github/workflows/secrets-sync.yml) - Secrets sync
+- [`.github/workflows/sync.yml`](/.github/workflows/sync.yml) - Secrets sync
 - [`ECOSYSTEM.toml`](/ECOSYSTEM.toml) - Package manifest
