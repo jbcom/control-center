@@ -62,8 +62,17 @@ jobs:
     steps:
       - name: Sync secrets to ${{ matrix.repo }}
         # jpoehnelt/secrets-sync-action v1.10.0
+        # Docs: https://github.com/jpoehnelt/secrets-sync-action
         uses: jpoehnelt/secrets-sync-action@7840777f242539d96b60477b66aa1c179e7644ea
         with:
+          # Required: PAT with repo scope for target repositories
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          # Required: List of target repositories (not regex - see repositories_list_regex)
+          repositories: |
+            ${{ matrix.repo }}
+          # Set to false to use hardcoded repo list instead of regex matching
+          repositories_list_regex: "false"
+          # Required: Regex patterns to match secret names from env
           secrets: |
             ^CI_GITHUB_TOKEN$
             ^PYPI_TOKEN$
@@ -71,11 +80,10 @@ jobs:
             ^DOCKERHUB_USERNAME$
             ^DOCKERHUB_TOKEN$
             ^ANTHROPIC_API_KEY$
-          repositories: |
-            ${{ matrix.repo }}
+          # Optional: Don't actually sync, just show what would happen
           dry_run: ${{ inputs.dry_run || false }}
         env:
-          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          # Secrets to sync - these are matched against the 'secrets' regex patterns above
           CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           PYPI_TOKEN: ${{ secrets.PYPI_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -97,17 +105,25 @@ jobs:
 
     steps:
       # actions/checkout v4.2.2
+      # Docs: https://github.com/actions/checkout
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Sync files to public repos
         # BetaHuhn/repo-file-sync-action v1.21.1
+        # Docs: https://github.com/BetaHuhn/repo-file-sync-action
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
         with:
+          # Required: PAT with full repo scope
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          # Path to sync configuration file
           CONFIG_PATH: .github/sync.yml
+          # Labels to add to PRs
           PR_LABELS: sync,automated
+          # Prefix for commit messages
           COMMIT_PREFIX: "🔄"
+          # Don't actually sync, just show what would happen
           DRY_RUN: ${{ inputs.dry_run || false }}
+          # PR description body
           PR_BODY: |
             Syncs centralized configs from jbcom-control-center.
 
