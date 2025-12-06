@@ -7,7 +7,7 @@ on:
       - "cursor-rules/**"
       - ".github/sync.yml"
   schedule:
-    # Secrets sync daily at midnight UTC
+    # Sync daily at midnight UTC
     - cron: "0 0 * * *"
   workflow_dispatch:
     inputs:
@@ -17,6 +17,10 @@ on:
         default: true
       sync_files:
         description: "Sync files"
+        type: boolean
+        default: true
+      sync_branch_protection:
+        description: "Sync branch protection rules"
         type: boolean
         default: true
       dry_run:
@@ -99,3 +103,50 @@ jobs:
 
             ---
             _Automated by [repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action)_
+
+  # ============================================
+  # BRANCH PROTECTION SYNC
+  # ============================================
+  sync-branch-protection:
+    name: Sync branch protection
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.sync_branch_protection)
+
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - jbcom/extended-data-types
+          - jbcom/lifecyclelogging
+          - jbcom/directed-inputs-class
+          - jbcom/python-terraform-bridge
+          - jbcom/vendor-connectors
+          - jbcom/agentic-control
+          - jbcom/vault-secret-sync
+          - jbcom/cursor-rules
+
+    steps:
+      - name: Apply branch protection to ${{ matrix.repo }}
+        if: ${{ !inputs.dry_run }}
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Agent-managed repos: no required reviews, allow force pushes for releases
+          gh api repos/${{ matrix.repo }}/branches/main/protection -X PUT --input - <<'EOF'
+          {
+            "required_status_checks": null,
+            "enforce_admins": false,
+            "required_pull_request_reviews": null,
+            "restrictions": null,
+            "required_linear_history": true,
+            "allow_force_pushes": true,
+            "allow_deletions": false
+          }
+          EOF
+          echo "✅ Applied branch protection to ${{ matrix.repo }}"
+
+      - name: Dry run - would apply to ${{ matrix.repo }}
+        if: ${{ inputs.dry_run }}
+        run: |
+          echo "🔍 DRY RUN: Would apply branch protection to ${{ matrix.repo }}"
+          echo "Settings: no required reviews, allow force pushes, linear history"
