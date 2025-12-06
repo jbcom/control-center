@@ -11,7 +11,7 @@
    - File sync: BetaHuhn/repo-file-sync-action (on push to cursor-rules/**)
    - Targets all jbcom public repos
 
-3. **Cursor Rules Centralized**
+2. **Cursor Rules Centralized**
    - Created `cursor-rules/` directory with:
      - `core/` - Fundamentals, PR workflow, memory bank
      - `languages/` - Python, TypeScript, Go standards
