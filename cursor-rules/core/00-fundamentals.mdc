@@ -29,7 +29,7 @@ alwaysApply: true
 
 ```bash
 # jbcom repos - ALWAYS use this pattern
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh <command>
+GH_TOKEN="$GITHUB_TOKEN" gh <command>
 ```
 
 ## Session Management
