@@ -1,5 +1,46 @@
 # Session Progress Log
 
+## Session: 2025-12-06 (Repository Reorganization)
+
+### What Was Done
+
+1. **Unified Sync Workflow Created**
+   - `.github/workflows/sync.yml`
+   - Combines secrets sync + file sync in one workflow
+   - Secrets sync: google/secrets-sync-action (daily schedule)
+   - File sync: BetaHuhn/repo-file-sync-action (on push to cursor-rules/**)
+   - Targets all jbcom public repos
+
+2. **Cursor Rules Centralized**
+   - Created `cursor-rules/` directory with:
+     - `core/` - Fundamentals, PR workflow, memory bank
+     - `languages/` - Python, TypeScript, Go standards
+     - `workflows/` - Releases, CI patterns
+     - `Dockerfile` - Universal dev environment (Python 3.13, Node 24, Go 1.24)
+     - `environment.json` - Cursor environment config
+
+4. **Sync Configuration Created**
+   - `.github/sync.yml` - Maps cursor-rules to target repos
+
+5. **Documentation Migrated from OSS Repo**
+   - `docs/RELEASE-PROCESS.md`
+   - `docs/OSS-MIGRATION-CLOSEOUT.md`
+
+### Context
+
+- Reviewed jbcom-oss-ecosystem PR #61 (migration to individual repos)
+- Reviewed jbcom/cursor-rules repo for DRYing
+- Decision: OSS ecosystem repo to be archived, control center is source of truth
+
+### For Next Session
+
+- [ ] Merge PR #61 in jbcom-oss-ecosystem
+- [ ] Archive jbcom-oss-ecosystem
+- [ ] Trigger sync workflows and verify
+- [ ] Optional: Clean up old .cursor/agents/ files
+
+---
+
 ## Session: 2025-12-02 (Fleet Delegation Session)
 
 ### vault-secret-sync Fork Enhancement

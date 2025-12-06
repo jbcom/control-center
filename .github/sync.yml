@@ -1,18 +1,225 @@
-# Sync configuration for BetaHuhn/repo-file-sync-action
-# Source: jbcom-control-center → Target: public repos
+# Centralized file sync configuration
+# Syncs cursor rules, Dockerfiles, docs templates, and shared configs to all jbcom repos
+#
+# Source: jbcom/jbcom-control-center (this repo)
+# Action: BetaHuhn/repo-file-sync-action
+
+# ============================================
+# PYTHON PACKAGES
+# ============================================
 
 jbcom/extended-data-types:
-  - source: packages/extended-data-types/
-    dest: .
+  # Cursor rules
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+  # Docs scaffold
+  - source: cursor-rules/docs-templates/docs.yml
+    dest: .github/workflows/docs.yml
+  - source: cursor-rules/docs-templates/conf.py
+    dest: docs/conf.py
+  - source: cursor-rules/docs-templates/Makefile
+    dest: docs/Makefile
+  - source: cursor-rules/docs-templates/index.rst
+    dest: docs/index.rst
+  - source: cursor-rules/docs-templates/.nojekyll
+    dest: docs/.nojekyll
+  - source: cursor-rules/docs-templates/_static/
+    dest: docs/_static/
+  - source: cursor-rules/docs-templates/_templates/
+    dest: docs/_templates/
+  - source: cursor-rules/docs-templates/getting-started/
+    dest: docs/getting-started/
+  - source: cursor-rules/docs-templates/api/
+    dest: docs/api/
+  - source: cursor-rules/docs-templates/development/
+    dest: docs/development/
 
 jbcom/lifecyclelogging:
-  - source: packages/lifecyclelogging/
-    dest: .
+  # Cursor rules
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+  # Docs scaffold
+  - source: cursor-rules/docs-templates/docs.yml
+    dest: .github/workflows/docs.yml
+  - source: cursor-rules/docs-templates/conf.py
+    dest: docs/conf.py
+  - source: cursor-rules/docs-templates/Makefile
+    dest: docs/Makefile
+  - source: cursor-rules/docs-templates/index.rst
+    dest: docs/index.rst
+  - source: cursor-rules/docs-templates/.nojekyll
+    dest: docs/.nojekyll
+  - source: cursor-rules/docs-templates/_static/
+    dest: docs/_static/
+  - source: cursor-rules/docs-templates/_templates/
+    dest: docs/_templates/
+  - source: cursor-rules/docs-templates/getting-started/
+    dest: docs/getting-started/
+  - source: cursor-rules/docs-templates/api/
+    dest: docs/api/
+  - source: cursor-rules/docs-templates/development/
+    dest: docs/development/
 
 jbcom/directed-inputs-class:
-  - source: packages/directed-inputs-class/
-    dest: .
+  # Cursor rules
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+  # Docs scaffold
+  - source: cursor-rules/docs-templates/docs.yml
+    dest: .github/workflows/docs.yml
+  - source: cursor-rules/docs-templates/conf.py
+    dest: docs/conf.py
+  - source: cursor-rules/docs-templates/Makefile
+    dest: docs/Makefile
+  - source: cursor-rules/docs-templates/index.rst
+    dest: docs/index.rst
+  - source: cursor-rules/docs-templates/.nojekyll
+    dest: docs/.nojekyll
+  - source: cursor-rules/docs-templates/_static/
+    dest: docs/_static/
+  - source: cursor-rules/docs-templates/_templates/
+    dest: docs/_templates/
+  - source: cursor-rules/docs-templates/getting-started/
+    dest: docs/getting-started/
+  - source: cursor-rules/docs-templates/api/
+    dest: docs/api/
+  - source: cursor-rules/docs-templates/development/
+    dest: docs/development/
+
+jbcom/python-terraform-bridge:
+  # Cursor rules
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+  # Docs scaffold
+  - source: cursor-rules/docs-templates/docs.yml
+    dest: .github/workflows/docs.yml
+  - source: cursor-rules/docs-templates/conf.py
+    dest: docs/conf.py
+  - source: cursor-rules/docs-templates/Makefile
+    dest: docs/Makefile
+  - source: cursor-rules/docs-templates/index.rst
+    dest: docs/index.rst
+  - source: cursor-rules/docs-templates/.nojekyll
+    dest: docs/.nojekyll
+  - source: cursor-rules/docs-templates/_static/
+    dest: docs/_static/
+  - source: cursor-rules/docs-templates/_templates/
+    dest: docs/_templates/
+  - source: cursor-rules/docs-templates/getting-started/
+    dest: docs/getting-started/
+  - source: cursor-rules/docs-templates/api/
+    dest: docs/api/
+  - source: cursor-rules/docs-templates/development/
+    dest: docs/development/
 
 jbcom/vendor-connectors:
-  - source: packages/vendor-connectors/
+  # Cursor rules
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+  # Docs scaffold
+  - source: cursor-rules/docs-templates/docs.yml
+    dest: .github/workflows/docs.yml
+  - source: cursor-rules/docs-templates/conf.py
+    dest: docs/conf.py
+  - source: cursor-rules/docs-templates/Makefile
+    dest: docs/Makefile
+  - source: cursor-rules/docs-templates/index.rst
+    dest: docs/index.rst
+  - source: cursor-rules/docs-templates/.nojekyll
+    dest: docs/.nojekyll
+  - source: cursor-rules/docs-templates/_static/
+    dest: docs/_static/
+  - source: cursor-rules/docs-templates/_templates/
+    dest: docs/_templates/
+  - source: cursor-rules/docs-templates/getting-started/
+    dest: docs/getting-started/
+  - source: cursor-rules/docs-templates/api/
+    dest: docs/api/
+  - source: cursor-rules/docs-templates/development/
+    dest: docs/development/
+
+# ============================================
+# NODE.JS / TYPESCRIPT PACKAGES
+# ============================================
+
+jbcom/agentic-control:
+  # Cursor rules only - already has custom docs setup
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/typescript.mdc
+    dest: .cursor/rules/languages/typescript.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+# ============================================
+# GO PACKAGES
+# ============================================
+
+jbcom/vault-secret-sync:
+  # Cursor rules only - Go uses different doc tooling
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/go.mdc
+    dest: .cursor/rules/languages/go.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+# ============================================
+# CURSOR RULES REPO
+# ============================================
+
+jbcom/cursor-rules:
+  - source: cursor-rules/
     dest: .
+    exclude: |
+      .git
+      README.md
+      docs-templates/

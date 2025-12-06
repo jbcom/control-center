@@ -19,6 +19,12 @@
         "tokenEnvVar": "GITHUB_FSC_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
+      },
+      "": {
+        "name": "",
+        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",

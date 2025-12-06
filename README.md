@@ -1,138 +1,67 @@
-# Unified Control Center
+# jbcom Control Center
 
-**Single control surface for jbcom +  ecosystems.**
+Central control surface for managing jbcom public repositories and  infrastructure.
 
-## What's Managed
+## What This Repo Does
 
-### jbcom Ecosystem (Python Packages → PyPI)
+1. **Syncs secrets** to all jbcom public repos (daily)
+2. **Syncs cursor-rules** to all jbcom public repos (on push)
+3. **Holds FSC infrastructure** (Terraform, SAM, Python libs)
 
-```
-packages/
-├── extended-data-types/    → PyPI: extended-data-types
-├── lifecyclelogging/       → PyPI: lifecyclelogging
-├── directed-inputs-class/  → PyPI: directed-inputs-class
-├── python-terraform-bridge/→ PyPI: python-terraform-bridge
-├── vendor-connectors/      → PyPI: vendor-connectors
-└── agentic-control/        → npm: agentic-control
-```
-
-###  Ecosystem (Infrastructure → AWS/GCP)
+## Structure
 
 ```
-ecosystems//
-├── terraform/
-│   ├── modules/           # 30 module categories (100+ modules)
-│   │   ├── aws/           # AWS infrastructure
-│   │   ├── google/        # Google Cloud
-│   │   ├── github/        # GitHub management
-│   │   └── terraform/     # Pipeline generation
-│   └── workspaces/        # 44 workspaces
-│       ├── terraform-aws-organization/    # 37 AWS workspaces
-│       └── terraform-google-organization/ # 7 GCP workspaces
-├── sam/                   # AWS Lambda applications
-│   ├── secrets-config/
-│   ├── secrets-merging/
-│   └── secrets-syncing/
-├── lib/                   # Python libraries
-│   └── terraform_modules/
-├── config/                # State paths, pipelines
-└── memory-bank/           # Agent context
+.
+├── .github/
+│   ├── sync.yml              # Sync workflow
+│   └── workflows/sync.yml    # Secrets + file sync
+├── cursor-rules/             # Centralized rules (synced out)
+│   ├── core/                 # Fundamentals, PR workflow
+│   ├── languages/            # Python, TypeScript, Go
+│   ├── workflows/            # Releases, CI
+│   ├── Dockerfile            # Universal dev environment
+│   └── environment.json      # Cursor config
+├── ecosystems//  # FSC infrastructure
+│   ├── terraform/            # Modules + workspaces
+│   ├── sam/                  # Lambda apps
+│   └── lib/                  # Python utilities
+├── docs/                     # Documentation
+└── memory-bank/              # Agent context
 ```
 
-## Quick Start
+## Target Repos
 
-```bash
-# Python packages
-uv sync
-cd packages/extended-data-types && pytest
+Secrets and cursor-rules sync to:
+- `jbcom/extended-data-types`
+- `jbcom/lifecyclelogging`
+- `jbcom/directed-inputs-class`
+- `jbcom/python-terraform-bridge`
+- `jbcom/vendor-connectors`
+- `jbcom/agentic-control`
+- `jbcom/vault-secret-sync`
+- `jbcom/cursor-rules`
 
-# Node.js (agentic-control)
-pnpm install
-cd packages/agentic-control && pnpm test
+## FSC Production Repos
 
-# Terraform ()
-cd ecosystems//terraform/workspaces/<workspace>
-terraform init && terraform plan
-```
-
-## Agent Orchestration
-
-This repo includes `agentic-control` - a unified CLI for AI agent management:
-
-```bash
-npm install -g agentic-control
-
-# Initialize configuration
-agentic init
-
-# Spawn agents
-agentic fleet spawn --repo jbcom/jbcom-control-center --task "Fix CI"
-agentic fleet spawn --repo /fsc-control-center --task "Update modules"
-
-# Triage conversations
-agentic triage analyze <session-id>
-```
+These consume jbcom packages:
+- `/terraform-modules`
+- `/cluster-ops`
+- `/terraform-organization-administration`
 
 ## Token Configuration
 
 ```bash
-# jbcom repos
-export GITHUB_JBCOM_TOKEN="..."
-
-#  repos
-export GITHUB_FSC_TOKEN="..."
-
-# Default operations
-export GITHUB_TOKEN="$GITHUB_JBCOM_TOKEN"
+export GITHUB_JBCOM_TOKEN="..."  # jbcom repos
+export GITHUB_FSC_TOKEN="..."    #  repos
 ```
 
-All PR reviews use `GITHUB_JBCOM_TOKEN` regardless of target repo.
+## Workflows
 
-## CI/CD
-
-| Ecosystem | Registry | Trigger |
-|-----------|----------|---------|
-| jbcom Python | PyPI | Merge to main + conventional commit |
-| agentic-control | npm | Merge to main + changes detected |
-|  | N/A | Terraform apply (manual) |
-
-## Key Files
-
-| File | Purpose |
-|------|---------|
-| `ECOSYSTEM.toml` | Unified ecosystem manifest |
-| `agentic.config.json` | Agent token/org configuration |
-| `packages/*/pyproject.toml` | Python package config |
-| `packages/agentic-control/package.json` | Node.js package config |
-| `ecosystems//config/` | Terraform state paths |
-| `.github/workflows/ci.yml` | Unified CI (Python + Node.js) |
-
-## Versioning
-
-- **Python packages**: SemVer via python-semantic-release
-- **agentic-control**: SemVer via conventional commits
-- **Terraform**: State-managed, no version tags
-
-Commit format:
-```bash
-feat(edt): new utility         # → extended-data-types minor
-fix(connectors): handle null   # → vendor-connectors patch
-feat(agentic-control): fleet   # → agentic-control minor
-```
-
-## Cross-Ecosystem Dependencies
-
-```
-jbcom (packages)
-├── extended-data-types (foundation)
-├── lifecyclelogging
-├── directed-inputs-class
-├── vendor-connectors
-│   └── used by →  (infrastructure)
-└── agentic-control
-    └── orchestrates → both ecosystems
-```
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `sync.yml` | Daily schedule | Sync secrets to public repos |
+| `sync.yml` | Push to cursor-rules/** | Sync files to public repos |
 
 ---
 
-See `ECOSYSTEM.toml` for complete manifest.
+See `docs/` for detailed documentation.

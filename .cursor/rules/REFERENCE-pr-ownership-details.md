@@ -62,7 +62,7 @@ Actionable: YES
 ```
 
 #### Step 2: Evaluate Against Project Rules
-- Check if feedback contradicts `.ruler/AGENTS.md` or `.cursorrules`
+- Check if feedback contradicts project rules (`.cursor/rules/*.mdc`)
 - Our python-semantic-release SemVer workflow is intentional → politely decline manual versioning suggestions
 - Security issues → ALWAYS address, no exceptions
 - Style preferences → defer to our ruff configuration
@@ -84,7 +84,7 @@ Changes committed in <commit-hash>. Please verify the fix addresses your concern
 ```markdown
 @gemini-code-assist Thank you for the suggestion to bump versions manually. 
 
-However, this project intentionally uses python-semantic-release (SemVer) with automatic releases. This is documented in `.ruler/AGENTS.md` under "CI/CD Workflow Design Philosophy".
+However, this project uses automated versioning through CI/CD. Manual version changes are not needed.
 
 Our approach:
 - ✅ SemVer via python-semantic-release
@@ -92,7 +92,7 @@ Our approach:
 - ✅ Auto-release on every main push
 - ✅ Battle-tested in production
 
-For more details, see lines 39-100 in `.ruler/AGENTS.md`.
+See the project's cursor rules for more details.
 ```
 
 **Template for requesting clarification:**
@@ -167,7 +167,7 @@ gh pr comment <NUM> --body "@copilot @gemini-code-assist This PR updates Docker 
 When multiple AI agents give conflicting advice:
 
 ### Priority Order
-1. **Project rules** (`.ruler/AGENTS.md`, `.cursorrules`) - ALWAYS highest priority
+1. **Project rules** (`.cursor/rules/*.mdc`) - ALWAYS highest priority
 2. **Security concerns** - Always address, regardless of source
 3. **Performance issues** - Evaluate based on profiling/evidence
 4. **Style preferences** - Defer to ruff/mypy/project config
@@ -188,7 +188,7 @@ Based on project requirements:
 - Constraint: <specific constraint>
 
 I'm choosing **approach X** because:
-1. Aligns with project rule in `.ruler/AGENTS.md` (lines X-Y)
+1. Aligns with project rules in `.cursor/rules/`
 2. Consistent with existing pattern in <file>
 3. Better performance characteristics for our use case
 
@@ -326,7 +326,7 @@ AGENT ACTION LOG:
 ```markdown
 AGENT ACTION LOG:
 1. Parse feedback: "Add semantic-release"
-2. Check rules: `.ruler/AGENTS.md` lines 39-100 → python-semantic-release SemVer is already standard
+2. Check rules: Project uses automated versioning via CI/CD
 3. Severity: N/A (contradicts project rules)
 4. Respond: Politely decline with explanation (see template above)
 5. Reference: Link to specific documentation

@@ -161,14 +161,7 @@ cp aws-iac new-server
 chmod +x new-server
 ```
 
-### 3. Add to .ruler/ruler.toml
-```toml
-[mcp_servers.new-server]
-command = "uvx"
-args = ["package@latest"]
-```
-
-### 4. Update agent rules
+### 3. Update agent rules
 Document new wrapper in `.cursor/rules/` as needed.
 
 ## Security

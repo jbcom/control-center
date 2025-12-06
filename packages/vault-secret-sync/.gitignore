@@ -1,6 +1,0 @@
-.env
-*.swp
-.DS_Store
-data/
-config.yaml
-devcerts/vault-secret-sync
