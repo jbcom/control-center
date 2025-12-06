@@ -1,18 +1,104 @@
-# Sync configuration for BetaHuhn/repo-file-sync-action
-# Source: jbcom-control-center → Target: public repos
+# Centralized file sync configuration
+# Syncs cursor rules, Dockerfiles, and shared configs to all jbcom repos
+#
+# Source: jbcom/jbcom-control-center (this repo)
+# Action: BetaHuhn/repo-file-sync-action
 
+# ============================================
+# CURSOR RULES - Synced to all repos
+# ============================================
+
+# Python packages
 jbcom/extended-data-types:
-  - source: packages/extended-data-types/
-    dest: .
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
 
 jbcom/lifecyclelogging:
-  - source: packages/lifecyclelogging/
-    dest: .
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
 
 jbcom/directed-inputs-class:
-  - source: packages/directed-inputs-class/
-    dest: .
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+jbcom/python-terraform-bridge:
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
 
 jbcom/vendor-connectors:
-  - source: packages/vendor-connectors/
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/python.mdc
+    dest: .cursor/rules/languages/python.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+# Node.js / TypeScript packages
+jbcom/agentic-control:
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/typescript.mdc
+    dest: .cursor/rules/languages/typescript.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+# Go packages
+jbcom/vault-secret-sync:
+  - source: cursor-rules/core/
+    dest: .cursor/rules/core/
+  - source: cursor-rules/languages/go.mdc
+    dest: .cursor/rules/languages/go.mdc
+  - source: cursor-rules/workflows/
+    dest: .cursor/rules/workflows/
+  - source: cursor-rules/Dockerfile
+    dest: .cursor/Dockerfile
+  - source: cursor-rules/environment.json
+    dest: .cursor/environment.json
+
+# Cursor Rules repo itself (sync all rules)
+jbcom/cursor-rules:
+  - source: cursor-rules/
     dest: .
+    exclude: |
+      .git
+      README.md

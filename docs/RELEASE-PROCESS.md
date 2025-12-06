@@ -2,13 +2,13 @@
 
 ## Overview
 
-The unified control center uses automated releases:
+This monorepo uses automated releases:
 
 | Package Type | Tool | Registry | Versioning |
 |--------------|------|----------|------------|
 | Python | python-semantic-release | PyPI | SemVer |
 | Node.js | Custom CI | npm | SemVer |
-| Terraform | N/A | N/A | State-managed |
+| Go | Custom CI | Docker Hub | SemVer |
 
 ## Automated Release Flow
 
@@ -91,6 +91,19 @@ Same rules as Python:
 
 Version is determined by CI script analyzing commits since last `agentic-control-v*` tag.
 
+## Go Package (vault-secret-sync)
+
+### Trigger
+
+Releases triggered when:
+1. Changes detected in `packages/vault-secret-sync/`
+2. Conventional commits present since last tag
+
+### Artifacts
+
+- **Docker Image**: `docker.io/jbcom/vault-secret-sync:<version>`
+- **Helm Chart**: `oci://docker.io/jbcom/vault-secret-sync:<version>`
+
 ## Manual Releases
 
 ### When Needed
@@ -117,6 +130,18 @@ git tag agentic-control-v<version>
 git push --tags
 ```
 
+### Go Package
+
+```bash
+cd packages/vault-secret-sync
+# Update version in Chart.yaml
+docker build -t jbcom/vault-secret-sync:<version> .
+docker push jbcom/vault-secret-sync:<version>
+helm push vault-secret-sync-<version>.tgz oci://docker.io/jbcom
+git tag vault-secret-sync-v<version>
+git push --tags
+```
+
 ## Public Repo Sync
 
 After release, packages sync to public repos:
@@ -129,17 +154,23 @@ After release, packages sync to public repos:
 | python-terraform-bridge | jbcom/python-terraform-bridge |
 | vendor-connectors | jbcom/vendor-connectors |
 | agentic-control | jbcom/agentic-control |
+| vault-secret-sync | jbcom/vault-secret-sync |
 
 Sync config in `.github/sync/<package>.yml`.
 
 ## Trusted Publishing
 
-Both PyPI and npm use trusted publishing (OIDC):
+Both PyPI and npm use token-based publishing:
 
-- **PyPI**: GitHub Actions OIDC → PyPI trusted publisher
-- **npm**: `--provenance` flag adds SIGSTORE attestation
+- **PyPI**: `PYPI_TOKEN` secret
+- **npm**: `NPM_TOKEN` secret
+- **Docker Hub**: `DOCKERHUB_TOKEN` secret
 
-No tokens stored for publishing - identity verified via OIDC.
+## Secrets Sync
+
+Secrets are synced from this control center to all public repos via:
+- `.github/workflows/secrets-sync.yml`
+- Uses `google/secrets-sync-action`
 
 ## Troubleshooting
 
@@ -158,11 +189,12 @@ Tag or version already published. Either:
 ### "Publish failed"
 
 Check:
-- Trusted publisher configured on registry
-- CI has `id-token: write` permission
+- Token secrets configured
+- CI has required permissions
 - Package name available
 
 ## Related
 
 - [`.github/workflows/ci.yml`](/.github/workflows/ci.yml) - CI configuration
+- [`.github/workflows/secrets-sync.yml`](/.github/workflows/secrets-sync.yml) - Secrets sync
 - [`ECOSYSTEM.toml`](/ECOSYSTEM.toml) - Package manifest

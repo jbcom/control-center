@@ -1,62 +1,84 @@
 # Active Context - Unified Control Center
 
-## Current Status: VAULT-SECRET-SYNC INTEGRATION IN PROGRESS
+## Current Status: REPOSITORY REORGANIZATION COMPLETE
 
-Agent `bc-57959d6c` has recovered from `bc-f49e8766` and is now integrating vault-secret-sync into the monorepo.
+Agent session completed major reorganization:
 
-### PR #311: vault-secret-sync Monorepo Integration
-- **Status**: CI running, AI peer reviews requested
-- **URL**: https://github.com/jbcom/jbcom-control-center/pull/311
-- **Features**:
-  - Full Go source in `packages/vault-secret-sync/`
-  - CI/CD: build, test, lint for Go
-  - Docker Hub publishing: `docker.io/jbcom/vault-secret-sync`
-  - Helm OCI publishing: `oci://docker.io/jbcom/vault-secret-sync`
-  - Sync to jbcom/vault-secret-sync fork
+1. ✅ Created secrets-sync-action workflow
+2. ✅ Created repo-file-sync-action workflow
+3. ✅ Built centralized cursor-rules directory
+4. ✅ Created universal Dockerfile (Python/TypeScript/Go)
+5. ✅ Migrated documentation from OSS repo
+6. ✅ DRYed out cursor rules
 
-## Recovery Summary (Agent bc-f49e8766)
+## What Was Created
 
-### Completed Work (16 tasks)
-1. Fixed model IDs: `claude-4-opus` → `claude-sonnet-4-5-20250929`
-2. Removed deprecated `cursor-fleet` package
-3. Consolidated all fleet tooling to `agentic` CLI
-4. Added `fsc-platform` org to `agentic.config.json`
-5. Recovered agent bc-e8225222's work history
-6. Fixed security issues in cluster-ops PR #154
-7. Fixed critical bugs in data-platform-secrets-syncing PRs
-8. Resolved 37 PR review threads via GraphQL
-9. Integrated SOPS + KSOPS for secrets bootstrap
-10. Forked vault-secret-sync to jbcom with Doppler + AWS Identity Center stores
-11. Spawned vault-secret-sync sub-agent (bc-d68dcb7c - FINISHED)
+### Secrets Sync Workflow
+- **File**: `.github/workflows/secrets-sync.yml`
+- **Purpose**: Sync secrets from control center to all public repos
+- **Schedule**: Daily at midnight UTC
+- **Secrets**: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
 
-### Sub-Agent Spawned
-- **bc-d68dcb7c** (jbcom/vault-secret-sync): Completed 15 tasks, lint issues remain
+### Centralized Sync Workflow
+- **File**: `.github/workflows/sync-centralized.yml`
+- **Purpose**: Sync cursor-rules to all public repos
+- **Trigger**: Push to main on cursor-rules/** paths
 
-## PRs Under Management
+### Cursor Rules Directory
+- **Location**: `/workspace/cursor-rules/`
+- **Structure**:
+  ```
+  cursor-rules/
+  ├── core/               # Fundamentals, PR workflow, memory bank
+  ├── languages/          # Python, TypeScript, Go standards
+  ├── workflows/          # Releases, CI patterns
+  ├── Dockerfile          # Universal dev environment
+  └── environment.json    # Cursor environment config
+  ```
 
-| Repo | PR | Status | Action Needed |
-|------|-----|--------|---------------|
-| jbcom/jbcom-control-center | #309 | ✅ CI GREEN | **MERGE** - Fixes agentic-control |
-| jbcom/jbcom-control-center | #308 | ✅ CI GREEN | Merge (docs) |
-| jbcom/vault-secret-sync | #1 | ⚠️ Lint failing | Fix errcheck violations |
-| fsc-platform/cluster-ops | #154 | ✅ CI GREEN | Monitor for feedback |
+### Sync Configuration
+- **File**: `.github/sync.yml`
+- **Targets**: All jbcom public repos
+- **Syncs**: cursor-rules → .cursor/
 
-## Outstanding Tasks
-1. **CRITICAL**: Merge PR #309 (fixes agentic-control model IDs)
-2. **CRITICAL**: Fix vault-secret-sync lint errors (21 errcheck violations)
-3. **HIGH**: Merge PR #1 after lint fix
-4. **HIGH**: Monitor cluster-ops PR #154
-5. **MEDIUM**: Merge PR #308 (docs)
+### Documentation Migrated
+- `/docs/RELEASE-PROCESS.md` - From OSS repo
+- `/docs/OSS-MIGRATION-CLOSEOUT.md` - Migration summary
 
-## Blockers
-1. Cursor cloud agents cannot access fsc-platform/cluster-ops (internal error)
-2. Pre-existing lint issues in upstream vault-secret-sync code
+## For Next Agent
 
-## Key Recovery Artifacts
-- `/workspace/.cursor/recovery/bc-f49e8766-0c4d-409a-b663-d72fb401bdcb/RECOVERY_SUMMARY.md`
-- `/tmp/agent-f49e8766-report.md`
-- `/tmp/agent-d68dcb7c-report.md`
+### To Complete OSS Closeout
+
+1. **Close PR #61 in jbcom-oss-ecosystem**:
+   ```bash
+   GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge 61 --repo jbcom/jbcom-oss-ecosystem --squash
+   ```
+
+2. **Archive jbcom-oss-ecosystem**:
+   - Go to repo settings
+   - Archive the repository
+
+3. **Verify Sync Workflows**:
+   - Trigger secrets-sync manually to verify
+   - Push a change to cursor-rules/ to trigger file sync
+   - Review PRs created in target repos
+
+### Optional Cleanup
+
+- Remove old `.cursor/agents/` session files if no longer needed
+- Consolidate `.ruler/` with `cursor-rules/` if desired
+- Update ECOSYSTEM.toml if package structure changed
+
+## Key Files
+
+| File | Purpose |
+|------|---------|
+| `.github/workflows/secrets-sync.yml` | Secrets propagation |
+| `.github/workflows/sync-centralized.yml` | File sync |
+| `.github/sync.yml` | Sync targets and mappings |
+| `cursor-rules/` | DRY cursor rules source |
+| `docs/OSS-MIGRATION-CLOSEOUT.md` | Migration documentation |
 
 ---
-*Updated by agent bc-57959d6c via recovery takeover*
-*Timestamp: 2025-12-02*
+*Updated by agent: 2025-12-06*
+*Task: Repository reorganization and OSS migration closeout*
