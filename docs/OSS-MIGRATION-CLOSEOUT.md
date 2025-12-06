@@ -77,22 +77,16 @@ jbcom/<package> (PUBLIC)
 
 ## Sync Workflows
 
-### Secrets Sync
+### Unified Sync
 
 ```yaml
-# .github/workflows/secrets-sync.yml
-# Syncs: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
+# .github/workflows/sync.yml
+# Secrets sync: Daily schedule + manual trigger
+#   - CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
+# File sync: Push to cursor-rules/** + manual trigger
+#   - cursor-rules/ → .cursor/rules/
+#   - cursor-rules/Dockerfile → .cursor/Dockerfile
 # Target: All public jbcom repos
-# Schedule: Daily at midnight UTC
-```
-
-### File Sync
-
-```yaml
-# .github/workflows/sync-centralized.yml
-# Syncs: cursor-rules/ → .cursor/rules/
-# Syncs: cursor-rules/Dockerfile → .cursor/Dockerfile
-# Trigger: Push to main on cursor-rules/** paths
 ```
 
 ### Release Sync

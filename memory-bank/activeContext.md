@@ -13,16 +13,12 @@ Agent session completed major reorganization:
 
 ## What Was Created
 
-### Secrets Sync Workflow
-- **File**: `.github/workflows/secrets-sync.yml`
-- **Purpose**: Sync secrets from control center to all public repos
-- **Schedule**: Daily at midnight UTC
+### Unified Sync Workflow
+- **File**: `.github/workflows/sync.yml`
+- **Purpose**: Sync secrets AND files to all public repos
+- **Secrets sync**: Daily schedule + manual trigger
+- **File sync**: Push to cursor-rules/** + manual trigger
 - **Secrets**: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
-
-### Centralized Sync Workflow
-- **File**: `.github/workflows/sync-centralized.yml`
-- **Purpose**: Sync cursor-rules to all public repos
-- **Trigger**: Push to main on cursor-rules/** paths
 
 ### Cursor Rules Directory
 - **Location**: `/workspace/cursor-rules/`
@@ -73,8 +69,7 @@ Agent session completed major reorganization:
 
 | File | Purpose |
 |------|---------|
-| `.github/workflows/secrets-sync.yml` | Secrets propagation |
-| `.github/workflows/sync-centralized.yml` | File sync |
+| `.github/workflows/sync.yml` | Secrets + file sync |
 | `.github/sync.yml` | Sync targets and mappings |
 | `cursor-rules/` | DRY cursor rules source |
 | `docs/OSS-MIGRATION-CLOSEOUT.md` | Migration documentation |

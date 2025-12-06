@@ -4,18 +4,12 @@
 
 ### What Was Done
 
-1. **Secrets Sync Workflow Created**
-   - `.github/workflows/secrets-sync.yml`
-   - Uses google/secrets-sync-action
-   - Syncs CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
+1. **Unified Sync Workflow Created**
+   - `.github/workflows/sync.yml`
+   - Combines secrets sync + file sync in one workflow
+   - Secrets sync: google/secrets-sync-action (daily schedule)
+   - File sync: BetaHuhn/repo-file-sync-action (on push to cursor-rules/**)
    - Targets all jbcom public repos
-   - Schedule: Daily at midnight UTC
-
-2. **Centralized File Sync Workflow Created**
-   - `.github/workflows/sync-centralized.yml`
-   - Uses BetaHuhn/repo-file-sync-action
-   - Syncs cursor-rules/ to all public repos
-   - Trigger: Push to main on cursor-rules/** paths
 
 3. **Cursor Rules Centralized**
    - Created `cursor-rules/` directory with:

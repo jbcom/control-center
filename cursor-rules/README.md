@@ -89,8 +89,7 @@ The universal Dockerfile supports:
 
 ## 🔐 Related Workflows
 
-- **secrets-sync.yml** - Syncs secrets (CI_GITHUB_TOKEN, PYPI_TOKEN, etc.)
-- **sync-centralized.yml** - Syncs files from this directory
+- **sync.yml** - Unified workflow for secrets + file sync
 - **ci.yml** - Uses synced configs for builds/tests
 
 ---
