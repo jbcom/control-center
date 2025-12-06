@@ -1,6 +1,6 @@
 # =============================================================================
 # jbcom Universal Development Environment
-# Supports: Python 3.13, Node.js 24, Go 1.23
+# Supports: Python 3.13, Node.js 24, Go 1.24
 # =============================================================================
 # Synced from: jbcom/jbcom-control-center
 # DO NOT EDIT - Changes will be overwritten by sync workflow
@@ -68,7 +68,7 @@ RUN git lfs install --system --skip-smudge
 # =============================================================================
 # GO INSTALLATION
 # =============================================================================
-ENV GO_VERSION=1.23.4
+ENV GO_VERSION=1.24.0
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/root/go
 ENV PATH="$GOROOT/bin:$GOPATH/bin:$PATH"

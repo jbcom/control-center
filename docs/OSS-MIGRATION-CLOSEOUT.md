@@ -64,8 +64,7 @@ jbcom-control-center (PRIVATE)
 ├── cursor-rules/                # Centralized rules (synced out)
 ├── .github/workflows/
 │   ├── ci.yml                   # Build/test/release
-│   ├── secrets-sync.yml         # Sync secrets to public repos
-│   └── sync-centralized.yml     # Sync cursor-rules to public repos
+│   └── sync.yml                 # Secrets + file sync to public repos
 └── docs/                        # Documentation
 
 jbcom/<package> (PUBLIC)

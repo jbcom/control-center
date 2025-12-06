@@ -25,7 +25,7 @@ cursor-rules/
 
 1. **Source of Truth**: This directory in `jbcom/jbcom-control-center`
 2. **Trigger**: Changes pushed to `main` on paths `cursor-rules/**`
-3. **Action**: `sync-centralized.yml` workflow runs
+3. **Action**: `sync.yml` workflow runs
 4. **Result**: PRs created in target repos with updated files
 
 ### Target Repos
@@ -83,7 +83,7 @@ The universal Dockerfile supports:
      # ...
    ```
 
-2. Add to `.github/workflows/secrets-sync.yml` matrix
+2. Add to `.github/workflows/sync.yml` matrix
 
 3. Push and verify sync workflow runs
 
