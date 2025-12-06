@@ -63,7 +63,7 @@ jobs:
             ^ANTHROPIC_API_KEY$
           repositories: |
             ${{ matrix.repo }}
-          dry_run: ${{ inputs.dry_run || 'false' }}
+          dry_run: ${{ inputs.dry_run == true }}
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
           CONFIG_PATH: .github/sync.yml
           PR_LABELS: sync,automated
           COMMIT_PREFIX: "🔄"
-          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+          DRY_RUN: ${{ inputs.dry_run == true }}
           PR_BODY: |
             Syncs centralized configs from jbcom-control-center.
 

@@ -1,6 +1,6 @@
 # =============================================================================
 # jbcom Universal Development Environment
-# Supports: Python 3.13, Node.js 24, Go 1.24
+# Supports: Python 3.13, Node.js 24, Go 1.23
 # =============================================================================
 # Synced from: jbcom/jbcom-control-center
 # DO NOT EDIT - Changes will be overwritten by sync workflow
@@ -68,7 +68,7 @@ RUN git lfs install --system --skip-smudge
 # =============================================================================
 # GO INSTALLATION
 # =============================================================================
-ENV GO_VERSION=1.24.0
+ENV GO_VERSION=1.23.4
 ENV GOROOT=/usr/local/go
 ENV GOPATH=/root/go
 ENV PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
@@ -97,7 +97,7 @@ RUN corepack enable && \
 # =============================================================================
 RUN PROCESS_COMPOSE_VERSION="v1.35.2" && \
     ARCH=$(dpkg --print-architecture) && \
-    curl -sSL "" \
+    curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PROCESS_COMPOSE_VERSION}/process-compose_linux-${ARCH}.tar.gz" \
         -o /tmp/process-compose.tar.gz && \
     tar -xzf /tmp/process-compose.tar.gz -C /usr/local/bin process-compose && \
     rm /tmp/process-compose.tar.gz && \
