@@ -1,0 +1,979 @@
+name: Generate Tests with AI
+
+on:
+  workflow_dispatch:
+    inputs:
+      repository:
+        description: "Target Python repository"
+        required: true
+        type: choice
+        options:
+          - jbcom/extended-data-types
+          - jbcom/lifecyclelogging
+          - jbcom/directed-inputs-class
+          - jbcom/python-terraform-bridge
+          - jbcom/vendor-connectors
+          - jbcom/agentic-crew
+          - jbcom/jbcom-oss-ecosystem
+        default: jbcom/extended-data-types
+      model:
+        description: "Anthropic model to use"
+        required: true
+        type: choice
+        options:
+          # Claude 4.5 - Current generation (from platform.claude.com/docs)
+          - claude-haiku-4-5    # Fastest model with near-frontier intelligence ($1/$5 per MTok)
+          - claude-sonnet-4-5   # Smart model for complex agents and coding ($3/$15 per MTok)
+          - claude-opus-4-5     # Premium model - maximum intelligence ($5/$25 per MTok)
+        default: claude-haiku-4-5
+      base_branch:
+        description: "Base branch to analyze"
+        required: false
+        type: string
+        default: main
+      coverage_threshold:
+        description: "Target coverage % (enforced standard, overrides pyproject.toml)"
+        required: false
+        type: number
+        default: 100
+      use_pyproject_coverage:
+        description: "Use coverage from pyproject.toml instead of enforcing workflow standard"
+        required: false
+        type: boolean
+        default: false
+      max_parallel_jobs:
+        description: "Maximum parallel test generation jobs"
+        required: false
+        type: number
+        default: 4
+      dry_run:
+        description: "Dry run (analyze only, don't generate)"
+        required: false
+        type: boolean
+        default: false
+      auto_fix_tests:
+        description: "Auto-fix failing generated tests with Claude"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+  issues: write
+  id-token: write
+
+env:
+  PYTHON_VERSION: "3.12"
+
+jobs:
+  # ============================================
+  # ANALYZE - Discover modules needing tests
+  # ============================================
+  analyze:
+    name: Analyze Coverage Gaps
+    runs-on: ubuntu-latest
+    outputs:
+      modules_json: ${{ steps.discover.outputs.modules_json }}
+      module_count: ${{ steps.discover.outputs.module_count }}
+      has_modules: ${{ steps.discover.outputs.has_modules }}
+      repo_name: ${{ steps.setup.outputs.repo_name }}
+      effective_threshold: ${{ steps.threshold.outputs.effective_threshold }}
+      pyproject_threshold: ${{ steps.threshold.outputs.pyproject_threshold }}
+
+    steps:
+      - name: Extract repo name
+        id: setup
+        run: |
+          REPO="${{ inputs.repository }}"
+          REPO_NAME="${REPO#*/}"
+          echo "repo_name=$REPO_NAME" >> $GITHUB_OUTPUT
+          echo "📦 Repository: $REPO"
+          echo "📛 Repo name: $REPO_NAME"
+
+      - name: Checkout target repository
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.base_branch }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          fetch-depth: 0
+          path: target-repo
+
+      - name: Set up Python
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Determine coverage threshold
+        id: threshold
+        working-directory: target-repo
+        run: |
+          # Default to workflow input (100% by default)
+          WORKFLOW_THRESHOLD="${{ inputs.coverage_threshold }}"
+          PYPROJECT_THRESHOLD=""
+          EFFECTIVE_THRESHOLD="$WORKFLOW_THRESHOLD"
+          
+          # Try to read from pyproject.toml
+          if [ -f "pyproject.toml" ]; then
+            # Extract fail_under from [tool.coverage.report] or [tool.pytest.ini_options]
+            PYPROJECT_THRESHOLD=$(python3 -c "
+          import sys
+          try:
+              import tomllib
+          except ImportError:
+              try:
+                  import tomli as tomllib
+              except ImportError:
+                  print('')
+                  sys.exit(0)
+          
+          with open('pyproject.toml', 'rb') as f:
+              data = tomllib.load(f)
+          
+          # Check tool.coverage.report.fail_under
+          fail_under = data.get('tool', {}).get('coverage', {}).get('report', {}).get('fail_under')
+          if fail_under is not None:
+              print(int(fail_under))
+              sys.exit(0)
+          
+          # Check tool.pytest.ini_options for cov-fail-under
+          pytest_opts = data.get('tool', {}).get('pytest', {}).get('ini_options', {})
+          addopts = pytest_opts.get('addopts', '')
+          if '--cov-fail-under' in addopts:
+              import re
+              match = re.search(r'--cov-fail-under[=\s]+(\d+)', addopts)
+              if match:
+                  print(match.group(1))
+                  sys.exit(0)
+          
+          print('')
+          " 2>/dev/null || echo "")
+          fi
+          
+          echo "pyproject_threshold=$PYPROJECT_THRESHOLD" >> $GITHUB_OUTPUT
+          
+          # Use pyproject threshold if checkbox is checked AND pyproject has a value
+          if [ "${{ inputs.use_pyproject_coverage }}" == "true" ] && [ -n "$PYPROJECT_THRESHOLD" ]; then
+            EFFECTIVE_THRESHOLD="$PYPROJECT_THRESHOLD"
+            echo "📋 Using pyproject.toml coverage threshold: ${EFFECTIVE_THRESHOLD}%"
+          else
+            echo "🎯 Enforcing workflow coverage standard: ${EFFECTIVE_THRESHOLD}%"
+            if [ -n "$PYPROJECT_THRESHOLD" ]; then
+              echo "   (pyproject.toml has: ${PYPROJECT_THRESHOLD}%)"
+            fi
+          fi
+          
+          echo "effective_threshold=$EFFECTIVE_THRESHOLD" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        working-directory: target-repo
+        run: |
+          python -m pip install --upgrade pip
+          pip install coverage pytest pytest-cov toml pyyaml tomli
+
+          # Install repo dependencies if available
+          if [ -f "pyproject.toml" ]; then
+            pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt 2>/dev/null || true
+          fi
+          if [ -f "requirements-dev.txt" ]; then
+            pip install -r requirements-dev.txt 2>/dev/null || true
+          fi
+
+      - name: Run coverage analysis
+        id: coverage
+        working-directory: target-repo
+        continue-on-error: true
+        run: |
+          # Try to run existing tests with coverage
+          if [ -d "tests" ] || [ -d "test" ]; then
+            pytest --cov=. --cov-report=json --cov-report=term-missing -q 2>/dev/null || true
+          fi
+
+          # If coverage.json exists, we have coverage data
+          if [ -f "coverage.json" ]; then
+            echo "has_coverage=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_coverage=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Discover modules needing tests
+        id: discover
+        working-directory: target-repo
+        run: |
+          cat > discover_modules.py << 'PYTHON_SCRIPT'
+          import os
+          import json
+          import sys
+          from pathlib import Path
+          import ast
+
+          def get_package_dirs():
+              """Find Python package directories."""
+              packages = []
+              
+              # Check for src layout
+              if Path("src").is_dir():
+                  for item in Path("src").iterdir():
+                      if item.is_dir() and (item / "__init__.py").exists():
+                          packages.append(str(item))
+              
+              # Check for flat layout
+              for item in Path(".").iterdir():
+                  if item.is_dir() and item.name not in ("tests", "test", "docs", "build", "dist", ".git", ".venv", "venv", "__pycache__", ".tox", "htmlcov", "src"):
+                      if (item / "__init__.py").exists():
+                          packages.append(str(item))
+              
+              return packages or ["."]
+
+          def find_python_modules(package_dirs):
+              """Find all Python modules in package directories."""
+              modules = []
+              
+              for pkg_dir in package_dirs:
+                  pkg_path = Path(pkg_dir)
+                  for py_file in pkg_path.rglob("*.py"):
+                      # Skip test files, __pycache__, etc
+                      rel_path = str(py_file)
+                      if any(x in rel_path for x in ["__pycache__", "test_", "_test.py", "tests/", "test/", "conftest.py"]):
+                          continue
+                      if py_file.name.startswith("_") and py_file.name != "__init__.py":
+                          continue
+                      
+                      # Get module info
+                      try:
+                          with open(py_file, "r", encoding="utf-8") as f:
+                              content = f.read()
+                          tree = ast.parse(content)
+                          
+                          # Count functions, classes, methods
+                          funcs = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+                          classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
+                          
+                          if funcs > 0 or classes > 0:  # Only include files with code
+                              modules.append({
+                                  "path": str(py_file),
+                                  "functions": funcs,
+                                  "classes": classes,
+                                  "priority": classes * 2 + funcs  # Weight classes more
+                              })
+                      except (SyntaxError, UnicodeDecodeError, OSError):
+                          continue
+              
+              return sorted(modules, key=lambda x: x["priority"], reverse=True)
+
+          def check_existing_tests(modules):
+              """Check which modules already have tests."""
+              test_dirs = ["tests", "test"]
+              result = []
+              
+              for module in modules:
+                  module_path = Path(module["path"])
+                  module_name = module_path.stem
+                  
+                  # Look for existing test file
+                  has_test = False
+                  for test_dir in test_dirs:
+                      if Path(test_dir).is_dir():
+                          test_patterns = [
+                              f"test_{module_name}.py",
+                              f"{module_name}_test.py",
+                              f"test_{module_path.parent.name}_{module_name}.py"
+                          ]
+                          for pattern in test_patterns:
+                              if list(Path(test_dir).rglob(pattern)):
+                                  has_test = True
+                                  break
+                  
+                  module["has_test"] = has_test
+                  if not has_test:
+                      result.append(module)
+              
+              return result
+
+          def apply_coverage_filter(modules, threshold):
+              """Filter modules based on coverage data if available."""
+              if not Path("coverage.json").exists():
+                  return modules
+              
+              try:
+                  with open("coverage.json", "r") as f:
+                      cov_data = json.load(f)
+                  
+                  files_cov = cov_data.get("files", {})
+                  filtered = []
+                  
+                  for module in modules:
+                      file_cov = files_cov.get(module["path"], {})
+                      summary = file_cov.get("summary", {})
+                      covered_pct = summary.get("percent_covered", 0)
+                      
+                      module["coverage"] = covered_pct
+                      if covered_pct < threshold:
+                          filtered.append(module)
+                  
+                  return filtered
+              except (json.JSONDecodeError, FileNotFoundError, KeyError):
+                  return modules
+
+          def group_by_directory(modules, max_per_group=3):
+              """Group modules by directory for parallel processing."""
+              from collections import defaultdict
+              
+              groups = defaultdict(list)
+              for module in modules:
+                  dir_path = str(Path(module["path"]).parent)
+                  groups[dir_path].append(module)
+              
+              # Create job definitions
+              jobs = []
+              for dir_path, dir_modules in groups.items():
+                  # Split large directories into multiple jobs
+                  for i in range(0, len(dir_modules), max_per_group):
+                      batch = dir_modules[i:i+max_per_group]
+                      jobs.append({
+                          "directory": dir_path,
+                          "modules": [m["path"] for m in batch],
+                          "priority": sum(m["priority"] for m in batch),
+                          "job_id": f"{dir_path.replace('/', '_').replace('.', '_')}_{i//max_per_group}"
+                      })
+              
+              return sorted(jobs, key=lambda x: x["priority"], reverse=True)
+
+          # Main execution
+          threshold = int(os.environ.get("COVERAGE_THRESHOLD", "100"))
+          max_jobs = int(os.environ.get("MAX_PARALLEL_JOBS", "4"))
+
+          packages = get_package_dirs()
+          print(f"📦 Found packages: {packages}", file=sys.stderr)
+
+          modules = find_python_modules(packages)
+          print(f"📄 Found {len(modules)} Python modules", file=sys.stderr)
+
+          modules = check_existing_tests(modules)
+          print(f"🔍 {len(modules)} modules without tests", file=sys.stderr)
+
+          modules = apply_coverage_filter(modules, threshold)
+          print(f"📊 {len(modules)} modules below {threshold}% coverage threshold", file=sys.stderr)
+
+          jobs = group_by_directory(modules)[:max_jobs]
+          print(f"⚡ Created {len(jobs)} parallel job groups", file=sys.stderr)
+
+          # Output for GitHub Actions
+          output = {
+              "modules": jobs,
+              "total_files": len(modules),
+              "job_count": len(jobs)
+          }
+
+          print(json.dumps(output))
+          PYTHON_SCRIPT
+
+          RESULT=$(python discover_modules.py)
+          echo "Discovery result: $RESULT"
+          
+          MODULES_JSON=$(echo "$RESULT" | jq -c '.modules')
+          MODULE_COUNT=$(echo "$RESULT" | jq '.job_count')
+          
+          echo "modules_json=$MODULES_JSON" >> $GITHUB_OUTPUT
+          echo "module_count=$MODULE_COUNT" >> $GITHUB_OUTPUT
+          
+          if [ "$MODULE_COUNT" -gt 0 ]; then
+            echo "has_modules=true" >> $GITHUB_OUTPUT
+            echo "✅ Found $MODULE_COUNT module groups to generate tests for"
+          else
+            echo "has_modules=false" >> $GITHUB_OUTPUT
+            echo "✅ All modules have adequate test coverage!"
+          fi
+        env:
+          COVERAGE_THRESHOLD: ${{ steps.threshold.outputs.effective_threshold }}
+          MAX_PARALLEL_JOBS: ${{ inputs.max_parallel_jobs }}
+
+      - name: Display analysis summary
+        run: |
+          echo "## 📊 Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Repository | \`${{ inputs.repository }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | \`${{ inputs.base_branch }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Effective Coverage Threshold** | **${{ steps.threshold.outputs.effective_threshold }}%** |" >> $GITHUB_STEP_SUMMARY
+          echo "| Workflow Standard | ${{ inputs.coverage_threshold }}% |" >> $GITHUB_STEP_SUMMARY
+          PYPROJECT_VAL="${{ steps.threshold.outputs.pyproject_threshold }}"
+          if [ -n "$PYPROJECT_VAL" ]; then
+            echo "| pyproject.toml Value | ${PYPROJECT_VAL}% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| pyproject.toml Value | N/A |" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "| Using pyproject.toml? | ${{ inputs.use_pyproject_coverage }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Modules Found | ${{ steps.discover.outputs.module_count }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Model | \`${{ inputs.model }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.discover.outputs.has_modules }}" == "true" ]; then
+            echo "### 📦 Module Groups to Process" >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
+            echo '${{ steps.discover.outputs.modules_json }}' | jq '.' >> $GITHUB_STEP_SUMMARY
+            echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ **All modules have adequate test coverage!**" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================
+  # GENERATE - Create tests in parallel
+  # ============================================
+  generate:
+    name: Generate Tests
+    needs: analyze
+    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: ${{ inputs.max_parallel_jobs }}
+      matrix:
+        module: ${{ fromJSON(needs.analyze.outputs.modules_json) }}
+
+    steps:
+      - name: Checkout target repository
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.base_branch }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+
+          # Install repo dependencies
+          if [ -f "pyproject.toml" ]; then
+            pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Generate tests with Claude
+        id: generate
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a Python test generation expert. Generate comprehensive unit tests for the following modules.
+
+            ## Target Modules
+            ${{ toJSON(matrix.module.modules) }}
+
+            ## Instructions
+            1. Read each source file carefully to understand its functionality
+            2. Generate pytest-compatible tests with:
+               - Given-When-Then structure in docstrings
+               - Comprehensive edge case coverage
+               - Proper mocking of external dependencies
+               - Parameterized tests where appropriate
+               - Clear, descriptive test names following `test_<function>_<scenario>` pattern
+
+            3. Create test files in the `tests/` directory:
+               - For `src/pkg/module.py` → `tests/test_module.py` or `tests/pkg/test_module.py`
+               - For `pkg/module.py` → `tests/test_module.py` or `tests/pkg/test_module.py`
+
+            4. Include:
+               - All necessary imports
+               - Fixtures for common setup
+               - pytest.mark decorators for slow/integration tests
+               - Docstrings explaining test purpose
+
+            5. Ensure tests are isolated and don't depend on external state
+
+            6. Target at least ${{ needs.analyze.outputs.effective_threshold }}% code coverage for each module
+
+            ## Output
+            Create the test files directly. Do not output explanations, only code.
+            After creating tests, run `pytest <test_file> -v` to verify they pass.
+            Fix any failing tests before committing.
+
+          claude_args: |
+            --model "${{ inputs.model }}"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*)"
+          track_progress: true
+
+      - name: Get changed files
+        id: changed
+        # tj-actions/changed-files v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
+        with:
+          files: |
+            tests/**/*.py
+            test/**/*.py
+
+      - name: Upload generated tests
+        if: steps.changed.outputs.any_changed == 'true'
+        # actions/upload-artifact v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: generated-tests-${{ matrix.module.job_id }}
+          path: |
+            tests/
+            test/
+          retention-days: 1
+
+  # ============================================
+  # CONSOLIDATE - Merge all generated tests
+  # ============================================
+  consolidate:
+    name: Consolidate & Create PR
+    needs: [analyze, generate]
+    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false && needs.generate.result != 'cancelled'
+    runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.create-pr.outputs.pull-request-number }}
+      pr_url: ${{ steps.create-pr.outputs.pull-request-url }}
+      tests_pass: ${{ steps.verify.outputs.tests_pass }}
+
+    steps:
+      - name: Checkout target repository
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ${{ inputs.base_branch }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Download all generated tests
+        # actions/download-artifact v4.3.0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          pattern: generated-tests-*
+          merge-multiple: true
+
+      - name: Set up Python
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies and verify tests
+        id: verify
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+
+          # Install repo dependencies
+          if [ -f "pyproject.toml" ]; then
+            pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt 2>/dev/null || true
+          fi
+
+          # Run tests to verify they work
+          echo "🧪 Running generated tests..."
+          set -o pipefail
+          if pytest tests/ -v --tb=short 2>&1 | tee test_output.txt; then
+            echo "tests_pass=true" >> $GITHUB_OUTPUT
+            echo "✅ All generated tests pass!"
+          else
+            echo "tests_pass=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Some tests failed - will attempt auto-fix"
+          fi
+
+      - name: Check for generated test files
+        id: check-tests
+        run: |
+          # Check if tests directory has any Python files (downloaded artifacts are untracked)
+          if find tests/ -name "*.py" -type f 2>/dev/null | grep -q .; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test files in tests/"
+          elif find test/ -name "*.py" -type f 2>/dev/null | grep -q .; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test files in test/"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test files found"
+          fi
+
+      - name: Create Pull Request
+        if: steps.check-tests.outputs.has_tests == 'true'
+        id: create-pr
+        # peter-evans/create-pull-request v7.0.11
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
+        with:
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          commit-message: |
+            test: add AI-generated unit tests
+
+            Generated by Claude (${{ inputs.model }}) via generate-tests workflow.
+            Coverage threshold: ${{ needs.analyze.outputs.effective_threshold }}%
+
+            Modules tested:
+            ${{ needs.analyze.outputs.modules_json }}
+          branch: ai-generated-tests/${{ github.run_id }}
+          delete-branch: true
+          title: "🧪 AI-Generated Unit Tests"
+          body: |
+            ## 🤖 AI-Generated Tests
+
+            This PR contains automatically generated unit tests created by Claude (`${{ inputs.model }}`).
+
+            ### 📊 Generation Details
+            | Metric | Value |
+            |--------|-------|
+            | Repository | `${{ inputs.repository }}` |
+            | Model | `${{ inputs.model }}` |
+            | Coverage Threshold | ${{ needs.analyze.outputs.effective_threshold }}% |
+            | Module Groups | ${{ needs.analyze.outputs.module_count }} |
+            | Tests Passing | ${{ steps.verify.outputs.tests_pass == 'true' && '✅ Yes' || '⚠️ Needs fixes' }} |
+
+            ### 📁 Test Files
+            Run `git diff --name-only` on the PR branch to see all generated files.
+
+            ### ✅ Review Checklist
+            - [ ] Tests follow project conventions
+            - [ ] Edge cases are properly covered
+            - [ ] Mocking is appropriate
+            - [ ] No sensitive data in tests
+            - [ ] All tests pass locally
+
+            ---
+            *Generated by [generate-tests.yml](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})*
+          labels: |
+            tests
+            ai-generated
+            automated
+
+      - name: Output PR info
+        if: steps.create-pr.outputs.pull-request-number
+        run: |
+          echo "## 🎉 Pull Request Created!" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**PR:** #${{ steps.create-pr.outputs.pull-request-number }}" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.create-pr.outputs.pull-request-url }}" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # AUTO-FIX - Fix failing tests with Claude
+  # ============================================
+  auto-fix:
+    name: Auto-Fix Failing Tests
+    needs: [analyze, consolidate]
+    if: |
+      always() &&
+      needs.consolidate.outputs.pr_number &&
+      needs.consolidate.outputs.tests_pass != 'true' &&
+      inputs.auto_fix_tests == true
+    runs-on: ubuntu-latest
+    outputs:
+      tests_pass: ${{ steps.run-tests.outputs.all_pass }}
+
+    steps:
+      - name: Checkout PR branch
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ai-generated-tests/${{ github.run_id }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov
+
+          if [ -f "pyproject.toml" ]; then
+            pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Run tests and capture failures
+        id: run-tests
+        continue-on-error: true
+        run: |
+          pytest tests/ -v --tb=long 2>&1 | tee test_results.txt
+          
+          if [ ${PIPESTATUS[0]} -eq 0 ]; then
+            echo "all_pass=true" >> $GITHUB_OUTPUT
+          else
+            echo "all_pass=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Fix failing tests with Claude
+        if: steps.run-tests.outputs.all_pass == 'false'
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are a Python test debugging expert. Fix the failing tests in this repository.
+
+            ## Test Results
+            The pytest run produced failures. Read the test_results.txt file to see the errors.
+
+            ## Instructions
+            1. Read test_results.txt to understand what failed
+            2. For each failing test:
+               - Understand the assertion error or exception
+               - Check if the test logic is wrong or the source code behavior changed
+               - Fix the test to correctly validate the expected behavior
+            3. Common fixes needed:
+               - Incorrect mock setup
+               - Wrong expected values
+               - Missing imports
+               - Incorrect test isolation
+               - Async test issues
+            4. Re-run pytest after each fix to verify
+            5. Continue until all tests pass
+
+            ## Output
+            Fix the test files directly. Run pytest to verify fixes work.
+            Do not change source code - only fix the tests.
+
+          claude_args: |
+            --model "${{ inputs.model }}"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*)"
+
+      - name: Verify fixes and push
+        id: verify-push
+        run: |
+          # Run tests again
+          if pytest tests/ -v; then
+            echo "✅ All tests now pass!"
+            echo "final_pass=true" >> $GITHUB_OUTPUT
+            
+            # Commit and push fixes
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            
+            if git diff --quiet; then
+              echo "No changes to commit"
+            else
+              git add -A
+              git commit -m "fix(tests): auto-fix failing generated tests
+
+              Fixed by Claude (${{ inputs.model }}) via auto-fix workflow."
+              git push
+              echo "✅ Pushed test fixes"
+            fi
+          else
+            echo "⚠️ Some tests still failing - manual intervention needed"
+            echo "final_pass=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Comment on PR with fix status
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ needs.consolidate.outputs.pr_number }}"
+          REPO="${{ inputs.repository }}"
+          
+          if [ "${{ steps.run-tests.outputs.all_pass }}" == "true" ]; then
+            BODY="✅ **All generated tests pass!** Ready for review."
+          else
+            BODY="🔧 **Auto-fix attempted** for failing tests. Please review the latest changes."
+          fi
+          
+          gh pr comment "$PR_NUM" --repo "$REPO" --body "$BODY"
+
+  # ============================================
+  # UPDATE-PYPROJECT - Update coverage standard
+  # ============================================
+  update-pyproject:
+    name: Update pyproject.toml Coverage Standard
+    needs: [analyze, consolidate, auto-fix]
+    if: |
+      always() &&
+      needs.consolidate.outputs.pr_number &&
+      (needs.auto-fix.result == 'success' || needs.auto-fix.result == 'skipped') &&
+      inputs.use_pyproject_coverage == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout PR branch
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          repository: ${{ inputs.repository }}
+          ref: ai-generated-tests/${{ github.run_id }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-cov tomli tomli-w
+
+          if [ -f "pyproject.toml" ]; then
+            pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+          elif [ -f "requirements.txt" ]; then
+            pip install -r requirements.txt 2>/dev/null || true
+          fi
+
+      - name: Measure actual coverage
+        id: measure
+        run: |
+          # Run tests with coverage
+          pytest tests/ --cov=. --cov-report=json --cov-report=term -q 2>&1 | tee coverage_output.txt || true
+          
+          # Extract total coverage
+          if [ -f "coverage.json" ]; then
+            ACTUAL_COV=$(python3 -c "import json; print(int(json.load(open('coverage.json'))['totals']['percent_covered']))")
+            echo "actual_coverage=$ACTUAL_COV" >> $GITHUB_OUTPUT
+            echo "📊 Actual coverage achieved: ${ACTUAL_COV}%"
+          else
+            echo "actual_coverage=0" >> $GITHUB_OUTPUT
+            echo "⚠️ Could not measure coverage"
+          fi
+
+      - name: Update pyproject.toml with Claude
+        if: steps.measure.outputs.actual_coverage != '0'
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are updating the pyproject.toml to enforce a new minimum code coverage standard.
+
+            ## Context
+            - Target coverage threshold from workflow: ${{ needs.analyze.outputs.effective_threshold }}%
+            - Actual coverage achieved: ${{ steps.measure.outputs.actual_coverage }}%
+            - Previous pyproject.toml threshold: ${{ needs.analyze.outputs.pyproject_threshold || 'not set' }}%
+
+            ## Task
+            Update pyproject.toml to set the coverage fail_under value to the ACHIEVED coverage (${{ steps.measure.outputs.actual_coverage }}%).
+
+            This ensures the new coverage standard is enforced going forward - coverage can only go UP, never down.
+
+            ## Instructions
+            1. Read pyproject.toml
+            2. Find or create [tool.coverage.report] section
+            3. Set fail_under = ${{ steps.measure.outputs.actual_coverage }}
+            4. If the file uses pytest addopts with --cov-fail-under, update that instead
+            5. Preserve all other settings
+            6. Write the updated file
+
+            Example of what to add/update:
+            ```toml
+            [tool.coverage.report]
+            fail_under = ${{ steps.measure.outputs.actual_coverage }}
+            ```
+
+            ## Important
+            - Only update pyproject.toml, no other files
+            - Do NOT lower the threshold if it's already higher
+            - Preserve formatting and comments where possible
+
+          claude_args: |
+            --model "${{ inputs.model }}"
+            --allowedTools "Edit,Read"
+
+      - name: Commit and push pyproject.toml update
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          if git diff --quiet pyproject.toml 2>/dev/null; then
+            echo "No changes to pyproject.toml"
+          else
+            git add pyproject.toml
+            git commit -m "chore: update coverage threshold to ${{ steps.measure.outputs.actual_coverage }}%
+
+            Enforcing new minimum coverage standard after AI test generation.
+            Previous threshold: ${{ needs.analyze.outputs.pyproject_threshold || 'not set' }}%
+            New threshold: ${{ steps.measure.outputs.actual_coverage }}%
+            
+            Generated by generate-tests.yml workflow."
+            git push
+            echo "✅ Updated pyproject.toml with new coverage threshold"
+          fi
+
+      - name: Comment on PR about coverage update
+        if: steps.measure.outputs.actual_coverage != '0'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ needs.consolidate.outputs.pr_number }}"
+          REPO="${{ inputs.repository }}"
+          PREV_THRESHOLD="${{ needs.analyze.outputs.pyproject_threshold }}"
+          EFF_THRESHOLD="${{ needs.analyze.outputs.effective_threshold }}"
+          ACTUAL_COV="${{ steps.measure.outputs.actual_coverage }}"
+          
+          gh pr comment "$PR_NUM" --repo "$REPO" --body "## 📊 Coverage Standard Updated
+
+          | Metric | Value |
+          |--------|-------|
+          | Previous threshold | ${PREV_THRESHOLD:-not set}% |
+          | Workflow target | ${EFF_THRESHOLD}% |
+          | **Achieved coverage** | **${ACTUAL_COV}%** |
+
+          ✅ \`pyproject.toml\` has been updated to enforce the new minimum coverage standard.
+
+          This ensures coverage can only go **UP** in future PRs."
+
+  # ============================================
+  # SUMMARY - Final workflow status
+  # ============================================
+  summary:
+    name: Workflow Summary
+    needs: [analyze, generate, consolidate, auto-fix, update-pyproject]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate final summary
+        run: |
+          echo "## 🎯 Test Generation Workflow Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Repository | \`${{ inputs.repository }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Model | \`${{ inputs.model }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage Threshold (enforced) | ${{ needs.analyze.outputs.effective_threshold }}% |" >> $GITHUB_STEP_SUMMARY
+          echo "| Using pyproject.toml? | ${{ inputs.use_pyproject_coverage }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry Run | ${{ inputs.dry_run }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auto-Fix | ${{ inputs.auto_fix_tests }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "### Job Status" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Analyze | ${{ needs.analyze.result == 'success' && '✅' || needs.analyze.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.analyze.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Generate | ${{ needs.generate.result == 'success' && '✅' || needs.generate.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.generate.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Consolidate | ${{ needs.consolidate.result == 'success' && '✅' || needs.consolidate.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.consolidate.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Auto-Fix | ${{ needs.auto-fix.result == 'success' && '✅' || needs.auto-fix.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.auto-fix.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Update pyproject.toml | ${{ needs.update-pyproject.result == 'success' && '✅' || needs.update-pyproject.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.update-pyproject.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.consolidate.outputs.pr_url }}" != "" ]; then
+            echo "### 🔗 Pull Request" >> $GITHUB_STEP_SUMMARY
+            echo "**URL:** ${{ needs.consolidate.outputs.pr_url }}" >> $GITHUB_STEP_SUMMARY
+          fi
