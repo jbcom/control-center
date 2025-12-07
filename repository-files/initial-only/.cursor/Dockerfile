@@ -6,11 +6,9 @@
 # DO NOT EDIT - Changes will be overwritten by sync workflow
 # =============================================================================
 
-# Pre-built image with Python 3.13 + Node.js 24 + uv
-# https://github.com/nikolaik/docker-python-nodejs
 FROM nikolaik/python-nodejs:python3.13-nodejs24
 
-# Set shell options for safer RUN commands with pipes
+# Set shell options for safer RUN commands
 SHELL ["/bin/bash", "-euo", "pipefail", "-c"]
 
 WORKDIR /workspace
@@ -18,25 +16,23 @@ WORKDIR /workspace
 # =============================================================================
 # SYSTEM DEPENDENCIES
 # =============================================================================
-# Single consolidated layer for all apt packages to minimize image size
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    # Build essentials (required for native Node modules: better-sqlite3, esbuild, etc.)
+    # Build essentials
     build-essential \
     pkg-config \
     # Version control
     git-lfs \
-    # GitHub CLI (Debian native package)
     gh \
-    # Task automation (Debian native package)
+    # Task automation
     just \
-    # Database tools (for ConPort SQLite database)
+    # Database tools
     sqlite3 \
-    # Modern shell utilities (faster alternatives to find/grep)
+    # Modern shell utilities
     ripgrep \
     fd-find \
     # JSON/YAML processing
     jq \
-    # Text editors for quick edits
+    # Text editors
     vim \
     nano \
     # Network tools
@@ -46,10 +42,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # Process management
     procps \
     htop \
-    # Compression tools
+    # Compression
     unzip \
     zip \
-    # Playwright/Chromium browser dependencies
+    # Playwright/browser dependencies
     libnss3 \
     libnspr4 \
     libdbus-1-3 \
@@ -66,12 +62,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# =============================================================================
-# GIT LFS CONFIGURATION
-# =============================================================================
-# CRITICAL: --skip-smudge prevents workspace crashes with large LFS repos
-# LFS files appear as pointers (fine for Cursor/AI analysis)
-# Actual LFS operations (checkout, pull) handled by GitHub Actions
+# Git LFS
 RUN git lfs install --system --skip-smudge
 
 # =============================================================================
@@ -82,7 +73,6 @@ ENV GOROOT=/usr/local/go
 ENV GOPATH=/root/go
 ENV PATH="$GOROOT/bin:$GOPATH/bin:$PATH"
 
-# Multi-architecture support via dpkg --print-architecture
 RUN ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://go.dev/dl/go${GO_VERSION}.linux-${ARCH}.tar.gz" | tar -C /usr/local -xzf - && \
     go version
@@ -93,9 +83,8 @@ RUN go install golang.org/x/tools/gopls@latest && \
     rm -rf /root/go/pkg/mod/cache
 
 # =============================================================================
-# NODE.JS PACKAGE MANAGER (pnpm)
+# PNPM (Node.js package manager)
 # =============================================================================
-# MUST match package.json "packageManager" field exactly
 ENV PNPM_HOME=/root/.local/share/pnpm
 ENV PATH="$PNPM_HOME:$PATH"
 
@@ -106,8 +95,6 @@ RUN corepack enable && \
 # =============================================================================
 # PROCESS COMPOSE
 # =============================================================================
-# Multi-process orchestration (required for CrewAI workflows)
-# Using pinned version for security and reproducibility
 RUN PROCESS_COMPOSE_VERSION="v1.35.2" && \
     ARCH=$(dpkg --print-architecture) && \
     curl -sSL "https://github.com/F1bonacc1/process-compose/releases/download/${PROCESS_COMPOSE_VERSION}/process-compose_linux-${ARCH}.tar.gz" \
@@ -119,10 +106,6 @@ RUN PROCESS_COMPOSE_VERSION="v1.35.2" && \
 # =============================================================================
 # GLOBAL NODE.JS TOOLS
 # =============================================================================
-# Version pinned for reproducible builds
-# - Ruler: AI agent instruction management
-# - Claude Code: Anthropic's AI coding assistant CLI
-# - TypeScript: For type checking
 RUN pnpm add -g \
     @intellectronica/ruler@0.3.16 \
     @anthropic-ai/claude-code@2.0.55 \
@@ -134,19 +117,9 @@ RUN pnpm add -g \
 # =============================================================================
 ENV PATH="/root/.local/bin:$PATH"
 
-# aider requires Python 3.12 (not 3.13) - use uv's managed Python
-# See: https://github.com/Aider-AI/aider/issues/3037
+# aider requires Python 3.12
 RUN uv tool install --python python3.12 aider-chat==0.86.1 && \
     aider --version
-
-# =============================================================================
-# PLAYWRIGHT BROWSER CACHE
-# =============================================================================
-# Pre-install Playwright dependencies and Chromium browser
-# Playwright bundles its own Chromium (not using system package)
-# This is required for CrewAI agents using @modelcontextprotocol/server-playwright
-RUN pnpm dlx playwright install-deps chromium && \
-    pnpm dlx playwright install chromium
 
 # =============================================================================
 # VERIFICATION
