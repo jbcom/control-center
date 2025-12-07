@@ -430,7 +430,7 @@ jobs:
   generate:
     name: Generate Tests
     needs: analyze
-    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false
+    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run != true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -537,7 +537,7 @@ jobs:
   consolidate:
     name: Consolidate & Create PR
     needs: [analyze, generate]
-    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false && needs.generate.result != 'cancelled'
+    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run != true && needs.generate.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pull-request-number }}
