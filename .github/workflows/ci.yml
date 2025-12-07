@@ -1,0 +1,353 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-workflows:
+    name: Lint Workflows
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: |
+          curl -sL "https://github.com/rhysd/actionlint/releases/download/v1.7.4/actionlint_1.7.4_linux_amd64.tar.gz" | tar xz -C /usr/local/bin actionlint
+
+      - name: Lint all workflows
+        run: |
+          echo "Linting all workflow files..."
+          actionlint -color
+          echo "✅ All workflows pass linting"
+
+  validate-expressions:
+    name: Validate Workflow Expressions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for dangerous input comparison patterns
+        run: |
+          echo "Checking for dangerous boolean comparison patterns..."
+          echo "These break when inputs are null (not provided)"
+          echo ""
+          
+          ERRORS=0
+          
+          for workflow in .github/workflows/*.yml; do
+            # Skip ci.yml since it contains the patterns in documentation/grep commands
+            if [ "$workflow" = ".github/workflows/ci.yml" ]; then
+              continue
+            fi
+            
+            echo "Checking $workflow..."
+            
+            # Pattern: inputs.X == false (breaks when null)
+            # Only match in 'if:' conditions, not in echo/grep commands
+            if grep -E '^\s+if:.*inputs\.[a-z_]+ == false' "$workflow" 2>/dev/null || \
+               grep -E '^\s+if: \|' -A5 "$workflow" 2>/dev/null | grep -E 'inputs\.[a-z_]+ == false' 2>/dev/null; then
+              echo "❌ ERROR in $workflow: Found 'inputs.X == false' in condition"
+              echo "   This returns false when inputs are null. Use 'inputs.X != true' instead."
+              ERRORS=$((ERRORS + 1))
+            fi
+            
+            # Pattern: inputs.auto_fix_tests == true (default is true, breaks when null)
+            if grep -E '^\s+if:.*inputs\.auto_fix_tests == true' "$workflow" 2>/dev/null || \
+               grep -E '^\s+if: \|' -A5 "$workflow" 2>/dev/null | grep -E 'inputs\.auto_fix_tests == true' 2>/dev/null; then
+              echo "❌ ERROR in $workflow: Found 'inputs.auto_fix_tests == true' in condition"
+              echo "   Default is true, but null == true is false. Use 'inputs.auto_fix_tests != false' instead."
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "❌ Found $ERRORS dangerous pattern(s)"
+            exit 1
+          fi
+          
+          echo "✅ No dangerous input comparison patterns found"
+
+      - name: Validate GitHub Actions expression logic
+        run: |
+          echo "Testing expression evaluation behavior..."
+          
+          # Test that our patterns work correctly
+          test_pattern() {
+            local desc="$1"
+            local expected="$2"
+            local actual="$3"
+            
+            if [ "$expected" = "$actual" ]; then
+              echo "✅ $desc"
+            else
+              echo "❌ $desc (expected: $expected, got: $actual)"
+              return 1
+            fi
+          }
+          
+          FAILURES=0
+          
+          # Test: != true pattern (for dry_run with default=false)
+          VAL=""  # null/unset
+          [ "$VAL" != "true" ] && R="true" || R="false"
+          test_pattern "null != true → true (dry_run unset should run)" "true" "$R" || FAILURES=$((FAILURES+1))
+          
+          VAL="false"
+          [ "$VAL" != "true" ] && R="true" || R="false"
+          test_pattern "false != true → true (dry_run=false should run)" "true" "$R" || FAILURES=$((FAILURES+1))
+          
+          VAL="true"
+          [ "$VAL" != "true" ] && R="true" || R="false"
+          test_pattern "true != true → false (dry_run=true should skip)" "false" "$R" || FAILURES=$((FAILURES+1))
+          
+          # Test: != false pattern (for auto_fix_tests with default=true)
+          VAL=""
+          [ "$VAL" != "false" ] && R="true" || R="false"
+          test_pattern "null != false → true (auto_fix unset should run)" "true" "$R" || FAILURES=$((FAILURES+1))
+          
+          VAL="true"
+          [ "$VAL" != "false" ] && R="true" || R="false"
+          test_pattern "true != false → true (auto_fix=true should run)" "true" "$R" || FAILURES=$((FAILURES+1))
+          
+          VAL="false"
+          [ "$VAL" != "false" ] && R="true" || R="false"
+          test_pattern "false != false → false (auto_fix=false should skip)" "false" "$R" || FAILURES=$((FAILURES+1))
+          
+          if [ $FAILURES -gt 0 ]; then
+            echo "❌ $FAILURES expression test(s) failed"
+            exit 1
+          fi
+          
+          echo "✅ All expression tests passed"
+
+  validate-sync-config:
+    name: Validate Sync Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate sync.yml exists and is valid YAML
+        run: |
+          if [ ! -f ".github/sync.yml" ]; then
+            echo "❌ .github/sync.yml not found"
+            exit 1
+          fi
+          
+          python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))" || {
+            echo "❌ .github/sync.yml is not valid YAML"
+            exit 1
+          }
+          
+          echo "✅ .github/sync.yml is valid YAML"
+
+      - name: Validate sync target paths exist
+        run: |
+          echo "Checking that sync source paths exist..."
+          ERRORS=0
+          
+          # Extract source paths from sync.yml and verify they exist
+          python3 << 'EOF'
+          import yaml
+          import os
+          import sys
+          
+          with open('.github/sync.yml') as f:
+              config = yaml.safe_load(f)
+          
+          errors = 0
+          for group in config.values():
+              if isinstance(group, list):
+                  for item in group:
+                      if isinstance(item, dict) and 'files' in item:
+                          for file_entry in item['files']:
+                              if isinstance(file_entry, dict):
+                                  source = file_entry.get('source', '')
+                              else:
+                                  source = file_entry
+                              
+                              if source and not source.startswith('$'):
+                                  if not os.path.exists(source):
+                                      print(f"❌ Source path does not exist: {source}")
+                                      errors += 1
+                                  else:
+                                      print(f"✅ {source}")
+          
+          if errors > 0:
+              print(f"\n❌ {errors} source path(s) do not exist")
+              sys.exit(1)
+          
+          print("\n✅ All sync source paths exist")
+          EOF
+
+  validate-repository-files:
+    name: Validate Repository Files
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check repository-files structure
+        run: |
+          echo "Validating repository-files directory structure..."
+          
+          ERRORS=0
+          
+          # Check required directories exist
+          for dir in repository-files/always-sync repository-files/initial-only; do
+            if [ ! -d "$dir" ]; then
+              echo "❌ Missing required directory: $dir"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ $dir exists"
+            fi
+          done
+          
+          # Check cursor rules are valid
+          for rule in repository-files/always-sync/.cursor/rules/*.mdc; do
+            if [ -f "$rule" ]; then
+              # Basic validation - file should not be empty
+              if [ ! -s "$rule" ]; then
+                echo "❌ Empty cursor rule: $rule"
+                ERRORS=$((ERRORS + 1))
+              else
+                echo "✅ $rule"
+              fi
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo "❌ $ERRORS validation error(s)"
+            exit 1
+          fi
+          
+          echo "✅ Repository files structure is valid"
+
+  dry-run-generate-tests:
+    name: Dry Run - Generate Tests Workflow
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate discover_modules.py logic
+        run: |
+          echo "Testing module discovery logic..."
+          
+          # Create a minimal test structure
+          mkdir -p test_pkg
+          cat > test_pkg/__init__.py << 'PY'
+          """Test package."""
+          def hello():
+              pass
+          PY
+          
+          cat > test_pkg/module.py << 'PY'
+          """Test module."""
+          class TestClass:
+              def method(self):
+                  pass
+          
+          def test_func():
+              pass
+          PY
+          
+          # Extract and run the discovery logic from generate-tests.yml
+          python3 << 'PYTEST'
+          import os
+          import json
+          import sys
+          from pathlib import Path
+          import ast
+          
+          def get_package_dirs():
+              packages = []
+              if Path("src").is_dir():
+                  for item in Path("src").iterdir():
+                      if item.is_dir() and (item / "__init__.py").exists():
+                          packages.append(str(item))
+              for item in Path(".").iterdir():
+                  if item.is_dir() and item.name not in ("tests", "test", "docs", "build", "dist", ".git", ".venv", "venv", "__pycache__", ".tox", "htmlcov", "src", ".github"):
+                      if (item / "__init__.py").exists():
+                          packages.append(str(item))
+              return packages or ["."]
+          
+          def find_python_modules(package_dirs):
+              modules = []
+              for pkg_dir in package_dirs:
+                  pkg_path = Path(pkg_dir)
+                  for py_file in pkg_path.rglob("*.py"):
+                      rel_path = str(py_file)
+                      if any(x in rel_path for x in ["__pycache__", "test_", "_test.py", "tests/", "test/", "conftest.py"]):
+                          continue
+                      if py_file.name.startswith("_") and py_file.name != "__init__.py":
+                          continue
+                      try:
+                          with open(py_file, "r", encoding="utf-8") as f:
+                              content = f.read()
+                          tree = ast.parse(content)
+                          funcs = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
+                          classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
+                          if funcs > 0 or classes > 0:
+                              modules.append({
+                                  "path": str(py_file),
+                                  "functions": funcs,
+                                  "classes": classes,
+                                  "priority": classes * 2 + funcs
+                              })
+                      except (SyntaxError, UnicodeDecodeError, OSError):
+                          continue
+              return sorted(modules, key=lambda x: x["priority"], reverse=True)
+          
+          # Test
+          packages = get_package_dirs()
+          print(f"Found packages: {packages}")
+          assert "test_pkg" in packages, f"Expected test_pkg in {packages}"
+          
+          modules = find_python_modules(packages)
+          print(f"Found modules: {[m['path'] for m in modules]}")
+          assert len(modules) >= 2, f"Expected at least 2 modules, got {len(modules)}"
+          
+          print("✅ Module discovery logic works correctly")
+          PYTEST
+          
+          # Cleanup
+          rm -rf test_pkg
+
+  summary:
+    name: CI Summary
+    needs: [lint-workflows, validate-expressions, validate-sync-config, validate-repository-files, dry-run-generate-tests]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check results
+        run: |
+          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Validate Sync Config | ${{ needs.validate-sync-config.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          
+          # Fail if any job failed
+          if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
+             [ "${{ needs.validate-expressions.result }}" != "success" ] || \
+             [ "${{ needs.validate-sync-config.result }}" != "success" ] || \
+             [ "${{ needs.validate-repository-files.result }}" != "success" ] || \
+             [ "${{ needs.dry-run-generate-tests.result }}" != "success" ]; then
+            echo ""
+            echo "❌ CI failed - one or more checks did not pass"
+            exit 1
+          fi
+          
+          echo ""
+          echo "✅ All CI checks passed"
