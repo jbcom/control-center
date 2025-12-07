@@ -57,7 +57,6 @@ jobs:
           - jbcom/vendor-connectors
           - jbcom/agentic-control
           - jbcom/vault-secret-sync
-          - jbcom/cursor-rules
 
     steps:
       - name: Sync secrets to ${{ matrix.repo }}
@@ -148,7 +147,6 @@ jobs:
           - jbcom/vendor-connectors
           - jbcom/agentic-control
           - jbcom/vault-secret-sync
-          - jbcom/cursor-rules
 
     steps:
       - name: Apply branch protection to ${{ matrix.repo }}
@@ -198,7 +196,6 @@ jobs:
           - jbcom/python-terraform-bridge
           - jbcom/vendor-connectors
           - jbcom/agentic-control
-          - jbcom/cursor-rules
 
     steps:
       - name: Enable GitHub Pages for ${{ matrix.repo }}

@@ -298,14 +298,5 @@ jbcom/vault-secret-sync:
     dest: .cursor/environment.json
     replace: false
 
-# ============================================
-# CURSOR RULES REPO
-# ============================================
-
-jbcom/cursor-rules:
-  - source: cursor-rules/
-    dest: .
-    exclude: |
-      .git
-      README.md
-      docs-templates/
+# NOTE: jbcom/cursor-rules was merged into jbcom-control-center
+# It is no longer a separate managed repo

@@ -39,7 +39,6 @@ Secrets and cursor-rules sync to:
 - `jbcom/vendor-connectors`
 - `jbcom/agentic-control`
 - `jbcom/vault-secret-sync`
-- `jbcom/cursor-rules`
 
 ## FSC Production Repos
 
