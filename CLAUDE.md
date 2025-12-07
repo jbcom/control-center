@@ -62,7 +62,7 @@ cat memory-bank/progress.md
 Update memory bank before ending:
 ```bash
 # Update context for next agent
-cat >> memory-bank/activeContext.md << 'EOF'
+cat >> memory-bank/activeContext.md << EOF
 
 ## Session: $(date +%Y-%m-%d)
 
