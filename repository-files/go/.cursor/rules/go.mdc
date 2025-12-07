@@ -1,0 +1,144 @@
+---
+description: Go coding standards
+globs: "**/*.go"
+---
+
+# Go Standards
+
+## Style
+
+- **Formatter**: `gofmt` (automatic)
+- **Linter**: `golangci-lint`
+- **Conventions**: Effective Go
+
+```bash
+# Format
+go fmt ./...
+
+# Lint
+golangci-lint run
+
+# Vet
+go vet ./...
+```
+
+## Naming
+
+| Element | Convention | Example |
+|---------|------------|---------|
+| Exported | MixedCaps | `ProcessData` |
+| Unexported | mixedCaps | `processData` |
+| Packages | lowercase | `config` |
+| Interfaces | -er suffix | `Reader`, `Writer` |
+
+```go
+// ✅ Good
+type UserStore interface {
+    Get(ctx context.Context, id string) (*User, error)
+}
+
+// Package name matches directory
+package userstore
+```
+
+## Error Handling
+
+```go
+// ✅ Always check errors
+result, err := doSomething()
+if err != nil {
+    return fmt.Errorf("doSomething failed: %w", err)
+}
+
+// ✅ Wrap errors with context
+if err := validateInput(input); err != nil {
+    return fmt.Errorf("invalid input: %w", err)
+}
+```
+
+## Packages
+
+- One package per directory
+- Package name matches directory name
+- Minimal public API (unexport by default)
+
+```go
+// Package comment required
+// Package userstore provides user persistence.
+package userstore
+```
+
+## Testing
+
+```go
+// Tests in *_test.go files
+func TestUserStore_Get(t *testing.T) {
+    // Arrange
+    store := NewUserStore()
+    
+    // Act
+    user, err := store.Get(ctx, "123")
+    
+    // Assert
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+    if user.ID != "123" {
+        t.Errorf("got %s, want 123", user.ID)
+    }
+}
+
+// Table-driven tests preferred
+func TestParse(t *testing.T) {
+    tests := []struct {
+        name    string
+        input   string
+        want    int
+        wantErr bool
+    }{
+        {"valid", "42", 42, false},
+        {"invalid", "abc", 0, true},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got, err := Parse(tt.input)
+            // assertions...
+        })
+    }
+}
+```
+
+```bash
+# Run tests
+go test ./...
+
+# With coverage
+go test -cover ./...
+
+# Verbose
+go test -v ./...
+```
+
+## Dependencies
+
+```bash
+# Download deps
+go mod download
+
+# Tidy (remove unused)
+go mod tidy
+
+# Update specific
+go get -u package@latest
+```
+
+## Build
+
+```bash
+# Build
+go build ./cmd/...
+
+# Cross-compile
+GOOS=linux GOARCH=amd64 go build -o app-linux ./cmd/...
+```
