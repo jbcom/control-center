@@ -1,91 +1,47 @@
-# Active Context - jbcom Control Center
+# Active Context
 
-## Current Status: SURFACE SCOPE CLARIFICATION EPIC IN PROGRESS
+## Current Status: PR #16 In Review with Security Fixes
 
-Owning the resolution of muddled scope and boundaries across the agentic ecosystem.
+The cross-repository scope clarification effort is progressing:
 
-### Root Issue
+### Completed Today
+1. **Fixed Cursor Bugbot HIGH severity issues** in PR #16:
+   - IPv6 SSRF bypass in webhook validation
+   - Missing None checks causing ValidationError
+   - Async/sync mismatch in execute_agent_task
 
-[PR #7 Comment](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331) flagged that:
-- `agentic-control` has vendor-specific code (cursor-api.ts, Claude SDK) mixed with protocols
-- `vendor-connectors` is missing Cursor and Anthropic connectors
-- No clear separation between vendor implementations and protocols
+2. **Created AI Sub-Package Architecture Issue** (#17):
+   - LangChain/LangGraph integration plan
+   - Exposes vendor connectors as AI-callable tools
+   - Unified multi-provider AI interface
 
-### Issues & PRs
+### PR Status
+- **jbcom/vendor-connectors#16**: 6 commits, all security feedback addressed
+- Awaiting AI reviewer re-verification (Cursor Bugbot, Amazon Q)
 
-| Repository | Issue/PR | Purpose | Status |
-|------------|----------|---------|--------|
-| `jbcom-control-center` | [#340](https://github.com/jbcom/jbcom-control-center/issues/340) | EPIC: Master tracking | 🟡 In Progress |
-| `vendor-connectors` | [#15](https://github.com/jbcom/vendor-connectors/issues/15) | Cursor + Anthropic connectors | 🟢 PR Created |
-| `vendor-connectors` | [PR #16](https://github.com/jbcom/vendor-connectors/pull/16) | Implementation PR | ✅ CI Passing |
-| `agentic-control` | [#8](https://github.com/jbcom/agentic-control/issues/8) | Scope clarification refactor | 🔴 Not Started |
-
-### Key Actions Completed This Session
-
-1. **Addressed AI Review Feedback** (Amazon Q Developer)
-   - Verified all Claude model names against live Anthropic API
-   - Removed unused imports (`field`, `AsyncIterator`)
-   - Removed unused `max_turns` parameter
-   - Fixed formatting with ruff
-
-2. **Documented Source of Truth**
-   - Added reference: https://docs.anthropic.com/en/docs/about-claude/models
-   - Verified against API: `curl https://api.anthropic.com/v1/models`
-
-3. **All CI Checks Passing**
-   - Lint ✅
-   - Tests py3.10 ✅
-   - Tests py3.13 ✅
-   - Build ✅
-
-### Project Tracking
-
-All issues in [jbcom Ecosystem Integration Project](https://github.com/users/jbcom/projects/2)
-
-### Target Architecture
+### Architecture Vision
 
 ```
-vendor-connectors (Python)
-├── cursor/          # Port from agentic-control/src/fleet/cursor-api.ts
-├── anthropic/       # Wrap @anthropic-ai/claude-agent-sdk
-└── [existing: aws, github, google, slack, vault, zoom]
-
-agentic-control (Node.js) - REFACTORED
-├── core/           # Protocols and types (keep)
-├── fleet/          # Fleet protocols - vendor-agnostic (refactor)
-├── providers/      # NEW: Uses vendor-connectors
-└── [triage, handoff, github - keep]
-
-agentic-crew (Python) - NEW REPO
-├── crewai/         # Move from agentic-control/python/
-└── bridge/         # Protocol bridge to agentic-control
+vendor_connectors/
+├── ai/                    # NEW: LangChain-based
+│   ├── providers/         # Anthropic, OpenAI, Google, xAI, Ollama
+│   └── tools/             # AWS, GitHub, Slack, Vault as AI tools
+├── cursor/                # Keep - unique API
+└── [existing connectors]
 ```
 
-### Implementation Phases
-
-1. **Phase 1**: Vendor Connectors (Cursor + Anthropic) - Week 1
-2. **Phase 2**: Create agentic-crew repo - Week 1-2
-3. **Phase 3**: Refactor agentic-control - Week 2-3
-4. **Phase 4**: Documentation & Integration - Week 3-4
+This enables:
+- `agentic-control` becomes pure orchestration
+- AI tools from vendor connectors for any LLM
+- LangGraph workflows for complex tasks
 
 ## For Next Agent
 
-1. **Continue Phase 1**: Create Cursor connector in vendor-connectors
-   - Port `cursor-api.ts` logic to Python
-   - Full API coverage (list agents, launch, followup, etc.)
-   - Input validation and SSRF protection
+1. **Wait for PR #16 reviews** to complete
+2. **Once merged**, start AI sub-package implementation (Issue #17)
+3. **Track progress** in Epic #340
 
-2. **Then**: Create Anthropic connector
-   - Wrap Claude Agent SDK
-   - Sandbox execution mode
-
-3. **Reference**: See issue details in linked GitHub issues
-
-## Key Files
-
-- Epic: https://github.com/jbcom/jbcom-control-center/issues/340
-- Original issue: https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331
-- Source to port: `agentic-control/src/fleet/cursor-api.ts` (~300 lines)
-
----
-*Updated: 2025-12-07*
+Key files created:
+- `vendor-connectors/src/vendor_connectors/cursor/__init__.py`
+- `vendor-connectors/src/vendor_connectors/anthropic/__init__.py`
+- Tests in `tests/test_cursor.py` and `tests/test_anthropic.py`

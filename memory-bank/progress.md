@@ -1,5 +1,63 @@
 # Session Progress Log
 
+## Session: 2025-12-07 (AI Sub-Package Architecture)
+
+### Context
+
+User proposed integrating LangChain/LangGraph/LangSmith into vendor-connectors instead of custom AI implementations. This enables exposing ALL vendor connectors as AI-callable tools.
+
+### What Was Done
+
+1. **Fixed Cursor Bugbot HIGH Severity Issues** (PR #16)
+   - ✅ IPv6 SSRF bypass in webhook validation (urlparse returns hostname WITHOUT brackets)
+   - ✅ Missing None checks causing ValidationError on empty API responses
+   - ✅ Async/sync mismatch in `execute_agent_task` (was async with sync httpx.Client)
+
+2. **Created AI Sub-Package Architectural Issue**
+   - [Issue #17](https://github.com/jbcom/vendor-connectors/issues/17)
+   - LangChain-based unified AI interface
+   - Tools abstraction from existing connectors
+
+3. **Updated Epic #340** with AI architecture vision
+
+### Target Architecture (AI Sub-Package)
+
+```
+vendor_connectors/
+├── ai/                          # NEW: LangChain-based
+│   ├── providers/               # Unified AI access
+│   │   ├── anthropic.py         # Claude via LangChain
+│   │   ├── openai.py            # GPT via LangChain
+│   │   ├── google.py            # Gemini via LangChain
+│   │   ├── xai.py               # Grok via LangChain
+│   │   └── ollama.py            # Local models
+│   └── tools/                   # Connectors become AI tools!
+│       ├── aws_tools.py         # S3, Secrets, Lambda
+│       ├── github_tools.py      # PR, Issues, Files
+│       ├── slack_tools.py       # Messages, Channels
+│       ├── vault_tools.py       # Secrets management
+│       └── cursor_tools.py      # Agent management
+├── cursor/                      # Keep - unique API
+└── [existing connectors]
+```
+
+### Benefits
+
+1. **Tool abstraction** - Any connector becomes an AI tool automatically
+2. **Multi-provider** - Same interface for all AI providers
+3. **LangGraph workflows** - Complex agentic pipelines
+4. **Observability** - LangSmith tracing built-in
+
+### Tracking
+
+| Item | Link | Status |
+|------|------|--------|
+| Epic | [#340](https://github.com/jbcom/jbcom-control-center/issues/340) | Open |
+| Cursor/Anthropic PR | [#16](https://github.com/jbcom/vendor-connectors/pull/16) | In Review |
+| AI Sub-Package Issue | [#17](https://github.com/jbcom/vendor-connectors/issues/17) | Open |
+
+---
+
 ## Session: 2025-12-07 (Surface Scope Clarification Epic)
 
 ### Context
