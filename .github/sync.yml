@@ -299,13 +299,6 @@ jbcom/vault-secret-sync:
     replace: false
 
 # ============================================
-# CURSOR RULES REPO
+# ARCHIVED REPOS (no longer synced)
 # ============================================
-
-jbcom/cursor-rules:
-  - source: cursor-rules/
-    dest: .
-    exclude: |
-      .git
-      README.md
-      docs-templates/
+# jbcom/cursor-rules - ARCHIVED: Migrated to jbcom-control-center/cursor-rules/
