@@ -673,7 +673,7 @@ jobs:
       always() &&
       needs.consolidate.outputs.pr_number &&
       needs.consolidate.outputs.tests_pass != 'true' &&
-      inputs.auto_fix_tests == true
+      inputs.auto_fix_tests != false
     runs-on: ubuntu-latest
     outputs:
       tests_pass: ${{ steps.run-tests.outputs.all_pass }}
@@ -806,7 +806,7 @@ jobs:
       always() &&
       needs.consolidate.outputs.pr_number &&
       (needs.auto-fix.result == 'success' || needs.auto-fix.result == 'skipped') &&
-      inputs.use_pyproject_coverage == false
+      inputs.use_pyproject_coverage != true
     runs-on: ubuntu-latest
 
     steps:

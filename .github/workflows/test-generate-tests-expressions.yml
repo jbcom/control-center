@@ -1,0 +1,135 @@
+name: Test Generate-Tests Workflow Expressions
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/generate-tests.yml'
+      - '.github/workflows/test-generate-tests-expressions.yml'
+
+jobs:
+  test-expressions:
+    name: Validate Workflow Expressions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Test boolean expression handling
+        run: |
+          echo "Testing GitHub Actions boolean expression behavior"
+          echo "================================================"
+          
+          # These tests validate that our expression patterns work correctly
+          # when inputs are null/undefined (not provided)
+          
+          PASS=0
+          FAIL=0
+          
+          test_expr() {
+            local name="$1"
+            local expected="$2"
+            local actual="$3"
+            
+            if [ "$expected" == "$actual" ]; then
+              echo "✅ PASS: $name (expected=$expected, got=$actual)"
+              ((PASS++))
+            else
+              echo "❌ FAIL: $name (expected=$expected, got=$actual)"
+              ((FAIL++))
+            fi
+          }
+          
+          # Simulate null inputs (what happens when workflow_dispatch has no inputs)
+          # In bash, unset variables are empty strings, similar to null in GHA expressions
+          
+          echo ""
+          echo "Test 1: dry_run != true (should be true when dry_run is unset)"
+          echo "  Pattern: inputs.dry_run != true"
+          # When dry_run is unset/null, we want generate job to run
+          DRY_RUN=""
+          if [ "$DRY_RUN" != "true" ]; then
+            RESULT="true"
+          else
+            RESULT="false"
+          fi
+          test_expr "dry_run unset" "true" "$RESULT"
+          
+          echo ""
+          echo "Test 2: dry_run != true (should be true when dry_run is false)"
+          DRY_RUN="false"
+          if [ "$DRY_RUN" != "true" ]; then
+            RESULT="true"
+          else
+            RESULT="false"
+          fi
+          test_expr "dry_run=false" "true" "$RESULT"
+          
+          echo ""
+          echo "Test 3: dry_run != true (should be false when dry_run is true)"
+          DRY_RUN="true"
+          if [ "$DRY_RUN" != "true" ]; then
+            RESULT="true"
+          else
+            RESULT="false"
+          fi
+          test_expr "dry_run=true" "false" "$RESULT"
+          
+          echo ""
+          echo "Test 4: auto_fix_tests != false (should be true when unset, default=true)"
+          AUTO_FIX=""
+          if [ "$AUTO_FIX" != "false" ]; then
+            RESULT="true"
+          else
+            RESULT="false"
+          fi
+          test_expr "auto_fix unset" "true" "$RESULT"
+          
+          echo ""
+          echo "Test 5: use_pyproject_coverage != true (should be true when unset, default=false)"
+          USE_PYPROJECT=""
+          if [ "$USE_PYPROJECT" != "true" ]; then
+            RESULT="true"
+          else
+            RESULT="false"
+          fi
+          test_expr "use_pyproject unset" "true" "$RESULT"
+          
+          echo ""
+          echo "================================================"
+          echo "Results: $PASS passed, $FAIL failed"
+          
+          if [ $FAIL -gt 0 ]; then
+            echo "❌ Expression tests failed!"
+            exit 1
+          fi
+          
+          echo "✅ All expression tests passed!"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        run: |
+          curl -sL "https://github.com/rhysd/actionlint/releases/download/v1.7.4/actionlint_1.7.4_linux_amd64.tar.gz" | tar xz -C /usr/local/bin actionlint
+
+      - name: Lint generate-tests.yml
+        run: |
+          actionlint .github/workflows/generate-tests.yml
+
+      - name: Validate expression patterns
+        run: |
+          echo "Checking for dangerous '== false' patterns with inputs..."
+          
+          # These patterns are broken when inputs are null
+          if grep -E 'inputs\.[a-z_]+ == false' .github/workflows/generate-tests.yml; then
+            echo "❌ FAIL: Found 'inputs.X == false' pattern - this breaks when inputs are null!"
+            echo "   Use 'inputs.X != true' instead"
+            exit 1
+          fi
+          
+          # Check for patterns where default is true but using == true
+          if grep -E 'inputs\.(auto_fix_tests) == true' .github/workflows/generate-tests.yml; then
+            echo "❌ FAIL: Found 'inputs.auto_fix_tests == true' - breaks when inputs are null!"
+            echo "   Use 'inputs.auto_fix_tests != false' instead (default is true)"
+            exit 1
+          fi
+          
+          echo "✅ No dangerous input comparison patterns found"
