@@ -93,7 +93,8 @@ jobs:
           echo "📛 Repo name: $REPO_NAME"
 
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.base_branch }}
@@ -102,7 +103,8 @@ jobs:
           path: target-repo
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -123,7 +125,11 @@ jobs:
           try:
               import tomllib
           except ImportError:
-              import tomli as tomllib
+              try:
+                  import tomli as tomllib
+              except ImportError:
+                  print('')
+                  sys.exit(0)
           
           with open('pyproject.toml', 'rb') as f:
               data = tomllib.load(f)
@@ -248,8 +254,6 @@ jobs:
                           # Count functions, classes, methods
                           funcs = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
                           classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
-                          methods = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) 
-                                       and isinstance(getattr(n, 'parent', None), ast.ClassDef))
                           
                           if funcs > 0 or classes > 0:  # Only include files with code
                               modules.append({
@@ -336,13 +340,13 @@ jobs:
                           "directory": dir_path,
                           "modules": [m["path"] for m in batch],
                           "priority": sum(m["priority"] for m in batch),
-                          "job_id": f"{dir_path.replace('/', '_')}_{i//max_per_group}"
+                          "job_id": f"{dir_path.replace('/', '_').replace('.', '_')}_{i//max_per_group}"
                       })
               
               return sorted(jobs, key=lambda x: x["priority"], reverse=True)
 
           # Main execution
-          threshold = int(os.environ.get("COVERAGE_THRESHOLD", "80"))
+          threshold = int(os.environ.get("COVERAGE_THRESHOLD", "100"))
           max_jobs = int(os.environ.get("MAX_PARALLEL_JOBS", "4"))
 
           packages = get_package_dirs()
@@ -421,17 +425,18 @@ jobs:
   generate:
     name: Generate Tests
     needs: analyze
-    if: needs.analyze.outputs.has_modules == 'true' && !inputs.dry_run
+    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      max-parallel: ${{ fromJSON(inputs.max_parallel_jobs) }}
+      max-parallel: ${{ inputs.max_parallel_jobs }}
       matrix:
         module: ${{ fromJSON(needs.analyze.outputs.modules_json) }}
 
     steps:
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.base_branch }}
@@ -439,7 +444,8 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -457,7 +463,8 @@ jobs:
 
       - name: Generate tests with Claude
         id: generate
-        uses: anthropics/claude-code-action@v1
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -501,7 +508,8 @@ jobs:
 
       - name: Get changed files
         id: changed
-        uses: tj-actions/changed-files@v47
+        # tj-actions/changed-files v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
         with:
           files: |
             tests/**/*.py
@@ -509,7 +517,8 @@ jobs:
 
       - name: Upload generated tests
         if: steps.changed.outputs.any_changed == 'true'
-        uses: actions/upload-artifact@v4
+        # actions/upload-artifact v4.6.2
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: generated-tests-${{ matrix.module.job_id }}
           path: |
@@ -523,7 +532,7 @@ jobs:
   consolidate:
     name: Consolidate & Create PR
     needs: [analyze, generate]
-    if: always() && needs.analyze.outputs.has_modules == 'true' && !inputs.dry_run
+    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false && needs.generate.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pull-request-number }}
@@ -531,7 +540,8 @@ jobs:
 
     steps:
       - name: Checkout target repository
-        uses: actions/checkout@v4
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: ${{ inputs.repository }}
           ref: ${{ inputs.base_branch }}
@@ -539,13 +549,15 @@ jobs:
           fetch-depth: 0
 
       - name: Download all generated tests
-        uses: actions/download-artifact@v4
+        # actions/download-artifact v4.3.0
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
           pattern: generated-tests-*
           merge-multiple: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -574,7 +586,8 @@ jobs:
 
       - name: Get changed test files
         id: changed-tests
-        uses: tj-actions/changed-files@v47
+        # tj-actions/changed-files v47
+        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
         with:
           files: |
             tests/**/*.py
@@ -583,14 +596,15 @@ jobs:
       - name: Create Pull Request
         if: steps.changed-tests.outputs.any_changed == 'true'
         id: create-pr
-        uses: peter-evans/create-pull-request@v7
+        # peter-evans/create-pull-request v7.0.11
+        uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
         with:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           commit-message: |
             test: add AI-generated unit tests
 
             Generated by Claude (${{ inputs.model }}) via generate-tests workflow.
-            Coverage threshold: ${{ inputs.coverage_threshold }}%
+            Coverage threshold: ${{ needs.analyze.outputs.effective_threshold }}%
 
             Modules tested:
             ${{ needs.analyze.outputs.modules_json }}
@@ -607,7 +621,7 @@ jobs:
             |--------|-------|
             | Repository | `${{ inputs.repository }}` |
             | Model | `${{ inputs.model }}` |
-            | Coverage Threshold | ${{ inputs.coverage_threshold }}% |
+            | Coverage Threshold | ${{ needs.analyze.outputs.effective_threshold }}% |
             | Module Groups | ${{ needs.analyze.outputs.module_count }} |
             | Tests Passing | ${{ steps.verify.outputs.tests_pass == 'true' && '✅ Yes' || '⚠️ Needs fixes' }} |
 
@@ -647,12 +661,15 @@ jobs:
     if: |
       always() &&
       needs.consolidate.outputs.pr_number &&
-      inputs.auto_fix_tests
+      inputs.auto_fix_tests == true
     runs-on: ubuntu-latest
+    outputs:
+      tests_pass: ${{ steps.run-tests.outputs.all_pass }}
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: ${{ inputs.repository }}
           ref: ai-generated-tests/${{ github.run_id }}
@@ -660,7 +677,8 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -689,7 +707,8 @@ jobs:
 
       - name: Fix failing tests with Claude
         if: steps.run-tests.outputs.all_pass == 'false'
-        uses: anthropics/claude-code-action@v1
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -722,10 +741,12 @@ jobs:
             --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*),Bash(python:*)"
 
       - name: Verify fixes and push
+        id: verify-push
         run: |
           # Run tests again
           if pytest tests/ -v; then
             echo "✅ All tests now pass!"
+            echo "final_pass=true" >> $GITHUB_OUTPUT
             
             # Commit and push fixes
             git config user.name "github-actions[bot]"
@@ -743,6 +764,7 @@ jobs:
             fi
           else
             echo "⚠️ Some tests still failing - manual intervention needed"
+            echo "final_pass=false" >> $GITHUB_OUTPUT
             exit 1
           fi
 
@@ -771,13 +793,14 @@ jobs:
     if: |
       always() &&
       needs.consolidate.outputs.pr_number &&
-      needs.auto-fix.result == 'success' &&
-      !inputs.use_pyproject_coverage
+      (needs.auto-fix.result == 'success' || needs.auto-fix.result == 'skipped') &&
+      inputs.use_pyproject_coverage == false
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        # actions/checkout v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
         with:
           repository: ${{ inputs.repository }}
           ref: ai-generated-tests/${{ github.run_id }}
@@ -785,7 +808,8 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        # actions/setup-python v5.6.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: ${{ env.PYTHON_VERSION }}
 
@@ -818,7 +842,8 @@ jobs:
 
       - name: Update pyproject.toml with Claude
         if: steps.measure.outputs.actual_coverage != '0'
-        uses: anthropics/claude-code-action@v1
+        # anthropics/claude-code-action v1
+        uses: anthropics/claude-code-action@3a38b377b30c75102b420405ed9516b57ca2e248
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt: |
@@ -862,7 +887,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           
-          if git diff --quiet pyproject.toml; then
+          if git diff --quiet pyproject.toml 2>/dev/null; then
             echo "No changes to pyproject.toml"
           else
             git add pyproject.toml
@@ -878,26 +903,27 @@ jobs:
           fi
 
       - name: Comment on PR about coverage update
+        if: steps.measure.outputs.actual_coverage != '0'
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           PR_NUM="${{ needs.consolidate.outputs.pr_number }}"
           REPO="${{ inputs.repository }}"
+          PREV_THRESHOLD="${{ needs.analyze.outputs.pyproject_threshold }}"
+          EFF_THRESHOLD="${{ needs.analyze.outputs.effective_threshold }}"
+          ACTUAL_COV="${{ steps.measure.outputs.actual_coverage }}"
           
-          gh pr comment "$PR_NUM" --repo "$REPO" --body "$(cat <<'EOF'
-          ## 📊 Coverage Standard Updated
+          gh pr comment "$PR_NUM" --repo "$REPO" --body "## 📊 Coverage Standard Updated
 
           | Metric | Value |
           |--------|-------|
-          | Previous threshold | ${{ needs.analyze.outputs.pyproject_threshold || 'not set' }}% |
-          | Workflow target | ${{ needs.analyze.outputs.effective_threshold }}% |
-          | **Achieved coverage** | **${{ steps.measure.outputs.actual_coverage }}%** |
+          | Previous threshold | ${PREV_THRESHOLD:-not set}% |
+          | Workflow target | ${EFF_THRESHOLD}% |
+          | **Achieved coverage** | **${ACTUAL_COV}%** |
 
-          ✅ `pyproject.toml` has been updated to enforce the new minimum coverage standard.
+          ✅ \`pyproject.toml\` has been updated to enforce the new minimum coverage standard.
 
-          This ensures coverage can only go **UP** in future PRs.
-          EOF
-          )"
+          This ensures coverage can only go **UP** in future PRs."
 
   # ============================================
   # SUMMARY - Final workflow status
