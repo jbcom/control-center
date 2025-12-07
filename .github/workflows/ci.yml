@@ -22,7 +22,8 @@ jobs:
           
           curl -sL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
           echo "${ACTIONLINT_CHECKSUM}  actionlint.tar.gz" | sha256sum -c
-          tar xz -C /usr/local/bin actionlint < actionlint.tar.gz
+          tar xz -C /tmp actionlint < actionlint.tar.gz
+          sudo mv /tmp/actionlint /usr/local/bin/
           rm actionlint.tar.gz
 
       - name: Lint all workflows
