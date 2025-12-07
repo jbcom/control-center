@@ -158,7 +158,6 @@ jobs:
       - name: Validate sync target paths exist
         run: |
           echo "Checking that sync source paths exist..."
-          ERRORS=0
           
           # Extract source paths from sync.yml and verify they exist
           python3 << 'EOF'
