@@ -17,8 +17,26 @@ Owning the resolution of muddled scope and boundaries across the agentic ecosyst
 |------------|----------|---------|--------|
 | `jbcom-control-center` | [#340](https://github.com/jbcom/jbcom-control-center/issues/340) | EPIC: Master tracking | 🟡 In Progress |
 | `vendor-connectors` | [#15](https://github.com/jbcom/vendor-connectors/issues/15) | Cursor + Anthropic connectors | 🟢 PR Created |
-| `vendor-connectors` | [PR #16](https://github.com/jbcom/vendor-connectors/pull/16) | Implementation PR | 🟡 In Review |
+| `vendor-connectors` | [PR #16](https://github.com/jbcom/vendor-connectors/pull/16) | Implementation PR | ✅ CI Passing |
 | `agentic-control` | [#8](https://github.com/jbcom/agentic-control/issues/8) | Scope clarification refactor | 🔴 Not Started |
+
+### Key Actions Completed This Session
+
+1. **Addressed AI Review Feedback** (Amazon Q Developer)
+   - Verified all Claude model names against live Anthropic API
+   - Removed unused imports (`field`, `AsyncIterator`)
+   - Removed unused `max_turns` parameter
+   - Fixed formatting with ruff
+
+2. **Documented Source of Truth**
+   - Added reference: https://docs.anthropic.com/en/docs/about-claude/models
+   - Verified against API: `curl https://api.anthropic.com/v1/models`
+
+3. **All CI Checks Passing**
+   - Lint ✅
+   - Tests py3.10 ✅
+   - Tests py3.13 ✅
+   - Build ✅
 
 ### Project Tracking
 
