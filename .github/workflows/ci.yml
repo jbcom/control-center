@@ -266,10 +266,15 @@ jobs:
           class TestClass:
               def method(self):
                   pass
-          
+
           def test_func():
               pass
           PY
+          
+          # Fix indentation from heredoc (GitHub Actions preserves leading spaces)
+          for f in test_pkg/*.py; do
+            sed -i 's/^          //' "$f"
+          done
           
           # Extract and run the discovery logic from generate-tests.yml
           python3 << 'PYTEST'
