@@ -404,7 +404,12 @@ jobs:
           echo "| Branch | \`${{ inputs.base_branch }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Effective Coverage Threshold** | **${{ steps.threshold.outputs.effective_threshold }}%** |" >> $GITHUB_STEP_SUMMARY
           echo "| Workflow Standard | ${{ inputs.coverage_threshold }}% |" >> $GITHUB_STEP_SUMMARY
-          echo "| pyproject.toml Value | ${{ steps.threshold.outputs.pyproject_threshold || 'N/A' }}% |" >> $GITHUB_STEP_SUMMARY
+          PYPROJECT_VAL="${{ steps.threshold.outputs.pyproject_threshold }}"
+          if [ -n "$PYPROJECT_VAL" ]; then
+            echo "| pyproject.toml Value | ${PYPROJECT_VAL}% |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "| pyproject.toml Value | N/A |" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "| Using pyproject.toml? | ${{ inputs.use_pyproject_coverage }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Modules Found | ${{ steps.discover.outputs.module_count }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Model | \`${{ inputs.model }}\` |" >> $GITHUB_STEP_SUMMARY
@@ -503,7 +508,7 @@ jobs:
 
           claude_args: |
             --model "${{ inputs.model }}"
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*),Bash(python:*),Bash(pip:*)"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*)"
           track_progress: true
 
       - name: Get changed files
@@ -745,7 +750,7 @@ jobs:
 
           claude_args: |
             --model "${{ inputs.model }}"
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*),Bash(python:*)"
+            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(pytest:*)"
 
       - name: Verify fixes and push
         id: verify-push
@@ -887,7 +892,7 @@ jobs:
 
           claude_args: |
             --model "${{ inputs.model }}"
-            --allowedTools "Edit,Read,Write"
+            --allowedTools "Edit,Read"
 
       - name: Commit and push pyproject.toml update
         run: |
