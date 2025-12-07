@@ -29,7 +29,9 @@ jobs:
       - name: Lint all workflows
         run: |
           echo "Linting all workflow files..."
-          actionlint -color
+          # Ignore SC2086 (double quote to prevent globbing) - common in GHA workflows
+          # where variables like $GITHUB_STEP_SUMMARY are known-safe
+          actionlint -ignore 'SC2086' -ignore 'SC2129' -color
           echo "✅ All workflows pass linting"
 
   validate-expressions:
@@ -253,28 +255,10 @@ jobs:
         run: |
           echo "Testing module discovery logic..."
           
-          # Create a minimal test structure
+          # Create a minimal test structure using printf to avoid heredoc indentation issues
           mkdir -p test_pkg
-          cat > test_pkg/__init__.py << 'PY'
-          """Test package."""
-          def hello():
-              pass
-          PY
-          
-          cat > test_pkg/module.py << 'PY'
-          """Test module."""
-          class TestClass:
-              def method(self):
-                  pass
-
-          def test_func():
-              pass
-          PY
-          
-          # Fix indentation from heredoc (GitHub Actions preserves leading spaces)
-          for f in test_pkg/*.py; do
-            sed -i 's/^          //' "$f"
-          done
+          printf '%s\n' '"""Test package."""' 'def hello():' '    pass' > test_pkg/__init__.py
+          printf '%s\n' '"""Test module."""' 'class TestClass:' '    def method(self):' '        pass' '' 'def test_func():' '    pass' > test_pkg/module.py
           
           # Extract and run the discovery logic from generate-tests.yml
           python3 << 'PYTEST'
@@ -346,15 +330,18 @@ jobs:
     steps:
       - name: Check results
         run: |
-          echo "## CI Results" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Validate Sync Config | ${{ needs.validate-sync-config.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |" >> $GITHUB_STEP_SUMMARY
+          # shellcheck disable=SC2086
+          {
+            echo "## CI Results"
+            echo ""
+            echo "| Check | Status |"
+            echo "|-------|--------|"
+            echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |"
+            echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |"
+            echo "| Validate Sync Config | ${{ needs.validate-sync-config.result == 'success' && '✅' || '❌' }} |"
+            echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |"
+            echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |"
+          } >> "$GITHUB_STEP_SUMMARY"
           
           # Fail if any job failed
           if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
