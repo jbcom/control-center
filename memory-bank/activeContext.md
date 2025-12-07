@@ -1,51 +1,28 @@
 # Active Context - jbcom Control Center
 
-## Current Status: FIXED GITHUB PAGES SYNC FAILURE
+## Current Status: FIXED
 
-Fixed malformed heredoc in sync workflow that was causing GitHub Pages sync to fail.
+Fixed GitHub Actions sync workflow failure and cleaned up redundant cursor-rules repo.
 
 ### What Was Done
 
-**Fixed GitHub Pages sync failure** in `.github/workflows/sync.yml`
+1. **Fixed heredoc bug in `.github/workflows/sync.yml`**
+   - Pages sync step had malformed heredocs (two `<<'EOF'` with one `EOF`)
+   - Replaced with proper if/elif/else using here-strings
 
-The sync-pages job was failing with:
-- HTTP 404 on PUT (expected - Pages not enabled yet)
-- HTTP 400 "Problems parsing JSON" on POST fallback (bug)
+2. **Removed `jbcom/cursor-rules` from all sync targets**
+   - Secrets sync matrix
+   - Branch protection sync matrix  
+   - Pages sync matrix
+   - File sync config (`.github/sync.yml`)
 
-**Root Cause**: Malformed heredocs - two `<<'EOF'` heredocs with only one `EOF` delimiter.
-
-```yaml
-# BROKEN (was):
-gh api repos/.../pages -X PUT --input - <<'EOF' || \
-gh api repos/.../pages -X POST --input - <<'EOF'
-{...}
-EOF  # Only one EOF for two heredocs!
-
-# FIXED (now):
-PAYLOAD='{"build_type": "workflow"}'
-if gh api ... -X PUT --input - <<< "$PAYLOAD"; then
-  ...
-elif gh api ... -X POST --input - <<< "$PAYLOAD"; then
-  ...
-fi
-```
-
-### Fix Details
-
-1. Use variable `PAYLOAD` to hold JSON once
-2. Use here-strings (`<<<`) instead of heredocs
-3. Proper if/elif/else for PUT vs POST
-4. Graceful fallback if both fail (Pages may need manual first-time setup)
+3. **Archived `jbcom/cursor-rules` repo**
+   - It was redundant - control center IS the cursor rules source
+   - Rules sync OUT from `cursor-rules/` to other repos
 
 ## For Next Agent
 
-1. This fix needs to be merged to main
-2. Re-run sync workflow to verify fix works
-
-## Previous Context (still relevant)
-
-- Sync is **direct to main** (no PRs) via `SKIP_PR: true`
-- Tiered sync approach: rules overwrite, environment/docs seed-only
+This branch has the fixes. Needs PR and merge.
 
 ---
 *Updated: 2025-12-07*
