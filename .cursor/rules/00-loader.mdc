@@ -44,7 +44,7 @@ GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/<repo>
 |------|---------|
 | `packages/` | All jbcom packages |
 | `ecosystems/flipside-crypto/` | FSC infrastructure |
-| `cursor-rules/` | Centralized rules (synced out) |
+| `repository-files/` | Files synced to public repos |
 | `memory-bank/` | Session context |
 | `.github/workflows/` | CI/CD |
 
