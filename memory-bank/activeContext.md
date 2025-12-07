@@ -1,60 +1,73 @@
 # Active Context - jbcom Control Center
 
-## Current Status: SYNC PROCESS UPDATED
+## Current Status: SURFACE SCOPE CLARIFICATION EPIC IN PROGRESS
 
-Updated sync approach with tiered propagation strategy.
+Owning the resolution of muddled scope and boundaries across the agentic ecosystem.
 
-### What Was Done
+### Root Issue
 
-1. **Changed sync to direct commits** (`.github/workflows/sync.yml`)
-   - Added `SKIP_PR: true` - pushes directly to main
-   - No more PRs for automated sync (doesn't make sense for agent-managed repos)
+[PR #7 Comment](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331) flagged that:
+- `agentic-control` has vendor-specific code (cursor-api.ts, Claude SDK) mixed with protocols
+- `vendor-connectors` is missing Cursor and Anthropic connectors
+- No clear separation between vendor implementations and protocols
 
-2. **Implemented tiered sync approach** (`.github/sync.yml`)
-   
-   | Category | Behavior | Files |
-   |----------|----------|-------|
-   | **Rules** | Always overwrite | `core/`, `workflows/`, `languages/*.mdc` |
-   | **Environment** | Initial only (`replace: false`) | `Dockerfile`, `environment.json` |
-   | **Docs** | Initial only (`replace: false`) | All `docs-templates/*` |
+### Issues & PRs
 
-3. **Closed vault-secret-sync PR #4**
-   - Was trying to overwrite their customized Dockerfile
-   - New approach respects downstream customizations
+| Repository | Issue/PR | Purpose | Status |
+|------------|----------|---------|--------|
+| `jbcom-control-center` | [#340](https://github.com/jbcom/jbcom-control-center/issues/340) | EPIC: Master tracking | 🟡 In Progress |
+| `vendor-connectors` | [#15](https://github.com/jbcom/vendor-connectors/issues/15) | Cursor + Anthropic connectors | 🟢 PR Created |
+| `vendor-connectors` | [PR #16](https://github.com/jbcom/vendor-connectors/pull/16) | Implementation PR | 🟡 In Review |
+| `agentic-control` | [#8](https://github.com/jbcom/agentic-control/issues/8) | Scope clarification refactor | 🔴 Not Started |
 
-### Rationale
+### Project Tracking
 
-- **Rules**: Must stay consistent across all repos for agent behavior
-- **Environment**: Repos have specific needs (Go vs Python vs Node tooling)
-- **Docs**: Seed structure, then repos customize for their content
+All issues in [jbcom Ecosystem Integration Project](https://github.com/users/jbcom/projects/2)
 
-### Current Structure
+### Target Architecture
 
 ```
-.github/
-├── sync.yml            # File sync config (tiered approach)
-└── workflows/
-    └── sync.yml        # Workflow (SKIP_PR: true)
+vendor-connectors (Python)
+├── cursor/          # Port from agentic-control/src/fleet/cursor-api.ts
+├── anthropic/       # Wrap @anthropic-ai/claude-agent-sdk
+└── [existing: aws, github, google, slack, vault, zoom]
 
-cursor-rules/           # Source for sync
-├── core/               # Always sync
-├── languages/          # Always sync
-├── workflows/          # Always sync
-├── Dockerfile          # Initial only
-├── environment.json    # Initial only
-└── docs-templates/     # Initial only
+agentic-control (Node.js) - REFACTORED
+├── core/           # Protocols and types (keep)
+├── fleet/          # Fleet protocols - vendor-agnostic (refactor)
+├── providers/      # NEW: Uses vendor-connectors
+└── [triage, handoff, github - keep]
+
+agentic-crew (Python) - NEW REPO
+├── crewai/         # Move from agentic-control/python/
+└── bridge/         # Protocol bridge to agentic-control
 ```
+
+### Implementation Phases
+
+1. **Phase 1**: Vendor Connectors (Cursor + Anthropic) - Week 1
+2. **Phase 2**: Create agentic-crew repo - Week 1-2
+3. **Phase 3**: Refactor agentic-control - Week 2-3
+4. **Phase 4**: Documentation & Integration - Week 3-4
 
 ## For Next Agent
 
-1. **Trigger sync workflow** to verify new approach works
-2. **Monitor downstream repos** - rules should update, Dockerfile/env should NOT
+1. **Continue Phase 1**: Create Cursor connector in vendor-connectors
+   - Port `cursor-api.ts` logic to Python
+   - Full API coverage (list agents, launch, followup, etc.)
+   - Input validation and SSRF protection
 
-## Key Points
+2. **Then**: Create Anthropic connector
+   - Wrap Claude Agent SDK
+   - Sandbox execution mode
 
-- Sync is now **direct to main** (no PRs)
-- `replace: false` = "seed once, then leave alone"
-- Rules are **always authoritative** from control center
+3. **Reference**: See issue details in linked GitHub issues
+
+## Key Files
+
+- Epic: https://github.com/jbcom/jbcom-control-center/issues/340
+- Original issue: https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331
+- Source to port: `agentic-control/src/fleet/cursor-api.ts` (~300 lines)
 
 ---
 *Updated: 2025-12-07*

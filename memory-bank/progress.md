@@ -1,5 +1,80 @@
 # Session Progress Log
 
+## Session: 2025-12-07 (Surface Scope Clarification Epic)
+
+### Context
+
+[PR #7 comment](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331) flagged that:
+- `agentic-control` has muddled scope with vendor-specific code mixed in
+- `cursor-api.ts` belongs in `vendor-connectors` not `agentic-control`
+- CrewAI code should be separate from protocol layer
+- No clear ownership of surfaces across repositories
+
+### What Was Done
+
+1. **Created Comprehensive Issues**
+
+   | Repository | Issue | Purpose |
+   |------------|-------|---------|
+   | `jbcom-control-center` | [#340](https://github.com/jbcom/jbcom-control-center/issues/340) | EPIC: Master tracking |
+   | `vendor-connectors` | [#15](https://github.com/jbcom/vendor-connectors/issues/15) | Cursor + Anthropic connectors |
+   | `agentic-control` | [#8](https://github.com/jbcom/agentic-control/issues/8) | Scope clarification refactor |
+
+2. **Set Up GitHub Project Tracking**
+   - Added all issues to [jbcom Ecosystem Integration](https://github.com/users/jbcom/projects/2)
+
+3. **Acknowledged on Original PR**
+   - Posted comprehensive plan on [PR #7](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621558824)
+
+4. **Documented Target Architecture**
+   
+   ```
+   vendor-connectors (Python)
+   ├── cursor/          # Port from agentic-control
+   ├── anthropic/       # Wrap Claude SDK
+   └── [existing connectors...]
+   
+   agentic-control (Node.js) - REFACTORED
+   ├── core/           # Protocols (vendor-agnostic)
+   ├── providers/      # NEW: Uses vendor-connectors
+   └── [triage, handoff, github...]
+   
+   agentic-crew (Python) - NEW
+   ├── crewai/         # Move from agentic-control/python/
+   └── bridge/         # Protocol bridge
+   ```
+
+### Implementation Plan
+
+1. **Phase 1**: Vendor Connectors (Week 1) ✅ **IN PROGRESS**
+   - ✅ Create Cursor connector in vendor-connectors (PR #16)
+   - ✅ Create Anthropic connector in vendor-connectors (PR #16)
+   - 🔄 Waiting for AI reviews
+
+2. **Phase 2**: Create agentic-crew (Week 1-2)
+   - New repository via jbcom-control-center
+   - Move CrewAI code from agentic-control
+
+3. **Phase 3**: Refactor agentic-control (Week 2-3)
+   - Remove vendor-specific code
+   - Implement provider interface
+
+4. **Phase 4**: Documentation (Week 3-4)
+
+### Pull Requests Created
+
+| Repository | PR | Status |
+|------------|---|--------|
+| `vendor-connectors` | [#16](https://github.com/jbcom/vendor-connectors/pull/16) | 🟡 In Review |
+
+### Key Files Reference
+
+- Source ported: `agentic-control/src/fleet/cursor-api.ts` (~300 lines) → `vendor-connectors/src/vendor_connectors/cursor/`
+- New Anthropic connector: `vendor-connectors/src/vendor_connectors/anthropic/`
+- 40 tests added (23 cursor, 17 anthropic)
+
+---
+
 ## Session: 2025-12-07 (Sync Process Overhaul)
 
 ### What Was Done
