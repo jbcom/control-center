@@ -256,9 +256,10 @@ jobs:
           echo "Testing module discovery logic..."
           
           # Create a minimal test structure using printf to avoid heredoc indentation issues
-          mkdir -p test_pkg
-          printf '%s\n' '"""Test package."""' 'def hello():' '    pass' > test_pkg/__init__.py
-          printf '%s\n' '"""Test module."""' 'class TestClass:' '    def method(self):' '        pass' '' 'def test_func():' '    pass' > test_pkg/module.py
+          # Note: Using 'sample_pkg' not 'test_pkg' to avoid matching the "test_" skip pattern
+          mkdir -p sample_pkg
+          printf '%s\n' '"""Sample package."""' 'def hello():' '    pass' > sample_pkg/__init__.py
+          printf '%s\n' '"""Sample module."""' 'class SampleClass:' '    def method(self):' '        pass' '' 'def sample_func():' '    pass' > sample_pkg/module.py
           
           # Extract and run the discovery logic from generate-tests.yml
           python3 << 'PYTEST'
@@ -310,7 +311,7 @@ jobs:
           # Test
           packages = get_package_dirs()
           print(f"Found packages: {packages}")
-          assert "test_pkg" in packages, f"Expected test_pkg in {packages}"
+          assert "sample_pkg" in packages, f"Expected sample_pkg in {packages}"
           
           modules = find_python_modules(packages)
           print(f"Found modules: {[m['path'] for m in modules]}")
@@ -320,7 +321,7 @@ jobs:
           PYTEST
           
           # Cleanup
-          rm -rf test_pkg
+          rm -rf sample_pkg
 
   summary:
     name: CI Summary
