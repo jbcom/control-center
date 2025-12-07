@@ -3,214 +3,300 @@
 #
 # Source: jbcom/jbcom-control-center (this repo)
 # Action: BetaHuhn/repo-file-sync-action
+#
+# TIERED SYNC APPROACH:
+# =====================
+# 1. RULES (cursor-rules/core/, workflows/, languages/):
+#    - Always propagate (default behavior)
+#    - Overwrites on every sync to ensure consistency
+#
+# 2. ENVIRONMENT (Dockerfile, environment.json):
+#    - Sync INITIALLY only (replace: false)
+#    - Once file exists in target repo, it's NOT overwritten
+#    - Allows individual repos to customize for their specific needs
+#
+# 3. DOCS TEMPLATES:
+#    - Sync initially only (replace: false)
+#    - Repos can customize docs structure after initial scaffold
 
 # ============================================
 # PYTHON PACKAGES
 # ============================================
 
 jbcom/extended-data-types:
-  # Cursor rules
+  # Cursor rules - ALWAYS SYNC (overwrite to maintain consistency)
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/python.mdc
     dest: .cursor/rules/languages/python.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY (don't overwrite downstream customizations)
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
-  # Docs scaffold
+    replace: false
+  # Docs scaffold - INITIAL ONLY (repos customize after seed)
   - source: cursor-rules/docs-templates/docs.yml
     dest: .github/workflows/docs.yml
+    replace: false
   - source: cursor-rules/docs-templates/conf.py
     dest: docs/conf.py
+    replace: false
   - source: cursor-rules/docs-templates/Makefile
     dest: docs/Makefile
+    replace: false
   - source: cursor-rules/docs-templates/index.rst
     dest: docs/index.rst
+    replace: false
   - source: cursor-rules/docs-templates/.nojekyll
     dest: docs/.nojekyll
+    replace: false
   - source: cursor-rules/docs-templates/_static/
     dest: docs/_static/
+    replace: false
   - source: cursor-rules/docs-templates/_templates/
     dest: docs/_templates/
+    replace: false
   - source: cursor-rules/docs-templates/getting-started/
     dest: docs/getting-started/
+    replace: false
   - source: cursor-rules/docs-templates/api/
     dest: docs/api/
+    replace: false
   - source: cursor-rules/docs-templates/development/
     dest: docs/development/
+    replace: false
 
 jbcom/lifecyclelogging:
-  # Cursor rules
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/python.mdc
     dest: .cursor/rules/languages/python.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
-  # Docs scaffold
+    replace: false
+  # Docs scaffold - INITIAL ONLY
   - source: cursor-rules/docs-templates/docs.yml
     dest: .github/workflows/docs.yml
+    replace: false
   - source: cursor-rules/docs-templates/conf.py
     dest: docs/conf.py
+    replace: false
   - source: cursor-rules/docs-templates/Makefile
     dest: docs/Makefile
+    replace: false
   - source: cursor-rules/docs-templates/index.rst
     dest: docs/index.rst
+    replace: false
   - source: cursor-rules/docs-templates/.nojekyll
     dest: docs/.nojekyll
+    replace: false
   - source: cursor-rules/docs-templates/_static/
     dest: docs/_static/
+    replace: false
   - source: cursor-rules/docs-templates/_templates/
     dest: docs/_templates/
+    replace: false
   - source: cursor-rules/docs-templates/getting-started/
     dest: docs/getting-started/
+    replace: false
   - source: cursor-rules/docs-templates/api/
     dest: docs/api/
+    replace: false
   - source: cursor-rules/docs-templates/development/
     dest: docs/development/
+    replace: false
 
 jbcom/directed-inputs-class:
-  # Cursor rules
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/python.mdc
     dest: .cursor/rules/languages/python.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
-  # Docs scaffold
+    replace: false
+  # Docs scaffold - INITIAL ONLY
   - source: cursor-rules/docs-templates/docs.yml
     dest: .github/workflows/docs.yml
+    replace: false
   - source: cursor-rules/docs-templates/conf.py
     dest: docs/conf.py
+    replace: false
   - source: cursor-rules/docs-templates/Makefile
     dest: docs/Makefile
+    replace: false
   - source: cursor-rules/docs-templates/index.rst
     dest: docs/index.rst
+    replace: false
   - source: cursor-rules/docs-templates/.nojekyll
     dest: docs/.nojekyll
+    replace: false
   - source: cursor-rules/docs-templates/_static/
     dest: docs/_static/
+    replace: false
   - source: cursor-rules/docs-templates/_templates/
     dest: docs/_templates/
+    replace: false
   - source: cursor-rules/docs-templates/getting-started/
     dest: docs/getting-started/
+    replace: false
   - source: cursor-rules/docs-templates/api/
     dest: docs/api/
+    replace: false
   - source: cursor-rules/docs-templates/development/
     dest: docs/development/
+    replace: false
 
 jbcom/python-terraform-bridge:
-  # Cursor rules
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/python.mdc
     dest: .cursor/rules/languages/python.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
-  # Docs scaffold
+    replace: false
+  # Docs scaffold - INITIAL ONLY
   - source: cursor-rules/docs-templates/docs.yml
     dest: .github/workflows/docs.yml
+    replace: false
   - source: cursor-rules/docs-templates/conf.py
     dest: docs/conf.py
+    replace: false
   - source: cursor-rules/docs-templates/Makefile
     dest: docs/Makefile
+    replace: false
   - source: cursor-rules/docs-templates/index.rst
     dest: docs/index.rst
+    replace: false
   - source: cursor-rules/docs-templates/.nojekyll
     dest: docs/.nojekyll
+    replace: false
   - source: cursor-rules/docs-templates/_static/
     dest: docs/_static/
+    replace: false
   - source: cursor-rules/docs-templates/_templates/
     dest: docs/_templates/
+    replace: false
   - source: cursor-rules/docs-templates/getting-started/
     dest: docs/getting-started/
+    replace: false
   - source: cursor-rules/docs-templates/api/
     dest: docs/api/
+    replace: false
   - source: cursor-rules/docs-templates/development/
     dest: docs/development/
+    replace: false
 
 jbcom/vendor-connectors:
-  # Cursor rules
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/python.mdc
     dest: .cursor/rules/languages/python.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
-  # Docs scaffold
+    replace: false
+  # Docs scaffold - INITIAL ONLY
   - source: cursor-rules/docs-templates/docs.yml
     dest: .github/workflows/docs.yml
+    replace: false
   - source: cursor-rules/docs-templates/conf.py
     dest: docs/conf.py
+    replace: false
   - source: cursor-rules/docs-templates/Makefile
     dest: docs/Makefile
+    replace: false
   - source: cursor-rules/docs-templates/index.rst
     dest: docs/index.rst
+    replace: false
   - source: cursor-rules/docs-templates/.nojekyll
     dest: docs/.nojekyll
+    replace: false
   - source: cursor-rules/docs-templates/_static/
     dest: docs/_static/
+    replace: false
   - source: cursor-rules/docs-templates/_templates/
     dest: docs/_templates/
+    replace: false
   - source: cursor-rules/docs-templates/getting-started/
     dest: docs/getting-started/
+    replace: false
   - source: cursor-rules/docs-templates/api/
     dest: docs/api/
+    replace: false
   - source: cursor-rules/docs-templates/development/
     dest: docs/development/
+    replace: false
 
 # ============================================
 # NODE.JS / TYPESCRIPT PACKAGES
 # ============================================
 
 jbcom/agentic-control:
-  # Cursor rules only - already has custom docs setup
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/typescript.mdc
     dest: .cursor/rules/languages/typescript.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
+    replace: false
 
 # ============================================
 # GO PACKAGES
 # ============================================
 
 jbcom/vault-secret-sync:
-  # Cursor rules only - Go uses different doc tooling
+  # Cursor rules - ALWAYS SYNC
   - source: cursor-rules/core/
     dest: .cursor/rules/core/
   - source: cursor-rules/languages/go.mdc
     dest: .cursor/rules/languages/go.mdc
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
+  # Environment - INITIAL ONLY (vault-secret-sync has its own Dockerfile)
   - source: cursor-rules/Dockerfile
     dest: .cursor/Dockerfile
+    replace: false
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
+    replace: false
 
 # ============================================
 # CURSOR RULES REPO
