@@ -1,70 +1,60 @@
 # Active Context - jbcom Control Center
 
-## Current Status: CLEAN SLATE COMPLETE
+## Current Status: SYNC PROCESS UPDATED
 
-Repository reorganized and cleaned:
+Updated sync approach with tiered propagation strategy.
 
 ### What Was Done
 
-1. **Created unified sync workflow** (`.github/workflows/sync.yml`)
-   - Secrets sync: Daily to all public jbcom repos
-   - File sync: cursor-rules/ to all public repos on push
+1. **Changed sync to direct commits** (`.github/workflows/sync.yml`)
+   - Added `SKIP_PR: true` - pushes directly to main
+   - No more PRs for automated sync (doesn't make sense for agent-managed repos)
 
-2. **Created centralized cursor-rules/** 
-   - DRY rules synced to all public repos
-   - Universal Dockerfile (Python 3.13, Node 24, Go 1.24)
-   - Core, language, and workflow rules
+2. **Implemented tiered sync approach** (`.github/sync.yml`)
+   
+   | Category | Behavior | Files |
+   |----------|----------|-------|
+   | **Rules** | Always overwrite | `core/`, `workflows/`, `languages/*.mdc` |
+   | **Environment** | Initial only (`replace: false`) | `Dockerfile`, `environment.json` |
+   | **Docs** | Initial only (`replace: false`) | All `docs-templates/*` |
 
-3. **Cleaned up cruft**
-   - Removed stale `.cursor/agents/`, `.cursor/recovery/`, `.cursor/handoff/`
-   - Removed duplicate docs (counterparty, FSC control center refs)
-   - Removed old memory-bank reports
-   - Removed root-level summary files (AGENT_FIXES_SUMMARY.md, etc.)
+3. **Closed vault-secret-sync PR #4**
+   - Was trying to overwrite their customized Dockerfile
+   - New approach respects downstream customizations
 
-4. **Updated FSC documentation**
-   - `docs/FSC-INFRASTRUCTURE.md` now references real repos:
-     - `/terraform-modules`
-     - `/cluster-ops`
-     - `/terraform-organization-administration`
-   - Added org to `agentic.config.json`
+### Rationale
+
+- **Rules**: Must stay consistent across all repos for agent behavior
+- **Environment**: Repos have specific needs (Go vs Python vs Node tooling)
+- **Docs**: Seed structure, then repos customize for their content
 
 ### Current Structure
 
 ```
-docs/
-├── ENVIRONMENT_VARIABLES.md
-├── FSC-INFRASTRUCTURE.md      # FSC repo maintenance
-├── JBCOM-ECOSYSTEM-INTEGRATION.md
-├── OSS-MIGRATION-CLOSEOUT.md
-├── RELEASE-PROCESS.md
-├── TOKEN-MANAGEMENT.md
-└── pull_request_template.md
+.github/
+├── sync.yml            # File sync config (tiered approach)
+└── workflows/
+    └── sync.yml        # Workflow (SKIP_PR: true)
 
-cursor-rules/                   # Synced to public repos
-├── core/
-├── languages/
-├── workflows/
-├── Dockerfile
-└── environment.json
-
-memory-bank/
-├── activeContext.md
-└── progress.md
+cursor-rules/           # Source for sync
+├── core/               # Always sync
+├── languages/          # Always sync
+├── workflows/          # Always sync
+├── Dockerfile          # Initial only
+├── environment.json    # Initial only
+└── docs-templates/     # Initial only
 ```
 
 ## For Next Agent
 
-1. **Close OSS ecosystem PR #61** and archive repo
-2. **Trigger sync workflow** to verify
-3. **Check FSC repos** for package update needs
+1. **Trigger sync workflow** to verify new approach works
+2. **Monitor downstream repos** - rules should update, Dockerfile/env should NOT
 
-## Key FSC Repos
+## Key Points
 
-| Repo | Purpose |
-|------|---------|
-| `/terraform-modules` | Reusable TF modules |
-| `/cluster-ops` | K8s cluster ops |
-| `/terraform-organization-administration` | Org-level TF |
+- Sync is now **direct to main** (no PRs)
+- `replace: false` = "seed once, then leave alone"
+- Rules are **always authoritative** from control center
 
 ---
-*Updated: 2025-12-06*
+*Updated: 2025-12-07*

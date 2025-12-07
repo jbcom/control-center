@@ -1,5 +1,37 @@
 # Session Progress Log
 
+## Session: 2025-12-07 (Sync Process Overhaul)
+
+### What Was Done
+
+1. **Changed sync to direct commits**
+   - Added `SKIP_PR: true` to `.github/workflows/sync.yml`
+   - Sync now pushes directly to main (no PRs for automated sync)
+   - Rationale: PRs don't make sense for agent-managed repos
+
+2. **Implemented tiered sync approach** in `.github/sync.yml`
+   - **Rules** (core/, workflows/, languages/): Always overwrite
+   - **Environment** (Dockerfile, environment.json): `replace: false` - initial only
+   - **Docs** (docs-templates/*): `replace: false` - seed then customize
+
+3. **Closed vault-secret-sync PR #4**
+   - Old sync was trying to overwrite their customized Dockerfile
+   - New approach respects downstream customizations
+
+### Context
+
+- PR #4 highlighted issue: syncing repo-specific files like Dockerfile
+- vault-secret-sync has its own Dockerfile with Go-specific setup
+- Central Dockerfile is a generic template, not authoritative for all repos
+
+### Key Insight
+
+Different file types have different sync semantics:
+- **Authoritative**: Rules must be consistent everywhere
+- **Seed**: Environment/docs are starting points, repos customize
+
+---
+
 ## Session: 2025-12-06 (Repository Reorganization)
 
 ### What Was Done
