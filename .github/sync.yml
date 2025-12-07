@@ -32,41 +32,41 @@ jbcom/extended-data-types:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY (don't overwrite downstream customizations)
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
   # Docs scaffold - INITIAL ONLY (repos customize after seed)
-  - source: cursor-rules/docs-templates/docs.yml
+  - source: sync-templates/docs/docs.yml
     dest: .github/workflows/docs.yml
     replace: false
-  - source: cursor-rules/docs-templates/conf.py
+  - source: sync-templates/docs/conf.py
     dest: docs/conf.py
     replace: false
-  - source: cursor-rules/docs-templates/Makefile
+  - source: sync-templates/docs/Makefile
     dest: docs/Makefile
     replace: false
-  - source: cursor-rules/docs-templates/index.rst
+  - source: sync-templates/docs/index.rst
     dest: docs/index.rst
     replace: false
-  - source: cursor-rules/docs-templates/.nojekyll
+  - source: sync-templates/docs/.nojekyll
     dest: docs/.nojekyll
     replace: false
-  - source: cursor-rules/docs-templates/_static/
+  - source: sync-templates/docs/_static/
     dest: docs/_static/
     replace: false
-  - source: cursor-rules/docs-templates/_templates/
+  - source: sync-templates/docs/_templates/
     dest: docs/_templates/
     replace: false
-  - source: cursor-rules/docs-templates/getting-started/
+  - source: sync-templates/docs/getting-started/
     dest: docs/getting-started/
     replace: false
-  - source: cursor-rules/docs-templates/api/
+  - source: sync-templates/docs/api/
     dest: docs/api/
     replace: false
-  - source: cursor-rules/docs-templates/development/
+  - source: sync-templates/docs/development/
     dest: docs/development/
     replace: false
 
@@ -79,41 +79,41 @@ jbcom/lifecyclelogging:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
   # Docs scaffold - INITIAL ONLY
-  - source: cursor-rules/docs-templates/docs.yml
+  - source: sync-templates/docs/docs.yml
     dest: .github/workflows/docs.yml
     replace: false
-  - source: cursor-rules/docs-templates/conf.py
+  - source: sync-templates/docs/conf.py
     dest: docs/conf.py
     replace: false
-  - source: cursor-rules/docs-templates/Makefile
+  - source: sync-templates/docs/Makefile
     dest: docs/Makefile
     replace: false
-  - source: cursor-rules/docs-templates/index.rst
+  - source: sync-templates/docs/index.rst
     dest: docs/index.rst
     replace: false
-  - source: cursor-rules/docs-templates/.nojekyll
+  - source: sync-templates/docs/.nojekyll
     dest: docs/.nojekyll
     replace: false
-  - source: cursor-rules/docs-templates/_static/
+  - source: sync-templates/docs/_static/
     dest: docs/_static/
     replace: false
-  - source: cursor-rules/docs-templates/_templates/
+  - source: sync-templates/docs/_templates/
     dest: docs/_templates/
     replace: false
-  - source: cursor-rules/docs-templates/getting-started/
+  - source: sync-templates/docs/getting-started/
     dest: docs/getting-started/
     replace: false
-  - source: cursor-rules/docs-templates/api/
+  - source: sync-templates/docs/api/
     dest: docs/api/
     replace: false
-  - source: cursor-rules/docs-templates/development/
+  - source: sync-templates/docs/development/
     dest: docs/development/
     replace: false
 
@@ -126,41 +126,41 @@ jbcom/directed-inputs-class:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
   # Docs scaffold - INITIAL ONLY
-  - source: cursor-rules/docs-templates/docs.yml
+  - source: sync-templates/docs/docs.yml
     dest: .github/workflows/docs.yml
     replace: false
-  - source: cursor-rules/docs-templates/conf.py
+  - source: sync-templates/docs/conf.py
     dest: docs/conf.py
     replace: false
-  - source: cursor-rules/docs-templates/Makefile
+  - source: sync-templates/docs/Makefile
     dest: docs/Makefile
     replace: false
-  - source: cursor-rules/docs-templates/index.rst
+  - source: sync-templates/docs/index.rst
     dest: docs/index.rst
     replace: false
-  - source: cursor-rules/docs-templates/.nojekyll
+  - source: sync-templates/docs/.nojekyll
     dest: docs/.nojekyll
     replace: false
-  - source: cursor-rules/docs-templates/_static/
+  - source: sync-templates/docs/_static/
     dest: docs/_static/
     replace: false
-  - source: cursor-rules/docs-templates/_templates/
+  - source: sync-templates/docs/_templates/
     dest: docs/_templates/
     replace: false
-  - source: cursor-rules/docs-templates/getting-started/
+  - source: sync-templates/docs/getting-started/
     dest: docs/getting-started/
     replace: false
-  - source: cursor-rules/docs-templates/api/
+  - source: sync-templates/docs/api/
     dest: docs/api/
     replace: false
-  - source: cursor-rules/docs-templates/development/
+  - source: sync-templates/docs/development/
     dest: docs/development/
     replace: false
 
@@ -173,41 +173,41 @@ jbcom/python-terraform-bridge:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
   # Docs scaffold - INITIAL ONLY
-  - source: cursor-rules/docs-templates/docs.yml
+  - source: sync-templates/docs/docs.yml
     dest: .github/workflows/docs.yml
     replace: false
-  - source: cursor-rules/docs-templates/conf.py
+  - source: sync-templates/docs/conf.py
     dest: docs/conf.py
     replace: false
-  - source: cursor-rules/docs-templates/Makefile
+  - source: sync-templates/docs/Makefile
     dest: docs/Makefile
     replace: false
-  - source: cursor-rules/docs-templates/index.rst
+  - source: sync-templates/docs/index.rst
     dest: docs/index.rst
     replace: false
-  - source: cursor-rules/docs-templates/.nojekyll
+  - source: sync-templates/docs/.nojekyll
     dest: docs/.nojekyll
     replace: false
-  - source: cursor-rules/docs-templates/_static/
+  - source: sync-templates/docs/_static/
     dest: docs/_static/
     replace: false
-  - source: cursor-rules/docs-templates/_templates/
+  - source: sync-templates/docs/_templates/
     dest: docs/_templates/
     replace: false
-  - source: cursor-rules/docs-templates/getting-started/
+  - source: sync-templates/docs/getting-started/
     dest: docs/getting-started/
     replace: false
-  - source: cursor-rules/docs-templates/api/
+  - source: sync-templates/docs/api/
     dest: docs/api/
     replace: false
-  - source: cursor-rules/docs-templates/development/
+  - source: sync-templates/docs/development/
     dest: docs/development/
     replace: false
 
@@ -220,41 +220,41 @@ jbcom/vendor-connectors:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
   # Docs scaffold - INITIAL ONLY
-  - source: cursor-rules/docs-templates/docs.yml
+  - source: sync-templates/docs/docs.yml
     dest: .github/workflows/docs.yml
     replace: false
-  - source: cursor-rules/docs-templates/conf.py
+  - source: sync-templates/docs/conf.py
     dest: docs/conf.py
     replace: false
-  - source: cursor-rules/docs-templates/Makefile
+  - source: sync-templates/docs/Makefile
     dest: docs/Makefile
     replace: false
-  - source: cursor-rules/docs-templates/index.rst
+  - source: sync-templates/docs/index.rst
     dest: docs/index.rst
     replace: false
-  - source: cursor-rules/docs-templates/.nojekyll
+  - source: sync-templates/docs/.nojekyll
     dest: docs/.nojekyll
     replace: false
-  - source: cursor-rules/docs-templates/_static/
+  - source: sync-templates/docs/_static/
     dest: docs/_static/
     replace: false
-  - source: cursor-rules/docs-templates/_templates/
+  - source: sync-templates/docs/_templates/
     dest: docs/_templates/
     replace: false
-  - source: cursor-rules/docs-templates/getting-started/
+  - source: sync-templates/docs/getting-started/
     dest: docs/getting-started/
     replace: false
-  - source: cursor-rules/docs-templates/api/
+  - source: sync-templates/docs/api/
     dest: docs/api/
     replace: false
-  - source: cursor-rules/docs-templates/development/
+  - source: sync-templates/docs/development/
     dest: docs/development/
     replace: false
 
@@ -271,10 +271,10 @@ jbcom/agentic-control:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
 
@@ -291,9 +291,9 @@ jbcom/vault-secret-sync:
   - source: cursor-rules/workflows/
     dest: .cursor/rules/workflows/
   # Environment - INITIAL ONLY (vault-secret-sync has its own Dockerfile)
-  - source: cursor-rules/Dockerfile
+  - source: sync-templates/Dockerfile
     dest: .cursor/Dockerfile
     replace: false
-  - source: cursor-rules/environment.json
+  - source: sync-templates/environment.json
     dest: .cursor/environment.json
     replace: false
