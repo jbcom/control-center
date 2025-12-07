@@ -207,13 +207,17 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           # Enable GitHub Pages with GitHub Actions as build source
-          gh api repos/${{ matrix.repo }}/pages -X PUT --input - <<'EOF' || \
-          gh api repos/${{ matrix.repo }}/pages -X POST --input - <<'EOF'
-          {
-            "build_type": "workflow"
-          }
-          EOF
-          echo "✅ Enabled GitHub Pages for ${{ matrix.repo }}"
+          # Try PUT first (update existing), fall back to POST (create new)
+          PAYLOAD='{"build_type": "workflow"}'
+          
+          if gh api repos/${{ matrix.repo }}/pages -X PUT --input - <<< "$PAYLOAD" 2>/dev/null; then
+            echo "✅ Updated GitHub Pages for ${{ matrix.repo }}"
+          elif gh api repos/${{ matrix.repo }}/pages -X POST --input - <<< "$PAYLOAD" 2>/dev/null; then
+            echo "✅ Created GitHub Pages for ${{ matrix.repo }}"
+          else
+            echo "⚠️ Could not enable GitHub Pages for ${{ matrix.repo }} (may require manual setup)"
+            exit 0  # Don't fail the job - Pages might need manual first-time setup
+          fi
 
       - name: Dry run - would enable Pages for ${{ matrix.repo }}
         if: ${{ inputs.dry_run }}

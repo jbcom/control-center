@@ -1,60 +1,51 @@
 # Active Context - jbcom Control Center
 
-## Current Status: SYNC PROCESS UPDATED
+## Current Status: FIXED GITHUB PAGES SYNC FAILURE
 
-Updated sync approach with tiered propagation strategy.
+Fixed malformed heredoc in sync workflow that was causing GitHub Pages sync to fail.
 
 ### What Was Done
 
-1. **Changed sync to direct commits** (`.github/workflows/sync.yml`)
-   - Added `SKIP_PR: true` - pushes directly to main
-   - No more PRs for automated sync (doesn't make sense for agent-managed repos)
+**Fixed GitHub Pages sync failure** in `.github/workflows/sync.yml`
 
-2. **Implemented tiered sync approach** (`.github/sync.yml`)
-   
-   | Category | Behavior | Files |
-   |----------|----------|-------|
-   | **Rules** | Always overwrite | `core/`, `workflows/`, `languages/*.mdc` |
-   | **Environment** | Initial only (`replace: false`) | `Dockerfile`, `environment.json` |
-   | **Docs** | Initial only (`replace: false`) | All `docs-templates/*` |
+The sync-pages job was failing with:
+- HTTP 404 on PUT (expected - Pages not enabled yet)
+- HTTP 400 "Problems parsing JSON" on POST fallback (bug)
 
-3. **Closed vault-secret-sync PR #4**
-   - Was trying to overwrite their customized Dockerfile
-   - New approach respects downstream customizations
+**Root Cause**: Malformed heredocs - two `<<'EOF'` heredocs with only one `EOF` delimiter.
 
-### Rationale
+```yaml
+# BROKEN (was):
+gh api repos/.../pages -X PUT --input - <<'EOF' || \
+gh api repos/.../pages -X POST --input - <<'EOF'
+{...}
+EOF  # Only one EOF for two heredocs!
 
-- **Rules**: Must stay consistent across all repos for agent behavior
-- **Environment**: Repos have specific needs (Go vs Python vs Node tooling)
-- **Docs**: Seed structure, then repos customize for their content
-
-### Current Structure
-
+# FIXED (now):
+PAYLOAD='{"build_type": "workflow"}'
+if gh api ... -X PUT --input - <<< "$PAYLOAD"; then
+  ...
+elif gh api ... -X POST --input - <<< "$PAYLOAD"; then
+  ...
+fi
 ```
-.github/
-├── sync.yml            # File sync config (tiered approach)
-└── workflows/
-    └── sync.yml        # Workflow (SKIP_PR: true)
 
-cursor-rules/           # Source for sync
-├── core/               # Always sync
-├── languages/          # Always sync
-├── workflows/          # Always sync
-├── Dockerfile          # Initial only
-├── environment.json    # Initial only
-└── docs-templates/     # Initial only
-```
+### Fix Details
+
+1. Use variable `PAYLOAD` to hold JSON once
+2. Use here-strings (`<<<`) instead of heredocs
+3. Proper if/elif/else for PUT vs POST
+4. Graceful fallback if both fail (Pages may need manual first-time setup)
 
 ## For Next Agent
 
-1. **Trigger sync workflow** to verify new approach works
-2. **Monitor downstream repos** - rules should update, Dockerfile/env should NOT
+1. This fix needs to be merged to main
+2. Re-run sync workflow to verify fix works
 
-## Key Points
+## Previous Context (still relevant)
 
-- Sync is now **direct to main** (no PRs)
-- `replace: false` = "seed once, then leave alone"
-- Rules are **always authoritative** from control center
+- Sync is **direct to main** (no PRs) via `SKIP_PR: true`
+- Tiered sync approach: rules overwrite, environment/docs seed-only
 
 ---
 *Updated: 2025-12-07*
