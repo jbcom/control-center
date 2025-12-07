@@ -297,8 +297,3 @@ jbcom/vault-secret-sync:
   - source: cursor-rules/environment.json
     dest: .cursor/environment.json
     replace: false
-
-# ============================================
-# ARCHIVED REPOS (no longer synced)
-# ============================================
-# jbcom/cursor-rules - ARCHIVED: Migrated to jbcom-control-center/cursor-rules/
