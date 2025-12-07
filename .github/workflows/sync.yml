@@ -196,7 +196,6 @@ jobs:
           - jbcom/python-terraform-bridge
           - jbcom/vendor-connectors
           - jbcom/agentic-control
-          - jbcom/cursor-rules
 
     steps:
       - name: Enable GitHub Pages for ${{ matrix.repo }}
