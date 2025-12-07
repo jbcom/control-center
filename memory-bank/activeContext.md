@@ -1,60 +1,49 @@
 # Active Context - jbcom Control Center
 
-## Current Status: SYNC PROCESS UPDATED
+## Current Status: AGENTIC-CREW PREPARATION
 
-Updated sync approach with tiered propagation strategy.
+Prepared comprehensive draft for `jbcom/agentic-crew` repository. **Blocked by** jbcom/vendor-connectors#17.
 
 ### What Was Done
 
-1. **Changed sync to direct commits** (`.github/workflows/sync.yml`)
-   - Added `SKIP_PR: true` - pushes directly to main
-   - No more PRs for automated sync (doesn't make sense for agent-managed repos)
+1. **Studied reference implementations**
+   - `jbcom/otterfall/.crewai` - YAML-based crew definitions with knowledge
+   - `jbcom/agentic-control/python` - Python @CrewBase classes + Flows
 
-2. **Implemented tiered sync approach** (`.github/sync.yml`)
-   
-   | Category | Behavior | Files |
-   |----------|----------|-------|
-   | **Rules** | Always overwrite | `core/`, `workflows/`, `languages/*.mdc` |
-   | **Environment** | Initial only (`replace: false`) | `Dockerfile`, `environment.json` |
-   | **Docs** | Initial only (`replace: false`) | All `docs-templates/*` |
+2. **Drafted repository structure** (`docs/AGENTIC-CREW-DRAFT.md`)
+   - Full package layout with crews/, tools/, server/, cli/
+   - Dual-mode operation design (standalone, registered, hybrid)
+   - Tool integration with vendor-connectors.ai.tools
+   - HTTP server for agentic-control fleet registration
 
-3. **Closed vault-secret-sync PR #4**
-   - Was trying to overwrite their customized Dockerfile
-   - New approach respects downstream customizations
+3. **Designed core abstractions**
+   - `AgenticCrew` client with operation modes
+   - `TriageCrew`, `ReviewCrew`, `OpsCrew` definitions
+   - FastAPI server for task delegation
 
-### Rationale
+### Key Decisions
 
-- **Rules**: Must stay consistent across all repos for agent behavior
-- **Environment**: Repos have specific needs (Go vs Python vs Node tooling)
-- **Docs**: Seed structure, then repos customize for their content
+| Decision | Rationale |
+|----------|-----------|
+| Three modes (standalone/registered/hybrid) | Flexibility for local dev vs fleet orchestration |
+| FastAPI server | Receives tasks from agentic-control |
+| vendor-connectors.ai.tools | Single tool source, LangChain-compatible |
+| @CrewBase pattern | Consistent with agentic-control/python |
 
-### Current Structure
+### Blocked By
 
-```
-.github/
-├── sync.yml            # File sync config (tiered approach)
-└── workflows/
-    └── sync.yml        # Workflow (SKIP_PR: true)
-
-cursor-rules/           # Source for sync
-├── core/               # Always sync
-├── languages/          # Always sync
-├── workflows/          # Always sync
-├── Dockerfile          # Initial only
-├── environment.json    # Initial only
-└── docs-templates/     # Initial only
-```
+- **jbcom/vendor-connectors#17** - AI sub-package needed for tools
 
 ## For Next Agent
 
-1. **Trigger sync workflow** to verify new approach works
-2. **Monitor downstream repos** - rules should update, Dockerfile/env should NOT
+1. **When vendor-connectors#17 merges**: Create the repository using the draft
+2. **Reference draft**: `/workspace/docs/AGENTIC-CREW-DRAFT.md`
+3. **PR to update**: jbcom/jbcom-control-center#361
 
-## Key Points
+## Key Files
 
-- Sync is now **direct to main** (no PRs)
-- `replace: false` = "seed once, then leave alone"
-- Rules are **always authoritative** from control center
+- `/workspace/docs/AGENTIC-CREW-DRAFT.md` - Complete repository design
+- Draft includes: pyproject.toml, crew implementations, server code
 
 ---
 *Updated: 2025-12-07*
