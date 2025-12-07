@@ -170,6 +170,14 @@ jobs:
           with open('.github/sync.yml') as f:
               config = yaml.safe_load(f)
           
+          if config is None:
+              print("❌ .github/sync.yml is empty or contains only comments")
+              sys.exit(1)
+          
+          if not isinstance(config, dict):
+              print(f"❌ .github/sync.yml must be a YAML mapping, got {type(config).__name__}")
+              sys.exit(1)
+          
           errors = 0
           for group in config.values():
               if isinstance(group, list):
