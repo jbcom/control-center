@@ -192,7 +192,7 @@ jobs:
         run: |
           # Try to run existing tests with coverage
           if [ -d "tests" ] || [ -d "test" ]; then
-            pytest --cov --cov-report=json --cov-report=term-missing -q 2>/dev/null || true
+            pytest --cov=. --cov-report=json --cov-report=term-missing -q 2>/dev/null || true
           fi
 
           # If coverage.json exists, we have coverage data
@@ -262,7 +262,7 @@ jobs:
                                   "classes": classes,
                                   "priority": classes * 2 + funcs  # Weight classes more
                               })
-                      except:
+                      except (SyntaxError, UnicodeDecodeError, OSError):
                           continue
               
               return sorted(modules, key=lambda x: x["priority"], reverse=True)
@@ -318,7 +318,7 @@ jobs:
                           filtered.append(module)
                   
                   return filtered
-              except:
+              except (json.JSONDecodeError, FileNotFoundError, KeyError):
                   return modules
 
           def group_by_directory(modules, max_per_group=3):
@@ -537,6 +537,7 @@ jobs:
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pull-request-number }}
       pr_url: ${{ steps.create-pr.outputs.pull-request-url }}
+      tests_pass: ${{ steps.verify.outputs.tests_pass }}
 
     steps:
       - name: Checkout target repository
@@ -576,6 +577,7 @@ jobs:
 
           # Run tests to verify they work
           echo "🧪 Running generated tests..."
+          set -o pipefail
           if pytest tests/ -v --tb=short 2>&1 | tee test_output.txt; then
             echo "tests_pass=true" >> $GITHUB_OUTPUT
             echo "✅ All generated tests pass!"
@@ -584,17 +586,23 @@ jobs:
             echo "⚠️ Some tests failed - will attempt auto-fix"
           fi
 
-      - name: Get changed test files
-        id: changed-tests
-        # tj-actions/changed-files v47
-        uses: tj-actions/changed-files@24d32ffd492484c1d75e0c0b894501ddb9d30d62
-        with:
-          files: |
-            tests/**/*.py
-            test/**/*.py
+      - name: Check for generated test files
+        id: check-tests
+        run: |
+          # Check if tests directory has any Python files (downloaded artifacts are untracked)
+          if find tests/ -name "*.py" -type f 2>/dev/null | grep -q .; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test files in tests/"
+          elif find test/ -name "*.py" -type f 2>/dev/null | grep -q .; then
+            echo "has_tests=true" >> $GITHUB_OUTPUT
+            echo "✅ Found test files in test/"
+          else
+            echo "has_tests=false" >> $GITHUB_OUTPUT
+            echo "⚠️ No test files found"
+          fi
 
       - name: Create Pull Request
-        if: steps.changed-tests.outputs.any_changed == 'true'
+        if: steps.check-tests.outputs.has_tests == 'true'
         id: create-pr
         # peter-evans/create-pull-request v7.0.11
         uses: peter-evans/create-pull-request@22a9089034f40e5a961c8808d113e2c98fb63676
@@ -625,10 +633,8 @@ jobs:
             | Module Groups | ${{ needs.analyze.outputs.module_count }} |
             | Tests Passing | ${{ steps.verify.outputs.tests_pass == 'true' && '✅ Yes' || '⚠️ Needs fixes' }} |
 
-            ### 📁 Changed Files
-            ```
-            ${{ steps.changed-tests.outputs.all_changed_files }}
-            ```
+            ### 📁 Test Files
+            Run `git diff --name-only` on the PR branch to see all generated files.
 
             ### ✅ Review Checklist
             - [ ] Tests follow project conventions
@@ -661,6 +667,7 @@ jobs:
     if: |
       always() &&
       needs.consolidate.outputs.pr_number &&
+      needs.consolidate.outputs.tests_pass != 'true' &&
       inputs.auto_fix_tests == true
     runs-on: ubuntu-latest
     outputs:
@@ -828,7 +835,7 @@ jobs:
         id: measure
         run: |
           # Run tests with coverage
-          pytest tests/ --cov --cov-report=json --cov-report=term -q 2>&1 | tee coverage_output.txt || true
+          pytest tests/ --cov=. --cov-report=json --cov-report=term -q 2>&1 | tee coverage_output.txt || true
           
           # Extract total coverage
           if [ -f "coverage.json" ]; then
