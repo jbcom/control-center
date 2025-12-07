@@ -1,0 +1,16 @@
+{
+  "tokens": {
+    "organizations": {
+      "jbcom": {
+        "name": "jbcom",
+        "tokenEnvVar": "GITHUB_JBCOM_TOKEN",
+        "defaultBranch": "main",
+        "isEnterprise": false
+      }
+    },
+    "defaultTokenEnvVar": "GITHUB_TOKEN",
+    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+  },
+  "defaultModel": "claude-sonnet-4-5-20250929",
+  "logLevel": "info"
+}
