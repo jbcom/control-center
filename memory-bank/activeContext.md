@@ -1,60 +1,45 @@
 # Active Context - jbcom Control Center
 
-## Current Status: SYNC PROCESS UPDATED
+## Current Status: PR #345 READY FOR REVIEW
 
-Updated sync approach with tiered propagation strategy.
+Fixed test generation workflow bug and added comprehensive CI.
 
 ### What Was Done
 
-1. **Changed sync to direct commits** (`.github/workflows/sync.yml`)
-   - Added `SKIP_PR: true` - pushes directly to main
-   - No more PRs for automated sync (doesn't make sense for agent-managed repos)
-
-2. **Implemented tiered sync approach** (`.github/sync.yml`)
+1. **Fixed boolean input comparison bugs in `generate-tests.yml`**
    
-   | Category | Behavior | Files |
-   |----------|----------|-------|
-   | **Rules** | Always overwrite | `core/`, `workflows/`, `languages/*.mdc` |
-   | **Environment** | Initial only (`replace: false`) | `Dockerfile`, `environment.json` |
-   | **Docs** | Initial only (`replace: false`) | All `docs-templates/*` |
+   | Input | Old (BROKEN) | New (FIXED) |
+   |-------|--------------|-------------|
+   | `dry_run` | `== false` | `!= true` |
+   | `auto_fix_tests` | `== true` | `!= false` |
+   | `use_pyproject_coverage` | `== false` | `!= true` |
+   
+   **Root cause**: `null == false` returns `false` in GitHub Actions expressions, so when inputs aren't explicitly provided, jobs were skipped.
 
-3. **Closed vault-secret-sync PR #4**
-   - Was trying to overwrite their customized Dockerfile
-   - New approach respects downstream customizations
+2. **Added comprehensive CI workflow (`ci.yml`)**
+   - Lints all workflows with actionlint
+   - Detects dangerous `inputs.X == false/true` patterns (prevents this bug from recurring)
+   - Validates sync.yml configuration
+   - Validates repository-files structure
+   - Dry-run tests module discovery logic
 
-### Rationale
+### PR Status
+- **PR**: https://github.com/jbcom/jbcom-control-center/pull/345
+- **Reviews requested**: Gemini, Amazon Q
+- **Previous reviews**: Copilot, Amazon Q
 
-- **Rules**: Must stay consistent across all repos for agent behavior
-- **Environment**: Repos have specific needs (Go vs Python vs Node tooling)
-- **Docs**: Seed structure, then repos customize for their content
+### For Next Agent
 
-### Current Structure
+1. Check if AI reviews have completed
+2. Address any feedback from reviews
+3. Merge once all checks pass
 
-```
-.github/
-├── sync.yml            # File sync config (tiered approach)
-└── workflows/
-    └── sync.yml        # Workflow (SKIP_PR: true)
+## Key Learnings
 
-cursor-rules/           # Source for sync
-├── core/               # Always sync
-├── languages/          # Always sync
-├── workflows/          # Always sync
-├── Dockerfile          # Initial only
-├── environment.json    # Initial only
-└── docs-templates/     # Initial only
-```
-
-## For Next Agent
-
-1. **Trigger sync workflow** to verify new approach works
-2. **Monitor downstream repos** - rules should update, Dockerfile/env should NOT
-
-## Key Points
-
-- Sync is now **direct to main** (no PRs)
-- `replace: false` = "seed once, then leave alone"
-- Rules are **always authoritative** from control center
+- GitHub Actions `inputs` can be `null` when not explicitly provided
+- Use `!= true` instead of `== false` for boolean inputs with `default: false`
+- Use `!= false` instead of `== true` for boolean inputs with `default: true`
+- Control center repos NEED CI to validate their own workflows
 
 ---
 *Updated: 2025-12-07*
