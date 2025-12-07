@@ -11,11 +11,19 @@ jobs:
     name: Lint Workflows
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install actionlint
         run: |
-          curl -sL "https://github.com/rhysd/actionlint/releases/download/v1.7.4/actionlint_1.7.4_linux_amd64.tar.gz" | tar xz -C /usr/local/bin actionlint
+          # actionlint v1.7.9 - https://github.com/rhysd/actionlint/releases/tag/v1.7.9
+          ACTIONLINT_VERSION="1.7.9"
+          ACTIONLINT_CHECKSUM="233b280d05e100837f4af1433c7b40a5dcb306e3aa68fb4f17f8a7f45a7df7b4"
+          
+          curl -sL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
+          echo "${ACTIONLINT_CHECKSUM}  actionlint.tar.gz" | sha256sum -c
+          tar xz -C /usr/local/bin actionlint < actionlint.tar.gz
+          rm actionlint.tar.gz
 
       - name: Lint all workflows
         run: |
@@ -27,7 +35,8 @@ jobs:
     name: Validate Workflow Expressions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Check for dangerous input comparison patterns
         run: |
@@ -128,7 +137,8 @@ jobs:
     name: Validate Sync Configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Validate sync.yml exists and is valid YAML
         run: |
@@ -187,7 +197,8 @@ jobs:
     name: Validate Repository Files
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Check repository-files structure
         run: |
@@ -229,10 +240,12 @@ jobs:
     name: Dry Run - Generate Tests Workflow
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
+      # actions/setup-python v5.6.0
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
         with:
           python-version: "3.12"
 
