@@ -117,20 +117,13 @@ jobs:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           # Path to sync configuration file
           CONFIG_PATH: .github/sync.yml
-          # Labels to add to PRs
-          PR_LABELS: sync,automated
           # Prefix for commit messages
           COMMIT_PREFIX: "🔄"
           # Don't actually sync, just show what would happen
           DRY_RUN: ${{ inputs.dry_run || false }}
-          # PR description body
-          PR_BODY: |
-            Syncs centralized configs from jbcom-control-center.
-
-            **Changes**: Cursor rules, Dockerfile, environment configs
-
-            ---
-            _Automated by [repo-file-sync-action](https://github.com/BetaHuhn/repo-file-sync-action)_
+          # Push directly to main - no PRs for sync
+          # Rationale: These are agent-managed repos where direct commits are fine
+          SKIP_PR: true
 
   # ============================================
   # BRANCH PROTECTION SYNC
