@@ -246,12 +246,13 @@ jobs:
           fi
               {"type": "deletion"},
               {"type": "non_fast_forward"},
-              {"type": "required_linear_history"},
-              {
-                "type": "copilot_code_review",
-                "parameters": {
-                  "review_on_push": true,
-                  "review_draft_pull_requests": false
+          if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets" -X POST --input -; then
+            echo "✅ Created ruleset for ${REPO}"
+          else
+            echo "❌ Failed to create ruleset for ${REPO}"
+            echo "Error details: $(gh api "repos/${REPO}/rulesets" -X POST --input - <<< "$RULESET_PAYLOAD" 2>&1 || true)"
+            exit 1
+          fi
                 }
               },
               {
