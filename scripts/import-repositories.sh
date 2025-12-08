@@ -52,6 +52,12 @@ for repo in "${REPOS[@]}"; do
   
   # Import branch protection (using node_id pattern)
   echo "  - Branch protection"
+  # Import branch protection (validate repo name for security)
+  echo "  - Branch protection"
+  if [[ ! "$repo" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "    ERROR: Invalid repository name: $repo"
+    continue
+  fi
   terraform import "github_branch_protection.main[\"$repo\"]" "$repo:main" || echo "    (already imported or doesn't exist)"
   
   # Note: github_repository_security_and_analysis and github_repository_pages
