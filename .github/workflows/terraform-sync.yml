@@ -36,52 +36,29 @@ jobs:
     name: Terraform
     runs-on: ubuntu-latest
     
-    defaults:
-      run:
-        working-directory: terraform
-    
-    outputs:
-      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
+    env:
+      # GitHub token for Terraform GitHub provider (repository management)
+      GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      # Separate token for PR comments (dflook actions)
+      TERRAFORM_ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      # HCP Terraform Cloud authentication
+      TERRAFORM_CLOUD_TOKENS: app.terraform.io=${{ secrets.TF_API_TOKEN }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Terraform
-        uses: hashicorp/setup-terraform@v3
-        with:
-          terraform_version: "1.14.1"
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-
+      # =================================================================
+      # FORMAT CHECK - All events
+      # =================================================================
       - name: Terraform Format Check
-        id: fmt
-        run: terraform fmt -check -recursive
-        continue-on-error: true
+        uses: dflook/terraform-fmt-check@v2
+        with:
+          path: terraform
 
-      - name: Terraform Init
-        id: init
-        run: terraform init
-        env:
-          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Terraform Validate
-        id: validate
-        run: terraform validate -no-color
-
-      - name: Terraform Plan
-        id: plan
-        run: |
-          set +e
-          terraform plan -no-color -input=false -out=tfplan -detailed-exitcode
-          echo "exitcode=$?" >> $GITHUB_OUTPUT
-          exit 0
-        env:
-          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Save Plan Output
-        if: github.event_name == 'pull_request' && steps.plan.outputs.exitcode != '1'
-        run: terraform show -no-color tfplan > plan.txt
-      
+      # =================================================================
+      # SECURITY SCANNING - All events
+      # =================================================================
       - name: Run Trivy Security Scan
         uses: aquasecurity/trivy-action@master
         with:
@@ -89,6 +66,7 @@ jobs:
           scan-ref: 'terraform/'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
           exit-code: '0'
         continue-on-error: true
 
@@ -99,123 +77,118 @@ jobs:
           category: 'terraform-security'
         continue-on-error: true
 
-      - name: Generate Step Summary
-        if: always()
+      # =================================================================
+      # PULL REQUEST - Plan and comment
+      # =================================================================
+      - name: Terraform Plan
+        id: plan
+        if: github.event_name == 'pull_request'
+        uses: dflook/terraform-plan@v2
+        with:
+          path: terraform
+          label: jbcom-repositories
+          add_github_comment: changes-only
+
+      - name: PR Plan Summary
+        if: github.event_name == 'pull_request'
         run: |
-          echo '## Terraform Workflow Summary' >> $GITHUB_STEP_SUMMARY
+          echo '## Terraform Plan Summary' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
-          echo '| Step | Status |' >> $GITHUB_STEP_SUMMARY
-          echo '|------|--------|' >> $GITHUB_STEP_SUMMARY
-          echo '| Format Check | ${{ steps.fmt.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Initialize | ${{ steps.init.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Validate | ${{ steps.validate.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Plan | ${{ steps.plan.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Metric | Count |' >> $GITHUB_STEP_SUMMARY
+          echo '|--------|-------|' >> $GITHUB_STEP_SUMMARY
+          echo '| Resources to add | ${{ steps.plan.outputs.to_add }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Resources to change | ${{ steps.plan.outputs.to_change }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Resources to destroy | ${{ steps.plan.outputs.to_destroy }} |' >> $GITHUB_STEP_SUMMARY
           echo '' >> $GITHUB_STEP_SUMMARY
-          
-          # Plan summary
-          if [[ "${{ steps.plan.outputs.exitcode }}" == "0" ]]; then
-            echo '**Plan Result:** No changes needed' >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ steps.plan.outputs.exitcode }}" == "2" ]]; then
-            echo '**Plan Result:** Changes detected' >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.plan.outputs.changes }}" == "true" ]]; then
+            echo '**Status:** 📝 Changes detected - review the plan in the PR comment' >> $GITHUB_STEP_SUMMARY
           else
-            echo '**Plan Result:** Error occurred' >> $GITHUB_STEP_SUMMARY
+            echo '**Status:** ✅ No changes needed' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Comment PR with Plan
-        if: github.event_name == 'pull_request' && steps.plan.outputs.exitcode != '1'
-        uses: actions/github-script@v7
+      # =================================================================
+      # PUSH TO MAIN - Apply changes
+      # =================================================================
+      - name: Terraform Apply (Push to Main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: dflook/terraform-apply@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require('fs');
-            const rawPlan = fs.readFileSync('terraform/plan.txt', 'utf8');
-            
-            // Sanitize plan output to prevent markdown injection
-            // Escape backticks and dollar signs that could break markdown code blocks
-            const sanitizePlan = (text) => {
-              return text
-                .replace(/`/g, '\\`')
-                .replace(/\$/g, '\\$')
-                .slice(0, 65000); // GitHub comment size limit safety
-            };
-            const plan = sanitizePlan(rawPlan);
-            
-            const fmtStatus = '${{ steps.fmt.outcome }}' === 'success' ? '✅' : '❌';
-            const initStatus = '${{ steps.init.outcome }}' === 'success' ? '✅' : '❌';
-            const validateStatus = '${{ steps.validate.outcome }}' === 'success' ? '✅' : '❌';
-            const planExitCode = '${{ steps.plan.outputs.exitcode }}';
-            
-            let planStatus = '✅';
-            let planMessage = 'No changes';
-            if (planExitCode === '2') {
-              planStatus = '📝';
-              planMessage = 'Changes detected';
-            } else if (planExitCode !== '0') {
-              planStatus = '❌';
-              planMessage = 'Error';
-            }
-            
-            const output = `## Terraform Plan Results
-            
-            | Check | Status |
-            |-------|--------|
-            | Format | ${fmtStatus} \`${{ steps.fmt.outcome }}\` |
-            | Initialize | ${initStatus} \`${{ steps.init.outcome }}\` |
-            | Validate | ${validateStatus} \`${{ steps.validate.outcome }}\` |
-            | Plan | ${planStatus} ${planMessage} |
-            
-            <details><summary>📖 Show Terraform Plan</summary>
-            
-            \`\`\`terraform
-            ${plan}
-            \`\`\`
-            
-            </details>
-            
-            ---
-            *Triggered by @${{ github.actor }} via \`${{ github.event_name }}\`*`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: output
-            });
+          path: terraform
+          label: jbcom-repositories
+          auto_approve: true
 
-      - name: Check Plan Status
-        if: steps.plan.outputs.exitcode == '1'
+      - name: Apply Summary
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          echo "Terraform plan failed"
-          exit 1
+          echo '## Terraform Apply Complete' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '✅ Repository configurations have been applied successfully.' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '**Managed:** 18 jbcom repositories' >> $GITHUB_STEP_SUMMARY
 
-      - name: Terraform Apply
-        if: |
-          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-          (github.event_name == 'workflow_dispatch' && inputs.apply)
-        run: terraform apply -auto-approve -input=false tfplan
-        env:
-          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      # =================================================================
+      # MANUAL DISPATCH - Apply on demand
+      # =================================================================
+      - name: Terraform Apply (Manual)
+        if: github.event_name == 'workflow_dispatch' && inputs.apply
+        uses: dflook/terraform-apply@v2
+        with:
+          path: terraform
+          label: jbcom-repositories
+          auto_approve: true
 
-      - name: Drift Detection
+      - name: Manual Plan Only
+        id: manual-plan
+        if: github.event_name == 'workflow_dispatch' && !inputs.apply
+        uses: dflook/terraform-plan@v2
+        with:
+          path: terraform
+          label: jbcom-repositories
+          add_github_comment: false
+
+      - name: Manual Dispatch Summary
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          echo '## Manual Terraform Run' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ inputs.apply }}" == "true" ]]; then
+            echo '✅ **Apply completed** - Changes have been applied' >> $GITHUB_STEP_SUMMARY
+          else
+            echo '📋 **Plan only** - No changes applied' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo 'To apply changes, re-run with `apply: true`' >> $GITHUB_STEP_SUMMARY
+          fi
+
+      # =================================================================
+      # SCHEDULED - Drift detection
+      # =================================================================
+      - name: Check for Drift
+        id: drift
+        if: github.event_name == 'schedule'
+        uses: dflook/terraform-check@v2
+        with:
+          path: terraform
+        continue-on-error: true
+
+      - name: Drift Detection Summary
         if: github.event_name == 'schedule'
         run: |
-          if [[ "${{ steps.plan.outputs.exitcode }}" == "0" ]]; then
-            echo "✅ No drift detected - repositories are in sync"
-            echo "## ✅ Drift Detection: No Changes" >> $GITHUB_STEP_SUMMARY
-            echo "All 18 repositories match the Terraform configuration." >> $GITHUB_STEP_SUMMARY
+          echo '## Daily Drift Detection' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ steps.drift.outcome }}" == "success" ]]; then
+            echo '✅ **No drift detected**' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo 'All 18 jbcom repositories match the Terraform configuration.' >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Configuration drift detected"
-            echo "## ⚠️ Drift Detection: Changes Needed" >> $GITHUB_STEP_SUMMARY
-            echo "Repositories have diverged from Terraform state." >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Run \`terraform apply\` to realign configurations." >> $GITHUB_STEP_SUMMARY
-            terraform show tfplan
-            exit 1
+            echo '⚠️ **Configuration drift detected**' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo 'Repositories have diverged from Terraform state.' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo 'Run `terraform apply` or merge a PR to realign configurations.' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Cleanup Plan Files
-        if: always()
+      - name: Fail on Drift
+        if: github.event_name == 'schedule' && steps.drift.outcome == 'failure'
         run: |
-          # Remove plan files to avoid leaving sensitive data
-          rm -f tfplan plan.txt
-          echo "Plan files cleaned up"
+          echo "::error::Configuration drift detected - repositories do not match Terraform state"
+          exit 1
