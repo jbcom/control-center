@@ -48,6 +48,12 @@ for repo in "${REPOS[@]}"; do
   
   # Import repository
   echo "  - Repository settings"
+  # Import repository (validate repo name for security)
+  echo "  - Repository settings"
+  if [[ ! "$repo" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+    echo "    ERROR: Invalid repository name: $repo"
+    continue
+  fi
   terraform import "github_repository.managed[\"$repo\"]" "$repo" || echo "    (already imported or doesn't exist)"
   
   # Import branch protection (using node_id pattern)
