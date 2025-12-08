@@ -24,6 +24,12 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  security-events: write  # For security scanning
+
+# Prevent concurrent Terraform runs on the same workspace
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   terraform:
@@ -33,6 +39,9 @@ jobs:
     defaults:
       run:
         working-directory: terraform
+    
+    outputs:
+      plan_exitcode: ${{ steps.plan.outputs.exitcode }}
 
     steps:
       - name: Checkout
@@ -61,33 +70,91 @@ jobs:
 
       - name: Terraform Plan
         id: plan
-        run: terraform plan -no-color -input=false -out=tfplan
+        run: |
+          set +e
+          terraform plan -no-color -input=false -out=tfplan -detailed-exitcode
+          echo "exitcode=$?" >> $GITHUB_OUTPUT
+          exit 0
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        continue-on-error: true
 
       - name: Save Plan Output
         if: github.event_name == 'pull_request'
+        run: terraform show -no-color tfplan > plan.txt
+      
+      - name: Run Trivy Security Scan
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'terraform/'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          exit-code: '0'
+        continue-on-error: true
+
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'terraform-security'
+        continue-on-error: true
+
+      - name: Generate Step Summary
+        if: always()
         run: |
-          terraform show -no-color tfplan > plan.txt
+          echo '## Terraform Workflow Summary' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
+          echo '| Step | Status |' >> $GITHUB_STEP_SUMMARY
+          echo '|------|--------|' >> $GITHUB_STEP_SUMMARY
+          echo '| Format Check | ${{ steps.fmt.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Initialize | ${{ steps.init.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Validate | ${{ steps.validate.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
+          echo '| Plan | ${{ steps.plan.outcome == 'success' && '✅' || '❌' }} |' >> $GITHUB_STEP_SUMMARY
+          echo '' >> $GITHUB_STEP_SUMMARY
           
+          # Plan summary
+          if [[ "${{ steps.plan.outputs.exitcode }}" == "0" ]]; then
+            echo '**Plan Result:** No changes needed' >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ steps.plan.outputs.exitcode }}" == "2" ]]; then
+            echo '**Plan Result:** Changes detected' >> $GITHUB_STEP_SUMMARY
+          else
+            echo '**Plan Result:** Error occurred' >> $GITHUB_STEP_SUMMARY
+          fi
+
       - name: Comment PR with Plan
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
-        env:
-          PLAN: "${{ steps.plan.outputs.stdout }}"
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
             const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
             
-            const output = `#### Terraform Format and Style 🖌\`${{ steps.fmt.outcome }}\`
-            #### Terraform Initialization ⚙️\`${{ steps.init.outcome }}\`
-            #### Terraform Validation 🤖\`${{ steps.validate.outcome }}\`
-            #### Terraform Plan 📖\`${{ steps.plan.outcome }}\`
+            const fmtStatus = '${{ steps.fmt.outcome }}' === 'success' ? '✅' : '❌';
+            const initStatus = '${{ steps.init.outcome }}' === 'success' ? '✅' : '❌';
+            const validateStatus = '${{ steps.validate.outcome }}' === 'success' ? '✅' : '❌';
+            const planExitCode = '${{ steps.plan.outputs.exitcode }}';
             
-            <details><summary>Show Plan</summary>
+            let planStatus = '✅';
+            let planMessage = 'No changes';
+            if (planExitCode === '2') {
+              planStatus = '📝';
+              planMessage = 'Changes detected';
+            } else if (planExitCode !== '0') {
+              planStatus = '❌';
+              planMessage = 'Error';
+            }
+            
+            const output = `## Terraform Plan Results
+            
+            | Check | Status |
+            |-------|--------|
+            | Format | ${fmtStatus} \`${{ steps.fmt.outcome }}\` |
+            | Initialize | ${initStatus} \`${{ steps.init.outcome }}\` |
+            | Validate | ${validateStatus} \`${{ steps.validate.outcome }}\` |
+            | Plan | ${planStatus} ${planMessage} |
+            
+            <details><summary>📖 Show Terraform Plan</summary>
             
             \`\`\`terraform
             ${plan}
@@ -95,7 +162,8 @@ jobs:
             
             </details>
             
-            *Pusher: @${{ github.actor }}, Action: \`${{ github.event_name }}\`, Workflow: \`${{ github.workflow }}\`*`;
+            ---
+            *Triggered by @${{ github.actor }} via \`${{ github.event_name }}\`*`;
             
             github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -104,26 +172,34 @@ jobs:
               body: output
             });
 
-      - name: Terraform Plan Status
-        if: steps.plan.outcome == 'failure'
-        run: exit 1
+      - name: Check Plan Status
+        if: steps.plan.outputs.exitcode == '1'
+        run: |
+          echo "Terraform plan failed"
+          exit 1
 
       - name: Terraform Apply
         if: |
-          github.event_name == 'push' && github.ref == 'refs/heads/main' ||
+          (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (github.event_name == 'workflow_dispatch' && inputs.apply)
         run: terraform apply -auto-approve -input=false tfplan
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - name: Drift Detection Summary
+      - name: Drift Detection
         if: github.event_name == 'schedule'
         run: |
-          if terraform show tfplan | grep -q 'No changes'; then
+          if [[ "${{ steps.plan.outputs.exitcode }}" == "0" ]]; then
             echo "✅ No drift detected - repositories are in sync"
+            echo "## ✅ Drift Detection: No Changes" >> $GITHUB_STEP_SUMMARY
+            echo "All 18 repositories match the Terraform configuration." >> $GITHUB_STEP_SUMMARY
           else
-            echo "⚠️ Drift detected - repositories have diverged from Terraform state"
-            echo "Run 'terraform apply' to realign configurations"
+            echo "⚠️ Configuration drift detected"
+            echo "## ⚠️ Drift Detection: Changes Needed" >> $GITHUB_STEP_SUMMARY
+            echo "Repositories have diverged from Terraform state." >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`terraform apply\` to realign configurations." >> $GITHUB_STEP_SUMMARY
             terraform show tfplan
             exit 1
           fi
+
