@@ -21,11 +21,20 @@ jobs:
   # ============================================
   claude-interactive:
     name: Claude Interactive
+    # Security: Only allow trusted users (OWNER, MEMBER, COLLABORATOR) to trigger interactive mode
+    # This prevents malicious code injection via AI manipulation from external commenters
     if: |
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      (
+        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
+      ) && (
+        github.event.comment.author_association == 'OWNER' ||
+        github.event.comment.author_association == 'MEMBER' ||
+        github.event.comment.author_association == 'COLLABORATOR' ||
+        github.event.sender.login == github.repository_owner
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -55,7 +64,6 @@ jobs:
     permissions:
       contents: read
       pull-requests: write
-      issues: read
       id-token: write
 
     steps:
@@ -80,6 +88,7 @@ jobs:
 
             Be constructive and helpful. Focus on actionable feedback.
 
-            Use `gh pr comment` to leave your review as a comment on the PR.
+            Use `gh pr review` with line-specific comments for detailed feedback on specific code changes.
+            For general summary feedback, use `gh pr comment`.
 
           claude_args: '--allowed-tools "Bash(gh pr:*)"'

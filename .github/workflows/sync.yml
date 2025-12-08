@@ -219,8 +219,14 @@ jobs:
             CODE_QUALITY_TOOLS='[]'
           fi
 
+          # Admin bypass configuration
+          # actor_id=5 represents the "admin" RepositoryRole in GitHub's API
+          # This allows semantic-release (running with admin privileges via CI_GITHUB_TOKEN) to bypass branch protection
+          # Reference: https://docs.github.com/en/rest/repos/rules#create-a-repository-ruleset
+          ADMIN_ACTOR_ID=5
+
           # Standard ruleset matching agentic-crew configuration
-          # - Admin bypass (actor_id=5): allows semantic-release to push version bumps
+          # - Admin bypass: allows semantic-release to push version bumps
           # - Require PRs for all changes to default branch
           # - Copilot code review with CodeQL analysis
           # - Code quality enforcement (errors level)
@@ -238,7 +244,7 @@ jobs:
             },
             "bypass_actors": [
               {
-                "actor_id": 5,
+                "actor_id": ${ADMIN_ACTOR_ID},
                 "actor_type": "RepositoryRole",
                 "bypass_mode": "always"
               }
@@ -310,7 +316,7 @@ jobs:
         run: |
           echo "🔍 DRY RUN: Would sync ruleset to ${{ matrix.repo }}"
           echo "Settings:"
-          echo "  - Admin bypass: actor_id=5 (RepositoryRole)"
+          echo "  - Admin bypass: actor_id=5 (RepositoryRole 'admin') - allows semantic-release to push version bumps"
           echo "  - Require PRs for all changes (0 approvals required)"
           echo "  - Copilot code review + CodeQL analysis"
           echo "  - Code quality: errors severity"
