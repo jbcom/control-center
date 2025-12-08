@@ -3,21 +3,21 @@ locals {
   # Combine all repositories into a single map with their language type
   all_repos = merge(
     { for repo in var.python_repos : repo => {
-      language    = "python"
+      language      = "python"
       enable_eslint = false
-    }},
+    } },
     { for repo in var.nodejs_repos : repo => {
-      language    = "nodejs"
+      language      = "nodejs"
       enable_eslint = true
-    }},
+    } },
     { for repo in var.go_repos : repo => {
-      language    = "go"
+      language      = "go"
       enable_eslint = false
-    }},
+    } },
     { for repo in var.terraform_repos : repo => {
-      language    = "terraform"
+      language      = "terraform"
       enable_eslint = false
-    }}
+    } }
   )
 }
 
@@ -25,10 +25,10 @@ locals {
 resource "github_repository" "managed" {
   for_each = local.all_repos
 
-  name        = each.key
+  name = each.key
   # Description will be managed separately per repo if needed
   # For now, rely on existing descriptions (Terraform won't overwrite if not specified)
-  
+
   # Visibility - all jbcom repos are public
   visibility = var.repository_visibility
 

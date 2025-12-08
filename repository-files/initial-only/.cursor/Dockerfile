@@ -33,6 +33,31 @@ ENV PATH="/usr/local/go/bin:${PATH}"
 RUN go version
 
 # =============================================================================
+# TERRAFORM INSTALLATION
+# =============================================================================
+# Terraform CLI for infrastructure management
+# Version must match .github/workflows/terraform-sync.yml
+ARG TERRAFORM_VERSION=1.14.1
+RUN wget -q https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+    unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/local/bin && \
+    rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+    terraform version
+
+# TFLint - Terraform linter for best practices
+ARG TFLINT_VERSION=0.54.0
+RUN wget -q https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip && \
+    unzip tflint_linux_amd64.zip -d /usr/local/bin && \
+    rm tflint_linux_amd64.zip && \
+    tflint --version
+
+# terraform-docs - Generate documentation from Terraform modules
+ARG TERRAFORM_DOCS_VERSION=0.19.0
+RUN wget -q https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz && \
+    tar -xzf terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz -C /usr/local/bin terraform-docs && \
+    rm terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz && \
+    terraform-docs version
+
+# =============================================================================
 # GIT LFS CONFIGURATION
 # =============================================================================
 # CRITICAL: --skip-smudge prevents workspace crashes with large LFS repos

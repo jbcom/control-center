@@ -120,12 +120,6 @@ variable "enable_dependabot_security_updates" {
 }
 
 # Branch protection settings
-variable "require_pull_request" {
-  description = "Require pull requests before merging"
-  type        = bool
-  default     = true
-}
-
 variable "required_approving_review_count" {
   description = "Number of required approving reviews"
   type        = number

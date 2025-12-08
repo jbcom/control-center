@@ -128,7 +128,17 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require('fs');
-            const plan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            const rawPlan = fs.readFileSync('terraform/plan.txt', 'utf8');
+            
+            // Sanitize plan output to prevent markdown injection
+            // Escape backticks and dollar signs that could break markdown code blocks
+            const sanitizePlan = (text) => {
+              return text
+                .replace(/`/g, '\\`')
+                .replace(/\$/g, '\\$')
+                .slice(0, 65000); // GitHub comment size limit safety
+            };
+            const plan = sanitizePlan(rawPlan);
             
             const fmtStatus = '${{ steps.fmt.outcome }}' === 'success' ? '✅' : '❌';
             const initStatus = '${{ steps.init.outcome }}' === 'success' ? '✅' : '❌';
@@ -203,3 +213,9 @@ jobs:
             exit 1
           fi
 
+      - name: Cleanup Plan Files
+        if: always()
+        run: |
+          # Remove plan files to avoid leaving sensitive data
+          rm -f tfplan plan.txt
+          echo "Plan files cleaned up"
