@@ -45,30 +45,30 @@ Reviewed all open PRs, issues, and projects across jbcom repos. Cleaned up stale
 **Python Packages:**
 | Repository | Description |
 |------------|-------------|
-| jbcom/extended-data-types | Extended data type utilities |
-| jbcom/lifecyclelogging | Lifecycle logging framework |
-| jbcom/directed-inputs-class | Input management |
-| jbcom/python-terraform-bridge | Terraform/Python bridge |
-| jbcom/vendor-connectors | Vendor API connectors |
 | jbcom/agentic-crew | Framework-agnostic AI crew orchestration |
 | jbcom/ai_game_dev | AI game development utilities |
+| jbcom/directed-inputs-class | Input management |
+| jbcom/extended-data-types | Extended data type utilities |
+| jbcom/lifecyclelogging | Lifecycle logging framework |
+| jbcom/python-terraform-bridge | Terraform/Python bridge |
 | jbcom/rivers-of-reckoning | Game project |
+| jbcom/vendor-connectors | Vendor API connectors |
 
 **Node.js/TypeScript Packages:**
 | Repository | Description |
 |------------|-------------|
 | jbcom/agentic-control | Agent fleet management |
+| jbcom/otter-river-rush | TypeScript game project |
+| jbcom/otterfall | TypeScript game project |
+| jbcom/pixels-pygame-palace | TypeScript/React frontend (runs Pygame via Pyodide) |
 | jbcom/rivermarsh | Mobile 3D exploration game |
 | jbcom/strata | Procedural 3D graphics library for R3F |
-| jbcom/otterfall | TypeScript game project |
-| jbcom/otter-river-rush | TypeScript game project |
-| jbcom/pixels-pygame-palace | TypeScript game project |
 
 **Go Packages:**
 | Repository | Description |
 |------------|-------------|
-| jbcom/vault-secret-sync | HashiCorp Vault secret sync |
 | jbcom/port-api | Port API for multiple languages |
+| jbcom/vault-secret-sync | HashiCorp Vault secret sync |
 
 **Terraform/HCL Modules:**
 | Repository | Description |

@@ -1,6 +1,6 @@
 ---
 description: Terraform/HCL coding standards
-globs: "**/*.tf, **/*.tfvars"
+globs: ["**/*.tf", "**/*.tfvars"]
 ---
 
 # Terraform Standards
@@ -55,6 +55,21 @@ resource "aws_instance" "WebServer" {
 ├── locals.tf         # Local values
 ├── data.tf           # Data sources
 └── modules/          # Local modules
+```
+
+### Example versions.tf
+
+```hcl
+terraform {
+  required_version = ">= 1.5.0"
+
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
 ```
 
 ## Variables

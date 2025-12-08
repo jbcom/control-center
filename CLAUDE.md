@@ -89,26 +89,26 @@ git commit -m "docs: update memory bank for handoff"
 Target repos:
 
 **Python:**
-- `jbcom/extended-data-types`
-- `jbcom/lifecyclelogging`
-- `jbcom/directed-inputs-class`
-- `jbcom/python-terraform-bridge`
-- `jbcom/vendor-connectors`
 - `jbcom/agentic-crew`
 - `jbcom/ai_game_dev`
+- `jbcom/directed-inputs-class`
+- `jbcom/extended-data-types`
+- `jbcom/lifecyclelogging`
+- `jbcom/python-terraform-bridge`
 - `jbcom/rivers-of-reckoning`
+- `jbcom/vendor-connectors`
 
 **Node.js/TypeScript:**
 - `jbcom/agentic-control`
+- `jbcom/otter-river-rush`
+- `jbcom/otterfall`
+- `jbcom/pixels-pygame-palace`
 - `jbcom/rivermarsh`
 - `jbcom/strata`
-- `jbcom/otterfall`
-- `jbcom/otter-river-rush`
-- `jbcom/pixels-pygame-palace`
 
 **Go:**
-- `jbcom/vault-secret-sync`
 - `jbcom/port-api`
+- `jbcom/vault-secret-sync`
 
 **Terraform/HCL:**
 - `jbcom/terraform-github-markdown`
