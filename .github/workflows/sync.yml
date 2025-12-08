@@ -237,12 +237,13 @@ jobs:
             },
             "bypass_actors": [
               {
-                "actor_id": 5,
-                "actor_type": "RepositoryRole",
-                "bypass_mode": "always"
-              }
-            ],
-            "rules": [
+          if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input -; then
+            echo "✅ Updated ruleset for ${REPO}"
+          else
+            echo "❌ Failed to update ruleset for ${REPO}"
+            echo "Error details: $(gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input - <<< "$RULESET_PAYLOAD" 2>&1 || true)"
+            exit 1
+          fi
               {"type": "deletion"},
               {"type": "non_fast_forward"},
               {"type": "required_linear_history"},
