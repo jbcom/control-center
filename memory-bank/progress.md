@@ -1,33 +1,51 @@
 # Session Progress Log
 
-## Session: 2025-12-07 (Test Generation Bug Fix + CI)
+## Session: 2025-12-08 (Repository Audit & Rivermarsh Integration)
 
 ### What Was Done
 
-1. **Fixed boolean input comparison bugs in `generate-tests.yml`**
-   - `inputs.dry_run != true` (was `== false`)
-   - `inputs.auto_fix_tests != false` (was `== true`)
-   - `inputs.use_pyproject_coverage != true` (was `== false`)
-   
-   **Root cause**: `null == false` returns `false` in GitHub Actions, so jobs were skipped when inputs weren't explicitly provided.
+1. **Closed Stale/Invalid PRs**
+   - `jbcom-control-center#338` - Empty PR with 0 file changes (failed Dockerfile revert)
+   - `lifecyclelogging#47` - Stale sync PR from before SKIP_PR was enabled (used old cursor-rules/* paths)
+   - `python-terraform-bridge#3` - Stale sync PR from before SKIP_PR was enabled (used old cursor-rules/* paths)
+   - `vendor-connectors#19` - Superseded by #34 which takes opposite architectural approach
 
-2. **Added comprehensive CI workflow (`ci.yml`)**
-   - Lints all workflows with actionlint
-   - Detects dangerous `inputs.X == false/true` patterns
-   - Validates sync.yml configuration
-   - Validates repository-files structure
-   - Dry-run tests module discovery logic
+2. **Added rivermarsh to managed repos**
+   - New React Three Fiber / Capacitor mobile 3D game
+   - Added to `.github/sync.yml` (Node.js/TypeScript rules)
+   - Updated `CLAUDE.md` target repos list
 
-3. **Created PR #345**
-   - https://github.com/jbcom/jbcom-control-center/pull/345
-   - AI reviews requested from Gemini and Amazon Q
+3. **Reviewed All Open Items**
+   - Identified valid PRs and took action on each
+   - Documented issues #342 and #340 as part of ecosystem refactor epic
+   - Noted vendor-connectors#34 (AI tooling refactor) and agentic-control#9 (TypeScript-only) as active
 
-### Key Learning
+4. **Merged/Closed PRs after AI Review**
+   - `jbcom-control-center#345` - ✅ MERGED (all AI feedback addressed)
+   - `jbcom-control-center#343` - ❌ CLOSED (design doc blocked, example code issues)
+   - `jbcom-control-center#341` - ❌ CLOSED (memory bank superseded by this session)
 
-GitHub Actions boolean input pitfall:
-- `inputs.X` is `null` when not explicitly provided (even with defaults)
-- `null == false` → `false` (NOT truthy comparison)
-- `null != true` → `true` (correct for default=false inputs)
+5. **Updated Project Tracking**
+   - Added 9 new items to "jbcom Ecosystem Integration" project
+   - Project now has 30 items (was 21)
+   - Added all rivermarsh PRs/issues
+
+### Key Findings
+
+- **PR #34 vs #19 conflict**: PR #19 created central `vendor_connectors.ai` package; PR #34 removes it entirely and moves tools to each connector. Closed #19 as superseded.
+- **PR #343 blocker clarification**: Was blocked by vendor-connectors#17 (AI sub-package), but #17 is now partially superseded by #34's approach. PR #343 closed as design doc - actual implementation will follow new architecture.
+- **Sync PRs created before SKIP_PR**: Two repos had stale sync PRs using old paths - closed as obsolete.
+- **Projects**: "jbcom Ecosystem Integration" now has 30 items (added rivermarsh + new PRs/issues).
+
+### Final PR Status
+
+| Repo | PR | Title | Action |
+|------|---|-------|--------|
+| jbcom-control-center | #345 | Fix test generation bug | ✅ MERGED |
+| jbcom-control-center | #343 | Setup agentic-crew repository | ❌ CLOSED |
+| jbcom-control-center | #341 | Clarify surface scope | ❌ CLOSED |
+| vendor-connectors | #34 | Move tools to connectors | 🔄 ACTIVE |
+| agentic-control | #9 | TypeScript only | 🔄 ACTIVE |
 
 ---
 
