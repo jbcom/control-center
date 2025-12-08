@@ -40,12 +40,14 @@
       "instructionsFile": ".github/agents/terraform-repository-manager.md",
       "requiredTools": [
         "terraform-list_workspaces",
-        "terraform-get_workspace_details",
+        "terraform-get_workspace_details", 
         "terraform-create_run",
         "terraform-list_runs",
         "terraform-get_run_details",
         "terraform-list_workspace_variables",
-        "terraform-create_workspace_variable"
+        "terraform-create_workspace_variable",
+        "terraform-search_providers",
+        "terraform-get_latest_provider_version"
       ],
       "requiredSecrets": [
         "TF_API_TOKEN",
