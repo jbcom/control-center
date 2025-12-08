@@ -26,7 +26,8 @@ resource "github_repository" "managed" {
   for_each = local.all_repos
 
   name        = each.key
-  description = "Managed by jbcom-control-center"
+  # Description will be managed separately per repo if needed
+  # For now, rely on existing descriptions (Terraform won't overwrite if not specified)
   
   # Visibility (assuming all are public)
   visibility = "public"
@@ -123,4 +124,7 @@ resource "github_repository_pages" "managed" {
     # Ignore changes to cname as repos may set custom domains
     ignore_changes = [cname]
   }
+
+  # Note: count is implicitly handled by for_each
+  # If enable_pages is false, no resources are created (cleaner than ternary with count)
 }
