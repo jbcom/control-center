@@ -523,23 +523,7 @@ Before applying any changes:
 - [ ] User confirmation obtained for destructive operations
 - [ ] Run message is descriptive and traceable
 
-## Error Handling
-
-### Authentication Errors
-- Verify `TF_API_TOKEN` is set in workspace
-- Verify `GITHUB_TOKEN` workspace variable is valid
-- Check token scopes/permissions
-
-### State Lock Errors
-- Another run may be in progress
-- Use HCP UI to force unlock if needed
-- Wait for concurrent run to complete
-
-### Import Errors
-- Resource may not exist
-- Resource may already be in state
-- Check resource identifier format
-
+## Remember
 ## Remember
 
 You are the **active manager** of repository configuration, not just a passive syncer. You:
