@@ -221,6 +221,7 @@ jobs:
 
           # Standard ruleset matching agentic-crew configuration
           # - Admin bypass (actor_id=5): allows semantic-release to push version bumps
+          # - Require PRs for all changes to default branch
           # - Copilot code review with CodeQL analysis
           # - Code quality enforcement (errors level)
           # - Code scanning with CodeQL
@@ -237,22 +238,22 @@ jobs:
             },
             "bypass_actors": [
               {
-          if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input -; then
-            echo "✅ Updated ruleset for ${REPO}"
-          else
-            echo "❌ Failed to update ruleset for ${REPO}"
-            echo "Error details: $(gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input - <<< "$RULESET_PAYLOAD" 2>&1 || true)"
-            exit 1
-          fi
+                "actor_id": 5,
+                "actor_type": "RepositoryRole",
+                "bypass_mode": "always"
+              }
+            ],
+            "rules": [
               {"type": "deletion"},
               {"type": "non_fast_forward"},
-          if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets" -X POST --input -; then
-            echo "✅ Created ruleset for ${REPO}"
-          else
-            echo "❌ Failed to create ruleset for ${REPO}"
-            echo "Error details: $(gh api "repos/${REPO}/rulesets" -X POST --input - <<< "$RULESET_PAYLOAD" 2>&1 || true)"
-            exit 1
-          fi
+              {
+                "type": "pull_request",
+                "parameters": {
+                  "required_approving_review_count": 0,
+                  "dismiss_stale_reviews_on_push": false,
+                  "require_code_owner_review": false,
+                  "require_last_push_approval": false,
+                  "required_review_thread_resolution": false
                 }
               },
               {
@@ -310,6 +311,7 @@ jobs:
           echo "🔍 DRY RUN: Would sync ruleset to ${{ matrix.repo }}"
           echo "Settings:"
           echo "  - Admin bypass: actor_id=5 (RepositoryRole)"
+          echo "  - Require PRs for all changes (0 approvals required)"
           echo "  - Copilot code review + CodeQL analysis"
           echo "  - Code quality: errors severity"
           echo "  - Code scanning: CodeQL (errors/high_or_higher)"
@@ -319,11 +321,9 @@ jobs:
   # REPOSITORY SETTINGS SYNC
   # ============================================
   sync-repo-settings:
-          # Get current repository settings for validation
-          CURRENT_SETTINGS=$(gh api "repos/${REPO}" --jq '{has_issues, has_projects, has_wiki, has_discussions, allow_squash_merge, allow_merge_commit, allow_rebase_merge, delete_branch_on_merge}')
-          echo "Current settings for ${REPO}: $CURRENT_SETTINGS"
-          
-          # Repository settings matching agentic-crew configuration
+    name: Sync repository settings
+    runs-on: ubuntu-latest
+    if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.sync_repo_settings)
