@@ -68,7 +68,7 @@ Reviewed all open PRs, issues, and projects across jbcom repos. Cleaned up stale
 | Repository | Description |
 |------------|-------------|
 | jbcom/port-api | Port API for multiple languages |
-| jbcom/vault-secret-sync | HashiCorp Vault secret sync |
+| jbcom/secretsync | Cross-platform secret synchronization (formerly vault-secret-sync) |
 
 **Terraform/HCL Modules:**
 | Repository | Description |
