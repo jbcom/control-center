@@ -50,13 +50,28 @@ jobs:
       fail-fast: false
       matrix:
         repo:
+          # Python packages
+          - jbcom/agentic-crew
+          - jbcom/ai_game_dev
+          - jbcom/directed-inputs-class
           - jbcom/extended-data-types
           - jbcom/lifecyclelogging
-          - jbcom/directed-inputs-class
           - jbcom/python-terraform-bridge
+          - jbcom/rivers-of-reckoning
           - jbcom/vendor-connectors
+          # Node.js / TypeScript packages
           - jbcom/agentic-control
+          - jbcom/otter-river-rush
+          - jbcom/otterfall
+          - jbcom/pixels-pygame-palace
+          - jbcom/rivermarsh
+          - jbcom/strata
+          # Go packages
+          - jbcom/port-api
           - jbcom/vault-secret-sync
+          # Terraform modules
+          - jbcom/terraform-github-markdown
+          - jbcom/terraform-repository-automation
 
     steps:
       - name: Sync secrets to ${{ matrix.repo }}
@@ -140,13 +155,28 @@ jobs:
       fail-fast: false
       matrix:
         repo:
+          # Python packages
+          - jbcom/agentic-crew
+          - jbcom/ai_game_dev
+          - jbcom/directed-inputs-class
           - jbcom/extended-data-types
           - jbcom/lifecyclelogging
-          - jbcom/directed-inputs-class
           - jbcom/python-terraform-bridge
+          - jbcom/rivers-of-reckoning
           - jbcom/vendor-connectors
+          # Node.js / TypeScript packages
           - jbcom/agentic-control
+          - jbcom/otter-river-rush
+          - jbcom/otterfall
+          - jbcom/pixels-pygame-palace
+          - jbcom/rivermarsh
+          - jbcom/strata
+          # Go packages
+          - jbcom/port-api
           - jbcom/vault-secret-sync
+          # Terraform modules
+          - jbcom/terraform-github-markdown
+          - jbcom/terraform-repository-automation
 
     steps:
       - name: Apply branch protection to ${{ matrix.repo }}
@@ -189,12 +219,28 @@ jobs:
       fail-fast: false
       matrix:
         repo:
+          # Python packages
+          - jbcom/agentic-crew
+          - jbcom/ai_game_dev
+          - jbcom/directed-inputs-class
           - jbcom/extended-data-types
           - jbcom/lifecyclelogging
-          - jbcom/directed-inputs-class
           - jbcom/python-terraform-bridge
+          - jbcom/rivers-of-reckoning
           - jbcom/vendor-connectors
+          # Node.js / TypeScript packages
           - jbcom/agentic-control
+          - jbcom/otter-river-rush
+          - jbcom/otterfall
+          - jbcom/pixels-pygame-palace
+          - jbcom/rivermarsh
+          - jbcom/strata
+          # Go packages
+          - jbcom/port-api
+          - jbcom/vault-secret-sync
+          # Terraform modules
+          - jbcom/terraform-github-markdown
+          - jbcom/terraform-repository-automation
 
     steps:
       - name: Enable GitHub Pages for ${{ matrix.repo }}
