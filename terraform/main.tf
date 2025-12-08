@@ -81,8 +81,8 @@ resource "github_branch_protection" "main" {
   # in the Terraform provider, so we continue using branch protection for now
 
   # History requirements
-  require_linear_history = var.require_linear_history
-  require_signed_commits = var.require_signed_commits
+  required_linear_history = var.require_linear_history
+  require_signed_commits  = var.require_signed_commits
 
   # Force push protection
   allows_force_pushes = var.allow_force_pushes
@@ -93,41 +93,6 @@ resource "github_branch_protection" "main" {
   # because the Terraform provider doesn't yet support the bypass_actors feature
 }
 
-# Repository security settings
-resource "github_repository_security_and_analysis" "managed" {
-  for_each = local.all_repos
-
-  repository = github_repository.managed[each.key].name
-
-  # Secret scanning
-  secret_scanning {
-    status = var.enable_secret_scanning ? "enabled" : "disabled"
-  }
-
-  secret_scanning_push_protection {
-    status = var.enable_secret_scanning_push_protection ? "enabled" : "disabled"
-  }
-}
-
-# GitHub Pages configuration
-resource "github_repository_pages" "managed" {
-  for_each = var.enable_pages ? local.all_repos : {}
-
-  repository = github_repository.managed[each.key].name
-
-  # Note: branch is required by the provider but unused when build_type = "workflow"
-  # GitHub Actions workflows handle the actual build, not the branch source
-  source {
-    branch = var.default_branch
-  }
-
-  build_type = "workflow"
-
-  lifecycle {
-    # Ignore changes to cname as repos may set custom domains
-    ignore_changes = [cname]
-  }
-
-  # Note: count is implicitly handled by for_each
-  # If enable_pages is false, no resources are created (cleaner than ternary with count)
-}
+# Note: Security settings (secret scanning, push protection) and GitHub Pages
+# are managed via the github_repository resource's security_and_analysis and pages blocks
+# in GitHub provider v6.x, or configured separately via GitHub API/UI
