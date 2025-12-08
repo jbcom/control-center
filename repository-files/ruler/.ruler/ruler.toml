@@ -1,0 +1,37 @@
+# Ruler Configuration
+# See: https://github.com/intellectronica/ruler
+
+# Default agents to apply rules to
+default_agents = ["copilot", "claude", "cursor", "kiro", "aider", "amazonqcli"]
+
+# Enable nested rule loading for complex projects
+nested = false
+
+# Global MCP settings
+[mcp]
+enabled = true
+merge_strategy = "merge"
+
+# Gitignore management
+[gitignore]
+enabled = true
+
+# Agent configurations
+[agents.copilot]
+enabled = true
+
+[agents.claude]
+enabled = true
+output_path = "CLAUDE.md"
+
+[agents.cursor]
+enabled = true
+
+[agents.kiro]
+enabled = true
+
+[agents.aider]
+enabled = true
+
+[agents.amazonqcli]
+enabled = true
