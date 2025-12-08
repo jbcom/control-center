@@ -10,4 +10,5 @@ inputs = {
   name            = "extended-data-types"
   has_wiki        = false
   has_discussions = false
+  has_pages       = true
 }

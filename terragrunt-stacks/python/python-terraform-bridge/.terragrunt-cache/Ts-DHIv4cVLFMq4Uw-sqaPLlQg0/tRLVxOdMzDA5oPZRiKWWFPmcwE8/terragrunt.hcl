@@ -10,4 +10,5 @@ inputs = {
   name            = "python-terraform-bridge"
   has_wiki        = false
   has_discussions = false
+  has_pages       = true
 }

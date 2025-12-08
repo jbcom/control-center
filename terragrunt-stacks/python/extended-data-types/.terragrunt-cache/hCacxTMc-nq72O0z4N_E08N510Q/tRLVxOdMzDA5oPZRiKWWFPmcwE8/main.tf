@@ -29,6 +29,11 @@ variable "has_discussions" {
   default = false
 }
 
+variable "has_pages" {
+  type    = bool
+  default = false
+}
+
 variable "allow_squash_merge" {
   type    = bool
   default = true
@@ -129,7 +134,18 @@ resource "github_repository" "this" {
 
   lifecycle {
     prevent_destroy = true
-    ignore_changes  = [description, homepage_url, topics, pages]
+    ignore_changes  = [description, homepage_url, topics]
+  }
+
+  dynamic "pages" {
+    for_each = var.has_pages ? [1] : []
+    content {
+      build_type = "workflow"
+      source {
+        branch = var.default_branch
+        path   = "/"
+      }
+    }
   }
 }
 
