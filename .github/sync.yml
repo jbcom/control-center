@@ -8,21 +8,31 @@
 # ====================
 # repository-files/
 # ├── always-sync/     # Files that ALWAYS overwrite (rules must stay consistent)
-# │   └── .cursor/rules/
+# │   └── .cursor/rules/  [DEPRECATED - migrating to Ruler]
 # ├── initial-only/    # Files synced ONCE (repos can customize after)
 # │   ├── .cursor/     # Dockerfile, environment.json
 # │   ├── .github/     # Workflow files
 # │   └── docs/        # Documentation scaffold
-# ├── python/          # Python language rules
-# ├── nodejs/          # Node.js/TypeScript language rules
-# ├── go/              # Go language rules
-# └── terraform/       # Terraform/HCL language rules
+# ├── ruler/           # Ruler template (initial-only, repos customize)
+# │   └── .ruler/      # AI agent instructions source of truth
+# ├── python/          # Python language rules [DEPRECATED - migrating to Ruler]
+# ├── nodejs/          # Node.js/TypeScript language rules [DEPRECATED - migrating to Ruler]
+# ├── go/              # Go language rules [DEPRECATED - migrating to Ruler]
+# └── terraform/       # Terraform/HCL language rules [DEPRECATED - migrating to Ruler]
 #
 # SYNC BEHAVIOR:
 # ==============
 # - always-sync/: Overwrites on every sync (rules stay authoritative)
 # - initial-only/: Only syncs if file doesn't exist (replace: false)
+# - ruler/: Initial sync only - repos manage via Ruler CLI and sync-ruler.yml workflow
 # - Language dirs: Always sync (language rules are authoritative)
+#
+# MIGRATION TO RULER:
+# ===================
+# The Cursor rules sync is being replaced by the Ruler framework.
+# Ruler centralizes AI agent instructions in .ruler/ and distributes to all agents.
+# Use the sync-ruler.yml workflow to generate/update .ruler/ configurations.
+# See: https://github.com/intellectronica/ruler
 
 # ============================================
 # PYTHON PACKAGES
@@ -33,6 +43,9 @@ jbcom/extended-data-types:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -42,6 +55,9 @@ jbcom/lifecyclelogging:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -51,6 +67,9 @@ jbcom/directed-inputs-class:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -60,6 +79,9 @@ jbcom/python-terraform-bridge:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -69,6 +91,9 @@ jbcom/vendor-connectors:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -78,6 +103,9 @@ jbcom/agentic-crew:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -87,6 +115,9 @@ jbcom/ai_game_dev:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
@@ -96,6 +127,9 @@ jbcom/rivers-of-reckoning:
     dest: .
   - source: repository-files/python/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
