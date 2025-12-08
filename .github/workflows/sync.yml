@@ -258,6 +258,11 @@ jobs:
           # - Admin bypass: allows semantic-release to push version bumps
           # - PR required: ensures code review for non-admin pushes
           # - Copilot review: AI-assisted code review
+          #
+          # NOTE: actor_id=5 is the standard GitHub RepositoryRole ID for "Admin"
+          # This is consistent across all repositories and allows CI tokens with
+          # admin permissions to bypass the ruleset for automated releases.
+          # See: https://docs.github.com/en/rest/repos/rules#create-a-repository-ruleset
           RULESET_PAYLOAD='{
             "name": "default",
             "target": "branch",
