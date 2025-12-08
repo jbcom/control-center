@@ -76,7 +76,7 @@ jobs:
           - jbcom/strata
           # Go packages
           - jbcom/port-api
-          - jbcom/vault-secret-sync
+          - jbcom/secretsync
           # Terraform modules
           - jbcom/terraform-github-markdown
           - jbcom/terraform-repository-automation
@@ -195,7 +195,7 @@ jobs:
           # Go packages
           - repo: jbcom/port-api
             eslint: false
-          - repo: jbcom/vault-secret-sync
+          - repo: jbcom/secretsync
             eslint: false
           # Terraform modules
           - repo: jbcom/terraform-github-markdown
@@ -356,7 +356,7 @@ jobs:
           - jbcom/strata
           # Go packages
           - jbcom/port-api
-          - jbcom/vault-secret-sync
+          - jbcom/secretsync
           # Terraform modules
           - jbcom/terraform-github-markdown
           - jbcom/terraform-repository-automation
@@ -440,7 +440,7 @@ jobs:
           - jbcom/strata
           # Go packages
           - jbcom/port-api
-          - jbcom/vault-secret-sync
+          - jbcom/secretsync
           # Terraform modules
           - jbcom/terraform-github-markdown
           - jbcom/terraform-repository-automation
@@ -509,7 +509,7 @@ jobs:
           - jbcom/strata
           # Go packages
           - jbcom/port-api
-          - jbcom/vault-secret-sync
+          - jbcom/secretsync
           # Terraform modules
           - jbcom/terraform-github-markdown
           - jbcom/terraform-repository-automation
