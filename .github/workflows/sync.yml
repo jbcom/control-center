@@ -140,7 +140,7 @@ jobs:
           SKIP_PR: true
 
   # ============================================
-  # BRANCH PROTECTION SYNC
+  # BRANCH PROTECTION SYNC (Legacy API)
   # ============================================
   sync-branch-protection:
     name: Sync branch protection
@@ -202,6 +202,129 @@ jobs:
         run: |
           echo "🔍 DRY RUN: Would apply branch protection to ${{ matrix.repo }}"
           echo "Settings: no required reviews, allow force pushes, linear history"
+
+  # ============================================
+  # RULESETS SYNC (New API with bypass actors)
+  # ============================================
+  sync-rulesets:
+    name: Sync rulesets
+    runs-on: ubuntu-latest
+    # Run on push, schedule, or manual trigger (unless explicitly disabled)
+    if: |
+      github.event_name == 'push' ||
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.sync_branch_protection)
+
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          # Python packages
+          - jbcom/agentic-crew
+          - jbcom/ai_game_dev
+          - jbcom/directed-inputs-class
+          - jbcom/extended-data-types
+          - jbcom/lifecyclelogging
+          - jbcom/python-terraform-bridge
+          - jbcom/rivers-of-reckoning
+          - jbcom/vendor-connectors
+          # Node.js / TypeScript packages
+          - jbcom/agentic-control
+          - jbcom/otter-river-rush
+          - jbcom/otterfall
+          - jbcom/pixels-pygame-palace
+          - jbcom/rivermarsh
+          - jbcom/strata
+          # Go packages
+          - jbcom/port-api
+          - jbcom/vault-secret-sync
+          # Terraform modules
+          - jbcom/terraform-github-markdown
+          - jbcom/terraform-repository-automation
+
+    steps:
+      - name: Sync ruleset to ${{ matrix.repo }}
+        if: inputs.dry_run != true
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          REPO="${{ matrix.repo }}"
+
+          # Standard ruleset configuration for agent-managed repos
+          # - Admin bypass: allows semantic-release to push version bumps
+          # - PR required: ensures code review for non-admin pushes
+          # - Copilot review: AI-assisted code review
+          RULESET_PAYLOAD='{
+            "name": "default",
+            "target": "branch",
+            "enforcement": "active",
+            "conditions": {
+              "ref_name": {
+                "include": ["~DEFAULT_BRANCH"],
+                "exclude": []
+              }
+            },
+            "bypass_actors": [
+              {
+                "actor_id": 5,
+                "actor_type": "RepositoryRole",
+                "bypass_mode": "always"
+              }
+            ],
+            "rules": [
+              {"type": "deletion"},
+              {"type": "non_fast_forward"},
+              {"type": "required_linear_history"},
+              {
+                "type": "pull_request",
+                "parameters": {
+                  "required_approving_review_count": 0,
+                  "dismiss_stale_reviews_on_push": false,
+                  "required_reviewers": [],
+                  "require_code_owner_review": false,
+                  "require_last_push_approval": false,
+                  "required_review_thread_resolution": true,
+                  "allowed_merge_methods": ["squash"]
+                }
+              },
+              {
+                "type": "copilot_code_review",
+                "parameters": {
+                  "review_on_push": true,
+                  "review_draft_pull_requests": false
+                }
+              },
+              {
+                "type": "copilot_code_review_analysis_tools",
+                "parameters": {
+                  "tools": [{"name": "CodeQL"}]
+                }
+              }
+            ]
+          }'
+
+          # Check if ruleset exists
+          EXISTING_RULESET=$(gh api "repos/${REPO}/rulesets" --jq '.[0].id' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING_RULESET" ] && [ "$EXISTING_RULESET" != "null" ]; then
+            # Update existing ruleset
+            echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input -
+            echo "✅ Updated ruleset for ${REPO}"
+          else
+            # Create new ruleset
+            echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets" -X POST --input -
+            echo "✅ Created ruleset for ${REPO}"
+          fi
+
+      - name: Dry run - would sync ruleset to ${{ matrix.repo }}
+        if: inputs.dry_run == true
+        run: |
+          echo "🔍 DRY RUN: Would sync ruleset to ${{ matrix.repo }}"
+          echo "Settings:"
+          echo "  - Admin bypass: actor_id=5 (allows semantic-release)"
+          echo "  - PR required: 0 approvals, squash only"
+          echo "  - Copilot code review enabled"
+          echo "  - Linear history required"
 
   # ============================================
   # GITHUB PAGES SYNC
