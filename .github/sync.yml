@@ -15,7 +15,8 @@
 # │   └── docs/        # Documentation scaffold
 # ├── python/          # Python language rules
 # ├── nodejs/          # Node.js/TypeScript language rules
-# └── go/              # Go language rules
+# ├── go/              # Go language rules
+# └── terraform/       # Terraform/HCL language rules
 #
 # SYNC BEHAVIOR:
 # ==============
@@ -72,6 +73,33 @@ jbcom/vendor-connectors:
     dest: .
     replace: false
 
+jbcom/agentic-crew:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/python/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/ai_game_dev:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/python/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/rivers-of-reckoning:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/python/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
 # ============================================
 # NODE.JS / TYPESCRIPT PACKAGES
 # ============================================
@@ -94,6 +122,42 @@ jbcom/rivermarsh:
     dest: .
     replace: false
 
+jbcom/strata:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/nodejs/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/otterfall:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/nodejs/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/otter-river-rush:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/nodejs/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/pixels-pygame-palace:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/nodejs/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
 # ============================================
 # GO PACKAGES
 # ============================================
@@ -102,6 +166,37 @@ jbcom/vault-secret-sync:
   - source: repository-files/always-sync/
     dest: .
   - source: repository-files/go/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/port-api:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/go/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+# ============================================
+# TERRAFORM / HCL MODULES
+# ============================================
+
+jbcom/terraform-github-markdown:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/terraform/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
+jbcom/terraform-repository-automation:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/terraform/
     dest: .
   - source: repository-files/initial-only/
     dest: .
