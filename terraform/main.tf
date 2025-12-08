@@ -30,7 +30,8 @@ resource "github_repository" "managed" {
   # For now, rely on existing descriptions (Terraform won't overwrite if not specified)
   
   # Visibility (assuming all are public)
-  visibility = "public"
+  # Visibility - use existing visibility to avoid unintended changes
+  # visibility = "public"  # Commented out to preserve existing settings
 
   # Features
   has_issues      = var.enable_issues
