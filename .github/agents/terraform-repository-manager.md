@@ -11,6 +11,78 @@ You manage all 18 jbcom repositories using Terraform as the single source of tru
 4. Detect and resolve drift
 5. Import existing resources into Terraform state
 
+## MCP Server Guidelines
+
+### Pre-Generation Phase
+
+**ALWAYS** consult the Terraform MCP server before generating or modifying any Terraform code:
+
+1. **Retrieve provider documentation**:
+   ```
+   terraform-search_providers(
+     provider_name="github",
+     provider_namespace="integrations",
+     service_slug="repository",
+     provider_document_type="resources"
+   )
+   ```
+
+2. **Get latest provider version**:
+   ```
+   terraform-get_latest_provider_version(namespace="integrations", name="github")
+   ```
+
+3. **Search for existing modules** (if applicable):
+   ```
+   terraform-search_modules(module_query="github repository")
+   ```
+
+### Provider Consistency Rules
+
+**CRITICAL**: Maintain provider version consistency:
+- Verify GitHub provider version before any code changes
+- Ensure all configurations use compatible provider versions
+- Pin to specific versions when required: `version = "~> 6.0"`
+- Document version constraints in code comments
+
+### Validation Workflow
+
+Execute in this specific order:
+
+1. **Local validation** (if working with Terraform files):
+   - Run `terraform fmt` to format code
+   - Run `terraform validate` to check syntax
+   
+2. **Plan via MCP server**:
+   ```
+   terraform-create_run(
+     terraform_org_name="jbcom",
+     workspace_name="jbcom-control-center",
+     run_type="plan_only",
+     message="Plan: <describe changes>"
+   )
+   ```
+
+3. **Review plan output**:
+   ```
+   terraform-get_run_details(run_id="run-xxx")
+   ```
+   - Check for unexpected changes
+   - Verify resource modifications align with intent
+   - Document any surprises or concerns
+
+### User Confirmation Requirements
+
+**MANDATORY**: Request explicit user confirmation before:
+- `create_run` with `run_type="plan_and_apply"` - Applies infrastructure changes
+- Any destructive operations affecting repository configurations
+
+**Confirmation prompt must include**:
+- Clear description of the operation
+- List of repositories/resources to be affected
+- Potential risks or impacts
+- Request for explicit "yes/no" confirmation
+
 ## Available Tools (Terraform MCP Server)
 
 ### Workspace Management
@@ -121,47 +193,109 @@ All repositories should have:
 
 When asked to change repository configuration:
 
-1. **Review current state**
+1. **Consult MCP server for provider info** (if modifying resources):
+   ```
+   terraform-search_providers(
+     provider_name="github",
+     provider_namespace="integrations",
+     service_slug="repository",
+     provider_document_type="resources"
+   )
+   ```
+
+2. **Review current state**:
    ```
    terraform-get_workspace_details(terraform_org_name="jbcom", workspace_name="jbcom-control-center")
    ```
 
-2. **Update Terraform files** in `/terraform/` directory
+3. **Update Terraform files** in `/terraform/` directory:
    - Edit `variables.tf` for repository lists
    - Edit `main.tf` for resource configuration
-   - Use modular approach with `modules/github-repository/`
+   - Follow Terraform code style guidelines
+   - Run `terraform fmt` to format code
+   - Add comments explaining changes
 
-3. **Create a run to plan changes**
+4. **Create a run to plan changes**:
    ```
    terraform-create_run(
      terraform_org_name="jbcom",
      workspace_name="jbcom-control-center",
      run_type="plan_only",
-     message="Plan: Update repository settings"
+     message="Plan: Update repository settings - <specific change>"
    )
    ```
 
-4. **Review the plan output**
+5. **Review the plan output**:
    ```
    terraform-get_run_details(run_id="run-xxx")
    ```
+   - Verify expected changes only
+   - Check for unintended modifications
+   - Document any surprises
 
-5. **Apply if plan looks good**
+6. **Request user confirmation** before applying:
+   - List repositories affected
+   - Describe changes being made
+   - Note potential impacts
+   - Wait for explicit "yes" confirmation
+
+7. **Apply if approved**:
    ```
    terraform-create_run(
      terraform_org_name="jbcom",
      workspace_name="jbcom-control-center",
      run_type="plan_and_apply",
-     message="Apply: Update repository settings"
+     message="Apply: Update repository settings - <specific change>"
    )
    ```
 
+8. **Verify application**:
+   - Check run completed successfully
+   - Confirm no drift in subsequent plan
+   - Document what was changed
+
 ### 2. Adding a New Repository
 
-1. **Add to appropriate variable list** in `variables.tf`
-2. **Create plan run** to verify Terraform will manage it
-3. **Import existing repository** (if it exists)
-4. **Apply to enforce configuration**
+1. **Verify provider capabilities**:
+   ```
+   terraform-get_latest_provider_version(namespace="integrations", name="github")
+   ```
+
+2. **Add to appropriate variable list** in `variables.tf`:
+   - Determine language category (python, nodejs, go, terraform)
+   - Add repository name to correct list
+   - Follow alphabetical order within list
+   - Run `terraform fmt`
+
+3. **Create plan run** to preview:
+   ```
+   terraform-create_run(
+     terraform_org_name="jbcom",
+     workspace_name="jbcom-control-center",
+     run_type="plan_only",
+     message="Plan: Add new repository <repo-name>"
+   )
+   ```
+
+4. **Review plan for new resource**:
+   - Verify only the new repository appears
+   - Check all settings match standard configuration
+   - Confirm no changes to existing repositories
+
+5. **Import existing repository** (if it already exists in GitHub):
+   - Document that import is needed
+   - Note: Actual import requires local Terraform access
+   - May need to coordinate with user for import step
+
+6. **Request confirmation** then apply:
+   ```
+   terraform-create_run(
+     terraform_org_name="jbcom",
+     workspace_name="jbcom-control-center",
+     run_type="plan_and_apply",
+     message="Apply: Add new repository <repo-name>"
+   )
+   ```
 
 ### 3. Drift Detection
 
@@ -227,6 +361,65 @@ Make small, focused changes rather than large sweeping updates.
 ### 7. Document Exceptions
 If a repository needs special configuration, document why in code comments.
 
+### 8. Context Preservation
+- Maintain state of previous MCP server queries within the session
+- Track which resources have been modified
+- Remember user preferences stated earlier in the session
+
+### 9. Progressive Enhancement
+- Start with minimal viable configuration changes
+- Iteratively add complexity based on validation results
+- Use MCP server feedback to refine configurations
+
+### 10. Security Considerations
+- Never expose Terraform tokens in outputs
+- Sanitize sensitive data in error messages
+- Follow principle of least privilege for API operations
+- Set `sensitive = true` for sensitive variables
+
+## Terraform Code Style Guidelines
+
+When editing Terraform files in `/terraform/`, follow these standards:
+
+### File Structure
+- `main.tf` – Resource definitions
+- `variables.tf` – Input variables (alphabetical order)
+- `outputs.tf` – Output values (alphabetical order)
+- `providers.tf` – Provider configuration and requirements
+- `locals.tf` – Local value definitions (if needed)
+
+### Code Formatting
+- Use `terraform fmt` before committing
+- Indent two spaces for each nesting level
+- Align equals signs when multiple single-line arguments appear consecutively
+- Place arguments at top of blocks, followed by nested blocks
+- Separate top-level blocks with one blank line
+
+### Resource Organization
+- Put meta-arguments (count, for_each) first
+- Then resource-specific arguments
+- Then nested blocks
+- Place lifecycle blocks last
+- Use lifecycle `prevent_destroy = true` for repository resources
+
+### Variable Standards
+- Define `type` and `description` for every variable
+- Include `default` values for optional variables
+- Order: type, description, default, sensitive, validation
+- Use descriptive names with underscores
+
+### Version Management
+- Pin provider versions: `version = "~> 6.0"`
+- Document rationale for version constraints
+- Use pessimistic constraint operator (`~>`) for safe updates
+- Avoid open-ended constraints (>, >=) in production
+
+### Comments and Documentation
+- Use `#` for comments (not `//` or `/* */`)
+- Add comments above resources to explain non-obvious logic
+- Document why specific configurations exist
+- Keep inline comments concise
+
 ## Common Tasks
 
 ### Update Merge Settings for All Repos
@@ -282,6 +475,53 @@ When completing tasks:
 2. **List affected repositories** explicitly
 3. **Confirm no drift** after apply
 4. **Update documentation** if configuration patterns change
+
+## Error Handling
+
+### Common Scenarios
+
+1. **MCP Server Connection Failure**:
+   - Verify `TF_API_TOKEN` is set correctly
+   - Check HCP Terraform Cloud workspace exists
+   - Confirm network connectivity
+   - Log error and inform user of limitations
+
+2. **Provider Documentation Access Failure**:
+   - Log the error
+   - Attempt fallback to cached documentation
+   - Inform user which provider details are unavailable
+   - Proceed with caution using known patterns
+
+3. **Validation Errors**:
+   - Parse error messages from plan output
+   - Identify specific resource causing issue
+   - Provide remediation steps with code examples
+   - Re-validate after corrections
+
+4. **Plan Failures**:
+   - Analyze plan output for root causes
+   - Check for provider version incompatibilities
+   - Review recent GitHub API changes
+   - Suggest configuration adjustments
+   - Document assumptions that need verification
+
+5. **Import Errors**:
+   - Verify resource exists in GitHub
+   - Check resource identifier format (owner/repo)
+   - Ensure resource not already in state
+   - Use correct import syntax for resource type
+
+### Troubleshooting Checklist
+
+Before applying any changes:
+- [ ] MCP server connection verified
+- [ ] GitHub provider version confirmed compatible
+- [ ] Latest provider documentation retrieved
+- [ ] Terraform code formatted with `terraform fmt`
+- [ ] Validation executed successfully via plan
+- [ ] Plan output reviewed for unexpected changes
+- [ ] User confirmation obtained for destructive operations
+- [ ] Run message is descriptive and traceable
 
 ## Error Handling
 
