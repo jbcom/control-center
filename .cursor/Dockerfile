@@ -66,6 +66,28 @@ RUN sh -c "$(curl -fsSL https://raw.githubusercontent.com/F1bonacc1/process-comp
     process-compose version
 
 # ============================================
+# Terraform Tools (Control Center Only)
+# For managing jbcom repository configurations
+# ============================================
+ARG TERRAFORM_VERSION=1.14.1
+RUN wget -q https://releases.hashicorp.com/terraform/${TERRAFORM_VERSION}/terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+    unzip terraform_${TERRAFORM_VERSION}_linux_amd64.zip -d /usr/local/bin && \
+    rm terraform_${TERRAFORM_VERSION}_linux_amd64.zip && \
+    terraform version
+
+ARG TFLINT_VERSION=0.54.0
+RUN wget -q https://github.com/terraform-linters/tflint/releases/download/v${TFLINT_VERSION}/tflint_linux_amd64.zip && \
+    unzip tflint_linux_amd64.zip -d /usr/local/bin && \
+    rm tflint_linux_amd64.zip && \
+    tflint --version
+
+ARG TERRAFORM_DOCS_VERSION=0.19.0
+RUN wget -q https://github.com/terraform-docs/terraform-docs/releases/download/v${TERRAFORM_DOCS_VERSION}/terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz && \
+    tar -xzf terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz -C /usr/local/bin terraform-docs && \
+    rm terraform-docs-v${TERRAFORM_DOCS_VERSION}-linux-amd64.tar.gz && \
+    terraform-docs version
+
+# ============================================
 # Global Node.js CLI Tools
 # These are installed globally via pnpm for all future agents
 # ============================================
@@ -96,6 +118,9 @@ RUN echo "=== Tool Verification ===" && \
     echo "pnpm: $(pnpm --version)" && \
     echo "uv: $(uv --version)" && \
     echo "gh: $(gh --version | head -1)" && \
+    echo "terraform: $(terraform version | head -1)" && \
+    echo "tflint: $(tflint --version | head -1)" && \
+    echo "terraform-docs: $(terraform-docs version | head -1)" && \
     echo "ruler: $(ruler --version 2>&1 | head -1)" && \
     echo "claude: $(claude --version 2>&1 | head -1 || echo 'installed, needs API key')" && \
     echo "aider: $(aider --version 2>&1 | head -1)" && \
