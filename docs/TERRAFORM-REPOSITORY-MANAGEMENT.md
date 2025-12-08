@@ -2,9 +2,9 @@
 
 ## Overview
 
-As of December 2025, jbcom-control-center uses Terraform to actively manage repository configurations across all 18 jbcom repositories. This replaces the previous passive sync workflow approach.
+As of December 2025, jbcom-control-center uses Terragrunt to actively manage repository configurations across all 18 jbcom repositories. This replaces the previous passive sync workflow approach.
 
-## Why Terraform?
+## Why Terragrunt?
 
 ### Problems with Previous Approach
 
@@ -17,7 +17,7 @@ The previous sync workflow had several issues:
 5. **Limited Rollback**: Difficult to undo changes or review history
 6. **No Preview**: Changes applied immediately without review
 
-### Benefits of Terraform
+### Benefits of Terragrunt
 
 1. **Active State Management**: Terraform tracks actual state vs. desired state
 2. **Drift Detection**: Automatically detects when repositories diverge
@@ -25,18 +25,50 @@ The previous sync workflow had several issues:
 4. **Version Control**: All configuration in code with full git history
 5. **Rollback**: Easy to revert to previous configurations
 6. **Declarative**: Describe desired state, not imperative steps
-7. **Provider Ecosystem**: Leverage GitHub provider features
+7. **DRY**: Shared module for all 18 repositories
+8. **File Sync**: Cursor rules and workflows managed as Terraform resources
 
 ## Architecture
 
+### Directory Structure
+
+```
+terragrunt-stacks/
+├── terragrunt.hcl                    # Root config (provider, backend)
+├── modules/
+│   └── repository/main.tf            # Shared repository module
+├── python/
+│   ├── agentic-crew/terragrunt.hcl
+│   ├── ai_game_dev/terragrunt.hcl
+│   └── ...                           # 8 repos total
+├── nodejs/
+│   ├── agentic-control/terragrunt.hcl
+│   └── ...                           # 6 repos total
+├── go/
+│   ├── port-api/terragrunt.hcl
+│   └── vault-secret-sync/terragrunt.hcl
+└── terraform/
+    ├── terraform-github-markdown/terragrunt.hcl
+    └── terraform-repository-automation/terragrunt.hcl
+
+repository-files/
+├── always-sync/                      # Overwritten every apply
+│   ├── .cursor/rules/               # Cursor IDE rules
+│   └── .github/workflows/           # Claude workflow
+├── initial-only/                     # Created once, repos customize
+│   ├── .cursor/                     # Environment config
+│   └── docs/                        # Documentation scaffold
+├── python/                           # Python-specific rules
+├── nodejs/                           # Node.js-specific rules
+├── go/                               # Go-specific rules
+└── terraform/                        # Terraform-specific rules
+```
+
 ### State Storage
 
-- **Backend**: HCP Terraform Cloud
-- **Organization**: `jbcom`
-- **Workspace**: `jbcom-control-center`
-- **Execution Mode**: Local (runs in GitHub Actions)
-- **State Locking**: Automatic via HCP
-- **State Encryption**: At rest in HCP
+- **Backend**: Local (per-repository state files)
+- **State Files**: `terragrunt-stacks/{language}/{repo}/terraform.tfstate`
+- **Import**: Uses Terraform 1.5+ import blocks for zero-destroy import
 
 ### Repository Categories
 
@@ -49,35 +81,36 @@ Repositories are managed in 4 language categories:
 | **Go** | 2 | port-api, vault-secret-sync |
 | **Terraform** | 2 | terraform-github-markdown, terraform-repository-automation |
 
-Each category has specific settings (e.g., Node.js repos enable ESLint in code quality checks).
-
 ## What's Managed
 
 ### Repository Settings (`github_repository`)
 - Merge strategies (squash only, delete branch on merge)
-- Feature flags (issues enabled, wiki/projects/discussions disabled)
+- Feature flags (issues enabled, wiki/projects/discussions disabled by default)
 - Visibility (public)
 - Auto-merge settings
+- Vulnerability alerts
 
 ### Branch Protection (`github_branch_protection`)
-- Pull request requirements (0 approvals required)
+- Pull request requirements
 - Review dismissal settings
-- Status check requirements
 - Linear history enforcement
 - Force push protection
 - Deletion protection
 
-### Security Settings (`github_repository_security_and_analysis`)
+### Security Settings (`security_and_analysis` block)
 - Secret scanning (enabled)
 - Secret scanning push protection (enabled)
-- Dependabot security updates (enabled)
 
-### GitHub Pages (`github_repository_pages`)
+### GitHub Pages (`pages` block)
 - Enabled for all repositories
 - Build type: GitHub Actions workflow
-- Source branch: main
 
-## What's NOT Managed
+### File Sync (`github_repository_file`)
+- **Always-sync files**: Cursor rules, Claude workflow (overwritten every apply)
+- **Initial-only files**: Docs scaffold, environment config (created once)
+- **Language-specific rules**: Python, Node.js, Go, Terraform rules
+
+## What's NOT Managed by Terraform
 
 These remain in the sync workflow:
 
@@ -85,200 +118,126 @@ These remain in the sync workflow:
    - Managed via `jpoehnelt/secrets-sync-action`
    - Syncs: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
 
-2. **File Sync** (`sync-files` job)
-   - Managed via `BetaHuhn/repo-file-sync-action`
-   - Syncs: Cursor rules, Dockerfiles, workflows, documentation
-
-3. **Repository Rulesets** (temporary)
-   - The GitHub Terraform provider doesn't fully support the new Rulesets API yet
-   - Advanced features like Copilot code review, CodeQL integration still use the sync workflow
-   - Will migrate when provider support is complete
-
-## Directory Structure
-
-```
-terraform/
-├── providers.tf          # GitHub provider + HCP backend config
-├── variables.tf          # Input variables (repo lists, settings)
-├── main.tf               # Repository resources
-├── outputs.tf            # Output values
-├── README.md             # Terraform-specific docs
-├── .gitignore            # Ignore .terraform/, *.tfstate
-└── .terraform.lock.hcl   # Provider version lock (committed)
-```
-
-## Workflow Integration
-
-### Terraform Sync Workflow
-
-`.github/workflows/terraform-sync.yml` runs Terraform automatically:
-
-| Trigger | Action | Purpose |
-|---------|--------|---------|
-| Push to main (terraform/**) | `terraform apply` | Apply configuration changes |
-| Pull request (terraform/**) | `terraform plan` | Preview changes, comment on PR |
-| Daily at 2 AM UTC | `terraform plan` | Detect drift |
-| Manual dispatch | `terraform plan` or `apply` | On-demand execution |
-
-### Environment Variables
-
-- `TF_API_TOKEN`: HCP Terraform Cloud token (GitHub secret, auto-provided to Copilot)
-- `CI_GITHUB_TOKEN`: GitHub PAT for repository management (GitHub secret)
-- `GITHUB_TOKEN`: Default Actions token (for PR comments)
-
-## Migration from Sync Workflow
-
-### Completed
-
-- ✅ Created Terraform configuration
-- ✅ Defined all 18 repositories
-- ✅ Set up HCP Terraform Cloud workspace
-- ✅ Created GitHub Actions workflow
-- ✅ Documented new approach
-
-### Remaining
-
-- [ ] Initialize Terraform and import existing repositories
-- [ ] Run `terraform plan` to verify no unintended changes
-- [ ] Apply configuration to align repositories
-- [ ] Update `.github/workflows/sync.yml` to remove redundant jobs
-- [ ] Monitor drift detection for 1 week
-- [ ] Archive old bash scripts
-
 ## Usage
 
-### Making Configuration Changes
+### Plan All Repositories
 
-1. **Edit Terraform files** in `terraform/`
-   ```bash
-   cd terraform
-   vim variables.tf  # Change settings
-   ```
-
-2. **Create a Pull Request**
-   ```bash
-   git checkout -b config/update-merge-settings
-   git add terraform/
-   git commit -m "config: update merge settings"
-   git push origin config/update-merge-settings
-   gh pr create
-   ```
-
-3. **Review the Plan**
-   - GitHub Actions will comment on the PR with `terraform plan` output
-   - Review what will change before merging
-
-4. **Merge to Apply**
-   - Merge the PR to main
-   - GitHub Actions will automatically run `terraform apply`
-
-### Detecting Drift
-
-Drift occurs when repository settings are changed outside Terraform (e.g., via GitHub UI).
-
-**Automated Detection**:
-- Runs daily at 2 AM UTC
-- Fails the workflow if drift is detected
-- Outputs the drift in workflow logs
-
-**Manual Detection**:
 ```bash
-cd terraform
-terraform plan
+cd terragrunt-stacks
+terragrunt run-all plan --non-interactive
 ```
 
-If drift is detected:
-1. Review the plan to see what changed
-2. Decide: Update Terraform to match reality, or apply Terraform to fix drift
-3. Document the decision in a PR
+### Apply All Repositories
 
-### Adding a New Repository
-
-1. **Add to variables.tf**:
-   ```hcl
-   variable "python_repos" {
-     default = [
-       "existing-repo",
-       "new-repo",  # Add here
-     ]
-   }
-   ```
-
-2. **Create PR and merge**
-
-3. **Import the repository**:
-   ```bash
-   cd terraform
-   terraform import 'github_repository.managed["new-repo"]' new-repo
-   terraform import 'github_branch_protection.main["new-repo"]' new-repo:main
-   ```
-
-### Removing a Repository
-
-1. **Remove from variables.tf**
-2. **Create PR and merge**
-3. **Terraform will NOT delete the repo** (lifecycle prevent_destroy is enabled)
-
-To actually delete:
 ```bash
-terraform state rm 'github_repository.managed["old-repo"]'
-terraform state rm 'github_branch_protection.main["old-repo"]'
+cd terragrunt-stacks
+terragrunt run-all apply --non-interactive
 ```
+
+### Plan Single Repository
+
+```bash
+cd terragrunt-stacks/python/agentic-crew
+terragrunt plan
+```
+
+### Apply Single Repository
+
+```bash
+cd terragrunt-stacks/python/agentic-crew
+terragrunt apply
+```
+
+## Workflow Automation
+
+The GitHub Actions workflow (`terraform-sync.yml`) handles:
+
+| Event | Action |
+|-------|--------|
+| Pull Request | Plan only (shows changes) |
+| Push to main | Apply changes |
+| Schedule (2 AM UTC) | Drift detection |
+| Manual dispatch | Plan or apply |
+
+## Configuration
+
+### Repository Unit Configuration
+
+Each repository has a `terragrunt.hcl` that specifies inputs:
+
+```hcl
+# terragrunt-stacks/nodejs/agentic-control/terragrunt.hcl
+include "root" {
+  path = find_in_parent_folders()
+}
+
+terraform {
+  source = "../../modules/repository"
+}
+
+inputs = {
+  name            = "agentic-control"
+  language        = "nodejs"
+  has_wiki        = false
+  has_discussions = false
+  has_pages       = true
+  sync_files      = true
+}
+```
+
+### Available Variables
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `name` | string | required | Repository name |
+| `language` | string | required | python, nodejs, go, terraform |
+| `visibility` | string | "public" | Repository visibility |
+| `has_issues` | bool | true | Enable Issues |
+| `has_wiki` | bool | false | Enable Wiki |
+| `has_discussions` | bool | false | Enable Discussions |
+| `has_pages` | bool | true | Enable GitHub Pages |
+| `allow_squash_merge` | bool | true | Allow squash merging |
+| `allow_merge_commit` | bool | false | Allow merge commits |
+| `allow_rebase_merge` | bool | false | Allow rebase merging |
+| `delete_branch_on_merge` | bool | true | Delete branch after merge |
+| `vulnerability_alerts` | bool | true | Enable Dependabot alerts |
+| `required_approvals` | number | 0 | Required PR approvals |
+| `require_code_owner_reviews` | bool | false | Require CODEOWNERS |
+| `required_linear_history` | bool | false | Require linear history |
+| `sync_files` | bool | true | Sync Cursor rules/workflows |
 
 ## Troubleshooting
 
-### Import Failures
-
-**Symptom**: `terraform import` fails with "resource already in state"
-
-**Solution**: Remove and re-import
-```bash
-terraform state rm 'github_repository.managed["repo-name"]'
-terraform import 'github_repository.managed["repo-name"]' repo-name
-```
-
 ### Authentication Errors
 
-**Symptom**: "401 Unauthorized" or "403 Forbidden"
+Ensure `GITHUB_TOKEN` is set with appropriate permissions:
+- `repo` (full control)
+- `admin:org` (read access for org settings)
 
-**Solution**: Verify GITHUB_TOKEN has correct permissions
-```bash
-export GITHUB_TOKEN="$CI_GITHUB_TOKEN"
-gh auth status
-terraform plan
-```
+### Import Errors
 
-### Drift Won't Resolve
+The module uses Terraform 1.5+ import blocks. If import fails:
+1. Verify repository exists: `gh repo view jbcom/<repo>`
+2. Check token permissions
+3. Verify branch protection exists
 
-**Symptom**: `terraform apply` doesn't fix drift
+### File Sync Errors
 
-**Solution**: Some settings may be managed elsewhere (e.g., repository rulesets)
-1. Check `.github/workflows/sync.yml` for conflicting management
-2. Review GitHub UI for manual changes
-3. Update Terraform to match reality if appropriate
+If file sync fails:
+1. Check file path is correct
+2. Verify branch exists
+3. Check repository isn't archived
 
-### State Lock Issues
+### Drift Detection
 
-**Symptom**: "Error acquiring the state lock"
+If drift is detected:
+1. Review the plan output
+2. Decide if external changes should be kept or reverted
+3. Either update terragrunt config or apply to restore
 
-**Solution**: Another run is in progress or crashed
-```bash
-# Via HCP Terraform Cloud UI:
-# Settings → Locking → Force Unlock
-```
+## Migration from Previous Approach
 
-## References
-
-- [HCP Terraform Cloud Workspace](https://app.terraform.io/app/jbcom/workspaces/jbcom-control-center)
-- [GitHub Provider Documentation](https://registry.terraform.io/providers/integrations/github/latest/docs)
-- [terraform/README.md](../terraform/README.md) - Local development guide
-- [.github/workflows/terraform-sync.yml](../.github/workflows/terraform-sync.yml) - Workflow source
-
-## Future Enhancements
-
-1. **Migrate Rulesets to Terraform** when provider support is complete
-2. **Add Repository Topics** management
-3. **Add Team Permissions** management
-4. **Add Branch Protection Rules** for feature branches
-5. **Add Repository Variables** (non-secret configuration)
-6. **Add Environments** (for deployment workflows)
+1. Removed duplicate `terraform/` directory (was HCP-based approach)
+2. Added `.terragrunt-cache/` to `.gitignore`
+3. Integrated file sync into Terraform module (replaces repo-file-sync-action)
+4. Added `security_and_analysis` block for secret scanning

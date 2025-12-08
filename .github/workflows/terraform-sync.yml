@@ -1,14 +1,16 @@
-name: Terraform Repository Sync
+name: Terragrunt Repository Sync
 
 on:
   push:
     branches: [main]
     paths:
-      - 'terraform/**'
+      - 'terragrunt-stacks/**'
+      - 'repository-files/**'
       - '.github/workflows/terraform-sync.yml'
   pull_request:
     paths:
-      - 'terraform/**'
+      - 'terragrunt-stacks/**'
+      - 'repository-files/**'
       - '.github/workflows/terraform-sync.yml'
   schedule:
     # Run daily at 2 AM UTC to detect drift
@@ -24,46 +26,47 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
-  security-events: write  # For security scanning
+  security-events: write
 
-# Prevent concurrent Terraform runs on the same workspace
+# Prevent concurrent Terraform runs
 concurrency:
-  group: terraform-${{ github.ref }}
+  group: terragrunt-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  terraform:
-    name: Terraform
+  terragrunt:
+    name: Terragrunt
     runs-on: ubuntu-latest
     
     env:
-      # GitHub token for Terraform GitHub provider (repository management)
       GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-      # Separate token for PR comments (dflook actions)
-      TERRAFORM_ACTIONS_GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # HCP Terraform Cloud authentication
-      TERRAFORM_CLOUD_TOKENS: app.terraform.io=${{ secrets.TF_API_TOKEN }}
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
 
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@v4
 
-      # =================================================================
-      # FORMAT CHECK - All events
-      # =================================================================
-      - name: Terraform Format Check
-        uses: dflook/terraform-fmt-check@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
         with:
-          path: terraform
+          terraform_version: "1.14.1"
+          terraform_wrapper: false
+
+      - name: Setup Terragrunt
+        run: |
+          curl -sL https://github.com/gruntwork-io/terragrunt/releases/download/v0.77.22/terragrunt_linux_amd64 -o terragrunt
+          chmod +x terragrunt
+          sudo mv terragrunt /usr/local/bin/
+          terragrunt --version
 
       # =================================================================
-      # SECURITY SCANNING - All events
+      # SECURITY SCANNING
       # =================================================================
       - name: Run Trivy Security Scan
-        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: 'config'
-          scan-ref: 'terraform/'
+          scan-ref: 'terragrunt-stacks/'
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
@@ -71,93 +74,78 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy Results
-        uses: github/codeql-action/upload-sarif@267c4672a565967e4531438f2498370de5e8a98d # codeql-bundle-v2.23.7
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'terraform-security'
         continue-on-error: true
 
       # =================================================================
-      # PULL REQUEST - Plan and comment
+      # PULL REQUEST - Plan all repos
       # =================================================================
-      - name: Terraform Plan
+      - name: Terragrunt Plan
         id: plan
         if: github.event_name == 'pull_request'
-        uses: dflook/terraform-plan@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
-        with:
-          path: terraform
-          label: jbcom-repositories
-          add_github_comment: changes-only
-
-      - name: PR Plan Summary
-        if: github.event_name == 'pull_request'
+        working-directory: terragrunt-stacks
         run: |
-          echo '## Terraform Plan Summary' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          echo '| Metric | Count |' >> $GITHUB_STEP_SUMMARY
-          echo '|--------|-------|' >> $GITHUB_STEP_SUMMARY
-          echo '| Resources to add | ${{ steps.plan.outputs.to_add }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Resources to change | ${{ steps.plan.outputs.to_change }} |' >> $GITHUB_STEP_SUMMARY
-          echo '| Resources to destroy | ${{ steps.plan.outputs.to_destroy }} |' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.plan.outputs.changes }}" == "true" ]]; then
-            echo '**Status:** 📝 Changes detected - review the plan in the PR comment' >> $GITHUB_STEP_SUMMARY
+          echo "## Terragrunt Plan" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Run plan and capture output
+          terragrunt run-all plan --non-interactive 2>&1 | tee plan_output.txt
+          
+          # Count changes
+          CHANGES=$(grep -c "Plan:" plan_output.txt || echo "0")
+          NO_CHANGES=$(grep -c "No changes" plan_output.txt || echo "0")
+          
+          echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Repos with changes | $CHANGES |" >> $GITHUB_STEP_SUMMARY
+          echo "| Repos without changes | $NO_CHANGES |" >> $GITHUB_STEP_SUMMARY
+          
+          if [[ $CHANGES -gt 0 ]]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Changes detected** - Review the plan output" >> $GITHUB_STEP_SUMMARY
           else
-            echo '**Status:** ✅ No changes needed' >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "✅ **No changes needed**" >> $GITHUB_STEP_SUMMARY
           fi
 
       # =================================================================
       # PUSH TO MAIN - Apply changes
       # =================================================================
-      - name: Terraform Apply (Push to Main)
+      - name: Terragrunt Apply
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: dflook/terraform-apply@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
-        with:
-          path: terraform
-          label: jbcom-repositories
-          auto_approve: true
-
-      - name: Apply Summary
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        working-directory: terragrunt-stacks
         run: |
-          echo '## Terraform Apply Complete' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          echo '✅ Repository configurations have been applied successfully.' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          echo '**Managed:** 18 jbcom repositories' >> $GITHUB_STEP_SUMMARY
+          terragrunt run-all apply --non-interactive
+          
+          echo "## Terragrunt Apply Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Repository configurations applied to all 18 jbcom repositories." >> $GITHUB_STEP_SUMMARY
 
       # =================================================================
-      # MANUAL DISPATCH - Apply on demand
+      # MANUAL DISPATCH
       # =================================================================
-      - name: Terraform Apply (Manual)
+      - name: Terragrunt Apply (Manual)
         if: github.event_name == 'workflow_dispatch' && inputs.apply
-        uses: dflook/terraform-apply@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
-        with:
-          path: terraform
-          label: jbcom-repositories
-          auto_approve: true
-
-      - name: Manual Plan Only
-        id: manual-plan
-        if: github.event_name == 'workflow_dispatch' && !inputs.apply
-        uses: dflook/terraform-plan@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
-        with:
-          path: terraform
-          label: jbcom-repositories
-          add_github_comment: false
-
-      - name: Manual Dispatch Summary
-        if: github.event_name == 'workflow_dispatch'
+        working-directory: terragrunt-stacks
         run: |
-          echo '## Manual Terraform Run' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ inputs.apply }}" == "true" ]]; then
-            echo '✅ **Apply completed** - Changes have been applied' >> $GITHUB_STEP_SUMMARY
-          else
-            echo '📋 **Plan only** - No changes applied' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo 'To apply changes, re-run with `apply: true`' >> $GITHUB_STEP_SUMMARY
-          fi
+          terragrunt run-all apply --non-interactive
+          
+          echo "## Manual Apply Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Changes applied successfully." >> $GITHUB_STEP_SUMMARY
+
+      - name: Terragrunt Plan Only (Manual)
+        if: github.event_name == 'workflow_dispatch' && !inputs.apply
+        working-directory: terragrunt-stacks
+        run: |
+          terragrunt run-all plan --non-interactive
+          
+          echo "## Manual Plan Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "📋 Plan completed - re-run with `apply: true` to apply changes." >> $GITHUB_STEP_SUMMARY
 
       # =================================================================
       # SCHEDULED - Drift detection
@@ -165,30 +153,20 @@ jobs:
       - name: Check for Drift
         id: drift
         if: github.event_name == 'schedule'
-        uses: dflook/terraform-check@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
-        with:
-          path: terraform
-        continue-on-error: true
-
-      - name: Drift Detection Summary
-        if: github.event_name == 'schedule'
+        working-directory: terragrunt-stacks
         run: |
-          echo '## Daily Drift Detection' >> $GITHUB_STEP_SUMMARY
-          echo '' >> $GITHUB_STEP_SUMMARY
-          if [[ "${{ steps.drift.outcome }}" == "success" ]]; then
-            echo '✅ **No drift detected**' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo 'All 18 jbcom repositories match the Terraform configuration.' >> $GITHUB_STEP_SUMMARY
+          echo "## Daily Drift Detection" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          terragrunt run-all plan --non-interactive 2>&1 | tee drift_output.txt
+          
+          CHANGES=$(grep -c "Plan:" drift_output.txt || echo "0")
+          
+          if [[ $CHANGES -eq 0 ]]; then
+            echo "✅ **No drift detected** - All 18 repos match configuration." >> $GITHUB_STEP_SUMMARY
           else
-            echo '⚠️ **Configuration drift detected**' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo 'Repositories have diverged from Terraform state.' >> $GITHUB_STEP_SUMMARY
-            echo '' >> $GITHUB_STEP_SUMMARY
-            echo 'Run `terraform apply` or merge a PR to realign configurations.' >> $GITHUB_STEP_SUMMARY
+            echo "⚠️ **Drift detected** in $CHANGES repositories" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Run \`terragrunt run-all apply\` to realign configurations." >> $GITHUB_STEP_SUMMARY
+            exit 1
           fi
-
-      - name: Fail on Drift
-        if: github.event_name == 'schedule' && steps.drift.outcome == 'failure'
-        run: |
-          echo "::error::Configuration drift detected - repositories do not match Terraform state"
-          exit 1

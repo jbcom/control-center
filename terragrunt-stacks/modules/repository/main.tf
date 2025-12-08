@@ -47,7 +47,7 @@ variable "has_discussions" {
 
 variable "has_pages" {
   type    = bool
-  default = true  # All repos use GitHub Actions Pages
+  default = true # All repos use GitHub Actions Pages
 }
 
 variable "allow_squash_merge" {
@@ -148,6 +148,16 @@ resource "github_repository" "this" {
 
   vulnerability_alerts = var.vulnerability_alerts
 
+  # Security configuration - secret scanning and push protection
+  security_and_analysis {
+    secret_scanning {
+      status = "enabled"
+    }
+    secret_scanning_push_protection {
+      status = "enabled"
+    }
+  }
+
   lifecycle {
     prevent_destroy = true
     ignore_changes  = [description, homepage_url, topics, template]
@@ -197,8 +207,8 @@ output "id" {
 # =============================================================================
 
 locals {
-  # Absolute path - repository-files is in terragrunt-stacks/modules/
-  repo_files = "/workspace/terragrunt-stacks/modules/repository-files"
+  # Absolute path to repository-files at workspace root
+  repo_files = "/workspace/repository-files"
 
   # Always-sync files (overwrite every time)
   always_sync_files = var.sync_files ? {
@@ -231,19 +241,19 @@ locals {
 
   # Initial-only files (create once, repos customize after)
   initial_only_files = var.sync_files ? {
-    ".cursor/environment.json"           = "${local.repo_files}/initial-only/.cursor/environment.json"
-    ".github/workflows/docs.yml"         = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
-    "docs/Makefile"                      = "${local.repo_files}/initial-only/docs/Makefile"
-    "docs/conf.py"                       = "${local.repo_files}/initial-only/docs/conf.py"
-    "docs/index.rst"                     = "${local.repo_files}/initial-only/docs/index.rst"
-    "docs/.nojekyll"                     = "${local.repo_files}/initial-only/docs/.nojekyll"
-    "docs/_static/custom.css"            = "${local.repo_files}/initial-only/docs/_static/custom.css"
-    "docs/_templates/.gitkeep"           = "${local.repo_files}/initial-only/docs/_templates/.gitkeep"
-    "docs/api/index.rst"                 = "${local.repo_files}/initial-only/docs/api/index.rst"
-    "docs/api/modules.rst"               = "${local.repo_files}/initial-only/docs/api/modules.rst"
-    "docs/development/contributing.md"   = "${local.repo_files}/initial-only/docs/development/contributing.md"
+    ".cursor/environment.json"             = "${local.repo_files}/initial-only/.cursor/environment.json"
+    ".github/workflows/docs.yml"           = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+    "docs/Makefile"                        = "${local.repo_files}/initial-only/docs/Makefile"
+    "docs/conf.py"                         = "${local.repo_files}/initial-only/docs/conf.py"
+    "docs/index.rst"                       = "${local.repo_files}/initial-only/docs/index.rst"
+    "docs/.nojekyll"                       = "${local.repo_files}/initial-only/docs/.nojekyll"
+    "docs/_static/custom.css"              = "${local.repo_files}/initial-only/docs/_static/custom.css"
+    "docs/_templates/.gitkeep"             = "${local.repo_files}/initial-only/docs/_templates/.gitkeep"
+    "docs/api/index.rst"                   = "${local.repo_files}/initial-only/docs/api/index.rst"
+    "docs/api/modules.rst"                 = "${local.repo_files}/initial-only/docs/api/modules.rst"
+    "docs/development/contributing.md"     = "${local.repo_files}/initial-only/docs/development/contributing.md"
     "docs/getting-started/installation.md" = "${local.repo_files}/initial-only/docs/getting-started/installation.md"
-    "docs/getting-started/quickstart.md" = "${local.repo_files}/initial-only/docs/getting-started/quickstart.md"
+    "docs/getting-started/quickstart.md"   = "${local.repo_files}/initial-only/docs/getting-started/quickstart.md"
   } : {}
 
   # All always-sync files
@@ -279,10 +289,10 @@ resource "github_repository_file" "initial" {
   commit_message      = "chore: initial ${each.key} from jbcom-control-center"
   commit_author       = "jbcom-control-center[bot]"
   commit_email        = "jbcom-control-center[bot]@users.noreply.github.com"
-  overwrite_on_create = true  # Allow import of existing files
+  overwrite_on_create = true # Allow import of existing files
 
   lifecycle {
-    ignore_changes = [content, commit_message, commit_author, commit_email]  # Never update after creation
+    ignore_changes = [content, commit_message, commit_author, commit_email] # Never update after creation
   }
 }
 
