@@ -46,13 +46,13 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
 
       # =================================================================
       # FORMAT CHECK - All events
       # =================================================================
       - name: Terraform Format Check
-        uses: dflook/terraform-fmt-check@v2
+        uses: dflook/terraform-fmt-check@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
 
@@ -60,7 +60,7 @@ jobs:
       # SECURITY SCANNING - All events
       # =================================================================
       - name: Run Trivy Security Scan
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8 # 0.33.1
         with:
           scan-type: 'config'
           scan-ref: 'terraform/'
@@ -71,7 +71,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload Trivy Results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@267c4672a565967e4531438f2498370de5e8a98d # codeql-bundle-v2.23.7
         with:
           sarif_file: 'trivy-results.sarif'
           category: 'terraform-security'
@@ -83,7 +83,7 @@ jobs:
       - name: Terraform Plan
         id: plan
         if: github.event_name == 'pull_request'
-        uses: dflook/terraform-plan@v2
+        uses: dflook/terraform-plan@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
           label: jbcom-repositories
@@ -111,7 +111,7 @@ jobs:
       # =================================================================
       - name: Terraform Apply (Push to Main)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: dflook/terraform-apply@v2
+        uses: dflook/terraform-apply@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
           label: jbcom-repositories
@@ -131,7 +131,7 @@ jobs:
       # =================================================================
       - name: Terraform Apply (Manual)
         if: github.event_name == 'workflow_dispatch' && inputs.apply
-        uses: dflook/terraform-apply@v2
+        uses: dflook/terraform-apply@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
           label: jbcom-repositories
@@ -140,7 +140,7 @@ jobs:
       - name: Manual Plan Only
         id: manual-plan
         if: github.event_name == 'workflow_dispatch' && !inputs.apply
-        uses: dflook/terraform-plan@v2
+        uses: dflook/terraform-plan@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
           label: jbcom-repositories
@@ -165,7 +165,7 @@ jobs:
       - name: Check for Drift
         id: drift
         if: github.event_name == 'schedule'
-        uses: dflook/terraform-check@v2
+        uses: dflook/terraform-check@7a9d257a248c7357c1b1af7f09ff5fef8e0abb78 # v2.2.2
         with:
           path: terraform
         continue-on-error: true
