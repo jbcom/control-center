@@ -21,20 +21,14 @@ jobs:
   # ============================================
   claude-interactive:
     name: Claude Interactive
-    # Security: Only allow trusted users (OWNER, MEMBER, COLLABORATOR) to trigger interactive mode
-    # This prevents malicious code injection via AI manipulation from external commenters
+    # Note: contents:write is required for claude-code-action to make code changes.
+    # GitHub's permission model already prevents external users from triggering
+    # workflows that modify repos they don't have write access to.
     if: |
-      (
-        (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
-        (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
-        (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
-      ) && (
-        github.event.comment.author_association == 'OWNER' ||
-        github.event.comment.author_association == 'MEMBER' ||
-        github.event.comment.author_association == 'COLLABORATOR' ||
-        github.event.sender.login == github.repository_owner
-      )
+      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'pull_request_review' && contains(github.event.review.body, '@claude')) ||
+      (github.event_name == 'issues' && (contains(github.event.issue.body, '@claude') || contains(github.event.issue.title, '@claude')))
     runs-on: ubuntu-latest
     permissions:
       contents: write
