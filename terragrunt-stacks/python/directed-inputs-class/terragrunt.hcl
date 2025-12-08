@@ -8,7 +8,9 @@ terraform {
 
 inputs = {
   name            = "directed-inputs-class"
+  language        = "python"
   has_wiki        = false
   has_discussions = false
   has_pages       = true
+  sync_files      = true
 }

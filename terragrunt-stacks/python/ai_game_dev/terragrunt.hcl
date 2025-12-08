@@ -8,7 +8,9 @@ terraform {
 
 inputs = {
   name            = "ai_game_dev"
+  language        = "python"
   has_wiki        = false
   has_discussions = false
   has_pages       = true
+  sync_files      = true
 }

@@ -8,8 +8,10 @@ terraform {
 
 inputs = {
   name                    = "vault-secret-sync"
+  language                = "go"
   has_wiki                = false
   has_discussions         = false
   has_pages               = true
   required_linear_history = true
+  sync_files              = true
 }

@@ -8,9 +8,11 @@ terraform {
 
 inputs = {
   name                       = "terraform-repository-automation"
+  language                   = "terraform"
   has_wiki                   = true
   has_discussions            = false
   has_pages                  = true
   required_approvals         = 1
   require_code_owner_reviews = true
+  sync_files                 = true
 }

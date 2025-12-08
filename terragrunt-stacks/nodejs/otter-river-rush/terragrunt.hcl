@@ -8,7 +8,9 @@ terraform {
 
 inputs = {
   name            = "otter-river-rush"
+  language        = "nodejs"
   has_wiki        = false
   has_discussions = true
   has_pages       = true
+  sync_files      = true
 }

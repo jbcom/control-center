@@ -1,7 +1,28 @@
 # Repository module - manages a single GitHub repository
+# Also syncs standard files (Cursor rules, workflows) via github_repository_file
 
 variable "name" {
   type = string
+}
+
+variable "language" {
+  type        = string
+  description = "Language type: python, nodejs, go, terraform"
+  validation {
+    condition     = contains(["python", "nodejs", "go", "terraform"], var.language)
+    error_message = "Language must be one of: python, nodejs, go, terraform"
+  }
+}
+
+variable "sync_files" {
+  type        = bool
+  default     = true
+  description = "Whether to sync standard files (Cursor rules, workflows)"
+}
+
+variable "repository_files_path" {
+  type        = string
+  description = "Absolute path to repository-files directory"
 }
 
 variable "visibility" {
@@ -174,4 +195,63 @@ output "url" {
 
 output "id" {
   value = github_repository.this.id
+}
+
+# =============================================================================
+# SYNCED FILES - Cursor rules and workflows managed via Terraform
+# =============================================================================
+
+locals {
+  # Always-sync files (all repos get these)
+  always_sync_files = var.sync_files ? {
+    ".cursor/rules/00-fundamentals.mdc" = "${var.repository_files_path}/always-sync/.cursor/rules/00-fundamentals.mdc"
+    ".cursor/rules/01-pr-workflow.mdc"  = "${var.repository_files_path}/always-sync/.cursor/rules/01-pr-workflow.mdc"
+    ".cursor/rules/02-memory-bank.mdc"  = "${var.repository_files_path}/always-sync/.cursor/rules/02-memory-bank.mdc"
+    ".cursor/rules/ci.mdc"              = "${var.repository_files_path}/always-sync/.cursor/rules/ci.mdc"
+    ".cursor/rules/releases.mdc"        = "${var.repository_files_path}/always-sync/.cursor/rules/releases.mdc"
+    ".github/workflows/claude-code.yml" = "${var.repository_files_path}/always-sync/.github/workflows/claude-code.yml"
+  } : {}
+
+  # Language-specific files
+  language_file_paths = {
+    python    = "${var.repository_files_path}/python/.cursor/rules/python.mdc"
+    nodejs    = "${var.repository_files_path}/nodejs/.cursor/rules/typescript.mdc"
+    go        = "${var.repository_files_path}/go/.cursor/rules/go.mdc"
+    terraform = "${var.repository_files_path}/terraform/.cursor/rules/terraform.mdc"
+  }
+
+  language_file_dest = {
+    python    = ".cursor/rules/python.mdc"
+    nodejs    = ".cursor/rules/typescript.mdc"
+    go        = ".cursor/rules/go.mdc"
+    terraform = ".cursor/rules/terraform.mdc"
+  }
+
+  language_files = var.sync_files ? {
+    (local.language_file_dest[var.language]) = local.language_file_paths[var.language]
+  } : {}
+
+  # All files to sync
+  all_synced_files = merge(local.always_sync_files, local.language_files)
+}
+
+resource "github_repository_file" "synced" {
+  for_each = local.all_synced_files
+
+  repository          = github_repository.this.name
+  branch              = var.default_branch
+  file                = each.key
+  content             = file(each.value)
+  commit_message      = "chore: sync ${each.key} from jbcom-control-center"
+  commit_author       = "jbcom-control-center[bot]"
+  commit_email        = "jbcom-control-center[bot]@users.noreply.github.com"
+  overwrite_on_create = true
+
+  lifecycle {
+    ignore_changes = [commit_message, commit_author, commit_email]
+  }
+}
+
+output "synced_files" {
+  value = keys(local.all_synced_files)
 }

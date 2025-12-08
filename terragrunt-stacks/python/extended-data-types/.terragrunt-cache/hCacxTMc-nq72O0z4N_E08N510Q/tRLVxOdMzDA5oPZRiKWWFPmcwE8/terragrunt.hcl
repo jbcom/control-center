@@ -8,7 +8,9 @@ terraform {
 
 inputs = {
   name            = "extended-data-types"
+  language        = "python"
   has_wiki        = false
   has_discussions = false
   has_pages       = true
+  sync_files      = true
 }
