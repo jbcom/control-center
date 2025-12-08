@@ -125,6 +125,18 @@ variable "allow_deletions" {
   default = false
 }
 
+variable "required_status_checks_strict" {
+  type        = bool
+  default     = false
+  description = "Require branches to be up to date before merging"
+}
+
+variable "required_status_checks_contexts" {
+  type        = list(string)
+  default     = []
+  description = "List of required status check contexts (e.g., ['ci/build', 'ci/test'])"
+}
+
 # Import existing repository
 import {
   to = github_repository.this
@@ -186,6 +198,13 @@ resource "github_branch_protection" "main" {
     require_code_owner_reviews      = var.require_code_owner_reviews
     required_approving_review_count = var.required_approvals
     require_last_push_approval      = var.require_last_push_approval
+  }
+
+  # Status checks - configurable per repository
+  # Default: no required checks (repos can customize via terragrunt inputs)
+  required_status_checks {
+    strict   = var.required_status_checks_strict
+    contexts = var.required_status_checks_contexts
   }
 
   required_linear_history = var.required_linear_history
