@@ -29,9 +29,8 @@ resource "github_repository" "managed" {
   # Description will be managed separately per repo if needed
   # For now, rely on existing descriptions (Terraform won't overwrite if not specified)
   
-  # Visibility (assuming all are public)
-  # Visibility - use existing visibility to avoid unintended changes
-  # visibility = "public"  # Commented out to preserve existing settings
+  # Visibility - all jbcom repos are public
+  visibility = var.repository_visibility
 
   # Features
   has_issues      = var.enable_issues
@@ -44,7 +43,7 @@ resource "github_repository" "managed" {
   allow_merge_commit     = var.allow_merge_commit
   allow_rebase_merge     = var.allow_rebase_merge
   delete_branch_on_merge = var.delete_branch_on_merge
-  allow_auto_merge       = false
+  allow_auto_merge       = var.allow_auto_merge
 
   # Security
   vulnerability_alerts = var.enable_dependabot_security_updates
@@ -67,13 +66,14 @@ resource "github_branch_protection" "main" {
     dismiss_stale_reviews           = var.dismiss_stale_reviews
     require_code_owner_reviews      = var.require_code_owner_reviews
     required_approving_review_count = var.required_approving_review_count
-    require_last_push_approval      = false
+    require_last_push_approval      = var.require_last_push_approval
   }
 
-  # Status checks (will be configured separately for each repo type)
+  # Status checks - configurable via variables
+  # Note: Specific per-repo checks can be added by updating required_status_checks_contexts
   required_status_checks {
-    strict   = false
-    contexts = []
+    strict   = var.required_status_checks_strict
+    contexts = var.required_status_checks_contexts
   }
 
   # Code scanning integration
@@ -82,7 +82,7 @@ resource "github_branch_protection" "main" {
 
   # History requirements
   require_linear_history = var.require_linear_history
-  require_signed_commits = false
+  require_signed_commits = var.require_signed_commits
 
   # Force push protection
   allows_force_pushes = var.allow_force_pushes
@@ -115,6 +115,8 @@ resource "github_repository_pages" "managed" {
 
   repository = github_repository.managed[each.key].name
 
+  # Note: branch is required by the provider but unused when build_type = "workflow"
+  # GitHub Actions workflows handle the actual build, not the branch source
   source {
     branch = var.default_branch
   }

@@ -167,3 +167,41 @@ variable "enable_pages" {
   type        = bool
   default     = true
 }
+
+# Additional repository settings
+variable "repository_visibility" {
+  description = "Repository visibility (public or private). All jbcom repos are public."
+  type        = string
+  default     = "public"
+}
+
+variable "allow_auto_merge" {
+  description = "Allow auto-merge on pull requests"
+  type        = bool
+  default     = false
+}
+
+# Additional branch protection settings
+variable "require_last_push_approval" {
+  description = "Require approval from someone other than the last pusher"
+  type        = bool
+  default     = false
+}
+
+variable "require_signed_commits" {
+  description = "Require signed commits on protected branch"
+  type        = bool
+  default     = false
+}
+
+variable "required_status_checks_strict" {
+  description = "Require branches to be up to date before merging"
+  type        = bool
+  default     = false
+}
+
+variable "required_status_checks_contexts" {
+  description = "List of required status check contexts (CI jobs that must pass)"
+  type        = list(string)
+  default     = []
+}

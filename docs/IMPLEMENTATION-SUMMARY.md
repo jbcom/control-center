@@ -15,7 +15,7 @@ Successfully migrated from passive bash script workflows to active Terraform-man
 - **README.md**: Local development and troubleshooting guide
 
 ### 2. Custom AI Agent (`.github/agents/`)
-- **terraform-repository-manager.md** (8,892 lines): Complete agent instructions
+- **terraform-repository-manager.md** (539 lines): Complete agent instructions
   - Role definition
   - Available Terraform MCP server tools
   - Common task workflows
@@ -31,13 +31,13 @@ Successfully migrated from passive bash script workflows to active Terraform-man
   - Manual dispatch support
 
 ### 4. Documentation (`docs/`)
-- **TERRAFORM-REPOSITORY-MANAGEMENT.md**: Comprehensive 8,985-line guide
+- **TERRAFORM-REPOSITORY-MANAGEMENT.md**: Comprehensive architecture and usage guide (284 lines)
   - Architecture overview
   - What's managed vs. what's not
   - Usage patterns
   - Troubleshooting
   - Migration approach
-- **TERRAFORM-AGENT-QUICKSTART.md**: Quick start guide (4,796 lines)
+- **TERRAFORM-AGENT-QUICKSTART.md**: Quick start guide (161 lines)
   - How to invoke the agent
   - Common tasks
   - Initial setup steps
