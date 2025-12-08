@@ -24,6 +24,10 @@ on:
         description: "Sync GitHub Pages settings"
         type: boolean
         default: true
+      sync_rulesets:
+        description: "Sync GitHub rulesets (new API with bypass)"
+        type: boolean
+        default: true
       dry_run:
         description: "Dry run (don't actually sync)"
         type: boolean
@@ -213,7 +217,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_branch_protection)
+      (github.event_name == 'workflow_dispatch' && inputs.sync_rulesets)
 
     strategy:
       fail-fast: false
