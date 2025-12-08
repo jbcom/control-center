@@ -197,22 +197,25 @@ output "id" {
 # =============================================================================
 
 locals {
-  # Always-sync files (all repos get these)
+  # Absolute path - repository-files is in terragrunt-stacks/modules/
+  repo_files = "/workspace/terragrunt-stacks/modules/repository-files"
+
+  # Always-sync files (overwrite every time)
   always_sync_files = var.sync_files ? {
-    ".cursor/rules/00-fundamentals.mdc" = "${var.repository_files_path}/always-sync/.cursor/rules/00-fundamentals.mdc"
-    ".cursor/rules/01-pr-workflow.mdc"  = "${var.repository_files_path}/always-sync/.cursor/rules/01-pr-workflow.mdc"
-    ".cursor/rules/02-memory-bank.mdc"  = "${var.repository_files_path}/always-sync/.cursor/rules/02-memory-bank.mdc"
-    ".cursor/rules/ci.mdc"              = "${var.repository_files_path}/always-sync/.cursor/rules/ci.mdc"
-    ".cursor/rules/releases.mdc"        = "${var.repository_files_path}/always-sync/.cursor/rules/releases.mdc"
-    ".github/workflows/claude-code.yml" = "${var.repository_files_path}/always-sync/.github/workflows/claude-code.yml"
+    ".cursor/rules/00-fundamentals.mdc" = "${local.repo_files}/always-sync/.cursor/rules/00-fundamentals.mdc"
+    ".cursor/rules/01-pr-workflow.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/01-pr-workflow.mdc"
+    ".cursor/rules/02-memory-bank.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/02-memory-bank.mdc"
+    ".cursor/rules/ci.mdc"              = "${local.repo_files}/always-sync/.cursor/rules/ci.mdc"
+    ".cursor/rules/releases.mdc"        = "${local.repo_files}/always-sync/.cursor/rules/releases.mdc"
+    ".github/workflows/claude-code.yml" = "${local.repo_files}/always-sync/.github/workflows/claude-code.yml"
   } : {}
 
-  # Language-specific files
+  # Language-specific files (always sync)
   language_file_paths = {
-    python    = "${var.repository_files_path}/python/.cursor/rules/python.mdc"
-    nodejs    = "${var.repository_files_path}/nodejs/.cursor/rules/typescript.mdc"
-    go        = "${var.repository_files_path}/go/.cursor/rules/go.mdc"
-    terraform = "${var.repository_files_path}/terraform/.cursor/rules/terraform.mdc"
+    python    = "${local.repo_files}/python/.cursor/rules/python.mdc"
+    nodejs    = "${local.repo_files}/nodejs/.cursor/rules/typescript.mdc"
+    go        = "${local.repo_files}/go/.cursor/rules/go.mdc"
+    terraform = "${local.repo_files}/terraform/.cursor/rules/terraform.mdc"
   }
 
   language_file_dest = {
@@ -226,10 +229,28 @@ locals {
     (local.language_file_dest[var.language]) = local.language_file_paths[var.language]
   } : {}
 
-  # All files to sync
+  # Initial-only files (create once, repos customize after)
+  initial_only_files = var.sync_files ? {
+    ".cursor/environment.json"           = "${local.repo_files}/initial-only/.cursor/environment.json"
+    ".github/workflows/docs.yml"         = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+    "docs/Makefile"                      = "${local.repo_files}/initial-only/docs/Makefile"
+    "docs/conf.py"                       = "${local.repo_files}/initial-only/docs/conf.py"
+    "docs/index.rst"                     = "${local.repo_files}/initial-only/docs/index.rst"
+    "docs/.nojekyll"                     = "${local.repo_files}/initial-only/docs/.nojekyll"
+    "docs/_static/custom.css"            = "${local.repo_files}/initial-only/docs/_static/custom.css"
+    "docs/_templates/.gitkeep"           = "${local.repo_files}/initial-only/docs/_templates/.gitkeep"
+    "docs/api/index.rst"                 = "${local.repo_files}/initial-only/docs/api/index.rst"
+    "docs/api/modules.rst"               = "${local.repo_files}/initial-only/docs/api/modules.rst"
+    "docs/development/contributing.md"   = "${local.repo_files}/initial-only/docs/development/contributing.md"
+    "docs/getting-started/installation.md" = "${local.repo_files}/initial-only/docs/getting-started/installation.md"
+    "docs/getting-started/quickstart.md" = "${local.repo_files}/initial-only/docs/getting-started/quickstart.md"
+  } : {}
+
+  # All always-sync files
   all_synced_files = merge(local.always_sync_files, local.language_files)
 }
 
+# Always-sync files - overwrite on every apply
 resource "github_repository_file" "synced" {
   for_each = local.all_synced_files
 
@@ -247,6 +268,28 @@ resource "github_repository_file" "synced" {
   }
 }
 
+# Initial-only files - create once, repos customize after
+resource "github_repository_file" "initial" {
+  for_each = local.initial_only_files
+
+  repository          = github_repository.this.name
+  branch              = var.default_branch
+  file                = each.key
+  content             = file(each.value)
+  commit_message      = "chore: initial ${each.key} from jbcom-control-center"
+  commit_author       = "jbcom-control-center[bot]"
+  commit_email        = "jbcom-control-center[bot]@users.noreply.github.com"
+  overwrite_on_create = true  # Allow import of existing files
+
+  lifecycle {
+    ignore_changes = [content, commit_message, commit_author, commit_email]  # Never update after creation
+  }
+}
+
 output "synced_files" {
   value = keys(local.all_synced_files)
+}
+
+output "initial_files" {
+  value = keys(local.initial_only_files)
 }

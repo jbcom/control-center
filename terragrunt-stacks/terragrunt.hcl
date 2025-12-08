@@ -2,9 +2,6 @@
 # Common settings inherited by all units
 
 locals {
-  # Absolute path to repository-files
-  repository_files_path = "/workspace/repository-files"
-  
   # All repository names by category
   python_repos = [
     "agentic-crew", "ai_game_dev", "directed-inputs-class", "extended-data-types",
@@ -16,11 +13,6 @@ locals {
   ]
   go_repos = ["port-api", "vault-secret-sync"]
   terraform_repos = ["terraform-github-markdown", "terraform-repository-automation"]
-}
-
-# Common inputs for all units
-inputs = {
-  repository_files_path = local.repository_files_path
 }
 
 # Generate GitHub provider
