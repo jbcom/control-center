@@ -319,9 +319,11 @@ jobs:
   # REPOSITORY SETTINGS SYNC
   # ============================================
   sync-repo-settings:
-    name: Sync repository settings
-    runs-on: ubuntu-latest
-    if: |
+          # Get current repository settings for validation
+          CURRENT_SETTINGS=$(gh api "repos/${REPO}" --jq '{has_issues, has_projects, has_wiki, has_discussions, allow_squash_merge, allow_merge_commit, allow_rebase_merge, delete_branch_on_merge}')
+          echo "Current settings for ${REPO}: $CURRENT_SETTINGS"
+          
+          # Repository settings matching agentic-crew configuration
       github.event_name == 'push' ||
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && inputs.sync_repo_settings)
