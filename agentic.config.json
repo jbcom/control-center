@@ -32,5 +32,30 @@
   },
   "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "jbcom/jbcom-control-center",
-  "logLevel": "info"
+  "logLevel": "info",
+  "agents": {
+    "terraform-repository-manager": {
+      "name": "Terraform Repository Manager",
+      "description": "Manages GitHub repository configurations using Terraform Cloud and MCP server",
+      "instructionsFile": ".github/agents/terraform-repository-manager.md",
+      "requiredTools": [
+        "terraform-list_workspaces",
+        "terraform-get_workspace_details",
+        "terraform-create_run",
+        "terraform-list_runs",
+        "terraform-get_run_details",
+        "terraform-list_workspace_variables",
+        "terraform-create_workspace_variable"
+      ],
+      "requiredSecrets": [
+        "TF_API_TOKEN",
+        "CI_GITHUB_TOKEN"
+      ],
+      "workspace": "jbcom/jbcom-control-center",
+      "autoTriggers": [
+        "drift-detection",
+        "repository-config-change"
+      ]
+    }
+  }
 }
