@@ -26,7 +26,7 @@ on:
           - jbcom/strata
           # Go packages
           - jbcom/port-api
-          - jbcom/vault-secret-sync
+          - jbcom/secretsync
           # Terraform modules
           - jbcom/terraform-github-markdown
           - jbcom/terraform-repository-automation
