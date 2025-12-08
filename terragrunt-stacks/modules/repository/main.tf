@@ -20,11 +20,6 @@ variable "sync_files" {
   description = "Whether to sync standard files (Cursor rules, workflows)"
 }
 
-variable "repository_files_path" {
-  type        = string
-  description = "Absolute path to repository-files directory"
-}
-
 variable "visibility" {
   type    = string
   default = "public"
