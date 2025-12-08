@@ -10,4 +10,5 @@ inputs = {
   name            = "strata"
   has_wiki        = false
   has_discussions = true
+  has_pages       = true
 }

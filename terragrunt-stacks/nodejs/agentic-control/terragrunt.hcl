@@ -10,4 +10,5 @@ inputs = {
   name            = "agentic-control"
   has_wiki        = false
   has_discussions = true
+  has_pages       = true
 }

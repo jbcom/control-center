@@ -10,6 +10,7 @@ inputs = {
   name                       = "terraform-repository-automation"
   has_wiki                   = true
   has_discussions            = false
+  has_pages                  = true
   required_approvals         = 1
   require_code_owner_reviews = true
 }

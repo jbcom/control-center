@@ -10,4 +10,5 @@ inputs = {
   name            = "ai_game_dev"
   has_wiki        = false
   has_discussions = false
+  has_pages       = true
 }

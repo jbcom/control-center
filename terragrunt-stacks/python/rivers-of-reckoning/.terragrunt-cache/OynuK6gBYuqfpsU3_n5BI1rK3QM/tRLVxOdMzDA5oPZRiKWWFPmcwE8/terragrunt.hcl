@@ -10,4 +10,5 @@ inputs = {
   name            = "rivers-of-reckoning"
   has_wiki        = false
   has_discussions = false
+  has_pages       = true
 }
