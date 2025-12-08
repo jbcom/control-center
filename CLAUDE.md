@@ -108,7 +108,7 @@ Target repos:
 
 **Go:**
 - `jbcom/port-api`
-- `jbcom/vault-secret-sync`
+- `jbcom/secretsync`
 
 **Terraform/HCL:**
 - `jbcom/terraform-github-markdown`

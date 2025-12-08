@@ -196,11 +196,14 @@ jbcom/pixels-pygame-palace:
 # GO PACKAGES
 # ============================================
 
-jbcom/vault-secret-sync:
+jbcom/secretsync:
   - source: repository-files/always-sync/
     dest: .
   - source: repository-files/go/
     dest: .
+  - source: repository-files/ruler/
+    dest: .
+    replace: false
   - source: repository-files/initial-only/
     dest: .
     replace: false
