@@ -85,7 +85,15 @@ git commit -m "docs: update memory bank for handoff"
 | `initial-only/` | Sync once (`replace: false`) | Dockerfile, env, docs scaffold |
 | `python/`, `nodejs/`, `go/` | Always overwrite | Language-specific rules |
 
-Target repos: `jbcom/extended-data-types`, `jbcom/lifecyclelogging`, `jbcom/directed-inputs-class`, `jbcom/python-terraform-bridge`, `jbcom/vendor-connectors`, `jbcom/agentic-control`, `jbcom/vault-secret-sync`
+Target repos:
+- `jbcom/extended-data-types`
+- `jbcom/lifecyclelogging`
+- `jbcom/directed-inputs-class`
+- `jbcom/python-terraform-bridge`
+- `jbcom/vendor-connectors`
+- `jbcom/agentic-control`
+- `jbcom/vault-secret-sync`
+- `jbcom/rivermarsh`
 
 ## FSC Infrastructure (ecosystems/flipside-crypto/)
 

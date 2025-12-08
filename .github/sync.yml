@@ -85,6 +85,15 @@ jbcom/agentic-control:
     dest: .
     replace: false
 
+jbcom/rivermarsh:
+  - source: repository-files/always-sync/
+    dest: .
+  - source: repository-files/nodejs/
+    dest: .
+  - source: repository-files/initial-only/
+    dest: .
+    replace: false
+
 # ============================================
 # GO PACKAGES
 # ============================================
