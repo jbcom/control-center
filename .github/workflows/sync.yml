@@ -140,7 +140,7 @@ jobs:
           SKIP_PR: true
 
   # ============================================
-  # BRANCH PROTECTION SYNC (Legacy API)
+  # BRANCH PROTECTION SYNC (Rulesets API)
   # ============================================
   sync-branch-protection:
     name: Sync branch protection
@@ -184,70 +184,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          # Agent-managed repos: no required reviews, allow force pushes for releases
-          JSON_PAYLOAD='{
-            "required_status_checks": null,
-            "enforce_admins": false,
-            "required_pull_request_reviews": null,
-            "restrictions": null,
-            "required_linear_history": true,
-            "allow_force_pushes": true,
-            "allow_deletions": false
-          }'
-          echo "$JSON_PAYLOAD" | gh api repos/${{ matrix.repo }}/branches/main/protection -X PUT --input -
-          echo "✅ Applied branch protection to ${{ matrix.repo }}"
-
-      - name: Dry run - would apply to ${{ matrix.repo }}
-        if: inputs.dry_run == true
-        run: |
-          echo "🔍 DRY RUN: Would apply branch protection to ${{ matrix.repo }}"
-          echo "Settings: no required reviews, allow force pushes, linear history"
-
-  # ============================================
-  # RULESETS SYNC (New API with bypass actors)
-  # ============================================
-  sync-rulesets:
-    name: Sync rulesets
-    runs-on: ubuntu-latest
-    # Run on push, schedule, or manual trigger (unless explicitly disabled)
-    if: |
-      github.event_name == 'push' ||
-      github.event_name == 'schedule' ||
-      (github.event_name == 'workflow_dispatch' && inputs.sync_rulesets)
-
-    strategy:
-      fail-fast: false
-      matrix:
-        repo:
-          # Python packages
-          - jbcom/agentic-crew
-          - jbcom/ai_game_dev
-          - jbcom/directed-inputs-class
-          - jbcom/extended-data-types
-          - jbcom/lifecyclelogging
-          - jbcom/python-terraform-bridge
-          - jbcom/rivers-of-reckoning
-          - jbcom/vendor-connectors
-          # Node.js / TypeScript packages
-          - jbcom/agentic-control
-          - jbcom/otter-river-rush
-          - jbcom/otterfall
-          - jbcom/pixels-pygame-palace
-          - jbcom/rivermarsh
-          - jbcom/strata
-          # Go packages
-          - jbcom/port-api
-          - jbcom/vault-secret-sync
-          # Terraform modules
-          - jbcom/terraform-github-markdown
-          - jbcom/terraform-repository-automation
-
-    steps:
-      - name: Sync ruleset to ${{ matrix.repo }}
-        if: inputs.dry_run != true
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
           REPO="${{ matrix.repo }}"
 
           # Standard ruleset configuration for agent-managed repos
@@ -256,9 +192,7 @@ jobs:
           # - Copilot review: AI-assisted code review
           #
           # NOTE: actor_id=5 is the standard GitHub RepositoryRole ID for "Admin"
-          # This is consistent across all repositories and allows CI tokens with
-          # admin permissions to bypass the ruleset for automated releases.
-          # See: https://docs.github.com/en/rest/repos/rules#create-a-repository-ruleset
+          # This allows CI tokens with admin permissions to bypass for automated releases.
           RULESET_PAYLOAD='{
             "name": "default",
             "target": "branch",
@@ -308,23 +242,31 @@ jobs:
             ]
           }'
 
-          # Check if ruleset exists
-          EXISTING_RULESET=$(gh api "repos/${REPO}/rulesets" --jq '.[0].id' 2>/dev/null || echo "")
+          # Check if "default" ruleset already exists
+          EXISTING_RULESET=$(gh api "repos/${REPO}/rulesets" --jq '.[] | select(.name == "default") | .id' 2>/dev/null || echo "")
 
           if [ -n "$EXISTING_RULESET" ] && [ "$EXISTING_RULESET" != "null" ]; then
             # Update existing ruleset
-            echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input -
-            echo "✅ Updated ruleset for ${REPO}"
+            if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets/${EXISTING_RULESET}" -X PUT --input -; then
+              echo "✅ Updated ruleset for ${REPO}"
+            else
+              echo "❌ Failed to update ruleset for ${REPO}"
+              exit 1
+            fi
           else
             # Create new ruleset
-            echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets" -X POST --input -
-            echo "✅ Created ruleset for ${REPO}"
+            if echo "$RULESET_PAYLOAD" | gh api "repos/${REPO}/rulesets" -X POST --input -; then
+              echo "✅ Created ruleset for ${REPO}"
+            else
+              echo "❌ Failed to create ruleset for ${REPO}"
+              exit 1
+            fi
           fi
 
-      - name: Dry run - would sync ruleset to ${{ matrix.repo }}
+      - name: Dry run - would apply to ${{ matrix.repo }}
         if: inputs.dry_run == true
         run: |
-          echo "🔍 DRY RUN: Would sync ruleset to ${{ matrix.repo }}"
+          echo "🔍 DRY RUN: Would apply ruleset to ${{ matrix.repo }}"
           echo "Settings:"
           echo "  - Admin bypass: actor_id=5 (allows semantic-release)"
           echo "  - PR required: 0 approvals, squash only"
