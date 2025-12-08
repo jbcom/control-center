@@ -150,13 +150,12 @@ jobs:
 
     steps:
       - name: Apply branch protection to ${{ matrix.repo }}
-        if: ${{ !inputs.dry_run }}
+        if: inputs.dry_run != true
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           # Agent-managed repos: no required reviews, allow force pushes for releases
-          gh api repos/${{ matrix.repo }}/branches/main/protection -X PUT --input - <<'EOF'
-          {
+          JSON_PAYLOAD='{
             "required_status_checks": null,
             "enforce_admins": false,
             "required_pull_request_reviews": null,
@@ -164,12 +163,12 @@ jobs:
             "required_linear_history": true,
             "allow_force_pushes": true,
             "allow_deletions": false
-          }
-          EOF
+          }'
+          echo "$JSON_PAYLOAD" | gh api repos/${{ matrix.repo }}/branches/main/protection -X PUT --input -
           echo "✅ Applied branch protection to ${{ matrix.repo }}"
 
       - name: Dry run - would apply to ${{ matrix.repo }}
-        if: ${{ inputs.dry_run }}
+        if: inputs.dry_run == true
         run: |
           echo "🔍 DRY RUN: Would apply branch protection to ${{ matrix.repo }}"
           echo "Settings: no required reviews, allow force pushes, linear history"
@@ -199,21 +198,19 @@ jobs:
 
     steps:
       - name: Enable GitHub Pages for ${{ matrix.repo }}
-        if: ${{ !inputs.dry_run }}
+        if: inputs.dry_run != true
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           # Enable GitHub Pages with GitHub Actions as build source
-          gh api repos/${{ matrix.repo }}/pages -X PUT --input - <<'EOF' || \
-          gh api repos/${{ matrix.repo }}/pages -X POST --input - <<'EOF'
-          {
-            "build_type": "workflow"
-          }
-          EOF
+          # Try PUT first (update), fall back to POST (create)
+          JSON_PAYLOAD='{"build_type": "workflow"}'
+          echo "$JSON_PAYLOAD" | gh api repos/${{ matrix.repo }}/pages -X PUT --input - 2>/dev/null || \
+          echo "$JSON_PAYLOAD" | gh api repos/${{ matrix.repo }}/pages -X POST --input -
           echo "✅ Enabled GitHub Pages for ${{ matrix.repo }}"
 
       - name: Dry run - would enable Pages for ${{ matrix.repo }}
-        if: ${{ inputs.dry_run }}
+        if: inputs.dry_run == true
         run: |
           echo "🔍 DRY RUN: Would enable GitHub Pages for ${{ matrix.repo }}"
           echo "Settings: build_type=workflow (GitHub Actions)"

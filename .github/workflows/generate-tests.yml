@@ -430,7 +430,7 @@ jobs:
   generate:
     name: Generate Tests
     needs: analyze
-    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false
+    if: needs.analyze.outputs.has_modules == 'true' && inputs.dry_run != true
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -537,7 +537,7 @@ jobs:
   consolidate:
     name: Consolidate & Create PR
     needs: [analyze, generate]
-    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run == false && needs.generate.result != 'cancelled'
+    if: always() && needs.analyze.outputs.has_modules == 'true' && inputs.dry_run != true && needs.generate.result != 'cancelled'
     runs-on: ubuntu-latest
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pull-request-number }}
@@ -673,7 +673,7 @@ jobs:
       always() &&
       needs.consolidate.outputs.pr_number &&
       needs.consolidate.outputs.tests_pass != 'true' &&
-      inputs.auto_fix_tests == true
+      inputs.auto_fix_tests != false
     runs-on: ubuntu-latest
     outputs:
       tests_pass: ${{ steps.run-tests.outputs.all_pass }}
@@ -806,7 +806,7 @@ jobs:
       always() &&
       needs.consolidate.outputs.pr_number &&
       (needs.auto-fix.result == 'success' || needs.auto-fix.result == 'skipped') &&
-      inputs.use_pyproject_coverage == false
+      inputs.use_pyproject_coverage != true
     runs-on: ubuntu-latest
 
     steps:

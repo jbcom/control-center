@@ -1,5 +1,36 @@
 # Session Progress Log
 
+## Session: 2025-12-07 (Test Generation Bug Fix + CI)
+
+### What Was Done
+
+1. **Fixed boolean input comparison bugs in `generate-tests.yml`**
+   - `inputs.dry_run != true` (was `== false`)
+   - `inputs.auto_fix_tests != false` (was `== true`)
+   - `inputs.use_pyproject_coverage != true` (was `== false`)
+   
+   **Root cause**: `null == false` returns `false` in GitHub Actions, so jobs were skipped when inputs weren't explicitly provided.
+
+2. **Added comprehensive CI workflow (`ci.yml`)**
+   - Lints all workflows with actionlint
+   - Detects dangerous `inputs.X == false/true` patterns
+   - Validates sync.yml configuration
+   - Validates repository-files structure
+   - Dry-run tests module discovery logic
+
+3. **Created PR #345**
+   - https://github.com/jbcom/jbcom-control-center/pull/345
+   - AI reviews requested from Gemini and Amazon Q
+
+### Key Learning
+
+GitHub Actions boolean input pitfall:
+- `inputs.X` is `null` when not explicitly provided (even with defaults)
+- `null == false` → `false` (NOT truthy comparison)
+- `null != true` → `true` (correct for default=false inputs)
+
+---
+
 ## Session: 2025-12-07 (Sync Process Overhaul)
 
 ### What Was Done
