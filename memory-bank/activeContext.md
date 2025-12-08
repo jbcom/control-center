@@ -42,16 +42,45 @@ Reviewed all open PRs, issues, and projects across jbcom repos. Cleaned up stale
 
 ### Managed Repositories
 
-| Repository | Type | Description |
-|------------|------|-------------|
-| jbcom/extended-data-types | Python | Extended data type utilities |
-| jbcom/lifecyclelogging | Python | Lifecycle logging framework |
-| jbcom/directed-inputs-class | Python | Input management |
-| jbcom/python-terraform-bridge | Python | Terraform/Python bridge |
-| jbcom/vendor-connectors | Python | Vendor API connectors |
-| jbcom/agentic-control | Node.js | Agent fleet management |
-| jbcom/vault-secret-sync | Go | HashiCorp Vault secret sync |
-| jbcom/rivermarsh | Node.js | **NEW** - Mobile 3D exploration game |
+**Python Packages:**
+| Repository | Description |
+|------------|-------------|
+| jbcom/extended-data-types | Extended data type utilities |
+| jbcom/lifecyclelogging | Lifecycle logging framework |
+| jbcom/directed-inputs-class | Input management |
+| jbcom/python-terraform-bridge | Terraform/Python bridge |
+| jbcom/vendor-connectors | Vendor API connectors |
+| jbcom/agentic-crew | Framework-agnostic AI crew orchestration |
+| jbcom/ai_game_dev | AI game development utilities |
+| jbcom/rivers-of-reckoning | Game project |
+
+**Node.js/TypeScript Packages:**
+| Repository | Description |
+|------------|-------------|
+| jbcom/agentic-control | Agent fleet management |
+| jbcom/rivermarsh | Mobile 3D exploration game |
+| jbcom/strata | Procedural 3D graphics library for R3F |
+| jbcom/otterfall | TypeScript game project |
+| jbcom/otter-river-rush | TypeScript game project |
+| jbcom/pixels-pygame-palace | TypeScript game project |
+
+**Go Packages:**
+| Repository | Description |
+|------------|-------------|
+| jbcom/vault-secret-sync | HashiCorp Vault secret sync |
+| jbcom/port-api | Port API for multiple languages |
+
+**Terraform/HCL Modules:**
+| Repository | Description |
+|------------|-------------|
+| jbcom/terraform-github-markdown | Terraform module for GitHub markdown |
+| jbcom/terraform-repository-automation | Terraform repository automation |
+
+**Archived/Excluded:**
+- jbcom/openapi-31-to-30-converter (archived)
+- jbcom/chef-selenium-grid-extras (archived)
+- jbcom/hamachi-vpn (archived)
+- jbcom/jbcom-oss-ecosystem (pending archival)
 
 ### Projects
 

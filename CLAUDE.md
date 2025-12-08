@@ -21,7 +21,8 @@ jbcom Control Center is a unified hub that:
 │   ├── initial-only/         # Sync once, repos customize after
 │   ├── python/               # Python language rules
 │   ├── nodejs/               # Node.js/TypeScript rules
-│   └── go/                   # Go language rules
+│   ├── go/                   # Go language rules
+│   └── terraform/            # Terraform/HCL language rules
 ├── ecosystems/flipside-crypto/  # FSC infrastructure
 │   ├── terraform/            # Modules + workspaces
 │   ├── sam/                  # Lambda applications
@@ -83,17 +84,35 @@ git commit -m "docs: update memory bank for handoff"
 |-----------|----------|---------|
 | `always-sync/` | Always overwrite | Cursor rules must stay consistent |
 | `initial-only/` | Sync once (`replace: false`) | Dockerfile, env, docs scaffold |
-| `python/`, `nodejs/`, `go/` | Always overwrite | Language-specific rules |
+| `python/`, `nodejs/`, `go/`, `terraform/` | Always overwrite | Language-specific rules |
 
 Target repos:
+
+**Python:**
 - `jbcom/extended-data-types`
 - `jbcom/lifecyclelogging`
 - `jbcom/directed-inputs-class`
 - `jbcom/python-terraform-bridge`
 - `jbcom/vendor-connectors`
+- `jbcom/agentic-crew`
+- `jbcom/ai_game_dev`
+- `jbcom/rivers-of-reckoning`
+
+**Node.js/TypeScript:**
 - `jbcom/agentic-control`
-- `jbcom/vault-secret-sync`
 - `jbcom/rivermarsh`
+- `jbcom/strata`
+- `jbcom/otterfall`
+- `jbcom/otter-river-rush`
+- `jbcom/pixels-pygame-palace`
+
+**Go:**
+- `jbcom/vault-secret-sync`
+- `jbcom/port-api`
+
+**Terraform/HCL:**
+- `jbcom/terraform-github-markdown`
+- `jbcom/terraform-repository-automation`
 
 ## FSC Infrastructure (ecosystems/flipside-crypto/)
 
