@@ -36,19 +36,16 @@ provider "github" {
 EOF
 }
 
-# Use HCP Terraform (Terraform Cloud) for secure remote state
-# Requires TF_API_TOKEN secret in GitHub Actions
+# Use local backend for state
+# State is stored locally - for repo config this is fine since Terraform
+# will reconcile against actual GitHub repo state on each run
 generate "backend" {
   path      = "backend.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 terraform {
-  cloud {
-    organization = "jbcom"
-    
-    workspaces {
-      name = "jbcom-repo-${basename(get_terragrunt_dir())}"
-    }
+  backend "local" {
+    path = "terraform.tfstate"
   }
 }
 EOF

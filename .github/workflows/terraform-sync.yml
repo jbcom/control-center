@@ -44,7 +44,6 @@ jobs:
       # - admin:org (read) - for organization membership checks
       # - workflow (write) - for GitHub Actions workflow modifications
       GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
       
       # Secrets to sync to all repositories via Terraform
       # These are passed as TF_VAR_* environment variables
@@ -68,8 +67,6 @@ jobs:
         with:
           terraform_version: "1.14.1"
           terraform_wrapper: false
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          cli_config_credentials_hostname: app.terraform.io
 
       - name: Setup Terragrunt
         run: |
