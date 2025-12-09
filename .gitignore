@@ -80,3 +80,13 @@ logs/
 *.egg-info/
 dist/
 build/
+
+# Terragrunt
+.terragrunt-cache/
+*/.terragrunt-cache/
+**/.terragrunt-cache/
+
+# Terraform state (use HCP Terraform Cloud)
+*.tfstate
+*.tfstate.*
+.terraform/
