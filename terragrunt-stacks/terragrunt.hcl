@@ -36,14 +36,22 @@ provider "github" {
 EOF
 }
 
-# Use local state for simplicity (can switch to remote later)
+# Use HCP Terraform (Terraform Cloud) for secure remote state storage
+# State is encrypted at rest and secrets are not stored in plaintext locally
+# Requires TF_TOKEN_app_terraform_io environment variable to be set
 generate "backend" {
   path      = "backend.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 terraform {
-  backend "local" {
-    path = "${get_terragrunt_dir()}/terraform.tfstate"
+  cloud {
+    organization = "jbcom"
+    
+    workspaces {
+      # Each repository gets its own workspace, dynamically named
+      # e.g., "jbcom-repo-agentic-control", "jbcom-repo-extended-data-types"
+      name = "jbcom-repo-${basename(get_terragrunt_dir())}"
+    }
   }
 }
 EOF

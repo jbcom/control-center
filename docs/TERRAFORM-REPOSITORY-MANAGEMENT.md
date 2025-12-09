@@ -66,8 +66,11 @@ repository-files/
 
 ### State Storage
 
-- **Backend**: Local (per-repository state files)
-- **State Files**: `terragrunt-stacks/{language}/{repo}/terraform.tfstate`
+- **Backend**: HCP Terraform (Terraform Cloud) - secure encrypted remote state
+- **Organization**: `jbcom`
+- **Workspaces**: `jbcom-repo-{repo-name}` (auto-generated per repository)
+- **Security**: State is encrypted at rest, secrets never stored locally in plaintext
+- **Authentication**: Uses `TF_API_TOKEN` secret via `TF_TOKEN_app_terraform_io` environment variable
 - **Import**: Uses Terraform 1.5+ import blocks for zero-destroy import
 
 ### Repository Categories
@@ -206,9 +209,16 @@ inputs = {
 
 ## Troubleshooting
 
-### Authentication Errors
+### HCP Terraform Authentication Errors
 
-Ensure `GITHUB_TOKEN` is set with appropriate permissions:
+Ensure `TF_API_TOKEN` secret is set in GitHub Actions:
+- Generate a team or user API token at https://app.terraform.io/app/settings/tokens
+- Token needs permissions to manage workspaces in the `jbcom` organization
+- The workflow automatically configures credentials via `cli_config_credentials_token`
+
+### GitHub Authentication Errors
+
+Ensure `CI_GITHUB_TOKEN` is set with appropriate permissions:
 - `repo` (full control)
 - `admin:org` (read access for org settings)
 
