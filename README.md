@@ -21,10 +21,9 @@ Central control surface for managing jbcom public repositories and FlipsideCrypt
 │   ├── go/                  # Go repos (2 repos)
 │   └── terraform/           # Terraform repos (2 repos)
 ├── .github/
-│   ├── sync.yml             # File sync config
+│   ├── agents/              # Custom AI agent configurations
 │   └── workflows/
-│       ├── sync.yml         # Secrets + file sync
-│       └── terraform-sync.yml  # Repository config management
+│       └── terraform-sync.yml  # Repository config management (all-in-one)
 ├── repository-files/        # Files synced to target repos
 │   ├── always-sync/         # Rules (always overwrite)
 │   ├── initial-only/        # Scaffold (sync once)

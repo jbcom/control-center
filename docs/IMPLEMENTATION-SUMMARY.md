@@ -65,7 +65,8 @@ terragrunt run-all plan/apply
 ✅ **Branch Protection**: PR requirements, review settings, force push protection  
 ✅ **Security Settings**: Secret scanning, push protection, vulnerability alerts  
 ✅ **GitHub Pages**: Actions workflow builds  
-✅ **File Sync**: Cursor rules, Claude workflow, language rules
+✅ **File Sync**: Cursor rules, Claude workflow, language rules  
+✅ **Secrets**: GitHub Actions secrets (CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY)
 
 ## Managed Repositories (18)
 

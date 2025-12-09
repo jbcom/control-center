@@ -110,13 +110,11 @@ Repositories are managed in 4 language categories:
 - **Initial-only files**: Docs scaffold, environment config (created once)
 - **Language-specific rules**: Python, Node.js, Go, Terraform rules
 
-## What's NOT Managed by Terraform
-
-These remain in the sync workflow:
-
-1. **Secrets Sync** (`sync-secrets` job)
-   - Managed via `jpoehnelt/secrets-sync-action`
-   - Syncs: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_*, ANTHROPIC_API_KEY
+### Secrets (`github_actions_secret`)
+- **All repository secrets** managed via Terraform
+- Syncs: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, ANTHROPIC_API_KEY
+- Secrets passed as TF_VAR_* environment variables from terraform-sync.yml workflow
+- Only non-empty secrets are synced
 
 ## Usage
 
