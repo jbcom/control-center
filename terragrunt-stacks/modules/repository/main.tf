@@ -226,8 +226,9 @@ output "id" {
 # =============================================================================
 
 locals {
-  # Absolute path to repository-files at workspace root
-  repo_files = "/workspace/repository-files"
+  # Path to repository-files relative to this module
+  # Uses path.root to get workspace root, then goes up to repo root
+  repo_files = "${path.root}/../../../repository-files"
 
   # Always-sync files (overwrite every time)
   always_sync_files = var.sync_files ? {

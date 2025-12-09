@@ -14,11 +14,13 @@ jbcom Control Center is a unified hub that:
 
 ```
 .
-├── terraform/               # Repository configuration (HCP Terraform Cloud)
-│   ├── providers.tf         # GitHub provider + HCP backend
-│   ├── variables.tf         # Repository lists and settings
-│   ├── main.tf              # Repository resources
-│   └── outputs.tf           # Output values
+├── terragrunt-stacks/       # Repository configuration (Terragrunt)
+│   ├── terragrunt.hcl       # Root config (provider, local backend)
+│   ├── modules/repository/  # Shared repository module
+│   ├── python/              # Python repos (8 repos)
+│   ├── nodejs/              # Node.js repos (6 repos)
+│   ├── go/                  # Go repos (2 repos)
+│   └── terraform/           # Terraform repos (2 repos)
 ├── .github/
 │   ├── agents/              # Custom AI agent configurations
 │   │   └── terraform-repository-manager.md  # Terraform MCP agent
@@ -95,7 +97,7 @@ Token mapping is defined in `agentic.config.json`.
 - Security settings (secret scanning, Dependabot)
 - GitHub Pages (Actions workflow builds)
 
-**State Storage**: HCP Terraform Cloud (`jbcom/jbcom-control-center` workspace)
+**State Storage**: Local state files (in each Terragrunt unit directory)
 
 **Documentation**:
 - Instructions: `.github/agents/terraform-repository-manager.md`

@@ -13,11 +13,13 @@ Central control surface for managing jbcom public repositories and FlipsideCrypt
 
 ```
 .
-├── terraform/               # Repository configuration (HCP Terraform Cloud)
-│   ├── providers.tf         # GitHub provider + backend
-│   ├── variables.tf         # Repository lists & settings
-│   ├── main.tf              # Repository resources
-│   └── outputs.tf           # Output values
+├── terragrunt-stacks/       # Repository configuration (Terragrunt)
+│   ├── terragrunt.hcl       # Root config (provider, local backend)
+│   ├── modules/repository/  # Shared repository module
+│   ├── python/              # Python repos (8 repos)
+│   ├── nodejs/              # Node.js repos (6 repos)
+│   ├── go/                  # Go repos (2 repos)
+│   └── terraform/           # Terraform repos (2 repos)
 ├── .github/
 │   ├── sync.yml             # File sync config
 │   └── workflows/
@@ -53,12 +55,12 @@ All configuration, secrets, and files managed across:
 
 ## Management Approach
 
-### Terraform-Managed (Active)
+### Terragrunt-Managed (Active)
 - Repository settings (merge strategies, features)
 - Branch protection rules
 - Security settings (secret scanning, Dependabot)
 - GitHub Pages configuration
-- State: HCP Terraform Cloud (`jbcom/jbcom-control-center` workspace)
+- State: Local state files (in each Terragrunt unit directory)
 
 ### Sync Workflow (Passive)
 - Secrets distribution (CI_GITHUB_TOKEN, NPM_TOKEN, etc.)
