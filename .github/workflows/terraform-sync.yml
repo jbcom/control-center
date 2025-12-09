@@ -78,6 +78,23 @@ jobs:
           sudo mv terragrunt /usr/local/bin/
           terragrunt --version
 
+      - name: Configure HCP Terraform Credentials
+        run: |
+          # Create credentials file for Terraform Cloud
+          # This ensures Terragrunt's spawned Terraform processes can authenticate
+          mkdir -p ~/.terraform.d
+          cat > ~/.terraform.d/credentials.tfrc.json << EOF
+          {
+            "credentials": {
+              "app.terraform.io": {
+                "token": "${{ secrets.TF_API_TOKEN }}"
+              }
+            }
+          }
+          EOF
+          chmod 600 ~/.terraform.d/credentials.tfrc.json
+          echo "✅ HCP Terraform credentials configured"
+
       # =================================================================
       # VALIDATION - Ensure Terraform code is syntactically valid
       # =================================================================
