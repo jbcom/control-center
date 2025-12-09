@@ -136,72 +136,88 @@ jobs:
           
           echo "✅ All expression tests passed"
 
-  validate-sync-config:
-    name: Validate Sync Configuration
+  validate-terragrunt-config:
+    name: Validate Terragrunt Configuration
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Validate sync.yml exists and is valid YAML
+      - name: Check Terragrunt structure exists
         run: |
-          if [ ! -f ".github/sync.yml" ]; then
-            echo "❌ .github/sync.yml not found"
+          echo "Validating Terragrunt repository management structure..."
+          
+          ERRORS=0
+          
+          # Check required directories exist
+          for dir in terragrunt-stacks/modules/repository terragrunt-stacks/python terragrunt-stacks/nodejs terragrunt-stacks/go terragrunt-stacks/terraform; do
+            if [ ! -d "$dir" ]; then
+              echo "❌ Missing required directory: $dir"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ $dir exists"
+            fi
+          done
+          
+          # Check root terragrunt.hcl exists
+          if [ ! -f "terragrunt-stacks/terragrunt.hcl" ]; then
+            echo "❌ Missing root terragrunt.hcl"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✅ terragrunt-stacks/terragrunt.hcl exists"
+          fi
+          
+          # Check module has main.tf
+          if [ ! -f "terragrunt-stacks/modules/repository/main.tf" ]; then
+            echo "❌ Missing repository module main.tf"
+            ERRORS=$((ERRORS + 1))
+          else
+            echo "✅ terragrunt-stacks/modules/repository/main.tf exists"
+          fi
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "❌ $ERRORS validation error(s)"
             exit 1
           fi
           
-          python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))" || {
-            echo "❌ .github/sync.yml is not valid YAML"
-            exit 1
-          }
-          
-          echo "✅ .github/sync.yml is valid YAML"
+          echo ""
+          echo "✅ Terragrunt structure is valid"
 
-      - name: Validate sync target paths exist
+      - name: Validate repository-files source paths
         run: |
-          echo "Checking that sync source paths exist..."
+          echo "Checking that repository-files source paths exist..."
           
-          # Extract source paths from sync.yml and verify they exist
-          python3 << 'EOF'
-          import yaml
-          import os
-          import sys
+          ERRORS=0
           
-          with open('.github/sync.yml') as f:
-              config = yaml.safe_load(f)
+          # Check always-sync files
+          for file in repository-files/always-sync/.cursor/rules/*.mdc; do
+            if [ -f "$file" ]; then
+              echo "✅ $file"
+            fi
+          done
           
-          if config is None:
-              print("❌ .github/sync.yml is empty or contains only comments")
-              sys.exit(1)
+          # Check language-specific files
+          for file in repository-files/python/.cursor/rules/python.mdc \
+                      repository-files/nodejs/.cursor/rules/typescript.mdc \
+                      repository-files/go/.cursor/rules/go.mdc \
+                      repository-files/terraform/.cursor/rules/terraform.mdc; do
+            if [ ! -f "$file" ]; then
+              echo "❌ Missing language rule: $file"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ $file"
+            fi
+          done
           
-          if not isinstance(config, dict):
-              print(f"❌ .github/sync.yml must be a YAML mapping, got {type(config).__name__}")
-              sys.exit(1)
+          if [ $ERRORS -gt 0 ]; then
+            echo ""
+            echo "❌ $ERRORS source path(s) do not exist"
+            exit 1
+          fi
           
-          errors = 0
-          for group in config.values():
-              if isinstance(group, list):
-                  for item in group:
-                      if isinstance(item, dict) and 'files' in item:
-                          for file_entry in item['files']:
-                              if isinstance(file_entry, dict):
-                                  source = file_entry.get('source', '')
-                              else:
-                                  source = file_entry
-                              
-                              if source and not source.startswith('$'):
-                                  if not os.path.exists(source):
-                                      print(f"❌ Source path does not exist: {source}")
-                                      errors += 1
-                                  else:
-                                      print(f"✅ {source}")
-          
-          if errors > 0:
-              print(f"\n❌ {errors} source path(s) do not exist")
-              sys.exit(1)
-          
-          print("\n✅ All sync source paths exist")
-          EOF
+          echo ""
+          echo "✅ All repository-files source paths exist"
 
   validate-repository-files:
     name: Validate Repository Files
@@ -333,7 +349,7 @@ jobs:
 
   summary:
     name: CI Summary
-    needs: [lint-workflows, validate-expressions, validate-sync-config, validate-repository-files, dry-run-generate-tests]
+    needs: [lint-workflows, validate-expressions, validate-terragrunt-config, validate-repository-files, dry-run-generate-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -347,7 +363,7 @@ jobs:
             echo "|-------|--------|"
             echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |"
             echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Sync Config | ${{ needs.validate-sync-config.result == 'success' && '✅' || '❌' }} |"
+            echo "| Validate Terragrunt Config | ${{ needs.validate-terragrunt-config.result == 'success' && '✅' || '❌' }} |"
             echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |"
             echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -355,7 +371,7 @@ jobs:
           # Fail if any job failed
           if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
              [ "${{ needs.validate-expressions.result }}" != "success" ] || \
-             [ "${{ needs.validate-sync-config.result }}" != "success" ] || \
+             [ "${{ needs.validate-terragrunt-config.result }}" != "success" ] || \
              [ "${{ needs.validate-repository-files.result }}" != "success" ] || \
              [ "${{ needs.dry-run-generate-tests.result }}" != "success" ]; then
             echo ""
