@@ -159,7 +159,7 @@ jobs:
           
           echo "## Manual Plan Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📋 Plan completed - re-run with `apply: true` to apply changes." >> $GITHUB_STEP_SUMMARY
+          echo "📋 Plan completed - re-run with apply: true to apply changes." >> $GITHUB_STEP_SUMMARY
 
       # =================================================================
       # SCHEDULED - Drift detection
@@ -181,6 +181,6 @@ jobs:
           else
             echo "⚠️ **Drift detected** in $CHANGES repositories" >> $GITHUB_STEP_SUMMARY
             echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Run \`terragrunt run-all apply\` to realign configurations." >> $GITHUB_STEP_SUMMARY
+            echo "Run 'terragrunt run-all apply' to realign configurations." >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
