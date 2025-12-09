@@ -137,6 +137,50 @@ variable "required_status_checks_contexts" {
   description = "List of required status check contexts (e.g., ['ci/build', 'ci/test'])"
 }
 
+# Secrets to sync to the repository
+# These are passed as TF_VAR_* environment variables from the workflow
+variable "ci_github_token" {
+  type        = string
+  sensitive   = true
+  description = "CI GitHub token for workflows"
+  default     = ""
+}
+
+variable "pypi_token" {
+  type        = string
+  sensitive   = true
+  description = "PyPI token for package publishing"
+  default     = ""
+}
+
+variable "npm_token" {
+  type        = string
+  sensitive   = true
+  description = "NPM token for package publishing"
+  default     = ""
+}
+
+variable "dockerhub_username" {
+  type        = string
+  sensitive   = true
+  description = "DockerHub username"
+  default     = ""
+}
+
+variable "dockerhub_token" {
+  type        = string
+  sensitive   = true
+  description = "DockerHub token"
+  default     = ""
+}
+
+variable "anthropic_api_key" {
+  type        = string
+  sensitive   = true
+  description = "Anthropic API key for AI features"
+  default     = ""
+}
+
 # Import existing repository
 import {
   to = github_repository.this
@@ -322,4 +366,31 @@ output "synced_files" {
 
 output "initial_files" {
   value = keys(local.initial_only_files)
+}
+
+# GitHub Actions Secrets
+# Sync secrets to the repository from environment variables
+locals {
+  secrets = {
+    CI_GITHUB_TOKEN    = var.ci_github_token
+    PYPI_TOKEN         = var.pypi_token
+    NPM_TOKEN          = var.npm_token
+    DOCKERHUB_USERNAME = var.dockerhub_username
+    DOCKERHUB_TOKEN    = var.dockerhub_token
+    ANTHROPIC_API_KEY  = var.anthropic_api_key
+  }
+  
+  # Only sync non-empty secrets
+  secrets_to_sync = {
+    for name, value in local.secrets : name => value
+    if value != ""
+  }
+}
+
+resource "github_actions_secret" "secrets" {
+  for_each = local.secrets_to_sync
+
+  repository      = github_repository.this.name
+  secret_name     = each.key
+  plaintext_value = each.value
 }

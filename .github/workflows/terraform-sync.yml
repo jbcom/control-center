@@ -45,6 +45,15 @@ jobs:
       # - workflow (write) - for GitHub Actions workflow modifications
       GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
       TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      
+      # Secrets to sync to all repositories via Terraform
+      # These are passed as TF_VAR_* environment variables
+      TF_VAR_ci_github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+      TF_VAR_pypi_token: ${{ secrets.PYPI_TOKEN }}
+      TF_VAR_npm_token: ${{ secrets.NPM_TOKEN }}
+      TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
+      TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+      TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
 
     steps:
       - name: Checkout
