@@ -36,14 +36,19 @@ provider "github" {
 EOF
 }
 
-# Use local state for simplicity (can switch to remote later)
+# Use HCP Terraform (Terraform Cloud) for secure remote state
+# Requires TF_API_TOKEN secret in GitHub Actions
 generate "backend" {
   path      = "backend.tf"
   if_exists = "overwrite_terragrunt"
   contents  = <<EOF
 terraform {
-  backend "local" {
-    path = "${get_terragrunt_dir()}/terraform.tfstate"
+  cloud {
+    organization = "jbcom"
+    
+    workspaces {
+      name = "jbcom-repo-${basename(get_terragrunt_dir())}"
+    }
   }
 }
 EOF

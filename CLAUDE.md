@@ -5,10 +5,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What This Repo Does
 
 jbcom Control Center is a unified hub that:
-1. **Manages repository configuration** via Terraform (settings, branch protection, security) using custom AI agent
-2. **Syncs secrets** to jbcom public repos (daily via GitHub Actions)
-3. **Syncs repository files** (Cursor rules, workflows, docs) to all jbcom repos
-4. **Holds FSC infrastructure** (Terraform modules, SAM Lambda apps, Python utilities)
+1. **Manages all repository configuration** via Terragrunt (settings, branch protection, security, secrets, files)
+2. **Holds FSC infrastructure** (Terraform modules, SAM Lambda apps, Python utilities)
 
 ## Structure
 
@@ -24,10 +22,8 @@ jbcom Control Center is a unified hub that:
 ├── .github/
 │   ├── agents/              # Custom AI agent configurations
 │   │   └── terraform-repository-manager.md  # Terraform MCP agent
-│   ├── sync.yml             # File sync config (which files go where)
 │   └── workflows/
-│       ├── sync.yml         # Secrets + file sync
-│       └── terraform-sync.yml  # Repository config management
+│       └── terraform-sync.yml  # Repository config management (all-in-one)
 ├── repository-files/        # Files synced to target repos
 │   ├── always-sync/         # Always overwrite (Cursor rules)
 │   ├── initial-only/        # Sync once, repos customize after

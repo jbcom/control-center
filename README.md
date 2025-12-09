@@ -21,10 +21,9 @@ Central control surface for managing jbcom public repositories and  infrastructu
 │   ├── go/                  # Go repos (2 repos)
 │   └── terraform/           # Terraform repos (2 repos)
 ├── .github/
-│   ├── sync.yml             # File sync config
+│   ├── agents/              # Custom AI agent configurations
 │   └── workflows/
-│       ├── sync.yml         # Secrets + file sync
-│       └── terraform-sync.yml  # Repository config management
+│       └── terraform-sync.yml  # Repository config management (all-in-one)
 ├── repository-files/        # Files synced to target repos
 │   ├── always-sync/         # Rules (always overwrite)
 │   ├── initial-only/        # Scaffold (sync once)
@@ -56,16 +55,16 @@ All configuration, secrets, and files managed across:
 ## Management Approach
 
 ### Terragrunt-Managed (Active)
+
+All repository configuration is managed via Terragrunt in a single workflow:
+
 - Repository settings (merge strategies, features)
 - Branch protection rules
 - Security settings (secret scanning, Dependabot)
 - GitHub Pages configuration
+- File synchronization (Cursor rules, workflows)
+- **GitHub Actions secrets** (CI_GITHUB_TOKEN, NPM_TOKEN, PYPI_TOKEN, etc.)
 - State: Local state files (in each Terragrunt unit directory)
-
-### Sync Workflow (Passive)
-- Secrets distribution (CI_GITHUB_TOKEN, NPM_TOKEN, etc.)
-- File synchronization (Cursor rules, Dockerfiles, workflows)
-- Repository rulesets (CodeQL, Copilot code review)
 
 | Directory | Behavior | Contents |
 |-----------|----------|----------|
@@ -91,36 +90,40 @@ export GITHUB_FSC_TOKEN="..."    #  repos
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `terraform-sync.yml` | Push to main (terraform/**) | Apply repository configuration |
+| `terraform-sync.yml` | Push to main (terragrunt-stacks/**, repository-files/**) | Apply all repository configuration |
+| `terraform-sync.yml` | Pull request | Plan and preview changes |
 | `terraform-sync.yml` | Daily at 2 AM UTC | Detect configuration drift |
-| `sync.yml` | Daily schedule | Sync secrets to public repos |
-| `sync.yml` | Push to main | Sync files & rulesets to public repos |
+| `terraform-sync.yml` | Manual dispatch | Plan or apply on demand |
 
 ## Quick Start
 
-### Terraform Repository Management
+### Terragrunt Repository Management
 
 ```bash
-# View current configuration
-cd terraform
-terraform init
-terraform plan
+# Plan changes for all repositories
+cd terragrunt-stacks
+terragrunt run-all plan
 
-# Make changes
-vim variables.tf  # Update settings
-terraform plan    # Preview changes
-terraform apply   # Apply changes
+# Apply changes to all repositories
+terragrunt run-all apply
+
+# Plan/apply single repository
+cd terragrunt-stacks/python/agentic-crew
+terragrunt plan
+terragrunt apply
 ```
 
 ### File Sync
 
-Edit files in `repository-files/` and push to main. Changes sync automatically.
+Edit files in `repository-files/` and push to main. Changes sync automatically via Terragrunt.
 
-### Secret Sync
+### Secrets
 
-Secrets are synced daily. To trigger manually:
+Secrets are synced via Terragrunt using `github_actions_secret` resources. Add secrets to GitHub Actions secrets in this repository, and they'll be synced to all managed repos automatically.
+
+To trigger manually:
 ```bash
-gh workflow run sync.yml
+gh workflow run terraform-sync.yml -f apply=true
 ```
 
 ---

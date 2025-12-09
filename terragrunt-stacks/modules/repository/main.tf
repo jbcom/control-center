@@ -137,6 +137,50 @@ variable "required_status_checks_contexts" {
   description = "List of required status check contexts (e.g., ['ci/build', 'ci/test'])"
 }
 
+# Secrets to sync to the repository
+# These are passed as TF_VAR_* environment variables from the workflow
+variable "ci_github_token" {
+  type        = string
+  sensitive   = true
+  description = "CI GitHub token for workflows"
+  default     = ""
+}
+
+variable "pypi_token" {
+  type        = string
+  sensitive   = true
+  description = "PyPI token for package publishing"
+  default     = ""
+}
+
+variable "npm_token" {
+  type        = string
+  sensitive   = true
+  description = "NPM token for package publishing"
+  default     = ""
+}
+
+variable "dockerhub_username" {
+  type        = string
+  sensitive   = true
+  description = "DockerHub username"
+  default     = ""
+}
+
+variable "dockerhub_token" {
+  type        = string
+  sensitive   = true
+  description = "DockerHub token"
+  default     = ""
+}
+
+variable "anthropic_api_key" {
+  type        = string
+  sensitive   = true
+  description = "Anthropic API key for AI features"
+  default     = ""
+}
+
 # Import existing repository
 import {
   to = github_repository.this
@@ -322,4 +366,58 @@ output "synced_files" {
 
 output "initial_files" {
   value = keys(local.initial_only_files)
+}
+
+# GitHub Actions Secrets
+# Sync secrets to the repository from environment variables
+
+# Individual secret resources - only created when the variable is non-empty
+# We use separate resources to avoid the "sensitive value in for_each" error
+
+resource "github_actions_secret" "ci_github_token" {
+  count = var.ci_github_token != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "CI_GITHUB_TOKEN"
+  plaintext_value = var.ci_github_token
+}
+
+resource "github_actions_secret" "pypi_token" {
+  count = var.pypi_token != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "PYPI_TOKEN"
+  plaintext_value = var.pypi_token
+}
+
+resource "github_actions_secret" "npm_token" {
+  count = var.npm_token != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "NPM_TOKEN"
+  plaintext_value = var.npm_token
+}
+
+resource "github_actions_secret" "dockerhub_username" {
+  count = var.dockerhub_username != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "DOCKERHUB_USERNAME"
+  plaintext_value = var.dockerhub_username
+}
+
+resource "github_actions_secret" "dockerhub_token" {
+  count = var.dockerhub_token != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "DOCKERHUB_TOKEN"
+  plaintext_value = var.dockerhub_token
+}
+
+resource "github_actions_secret" "anthropic_api_key" {
+  count = var.anthropic_api_key != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "ANTHROPIC_API_KEY"
+  plaintext_value = var.anthropic_api_key
 }
