@@ -137,6 +137,49 @@ variable "required_status_checks_contexts" {
   description = "List of required status check contexts (e.g., ['ci/build', 'ci/test'])"
 }
 
+variable "require_conversation_resolution" {
+  type        = bool
+  default     = true
+  description = "Require all PR conversations to be resolved before merging"
+}
+
+variable "lock_branch" {
+  type        = bool
+  default     = false
+  description = "Lock branch to make it read-only (prevents all pushes)"
+}
+
+# Feature branch protection configuration
+variable "feature_branch_patterns" {
+  type        = list(string)
+  default     = []
+  description = "List of branch patterns for feature branches (e.g., ['feature/*', 'bugfix/*'])"
+}
+
+variable "feature_required_approvals" {
+  type        = number
+  default     = 0
+  description = "Number of required approvals for feature branches"
+}
+
+variable "feature_required_status_checks_contexts" {
+  type        = list(string)
+  default     = []
+  description = "List of required status check contexts for feature branches"
+}
+
+variable "feature_allow_force_pushes" {
+  type        = bool
+  default     = false
+  description = "Allow force pushes to feature branches"
+}
+
+variable "feature_allow_deletions" {
+  type        = bool
+  default     = true
+  description = "Allow deletion of feature branches (typically true for cleanup)"
+}
+
 # Secrets to sync to the repository
 # These are passed as TF_VAR_* environment variables from the workflow
 variable "ci_github_token" {
@@ -251,10 +294,45 @@ resource "github_branch_protection" "main" {
     contexts = var.required_status_checks_contexts
   }
 
-  required_linear_history = var.required_linear_history
-  require_signed_commits  = var.require_signed_commits
-  allows_force_pushes     = var.allow_force_pushes
-  allows_deletions        = var.allow_deletions
+  required_linear_history         = var.required_linear_history
+  require_signed_commits          = var.require_signed_commits
+  require_conversation_resolution = var.require_conversation_resolution
+  allows_force_pushes             = var.allow_force_pushes
+  allows_deletions                = var.allow_deletions
+  lock_branch                     = var.lock_branch
+}
+
+# Feature branch protection - separate rules for non-main branches
+# Allows lighter protection on feature/bugfix/etc branches while keeping main strict
+resource "github_branch_protection" "feature" {
+  for_each = toset(var.feature_branch_patterns)
+
+  repository_id = github_repository.this.node_id
+  pattern       = each.value
+
+  # Feature branches typically have lighter requirements
+  # Adjust based on team workflow needs
+  dynamic "required_pull_request_reviews" {
+    for_each = var.feature_required_approvals > 0 ? [1] : []
+    content {
+      required_approving_review_count = var.feature_required_approvals
+    }
+  }
+
+  # Optional status checks for feature branches
+  dynamic "required_status_checks" {
+    for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
+    content {
+      strict   = false # Feature branches don't need to be up-to-date with base
+      contexts = var.feature_required_status_checks_contexts
+    }
+  }
+
+  allows_force_pushes = var.feature_allow_force_pushes
+  allows_deletions    = var.feature_allow_deletions
+
+  # Keep conversations required but other settings relaxed
+  require_conversation_resolution = var.require_conversation_resolution
 }
 
 output "url" {
@@ -366,6 +444,20 @@ output "synced_files" {
 
 output "initial_files" {
   value = keys(local.initial_only_files)
+}
+
+output "main_branch_protection" {
+  value = {
+    pattern                         = github_branch_protection.main.pattern
+    require_conversation_resolution = github_branch_protection.main.require_conversation_resolution
+    required_linear_history         = github_branch_protection.main.required_linear_history
+  }
+  description = "Main branch protection settings"
+}
+
+output "feature_branch_patterns" {
+  value       = var.feature_branch_patterns
+  description = "Protected feature branch patterns"
 }
 
 # GitHub Actions Secrets

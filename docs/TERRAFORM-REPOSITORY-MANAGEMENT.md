@@ -188,6 +188,8 @@ inputs = {
 
 ### Available Variables
 
+#### Repository Settings
+
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `name` | string | required | Repository name |
@@ -201,11 +203,110 @@ inputs = {
 | `allow_merge_commit` | bool | false | Allow merge commits |
 | `allow_rebase_merge` | bool | false | Allow rebase merging |
 | `delete_branch_on_merge` | bool | true | Delete branch after merge |
+| `allow_auto_merge` | bool | false | Enable auto-merge |
 | `vulnerability_alerts` | bool | true | Enable Dependabot alerts |
-| `required_approvals` | number | 0 | Required PR approvals |
-| `require_code_owner_reviews` | bool | false | Require CODEOWNERS |
-| `required_linear_history` | bool | false | Require linear history |
 | `sync_files` | bool | true | Sync Cursor rules/workflows |
+
+#### Main Branch Protection
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `default_branch` | string | "main" | Default branch name |
+| `required_approvals` | number | 0 | Required PR approvals |
+| `dismiss_stale_reviews` | bool | false | Dismiss stale reviews |
+| `require_code_owner_reviews` | bool | false | Require CODEOWNERS |
+| `require_last_push_approval` | bool | false | Require approval after last push |
+| `required_linear_history` | bool | false | Require linear history |
+| `require_signed_commits` | bool | false | Require signed commits |
+| `require_conversation_resolution` | bool | true | Require conversation resolution |
+| `allow_force_pushes` | bool | false | Allow force pushes |
+| `allow_deletions` | bool | false | Allow deletions |
+| `lock_branch` | bool | false | Lock branch (read-only) |
+| `required_status_checks_strict` | bool | false | Require up-to-date branches |
+| `required_status_checks_contexts` | list(string) | [] | Required status checks |
+
+#### Feature Branch Protection
+
+| Variable | Type | Default | Description |
+|----------|------|---------|-------------|
+| `feature_branch_patterns` | list(string) | [] | Branch patterns (e.g., ["feature/*"]) |
+| `feature_required_approvals` | number | 0 | Required approvals for features |
+| `feature_required_status_checks_contexts` | list(string) | [] | Required status checks |
+| `feature_allow_force_pushes` | bool | false | Allow force pushes |
+| `feature_allow_deletions` | bool | true | Allow deletions |
+
+## Branch Protection Best Practices
+
+### Main vs Feature Branch Strategy
+
+Following industry best practices (Mergify, GitHub, 2024), we implement **separate protection rules** for main and feature branches:
+
+#### Main Branch - Strict Protection
+- **Purpose**: Production-ready code requiring maximum protection
+- **Strategy**: Strictest rules to ensure code quality
+- **Recommended Settings**:
+  - ✅ `require_conversation_resolution = true` - All discussions resolved
+  - ✅ `required_approvals = 1` (or more) - Peer review required
+  - ✅ `required_status_checks_contexts` - CI must pass
+  - ✅ `allow_force_pushes = false` - Protect history
+  - ✅ `allow_deletions = false` - Prevent accidental loss
+  - ⚠️ `required_linear_history = false` - Allow merge commits (optional)
+
+#### Feature Branches - Lighter Protection
+- **Purpose**: Development, testing, experimentation
+- **Strategy**: Balance protection with developer velocity
+- **Patterns**: `feature/*`, `bugfix/*`, `hotfix/*`, `release/*`
+- **Recommended Settings**:
+  - ✅ `require_conversation_resolution = true` - Keep discussions resolved
+  - ⚠️ `feature_required_approvals = 0` - No reviews required (can enable)
+  - ✅ `feature_allow_deletions = true` - Allow cleanup after merge
+  - ⚠️ `feature_allow_force_pushes = false` - Protect shared branches
+
+### Example Configuration
+
+```hcl
+# terragrunt-stacks/nodejs/strata/terragrunt.hcl
+inputs = {
+  name     = "strata"
+  language = "nodejs"
+  
+  # Main branch - strict protection
+  require_conversation_resolution = true
+  required_approvals              = 1
+  required_status_checks_contexts = ["ci/build", "ci/test"]
+  allow_force_pushes              = false
+  
+  # Feature branches - lighter protection
+  feature_branch_patterns = [
+    "feature/*",
+    "bugfix/*",
+    "hotfix/*",
+    "release/*"
+  ]
+  feature_allow_deletions    = true
+  feature_allow_force_pushes = false
+}
+```
+
+### Merge Queue Compatibility
+
+For repositories using GitHub merge queues:
+1. Configure CI workflows to trigger on `merge_group` event
+2. Set `required_status_checks_contexts` to include merge queue checks
+3. Use `required_status_checks_strict = true` to require up-to-date branches
+4. Avoid wildcard branch patterns on merge queue branches
+
+### GitHub Rulesets vs Branch Protection
+
+- **Branch Protection** (current): Traditional, well-tested, works everywhere
+- **GitHub Rulesets** (newer): More flexible, better for organizations, easier audit
+- **Recommendation**: Stick with branch protection for now, migrate to rulesets when needed
+
+### References
+
+- [Mergify Merge Protections](https://docs.mergify.com/merge-protections/)
+- [GitHub Branch Protection Best Practices](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches)
+- [Managing a Merge Queue](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/configuring-pull-request-merges/managing-a-merge-queue)
 
 ## Troubleshooting
 
