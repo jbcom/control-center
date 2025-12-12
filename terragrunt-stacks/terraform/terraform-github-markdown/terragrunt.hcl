@@ -15,4 +15,11 @@ inputs = {
   required_approvals         = 1
   require_code_owner_reviews = true
   sync_files                 = true
+
+  # Main branch protection
+  require_conversation_resolution = true
+  
+  # Feature branch protection
+  feature_branch_patterns = ["feature/*", "bugfix/*"]
+  feature_allow_deletions = true
 }
