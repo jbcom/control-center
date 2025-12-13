@@ -28,15 +28,8 @@ locals {
     local.terraform_repos
   )
 
-  # Common branch protection defaults (DRY - defined once, used everywhere)
+  # Common settings - feature branch patterns all repos get
   common_branch_protection = {
-    # Main branch protection - strict
-    require_conversation_resolution = true
-    required_linear_history         = false
-    allow_force_pushes              = false
-    allow_deletions                 = false
-    
-    # Feature branch patterns - all repos get these
     feature_branch_patterns = [
       "feature/*",
       "bugfix/*",
@@ -44,9 +37,6 @@ locals {
       "fix/*",
       "feat/*"
     ]
-    feature_allow_deletions                 = true
-    feature_allow_force_pushes              = false
-    feature_require_conversation_resolution = false  # Lighter protection for feature branches
   }
 }
 
