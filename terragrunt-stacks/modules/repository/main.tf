@@ -277,7 +277,7 @@ resource "github_repository" "this" {
   }
 }
 
-# Main branch ruleset
+# Main branch ruleset - matches strata configuration
 resource "github_repository_ruleset" "main" {
   name        = "Main"
   repository  = github_repository.this.name
@@ -292,106 +292,47 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
-    # Pull request requirements
-    pull_request {
-      dismiss_stale_reviews_on_push     = var.dismiss_stale_reviews
-      require_code_owner_review         = var.require_code_owner_reviews
-      required_approving_review_count   = var.required_approvals
-      require_last_push_approval        = var.require_last_push_approval
-      required_review_thread_resolution = var.require_conversation_resolution
-    }
-
     # Prevent force pushes
-    dynamic "non_fast_forward" {
-      for_each = var.allow_force_pushes ? [] : [1]
-      content {}
-    }
-
-    # Prevent deletions
-    dynamic "deletion" {
-      for_each = var.allow_deletions ? [] : [1]
-      content {}
-    }
+    non_fast_forward {}
 
     # Required linear history
-    dynamic "required_linear_history" {
-      for_each = var.required_linear_history ? [1] : []
-      content {}
-    }
+    required_linear_history {}
 
-    # Required signed commits
-    dynamic "required_signatures" {
-      for_each = var.require_signed_commits ? [1] : []
-      content {}
+    # Pull request requirements
+    pull_request {
+      required_approving_review_count   = var.required_approvals
+      dismiss_stale_reviews_on_push     = var.dismiss_stale_reviews
+      require_code_owner_review         = var.require_code_owner_reviews
+      require_last_push_approval        = var.require_last_push_approval
+      required_review_thread_resolution = var.require_conversation_resolution
+      allowed_merge_methods             = ["squash"]
     }
+  }
 
-    # Required status checks
-    dynamic "required_status_checks" {
-      for_each = length(var.required_status_checks_contexts) > 0 ? [1] : []
-      content {
-        strict_required_status_checks_policy = var.required_status_checks_strict
-        dynamic "required_check" {
-          for_each = var.required_status_checks_contexts
-          content {
-            context = required_check.value
-          }
-        }
-      }
-    }
+  bypass_actors {
+    actor_id    = 5 # Repository admin role
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
   }
 }
 
-# Feature branch ruleset
-resource "github_repository_ruleset" "feature" {
-  count = length(var.feature_branch_patterns) > 0 ? 1 : 0
-
-  name        = "Feature Branches"
+# PRs ruleset - applies to all branches except main
+resource "github_repository_ruleset" "prs" {
+  name        = "PRs"
   repository  = github_repository.this.name
   target      = "branch"
   enforcement = "active"
 
   conditions {
     ref_name {
-      include = [for p in var.feature_branch_patterns : "refs/heads/${p}"]
-      exclude = []
+      include = []
+      exclude = ["refs/heads/main"]
     }
   }
 
   rules {
-    # Pull request requirements (if approvals required)
-    dynamic "pull_request" {
-      for_each = var.feature_required_approvals > 0 ? [1] : []
-      content {
-        required_approving_review_count   = var.feature_required_approvals
-        required_review_thread_resolution = var.feature_require_conversation_resolution
-      }
-    }
-
-    # Prevent force pushes on feature branches
-    dynamic "non_fast_forward" {
-      for_each = var.feature_allow_force_pushes ? [] : [1]
-      content {}
-    }
-
-    # Allow deletions on feature branches (configurable)
-    dynamic "deletion" {
-      for_each = var.feature_allow_deletions ? [] : [1]
-      content {}
-    }
-
-    # Required status checks for feature branches
-    dynamic "required_status_checks" {
-      for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
-      content {
-        strict_required_status_checks_policy = false
-        dynamic "required_check" {
-          for_each = var.feature_required_status_checks_contexts
-          content {
-            context = required_check.value
-          }
-        }
-      }
-    }
+    # Note: copilot_code_review and code_quality rules may require
+    # GitHub Enterprise or specific feature flags. Keeping basic rules.
   }
 }
 
