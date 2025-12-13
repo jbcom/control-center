@@ -292,8 +292,12 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
-    non_fast_forward        = true
-    required_linear_history = true
+    # Branch protection rules
+    deletion                = !var.allow_deletions    # true = block deletions
+    non_fast_forward        = !var.allow_force_pushes # true = block force pushes
+    required_linear_history = var.required_linear_history
+    required_signatures     = var.require_signed_commits
+    update                  = var.lock_branch # true = make branch read-only
 
     pull_request {
       required_approving_review_count   = var.required_approvals
@@ -301,6 +305,20 @@ resource "github_repository_ruleset" "main" {
       require_code_owner_review         = var.require_code_owner_reviews
       require_last_push_approval        = var.require_last_push_approval
       required_review_thread_resolution = var.require_conversation_resolution
+    }
+
+    # Only add status checks if specified
+    dynamic "required_status_checks" {
+      for_each = length(var.required_status_checks_contexts) > 0 ? [1] : []
+      content {
+        strict_required_status_checks_policy = var.required_status_checks_strict
+        dynamic "required_check" {
+          for_each = var.required_status_checks_contexts
+          content {
+            context = required_check.value
+          }
+        }
+      }
     }
   }
 
