@@ -292,20 +292,15 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
-    # Prevent force pushes
-    non_fast_forward {}
+    non_fast_forward        = true
+    required_linear_history = true
 
-    # Required linear history
-    required_linear_history {}
-
-    # Pull request requirements
     pull_request {
       required_approving_review_count   = var.required_approvals
       dismiss_stale_reviews_on_push     = var.dismiss_stale_reviews
       require_code_owner_review         = var.require_code_owner_reviews
       require_last_push_approval        = var.require_last_push_approval
       required_review_thread_resolution = var.require_conversation_resolution
-      allowed_merge_methods             = ["squash"]
     }
   }
 
@@ -313,26 +308,6 @@ resource "github_repository_ruleset" "main" {
     actor_id    = 5 # Repository admin role
     actor_type  = "RepositoryRole"
     bypass_mode = "always"
-  }
-}
-
-# PRs ruleset - applies to all branches except main
-resource "github_repository_ruleset" "prs" {
-  name        = "PRs"
-  repository  = github_repository.this.name
-  target      = "branch"
-  enforcement = "active"
-
-  conditions {
-    ref_name {
-      include = []
-      exclude = ["refs/heads/main"]
-    }
-  }
-
-  rules {
-    # Note: copilot_code_review and code_quality rules may require
-    # GitHub Enterprise or specific feature flags. Keeping basic rules.
   }
 }
 
