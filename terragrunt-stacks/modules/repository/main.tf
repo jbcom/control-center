@@ -1,7 +1,5 @@
 # Repository module - manages a single GitHub repository
-# Based on Strata repository patterns (modern, clean, no deprecated resources)
-#
-# Uses github_repository_ruleset (modern API) instead of deprecated github_branch_protection
+# Based on Strata repository patterns EXACTLY - no additions
 
 terraform {
   required_version = ">= 1.5.0"
@@ -36,42 +34,49 @@ variable "language" {
 # =============================================================================
 
 variable "visibility" {
-  type    = string
-  default = "public"
+  type        = string
+  default     = "public"
+  description = "Repository visibility"
 }
 
 variable "has_issues" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
+  description = "Enable GitHub Issues"
 }
 
 variable "has_projects" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "Enable GitHub Projects"
 }
 
 variable "has_wiki" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "Enable GitHub Wiki"
 }
 
 variable "has_discussions" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
+  description = "Enable GitHub Discussions"
 }
 
 variable "has_pages" {
-  type    = bool
-  default = true
+  type        = bool
+  default     = true
+  description = "Enable GitHub Pages"
 }
 
 variable "default_branch" {
-  type    = string
-  default = "main"
+  type        = string
+  default     = "main"
+  description = "Default branch name"
 }
 
 # =============================================================================
-# OPTIONAL VARIABLES - Main branch protection settings
+# OPTIONAL VARIABLES - Main branch protection (matching Strata exactly)
 # =============================================================================
 
 variable "required_linear_history" {
@@ -93,49 +98,56 @@ variable "require_conversation_resolution" {
 }
 
 # =============================================================================
-# SECRETS - Passed via TF_VAR_* environment variables
+# SECRETS
 # =============================================================================
 
 variable "ci_github_token" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "CI GitHub token for workflows"
 }
 
 variable "pypi_token" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "PyPI token for package publishing"
 }
 
 variable "npm_token" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "NPM token for package publishing"
 }
 
 variable "dockerhub_username" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "DockerHub username"
 }
 
 variable "dockerhub_token" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "DockerHub token"
 }
 
 variable "anthropic_api_key" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Anthropic API key for AI features"
 }
 
 variable "ollama_api_key" {
-  type      = string
-  sensitive = true
-  default   = ""
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "Ollama Cloud API key"
 }
 
 # =============================================================================
@@ -145,7 +157,10 @@ variable "ollama_api_key" {
 locals {
   repo_files = "${path.root}/../../../repository-files"
 
-  # Repository settings - standardized across all repos (matching Strata)
+  # DRY: Binary file exclusion regex
+  binary_file_regex = "\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$"
+
+  # Repository settings (matching Strata)
   repo_settings = {
     allow_squash_merge     = true
     allow_merge_commit     = false
@@ -155,13 +170,13 @@ locals {
     vulnerability_alerts   = true
   }
 
-  # File sync - exclude binary files
+  # File sync
   always_sync_files = {
     for file in setunion(
       fileset("${local.repo_files}/always-sync", "**/*"),
       fileset("${local.repo_files}/always-sync", "**/.[!.]*")
     ) : file => "${local.repo_files}/always-sync/${file}"
-    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
+    if !can(regex(local.binary_file_regex, file))
   }
 
   language_files = {
@@ -169,7 +184,7 @@ locals {
       fileset("${local.repo_files}/${var.language}", "**/*"),
       fileset("${local.repo_files}/${var.language}", "**/.[!.]*")
     ) : file => "${local.repo_files}/${var.language}/${file}"
-    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
+    if !can(regex(local.binary_file_regex, file))
   }
 
   initial_only_files = {
@@ -177,7 +192,7 @@ locals {
       fileset("${local.repo_files}/initial-only", "**/*"),
       fileset("${local.repo_files}/initial-only", "**/.[!.]*")
     ) : file => "${local.repo_files}/initial-only/${file}"
-    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
+    if !can(regex(local.binary_file_regex, file))
   }
 
   all_synced_files = merge(local.always_sync_files, local.language_files)
@@ -227,7 +242,7 @@ resource "github_repository" "this" {
 }
 
 # =============================================================================
-# RULESET: Main Branch Protection (based on Strata)
+# RULESET: Main Branch Protection (EXACTLY matching Strata)
 # =============================================================================
 
 resource "github_repository_ruleset" "main" {
@@ -244,6 +259,7 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
+    # Strata has exactly these three rules - nothing more
     non_fast_forward        = true
     required_linear_history = var.required_linear_history
 
@@ -302,7 +318,7 @@ resource "github_repository_file" "initial" {
 }
 
 # =============================================================================
-# SECRETS - Individual resources (for_each with sensitive values not allowed)
+# SECRETS
 # =============================================================================
 
 resource "github_actions_secret" "ci_github_token" {
@@ -370,12 +386,12 @@ output "id" {
 
 output "synced_files" {
   value       = keys(local.all_synced_files)
-  description = "List of files synced to repository"
+  description = "Files synced to repository"
 }
 
 output "initial_files" {
   value       = keys(local.initial_only_files)
-  description = "List of initial-only files"
+  description = "Initial-only files"
 }
 
 output "main_ruleset" {
