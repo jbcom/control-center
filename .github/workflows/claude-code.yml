@@ -68,19 +68,5 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            You are reviewing PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
-
-            Review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
-
-            Be constructive and helpful. Focus on actionable feedback.
-
-            Use `gh pr comment` to leave your review as a comment on the PR.
-
-          claude_args: '--allowed-tools "Bash(gh pr:*)"'
+          # Use default behavior - let Claude use its built-in tools
+          # The action handles PR context automatically
