@@ -21,7 +21,6 @@ inputs = merge(
     has_wiki                = false
     has_discussions         = false
     has_pages               = true
-    sync_files              = true
     
     # Go repos use linear history
     required_linear_history = true

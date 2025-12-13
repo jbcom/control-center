@@ -21,7 +21,6 @@ inputs = merge(
     has_wiki                   = true
     has_discussions            = false
     has_pages                  = true
-    sync_files                 = true
     
     # Terraform repos require stricter review
     required_approvals         = 1
