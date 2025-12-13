@@ -44,8 +44,9 @@ locals {
       "fix/*",
       "feat/*"
     ]
-    feature_allow_deletions    = true
-    feature_allow_force_pushes = false
+    feature_allow_deletions                 = true
+    feature_allow_force_pushes              = false
+    feature_require_conversation_resolution = false  # Lighter protection for feature branches
   }
 }
 

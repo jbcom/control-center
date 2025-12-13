@@ -180,6 +180,12 @@ variable "feature_allow_deletions" {
   description = "Allow deletion of feature branches (typically true for cleanup)"
 }
 
+variable "feature_require_conversation_resolution" {
+  type        = bool
+  default     = false
+  description = "Require conversation resolution on feature branches (typically false for lighter protection)"
+}
+
 # Secrets to sync to the repository
 # These are passed as TF_VAR_* environment variables from the workflow
 variable "ci_github_token" {
@@ -338,8 +344,8 @@ resource "github_branch_protection" "feature" {
   allows_force_pushes = var.feature_allow_force_pushes
   allows_deletions    = var.feature_allow_deletions
 
-  # Keep conversations required but other settings relaxed
-  require_conversation_resolution = var.require_conversation_resolution
+  # Feature branches can have independent conversation resolution policy
+  require_conversation_resolution = var.feature_require_conversation_resolution
 }
 
 output "url" {
@@ -367,15 +373,15 @@ locals {
     ".cursor/rules/02-memory-bank.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/02-memory-bank.mdc"
     ".cursor/rules/ci.mdc"              = "${local.repo_files}/always-sync/.cursor/rules/ci.mdc"
     ".cursor/rules/releases.mdc"        = "${local.repo_files}/always-sync/.cursor/rules/releases.mdc"
-    
+
     # GitHub workflows
     ".github/workflows/claude-code.yml" = "${local.repo_files}/always-sync/.github/workflows/claude-code.yml"
-    
+
     # GitHub community files
     ".github/PULL_REQUEST_TEMPLATE.md" = "${local.repo_files}/always-sync/.github/PULL_REQUEST_TEMPLATE.md"
     ".github/CODEOWNERS"               = "${local.repo_files}/always-sync/.github/CODEOWNERS"
     ".github/dependabot.yml"           = "${local.repo_files}/always-sync/.github/dependabot.yml"
-    
+
     # AI agent instructions
     ".github/agents/README.md"          = "${local.repo_files}/always-sync/.github/agents/README.md"
     ".github/agents/code-reviewer.md"   = "${local.repo_files}/always-sync/.github/agents/code-reviewer.md"
@@ -405,20 +411,20 @@ locals {
   # Initial-only files (create once, repos customize after)
   initial_only_files = var.sync_files ? {
     # Cursor environment
-    ".cursor/environment.json"             = "${local.repo_files}/initial-only/.cursor/environment.json"
-    ".cursor/Dockerfile"                   = "${local.repo_files}/initial-only/.cursor/Dockerfile"
-    
+    ".cursor/environment.json" = "${local.repo_files}/initial-only/.cursor/environment.json"
+    ".cursor/Dockerfile"       = "${local.repo_files}/initial-only/.cursor/Dockerfile"
+
     # GitHub workflows
-    ".github/workflows/docs.yml"           = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
-    
+    ".github/workflows/docs.yml" = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+
     # Issue templates (repos customize after creation)
     ".github/ISSUE_TEMPLATE/config.yml"  = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/config.yml"
     ".github/ISSUE_TEMPLATE/bug.yml"     = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/bug.yml"
     ".github/ISSUE_TEMPLATE/feature.yml" = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/feature.yml"
-    
+
     # Security policy
     ".github/SECURITY.md" = "${local.repo_files}/initial-only/.github/SECURITY.md"
-    
+
     # Documentation scaffold
     "docs/Makefile"                        = "${local.repo_files}/initial-only/docs/Makefile"
     "docs/conf.py"                         = "${local.repo_files}/initial-only/docs/conf.py"
