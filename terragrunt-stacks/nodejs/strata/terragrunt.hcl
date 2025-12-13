@@ -21,7 +21,6 @@ inputs = merge(
     has_wiki        = false
     has_discussions = true
     has_pages       = true
-    sync_files      = true
     
     # Repo-specific override: add release/* pattern
     feature_branch_patterns = concat(
