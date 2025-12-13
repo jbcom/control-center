@@ -277,12 +277,6 @@ resource "github_repository" "this" {
   }
 }
 
-# Import existing branch protection
-import {
-  to = github_branch_protection.main
-  id = "${var.name}:${var.default_branch}"
-}
-
 resource "github_branch_protection" "main" {
   repository_id = github_repository.this.node_id
   pattern       = var.default_branch
