@@ -64,7 +64,7 @@ All repository configuration is managed via Terragrunt in a single workflow:
 - GitHub Pages configuration
 - File synchronization (Cursor rules, workflows)
 - **GitHub Actions secrets** (CI_GITHUB_TOKEN, NPM_TOKEN, PYPI_TOKEN, etc.)
-- State: Local state files (in each Terragrunt unit directory)
+- State: Terraform Cloud remote backend (one workspace per repository)
 
 | Directory | Behavior | Contents |
 |-----------|----------|----------|
@@ -90,17 +90,20 @@ export GITHUB_FSC_TOKEN="..."    #  repos
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `terraform-sync.yml` | Push to main (terragrunt-stacks/**, repository-files/**) | Apply all repository configuration |
+| `terraform-sync.yml` | Push to main (terragrunt-stacks/**, repository-files/**) | Apply all repository configuration (Terraform Cloud backend) |
 | `terraform-sync.yml` | Pull request | Plan and preview changes |
 | `terraform-sync.yml` | Daily at 2 AM UTC | Detect configuration drift |
 | `terraform-sync.yml` | Manual dispatch | Plan or apply on demand |
 
 ## Quick Start
 
-### Terragrunt Repository Management
+### Terragrunt Repository Management (Terraform Cloud backend)
 
 ```bash
-# Plan changes for all repositories
+# Authenticate with HCP Terraform: `terraform login` for interactive use, or `export TF_API_TOKEN` for CI
+terraform login
+
+# Plan changes for all repositories (uses HCP Terraform remote state)
 cd terragrunt-stacks
 terragrunt run-all plan
 

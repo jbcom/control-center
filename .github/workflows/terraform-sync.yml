@@ -49,6 +49,9 @@ jobs:
       # TF_TOKEN_app_terraform_io is the env var Terraform Cloud expects
       # The secret is named TF_TOKEN_APP_TERRAFORM_IO (same token used for backend + TFE provider)
       TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+      # Alias the same token for legacy providers and CLI-driven workflows
+      TF_API_TOKEN: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
+      TFE_TOKEN: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
       
       # Secrets to sync to all repositories via Terraform
       # These are passed as TF_VAR_* environment variables
