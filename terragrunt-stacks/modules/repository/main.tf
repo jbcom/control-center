@@ -224,6 +224,13 @@ variable "anthropic_api_key" {
   default     = ""
 }
 
+variable "ollama_api_key" {
+  type        = string
+  sensitive   = true
+  description = "Ollama Cloud API key for AI triage"
+  default     = ""
+}
+
 # Import existing repository
 import {
   to = github_repository.this
@@ -540,4 +547,12 @@ resource "github_actions_secret" "anthropic_api_key" {
   repository      = github_repository.this.name
   secret_name     = "ANTHROPIC_API_KEY"
   plaintext_value = var.anthropic_api_key
+}
+
+resource "github_actions_secret" "ollama_api_key" {
+  count = var.ollama_api_key != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "OLLAMA_API_KEY"
+  plaintext_value = var.ollama_api_key
 }
