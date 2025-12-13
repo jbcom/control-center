@@ -6,23 +6,21 @@ terraform {
   source = "../../modules/repository"
 }
 
-inputs = {
-  name            = "agentic-control"
-  language        = "nodejs"
-  has_wiki        = false
-  has_discussions = true
-  has_pages       = true
-  sync_files      = true
-
-  # Main branch protection - strict for core package
-  require_conversation_resolution = true
-  required_linear_history         = false
-  
-  # Feature branch protection
-  feature_branch_patterns = [
-    "feature/*",
-    "bugfix/*",
-    "hotfix/*"
-  ]
-  feature_allow_deletions = true
+# Read common settings from root
+locals {
+  root_config = read_terragrunt_config(find_in_parent_folders())
+  common      = local.root_config.locals.common_branch_protection
 }
+
+# Merge common branch protection with repo-specific settings
+inputs = merge(
+  local.common,
+  {
+    name            = "agentic-control"
+    language        = "nodejs"
+    has_wiki        = false
+    has_discussions = true
+    has_pages       = true
+    sync_files      = true
+  }
+)
