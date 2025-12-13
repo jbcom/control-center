@@ -1,11 +1,7 @@
 # Repository module - manages a single GitHub repository
-# Modern, modular, DRY design using github_repository_ruleset (not deprecated branch_protection)
+# Based on Strata repository patterns (modern, clean, no deprecated resources)
 #
-# Features:
-# - Repository settings (merge strategies, features)
-# - Branch protection via rulesets (modern API)
-# - File synchronization from control center
-# - Secrets management via for_each
+# Uses github_repository_ruleset (modern API) instead of deprecated github_branch_protection
 
 terraform {
   required_version = ">= 1.5.0"
@@ -61,7 +57,7 @@ variable "has_wiki" {
 
 variable "has_discussions" {
   type    = bool
-  default = false
+  default = true
 }
 
 variable "has_pages" {
@@ -75,59 +71,29 @@ variable "default_branch" {
 }
 
 # =============================================================================
-# OPTIONAL VARIABLES - Branch protection settings
+# OPTIONAL VARIABLES - Main branch protection settings
 # =============================================================================
-
-variable "feature_branch_patterns" {
-  type        = list(string)
-  default     = []
-  description = "Branch patterns WITHOUT refs/heads/ prefix (e.g., ['feature/*', 'bugfix/*'])"
-}
-
-variable "require_signed_commits" {
-  type        = bool
-  default     = false
-  description = "Require signed commits on the default branch"
-}
-
-variable "allow_force_pushes" {
-  type        = bool
-  default     = false
-  description = "Allow force pushes to the default branch"
-}
-
-variable "allow_deletions" {
-  type        = bool
-  default     = false
-  description = "Allow deletion of the default branch"
-}
-
-variable "lock_branch" {
-  type        = bool
-  default     = false
-  description = "Lock the default branch (prevent any pushes)"
-}
 
 variable "required_linear_history" {
   type        = bool
-  default     = false
+  default     = true
   description = "Require linear history on the default branch"
 }
 
-variable "required_status_checks_strict" {
-  type        = bool
-  default     = false
-  description = "Require branches to be up to date before merging"
+variable "required_approving_review_count" {
+  type        = number
+  default     = 0
+  description = "Number of required approving reviews"
 }
 
-variable "required_status_checks_contexts" {
-  type        = list(string)
-  default     = []
-  description = "List of required status check contexts"
+variable "require_conversation_resolution" {
+  type        = bool
+  default     = true
+  description = "Require conversation resolution before merging"
 }
 
 # =============================================================================
-# SECRETS - Passed via TF_VAR_* environment variables, managed via for_each
+# SECRETS - Passed via TF_VAR_* environment variables
 # =============================================================================
 
 variable "ci_github_token" {
@@ -179,7 +145,7 @@ variable "ollama_api_key" {
 locals {
   repo_files = "${path.root}/../../../repository-files"
 
-  # Repository settings - standardized across all repos
+  # Repository settings - standardized across all repos (matching Strata)
   repo_settings = {
     allow_squash_merge     = true
     allow_merge_commit     = false
@@ -189,51 +155,7 @@ locals {
     vulnerability_alerts   = true
   }
 
-  # Main branch protection settings
-  main_branch_protection = {
-    required_approvals              = 0
-    dismiss_stale_reviews           = false
-    require_code_owner_reviews      = false
-    require_last_push_approval      = false
-    require_conversation_resolution = true
-    required_linear_history         = var.required_linear_history
-    require_signed_commits          = var.require_signed_commits
-    allow_force_pushes              = var.allow_force_pushes
-    allow_deletions                 = var.allow_deletions
-    lock_branch                     = var.lock_branch
-  }
-
-  # Feature branch protection - lighter than main
-  feature_branch_protection = {
-    allow_deletions    = true
-    allow_force_pushes = false
-  }
-
-  # Convert branch patterns to refs/heads/ format for rulesets
-  # GitHub rulesets require the refs/heads/ prefix for branch patterns
-  feature_branch_refs = [
-    for pattern in var.feature_branch_patterns :
-    "refs/heads/${pattern}"
-  ]
-
-  # DRY secrets map - only include non-empty secrets
-  secrets_map = {
-    CI_GITHUB_TOKEN    = var.ci_github_token
-    PYPI_TOKEN         = var.pypi_token
-    NPM_TOKEN          = var.npm_token
-    DOCKERHUB_USERNAME = var.dockerhub_username
-    DOCKERHUB_TOKEN    = var.dockerhub_token
-    ANTHROPIC_API_KEY  = var.anthropic_api_key
-    OLLAMA_API_KEY     = var.ollama_api_key
-  }
-
-  # Filter to only non-empty secrets
-  secrets_to_sync = {
-    for name, value in local.secrets_map :
-    name => value if value != ""
-  }
-
-  # File sync - exclude directories, binary files, and special files
+  # File sync - exclude binary files
   always_sync_files = {
     for file in setunion(
       fileset("${local.repo_files}/always-sync", "**/*"),
@@ -305,11 +227,11 @@ resource "github_repository" "this" {
 }
 
 # =============================================================================
-# BRANCH PROTECTION RULESETS (Modern API - replaces deprecated branch_protection)
+# RULESET: Main Branch Protection (based on Strata)
 # =============================================================================
 
 resource "github_repository_ruleset" "main" {
-  name        = "main-branch-protection"
+  name        = "Main"
   repository  = github_repository.this.name
   target      = "branch"
   enforcement = "active"
@@ -322,61 +244,16 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
-    deletion                = !local.main_branch_protection.allow_deletions
-    non_fast_forward        = !local.main_branch_protection.allow_force_pushes
-    required_linear_history = local.main_branch_protection.required_linear_history
-    required_signatures     = local.main_branch_protection.require_signed_commits
-    update                  = local.main_branch_protection.lock_branch
+    non_fast_forward        = true
+    required_linear_history = var.required_linear_history
 
     pull_request {
-      required_approving_review_count   = local.main_branch_protection.required_approvals
-      dismiss_stale_reviews_on_push     = local.main_branch_protection.dismiss_stale_reviews
-      require_code_owner_review         = local.main_branch_protection.require_code_owner_reviews
-      require_last_push_approval        = local.main_branch_protection.require_last_push_approval
-      required_review_thread_resolution = local.main_branch_protection.require_conversation_resolution
+      required_approving_review_count   = var.required_approving_review_count
+      dismiss_stale_reviews_on_push     = false
+      require_code_owner_review         = false
+      require_last_push_approval        = false
+      required_review_thread_resolution = var.require_conversation_resolution
     }
-
-    dynamic "required_status_checks" {
-      for_each = length(var.required_status_checks_contexts) > 0 ? [1] : []
-      content {
-        strict_required_status_checks_policy = var.required_status_checks_strict
-        dynamic "required_check" {
-          for_each = var.required_status_checks_contexts
-          content {
-            context = required_check.value
-          }
-        }
-      }
-    }
-  }
-
-  bypass_actors {
-    actor_id    = 5 # Repository admin role
-    actor_type  = "RepositoryRole"
-    bypass_mode = "always"
-  }
-}
-
-# Feature branch protection ruleset - only created if patterns are provided
-resource "github_repository_ruleset" "feature" {
-  count = length(var.feature_branch_patterns) > 0 ? 1 : 0
-
-  name        = "feature-branch-protection"
-  repository  = github_repository.this.name
-  target      = "branch"
-  enforcement = "active"
-
-  conditions {
-    ref_name {
-      # Use refs/heads/ prefix for branch patterns as required by GitHub API
-      include = local.feature_branch_refs
-      exclude = []
-    }
-  }
-
-  rules {
-    deletion         = !local.feature_branch_protection.allow_deletions
-    non_fast_forward = !local.feature_branch_protection.allow_force_pushes
   }
 
   bypass_actors {
@@ -425,15 +302,56 @@ resource "github_repository_file" "initial" {
 }
 
 # =============================================================================
-# SECRETS - DRY implementation using for_each
+# SECRETS - Individual resources (for_each with sensitive values not allowed)
 # =============================================================================
 
-resource "github_actions_secret" "managed" {
-  for_each = local.secrets_to_sync
-
+resource "github_actions_secret" "ci_github_token" {
+  count           = var.ci_github_token != "" ? 1 : 0
   repository      = github_repository.this.name
-  secret_name     = each.key
-  plaintext_value = each.value
+  secret_name     = "CI_GITHUB_TOKEN"
+  plaintext_value = var.ci_github_token
+}
+
+resource "github_actions_secret" "pypi_token" {
+  count           = var.pypi_token != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "PYPI_TOKEN"
+  plaintext_value = var.pypi_token
+}
+
+resource "github_actions_secret" "npm_token" {
+  count           = var.npm_token != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "NPM_TOKEN"
+  plaintext_value = var.npm_token
+}
+
+resource "github_actions_secret" "dockerhub_username" {
+  count           = var.dockerhub_username != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "DOCKERHUB_USERNAME"
+  plaintext_value = var.dockerhub_username
+}
+
+resource "github_actions_secret" "dockerhub_token" {
+  count           = var.dockerhub_token != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "DOCKERHUB_TOKEN"
+  plaintext_value = var.dockerhub_token
+}
+
+resource "github_actions_secret" "anthropic_api_key" {
+  count           = var.anthropic_api_key != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "ANTHROPIC_API_KEY"
+  plaintext_value = var.anthropic_api_key
+}
+
+resource "github_actions_secret" "ollama_api_key" {
+  count           = var.ollama_api_key != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "OLLAMA_API_KEY"
+  plaintext_value = var.ollama_api_key
 }
 
 # =============================================================================
@@ -466,19 +384,4 @@ output "main_ruleset" {
     enforcement = github_repository_ruleset.main.enforcement
   }
   description = "Main branch protection ruleset"
-}
-
-output "feature_ruleset" {
-  value = length(var.feature_branch_patterns) > 0 ? {
-    name        = github_repository_ruleset.feature[0].name
-    enforcement = github_repository_ruleset.feature[0].enforcement
-    patterns    = local.feature_branch_refs
-  } : null
-  description = "Feature branch protection ruleset"
-}
-
-output "secrets_synced" {
-  value       = keys(local.secrets_to_sync)
-  description = "List of secrets synced to repository"
-  sensitive   = false
 }

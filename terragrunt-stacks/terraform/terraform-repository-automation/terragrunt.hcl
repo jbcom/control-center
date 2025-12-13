@@ -6,24 +6,21 @@ terraform {
   source = "../../modules/repository"
 }
 
-# Read common settings from root
 locals {
   root_config = read_terragrunt_config(find_in_parent_folders())
-  common      = local.root_config.locals.common_branch_protection
+  common      = local.root_config.locals.common_settings
 }
 
-# Merge common branch protection with repo-specific settings
 inputs = merge(
   local.common,
   {
-    name                       = "terraform-repository-automation"
-    language                   = "terraform"
-    has_wiki                   = true
-    has_discussions            = false
-    has_pages                  = true
-    
+    name            = "terraform-repository-automation"
+    language        = "terraform"
+    has_wiki        = true
+    has_discussions = false
+    has_pages       = true
+
     # Terraform repos require stricter review
-    required_approvals         = 1
-    require_code_owner_reviews = true
+    required_approving_review_count = 1
   }
 )
