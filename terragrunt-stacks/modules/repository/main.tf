@@ -366,8 +366,7 @@ locals {
   repo_files = "${path.root}/../../../repository-files"
 
   # Dynamically discover all files in always-sync directory
-  # Using try() to handle missing directories gracefully
-  always_sync_file_list = var.sync_files ? try(fileset("${local.repo_files}/always-sync", "**/*"), []) : []
+  always_sync_file_list = var.sync_files ? fileset("${local.repo_files}/always-sync", "**/*") : []
   
   # Build map of destination -> source for always-sync files
   always_sync_files = var.sync_files ? {
@@ -376,8 +375,7 @@ locals {
   } : {}
 
   # Dynamically discover all files in language-specific directory
-  # Using try() to handle missing directories gracefully
-  language_file_list = var.sync_files ? try(fileset("${local.repo_files}/${var.language}", "**/*"), []) : []
+  language_file_list = var.sync_files ? fileset("${local.repo_files}/${var.language}", "**/*") : []
   
   # Build map of destination -> source for language-specific files
   language_files = var.sync_files ? {
@@ -386,8 +384,7 @@ locals {
   } : {}
 
   # Dynamically discover all files in initial-only directory
-  # Using try() to handle missing directories gracefully
-  initial_only_file_list = var.sync_files ? try(fileset("${local.repo_files}/initial-only", "**/*"), []) : []
+  initial_only_file_list = var.sync_files ? fileset("${local.repo_files}/initial-only", "**/*") : []
   
   # Build map of destination -> source for initial-only files
   initial_only_files = var.sync_files ? {
