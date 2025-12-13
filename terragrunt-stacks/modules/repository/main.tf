@@ -397,6 +397,61 @@ output "initial_files" {
   value = keys(local.initial_only_files)
 }
 
+# Feature branch ruleset - only created when feature_branch_patterns is non-empty
+resource "github_repository_ruleset" "feature" {
+  count = length(var.feature_branch_patterns) > 0 ? 1 : 0
+
+  name        = "Feature"
+  repository  = github_repository.this.name
+  target      = "branch"
+  enforcement = "active"
+
+  conditions {
+    ref_name {
+      include = var.feature_branch_patterns
+      exclude = []
+    }
+  }
+
+  rules {
+    # Feature branches typically allow force pushes and deletions for rebasing/cleanup
+    deletion         = !var.feature_allow_deletions
+    non_fast_forward = !var.feature_allow_force_pushes
+
+    # Only add pull_request block if we need any PR settings
+    dynamic "pull_request" {
+      for_each = var.feature_required_approvals > 0 || var.feature_require_conversation_resolution ? [1] : []
+      content {
+        required_approving_review_count   = var.feature_required_approvals
+        dismiss_stale_reviews_on_push     = false
+        require_code_owner_review         = false
+        require_last_push_approval        = false
+        required_review_thread_resolution = var.feature_require_conversation_resolution
+      }
+    }
+
+    # Only add status checks if specified
+    dynamic "required_status_checks" {
+      for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
+      content {
+        strict_required_status_checks_policy = false
+        dynamic "required_check" {
+          for_each = var.feature_required_status_checks_contexts
+          content {
+            context = required_check.value
+          }
+        }
+      }
+    }
+  }
+
+  bypass_actors {
+    actor_id    = 5 # Repository admin role
+    actor_type  = "RepositoryRole"
+    bypass_mode = "always"
+  }
+}
+
 output "main_ruleset" {
   value = {
     name        = github_repository_ruleset.main.name
@@ -408,6 +463,15 @@ output "main_ruleset" {
 output "feature_branch_patterns" {
   value       = var.feature_branch_patterns
   description = "Protected feature branch patterns"
+}
+
+output "feature_ruleset" {
+  value = length(var.feature_branch_patterns) > 0 ? {
+    name        = github_repository_ruleset.feature[0].name
+    enforcement = github_repository_ruleset.feature[0].enforcement
+    patterns    = var.feature_branch_patterns
+  } : null
+  description = "Feature branch ruleset settings (null if no feature patterns configured)"
 }
 
 # GitHub Actions Secrets
