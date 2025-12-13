@@ -355,28 +355,32 @@ output "id" {
 # =============================================================================
 
 locals {
-  # Path to repository-files relative to this module
   repo_files = "${path.root}/../../../repository-files"
 
-  # Always-sync: one fileset call with **/* globbing
+  # Always-sync: **/* for regular files, **/.[!.]* for dotfiles
   always_sync_files = {
-    for file in fileset("${local.repo_files}/always-sync", "**/*") :
-    file => "${local.repo_files}/always-sync/${file}"
+    for file in setunion(
+      fileset("${local.repo_files}/always-sync", "**/*"),
+      fileset("${local.repo_files}/always-sync", "**/.[!.]*")
+    ) : file => "${local.repo_files}/always-sync/${file}"
   }
 
-  # Language-specific files: one fileset call
+  # Language-specific
   language_files = {
-    for file in fileset("${local.repo_files}/${var.language}", "**/*") :
-    file => "${local.repo_files}/${var.language}/${file}"
+    for file in setunion(
+      fileset("${local.repo_files}/${var.language}", "**/*"),
+      fileset("${local.repo_files}/${var.language}", "**/.[!.]*")
+    ) : file => "${local.repo_files}/${var.language}/${file}"
   }
 
-  # Initial-only: one fileset call with **/* globbing
+  # Initial-only
   initial_only_files = {
-    for file in fileset("${local.repo_files}/initial-only", "**/*") :
-    file => "${local.repo_files}/initial-only/${file}"
+    for file in setunion(
+      fileset("${local.repo_files}/initial-only", "**/*"),
+      fileset("${local.repo_files}/initial-only", "**/.[!.]*")
+    ) : file => "${local.repo_files}/initial-only/${file}"
   }
 
-  # Merge always-sync + language-specific for synced files
   all_synced_files = merge(local.always_sync_files, local.language_files)
 }
 
