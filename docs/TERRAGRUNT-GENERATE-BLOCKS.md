@@ -108,7 +108,20 @@ The script runs automatically in CI as part of the terraform-sync workflow.
 3. **Different providers:** Don't include root config, define your own
 4. **Validate:** Run validation script before `terragrunt run-all`
 
+## Troubleshooting
+
+If you encounter the error:
+```
+Error: Detected generate blocks with the same name: [provider backend]
+```
+
+1. Run the validation script: `./scripts/validate-terragrunt-generate-blocks.sh`
+2. Check which stacks have conflicting generate block names
+3. Either remove the `include "root"` or rename the generate blocks to be unique
+4. Verify with `terragrunt run-all plan --terragrunt-non-interactive`
+
 ## References
 
 - [Terragrunt Generate Blocks Documentation](https://terragrunt.gruntwork.io/docs/reference/config-blocks-and-attributes/#generate)
 - [Terragrunt Include Documentation](https://terragrunt.gruntwork.io/docs/reference/config-blocks-and-attributes/#include)
+- [Terragrunt Troubleshooting Guide](https://terragrunt.gruntwork.io/docs/getting-started/troubleshooting/)

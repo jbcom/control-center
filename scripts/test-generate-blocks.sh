@@ -5,13 +5,17 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TEST_DIR="/tmp/terragrunt-generate-test-$$"
+# Use mktemp for secure temporary directory
+TEST_DIR=$(mktemp -d)
 
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
+
+# Ensure cleanup on exit
+trap 'cd / && rm -rf "$TEST_DIR"' EXIT
 
 echo "Testing Terragrunt Generate Blocks Validation"
 echo "=============================================="
@@ -120,9 +124,7 @@ if ! grep -q 'include "root"' standalone/terragrunt.hcl 2>/dev/null; then
 fi
 echo
 
-# Cleanup
-cd /
-rm -rf "$TEST_DIR"
+# Cleanup will happen automatically via trap on EXIT
 
 echo "=============================================="
 echo -e "${GREEN}All tests passed!${NC}"

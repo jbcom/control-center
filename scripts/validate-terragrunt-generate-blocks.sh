@@ -24,7 +24,8 @@ has_errors=0
 while IFS= read -r -d '' terragrunt_file; do
     # Get the directory containing this terragrunt.hcl
     stack_dir=$(dirname "$terragrunt_file")
-    stack_name=$(realpath --relative-to="$TERRAGRUNT_STACKS_DIR" "$stack_dir")
+    # Portable relative path calculation
+    stack_name="${stack_dir#$TERRAGRUNT_STACKS_DIR/}"
     
     # Skip if this is the root config (it's meant to be inherited)
     if [ "$terragrunt_file" = "$TERRAGRUNT_STACKS_DIR/terragrunt.hcl" ]; then
