@@ -137,6 +137,55 @@ variable "required_status_checks_contexts" {
   description = "List of required status check contexts (e.g., ['ci/build', 'ci/test'])"
 }
 
+variable "require_conversation_resolution" {
+  type        = bool
+  default     = true
+  description = "Require all PR conversations to be resolved before merging"
+}
+
+variable "lock_branch" {
+  type        = bool
+  default     = false
+  description = "Lock branch to make it read-only (prevents all pushes)"
+}
+
+# Feature branch protection configuration
+variable "feature_branch_patterns" {
+  type        = list(string)
+  default     = []
+  description = "List of branch patterns for feature branches (e.g., ['feature/*', 'bugfix/*'])"
+}
+
+variable "feature_required_approvals" {
+  type        = number
+  default     = 0
+  description = "Number of required approvals for feature branches"
+}
+
+variable "feature_required_status_checks_contexts" {
+  type        = list(string)
+  default     = []
+  description = "List of required status check contexts for feature branches"
+}
+
+variable "feature_allow_force_pushes" {
+  type        = bool
+  default     = false
+  description = "Allow force pushes to feature branches"
+}
+
+variable "feature_allow_deletions" {
+  type        = bool
+  default     = true
+  description = "Allow deletion of feature branches (typically true for cleanup)"
+}
+
+variable "feature_require_conversation_resolution" {
+  type        = bool
+  default     = false
+  description = "Require conversation resolution on feature branches (typically false for lighter protection)"
+}
+
 # Secrets to sync to the repository
 # These are passed as TF_VAR_* environment variables from the workflow
 variable "ci_github_token" {
@@ -178,6 +227,13 @@ variable "anthropic_api_key" {
   type        = string
   sensitive   = true
   description = "Anthropic API key for AI features"
+  default     = ""
+}
+
+variable "ollama_api_key" {
+  type        = string
+  sensitive   = true
+  description = "Ollama Cloud API key for AI triage"
   default     = ""
 }
 
@@ -251,10 +307,45 @@ resource "github_branch_protection" "main" {
     contexts = var.required_status_checks_contexts
   }
 
-  required_linear_history = var.required_linear_history
-  require_signed_commits  = var.require_signed_commits
-  allows_force_pushes     = var.allow_force_pushes
-  allows_deletions        = var.allow_deletions
+  required_linear_history         = var.required_linear_history
+  require_signed_commits          = var.require_signed_commits
+  require_conversation_resolution = var.require_conversation_resolution
+  allows_force_pushes             = var.allow_force_pushes
+  allows_deletions                = var.allow_deletions
+  lock_branch                     = var.lock_branch
+}
+
+# Feature branch protection - separate rules for non-main branches
+# Allows lighter protection on feature/bugfix/etc branches while keeping main strict
+resource "github_branch_protection" "feature" {
+  for_each = toset(var.feature_branch_patterns)
+
+  repository_id = github_repository.this.node_id
+  pattern       = each.value
+
+  # Feature branches typically have lighter requirements
+  # Adjust based on team workflow needs
+  dynamic "required_pull_request_reviews" {
+    for_each = var.feature_required_approvals > 0 ? [1] : []
+    content {
+      required_approving_review_count = var.feature_required_approvals
+    }
+  }
+
+  # Optional status checks for feature branches
+  dynamic "required_status_checks" {
+    for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
+    content {
+      strict   = false # Feature branches don't need to be up-to-date with base
+      contexts = var.feature_required_status_checks_contexts
+    }
+  }
+
+  allows_force_pushes = var.feature_allow_force_pushes
+  allows_deletions    = var.feature_allow_deletions
+
+  # Feature branches can have independent conversation resolution policy
+  require_conversation_resolution = var.feature_require_conversation_resolution
 }
 
 output "url" {
@@ -276,12 +367,26 @@ locals {
 
   # Always-sync files (overwrite every time)
   always_sync_files = var.sync_files ? {
+    # Cursor rules
     ".cursor/rules/00-fundamentals.mdc" = "${local.repo_files}/always-sync/.cursor/rules/00-fundamentals.mdc"
     ".cursor/rules/01-pr-workflow.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/01-pr-workflow.mdc"
     ".cursor/rules/02-memory-bank.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/02-memory-bank.mdc"
     ".cursor/rules/ci.mdc"              = "${local.repo_files}/always-sync/.cursor/rules/ci.mdc"
     ".cursor/rules/releases.mdc"        = "${local.repo_files}/always-sync/.cursor/rules/releases.mdc"
+
+    # GitHub workflows
     ".github/workflows/claude-code.yml" = "${local.repo_files}/always-sync/.github/workflows/claude-code.yml"
+
+    # GitHub community files
+    ".github/PULL_REQUEST_TEMPLATE.md" = "${local.repo_files}/always-sync/.github/PULL_REQUEST_TEMPLATE.md"
+    ".github/CODEOWNERS"               = "${local.repo_files}/always-sync/.github/CODEOWNERS"
+    ".github/dependabot.yml"           = "${local.repo_files}/always-sync/.github/dependabot.yml"
+
+    # AI agent instructions
+    ".github/agents/README.md"          = "${local.repo_files}/always-sync/.github/agents/README.md"
+    ".github/agents/code-reviewer.md"   = "${local.repo_files}/always-sync/.github/agents/code-reviewer.md"
+    ".github/agents/test-runner.md"     = "${local.repo_files}/always-sync/.github/agents/test-runner.md"
+    ".github/agents/project-manager.md" = "${local.repo_files}/always-sync/.github/agents/project-manager.md"
   } : {}
 
   # Language-specific files (always sync)
@@ -305,8 +410,22 @@ locals {
 
   # Initial-only files (create once, repos customize after)
   initial_only_files = var.sync_files ? {
-    ".cursor/environment.json"             = "${local.repo_files}/initial-only/.cursor/environment.json"
-    ".github/workflows/docs.yml"           = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+    # Cursor environment
+    ".cursor/environment.json" = "${local.repo_files}/initial-only/.cursor/environment.json"
+    ".cursor/Dockerfile"       = "${local.repo_files}/initial-only/.cursor/Dockerfile"
+
+    # GitHub workflows
+    ".github/workflows/docs.yml" = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+
+    # Issue templates (repos customize after creation)
+    ".github/ISSUE_TEMPLATE/config.yml"  = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/config.yml"
+    ".github/ISSUE_TEMPLATE/bug.yml"     = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/bug.yml"
+    ".github/ISSUE_TEMPLATE/feature.yml" = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/feature.yml"
+
+    # Security policy
+    ".github/SECURITY.md" = "${local.repo_files}/initial-only/.github/SECURITY.md"
+
+    # Documentation scaffold
     "docs/Makefile"                        = "${local.repo_files}/initial-only/docs/Makefile"
     "docs/conf.py"                         = "${local.repo_files}/initial-only/docs/conf.py"
     "docs/index.rst"                       = "${local.repo_files}/initial-only/docs/index.rst"
@@ -368,6 +487,20 @@ output "initial_files" {
   value = keys(local.initial_only_files)
 }
 
+output "main_branch_protection" {
+  value = {
+    pattern                         = github_branch_protection.main.pattern
+    require_conversation_resolution = github_branch_protection.main.require_conversation_resolution
+    required_linear_history         = github_branch_protection.main.required_linear_history
+  }
+  description = "Main branch protection settings"
+}
+
+output "feature_branch_patterns" {
+  value       = var.feature_branch_patterns
+  description = "Protected feature branch patterns"
+}
+
 # GitHub Actions Secrets
 # Sync secrets to the repository from environment variables
 
@@ -420,4 +553,12 @@ resource "github_actions_secret" "anthropic_api_key" {
   repository      = github_repository.this.name
   secret_name     = "ANTHROPIC_API_KEY"
   plaintext_value = var.anthropic_api_key
+}
+
+resource "github_actions_secret" "ollama_api_key" {
+  count = var.ollama_api_key != "" ? 1 : 0
+
+  repository      = github_repository.this.name
+  secret_name     = "OLLAMA_API_KEY"
+  plaintext_value = var.ollama_api_key
 }
