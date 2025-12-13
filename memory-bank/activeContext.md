@@ -185,3 +185,61 @@ repository-files/
 - CI will validate on push
 - All acceptance criteria met
 
+
+---
+
+## Session: 2025-12-13 (TFE Workspace Attributes Fix)
+
+### Issue
+- Terragrunt GitHub Actions workflow failing due to deprecated attribute in `tfe_workspace` resource
+- Location: `terragrunt-stacks/modules/tfe-workspaces/main.tf` line 80
+
+### Root Cause
+- `global_remote_state` attribute was deprecated in TFE provider v0.61.0
+- Attribute moved from `tfe_workspace` to `tfe_workspace_settings` resource
+- Using provider v0.71.0 with deprecated attribute pattern
+
+### Solution Implemented
+
+1. **Analyzed all attributes** in `tfe_workspace` resource:
+   - ✅ Verified 9 attributes against provider v0.71.0 schema
+   - ⚠️ Identified `global_remote_state` as deprecated
+   - ✅ Confirmed `allow_destroy_plan` is still valid
+
+2. **Applied fix**:
+   - Removed `global_remote_state` from `tfe_workspace` resource
+   - Created new `tfe_workspace_settings` resource
+   - Moved `global_remote_state` to new resource
+   - Added comprehensive documentation with provider links
+
+3. **Maintained backward compatibility**:
+   - Variable still accepted as input
+   - No changes needed in `bootstrap/terragrunt.hcl`
+   - Same functionality with updated provider pattern
+
+### Verified
+- ✅ `terraform validate` passes
+- ✅ `terragrunt init` succeeds  
+- ✅ Code review passed (no issues)
+- ✅ CodeQL security check (N/A for HCL)
+- ✅ All attributes cross-verified against schema
+
+### Changes
+- **File**: `terragrunt-stacks/modules/tfe-workspaces/main.tf`
+- **Lines modified**: Removed lines 97-98, added lines 120-131
+- **Resources**: 1 modified (`tfe_workspace`), 1 added (`tfe_workspace_settings`)
+- **Documentation**: Added 6 comment lines with provider references
+
+### References
+- Issue reference: f211ede7fdaac2b2bc79d729b0ce4a018a550653
+- Fix commit: 265e5cf
+- Provider docs: https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/workspace
+- Settings docs: https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/workspace_settings
+- Changelog: https://github.com/hashicorp/terraform-provider-tfe/blob/main/CHANGELOG.md#v0610
+
+### For Next Agent
+- PR ready for merge
+- CI workflow should pass after merge
+- Bootstrap workspace configuration tested and validated
+- All 18 repository workspaces will use new pattern
+

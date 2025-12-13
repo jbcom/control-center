@@ -77,6 +77,8 @@ data "tfe_organization" "this" {
 }
 
 # Create a workspace for each repository
+# Ref: https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/workspace
+# Note: global_remote_state was moved to tfe_workspace_settings resource (see below)
 resource "tfe_workspace" "repo" {
   for_each = var.repositories
 
@@ -93,9 +95,6 @@ resource "tfe_workspace" "repo" {
 
   # Allow destroy operations
   allow_destroy_plan = var.allow_destroy_plan
-
-  # Enable global remote state sharing
-  global_remote_state = var.global_remote_state
 
   # VCS integration (optional - can be CLI-driven instead)
   dynamic "vcs_repo" {
@@ -116,6 +115,19 @@ resource "tfe_workspace" "repo" {
   lifecycle {
     prevent_destroy = true
   }
+}
+
+# Workspace settings resource to manage remote state sharing
+# Ref: https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/workspace_settings
+# Note: global_remote_state was deprecated in tfe_workspace (v0.61.0) and moved here
+resource "tfe_workspace_settings" "repo" {
+  for_each = var.repositories
+
+  workspace_id = tfe_workspace.repo[each.key].id
+
+  # Enable global remote state sharing
+  # Ref: https://registry.terraform.io/providers/hashicorp/tfe/latest/docs/resources/workspace_settings#global_remote_state
+  global_remote_state = var.global_remote_state
 }
 
 # Create workspace variables for GitHub token (required for all workspaces)
