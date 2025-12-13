@@ -15,7 +15,7 @@ terraform {
   source = "../modules/tfe-workspaces"
 }
 
-# Configure backend - bootstrap uses its own workspace
+# Configure backend - bootstrap uses the main control center workspace
 generate "backend" {
   path      = "backend.tf"
   if_exists = "overwrite_terragrunt"
@@ -25,7 +25,7 @@ terraform {
     organization = "jbcom"
     
     workspaces {
-      name = "jbcom-bootstrap"
+      name = "jbcom-control-center"
     }
   }
 }
