@@ -44,7 +44,9 @@ jobs:
       # - admin:org (read) - for organization membership checks
       # - workflow (write) - for GitHub Actions workflow modifications
       GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-      TF_TOKEN_app_terraform_io: ${{ secrets.TF_API_TOKEN }}
+      # TF_TOKEN_app_terraform_io is the env var Terraform Cloud expects
+      # The secret is named TF_TOKEN_APP_TERRAFORM_IO (same token used for backend + TFE provider)
+      TF_TOKEN_app_terraform_io: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
       
       # Secrets to sync to all repositories via Terraform
       # These are passed as TF_VAR_* environment variables
@@ -54,6 +56,7 @@ jobs:
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+      TF_VAR_ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
 
     steps:
       - name: Checkout
@@ -68,7 +71,7 @@ jobs:
         with:
           terraform_version: "1.14.1"
           terraform_wrapper: false
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          cli_config_credentials_token: ${{ secrets.TF_TOKEN_APP_TERRAFORM_IO }}
           cli_config_credentials_hostname: app.terraform.io
 
       - name: Setup Terragrunt
