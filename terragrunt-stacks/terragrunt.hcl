@@ -2,6 +2,12 @@
 # Common settings inherited by all units
 
 locals {
+  # GitHub owner - use jbdevprimary until repos are transferred to jbcom org
+  github_owner = "jbdevprimary"
+  
+  # Terraform Cloud organization (already set up as jbcom)
+  tfc_organization = "jbcom"
+
   # All repository names by category
   python_repos = [
     "agentic-crew", "ai_game_dev", "directed-inputs-class", "extended-data-types",
@@ -13,6 +19,34 @@ locals {
   ]
   go_repos = ["port-api", "vault-secret-sync"]
   terraform_repos = ["terraform-github-markdown", "terraform-repository-automation"]
+
+  # All repos combined for workspace provisioning
+  all_repos = concat(
+    local.python_repos,
+    local.nodejs_repos,
+    local.go_repos,
+    local.terraform_repos
+  )
+
+  # Common branch protection defaults (DRY - defined once, used everywhere)
+  common_branch_protection = {
+    # Main branch protection - strict
+    require_conversation_resolution = true
+    required_linear_history         = false
+    allow_force_pushes              = false
+    allow_deletions                 = false
+    
+    # Feature branch patterns - all repos get these
+    feature_branch_patterns = [
+      "feature/*",
+      "bugfix/*",
+      "hotfix/*",
+      "fix/*",
+      "feat/*"
+    ]
+    feature_allow_deletions    = true
+    feature_allow_force_pushes = false
+  }
 }
 
 # Generate GitHub provider
@@ -31,7 +65,7 @@ terraform {
 }
 
 provider "github" {
-  owner = "jbcom"
+  owner = "${local.github_owner}"
 }
 EOF
 }
@@ -44,7 +78,7 @@ generate "backend" {
   contents  = <<EOF
 terraform {
   cloud {
-    organization = "jbcom"
+    organization = "${local.tfc_organization}"
     
     workspaces {
       name = "jbcom-repo-${basename(get_terragrunt_dir())}"

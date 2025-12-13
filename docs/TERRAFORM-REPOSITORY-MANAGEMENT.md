@@ -34,9 +34,12 @@ The previous sync workflow had several issues:
 
 ```
 terragrunt-stacks/
-├── terragrunt.hcl                    # Root config (provider, backend)
+├── terragrunt.hcl                    # Root config (provider, backend, common settings)
+├── bootstrap/
+│   └── terragrunt.hcl                # TFE workspace provisioning (run FIRST)
 ├── modules/
-│   └── repository/main.tf            # Shared repository module
+│   ├── repository/main.tf            # Shared repository module
+│   └── tfe-workspaces/main.tf        # TFE workspace provisioning module
 ├── python/
 │   ├── agentic-crew/terragrunt.hcl
 │   ├── ai_game_dev/terragrunt.hcl
@@ -54,9 +57,15 @@ terragrunt-stacks/
 repository-files/
 ├── always-sync/                      # Overwritten every apply
 │   ├── .cursor/rules/               # Cursor IDE rules
-│   └── .github/workflows/           # Claude workflow
+│   ├── .github/workflows/           # Claude workflow
+│   ├── .github/agents/              # AI agent instructions
+│   ├── .github/PULL_REQUEST_TEMPLATE.md
+│   ├── .github/CODEOWNERS
+│   └── .github/dependabot.yml
 ├── initial-only/                     # Created once, repos customize
 │   ├── .cursor/                     # Environment config
+│   ├── .github/ISSUE_TEMPLATE/      # Bug/Feature templates
+│   ├── .github/SECURITY.md
 │   └── docs/                        # Documentation scaffold
 ├── python/                           # Python-specific rules
 ├── nodejs/                           # Node.js-specific rules
@@ -109,8 +118,16 @@ Repositories are managed in 4 language categories:
 - Build type: GitHub Actions workflow
 
 ### File Sync (`github_repository_file`)
-- **Always-sync files**: Cursor rules, Claude workflow (overwritten every apply)
-- **Initial-only files**: Docs scaffold, environment config (created once)
+- **Always-sync files** (overwritten every apply):
+  - Cursor rules (fundamentals, PR workflow, memory bank, CI, releases)
+  - Claude Code workflow
+  - AI agent instructions (code-reviewer, test-runner, project-manager)
+  - PR template, CODEOWNERS, dependabot.yml
+- **Initial-only files** (created once, repos customize):
+  - Cursor environment config
+  - Issue templates (bug, feature, config)
+  - Security policy
+  - Documentation scaffold
 - **Language-specific rules**: Python, Node.js, Go, Terraform rules
 
 ### Secrets (`github_actions_secret`)
@@ -118,6 +135,48 @@ Repositories are managed in 4 language categories:
 - Syncs: CI_GITHUB_TOKEN, PYPI_TOKEN, NPM_TOKEN, DOCKERHUB_USERNAME, DOCKERHUB_TOKEN, ANTHROPIC_API_KEY
 - Secrets passed as TF_VAR_* environment variables from terraform-sync.yml workflow
 - Only non-empty secrets are synced
+
+## Initial Setup (Bootstrap)
+
+Before running any repository stacks, you must provision the TFE workspaces.
+The same `TF_API_TOKEN` is used for **both** backend authentication and the TFE provider.
+
+### 1. Set up authentication
+
+```bash
+# Single token for everything
+export TF_API_TOKEN="your-terraform-cloud-api-token"
+```
+
+### 2. Provision TFE workspaces
+
+```bash
+cd terragrunt-stacks/bootstrap
+terragrunt init
+terragrunt plan   # Review workspace creation
+terragrunt apply  # Create all 18 workspaces
+```
+
+This creates:
+- `jbcom-repo-{repo-name}` workspace for each repository
+- Pre-configured with correct working directories
+- GITHUB_TOKEN variable placeholder (set value via TFC UI)
+
+### 3. Set workspace variables
+
+After bootstrap, set the `GITHUB_TOKEN` value in each workspace via:
+- Terraform Cloud UI: `app.terraform.io/app/jbcom/workspaces/{workspace}/variables`
+- Or use the TFE API/CLI
+
+### 4. Run repository stacks
+
+Now individual repository stacks will work:
+
+```bash
+cd terragrunt-stacks/python/agentic-crew
+terragrunt plan
+terragrunt apply
+```
 
 ## Usage
 
@@ -316,6 +375,14 @@ Ensure `TF_API_TOKEN` secret is set in GitHub Actions:
 - Generate a team or user API token at https://app.terraform.io/app/settings/tokens
 - Token needs permissions to manage workspaces in the `jbcom` organization
 - The workflow automatically configures credentials via `cli_config_credentials_token`
+- **Note**: The same token is used for BOTH backend auth and TFE provider API calls
+
+### Workspaces Not Found
+
+If you get "workspace not found" errors:
+1. Run the bootstrap stack first: `cd terragrunt-stacks/bootstrap && terragrunt apply`
+2. Verify workspaces exist: `https://app.terraform.io/app/jbcom/workspaces`
+3. Check workspace naming matches: `jbcom-repo-{repo-name}`
 
 ### GitHub Authentication Errors
 
@@ -326,9 +393,11 @@ Ensure `CI_GITHUB_TOKEN` is set with appropriate permissions:
 ### Import Errors
 
 The module uses Terraform 1.5+ import blocks. If import fails:
-1. Verify repository exists: `gh repo view jbcom/<repo>`
+1. Verify repository exists: `gh repo view jbdevprimary/<repo>`
 2. Check token permissions
 3. Verify branch protection exists
+
+**Note**: Repos are currently under `jbdevprimary` until transfer to `jbcom` org is complete.
 
 ### File Sync Errors
 

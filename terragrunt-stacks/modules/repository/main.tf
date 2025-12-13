@@ -354,12 +354,26 @@ locals {
 
   # Always-sync files (overwrite every time)
   always_sync_files = var.sync_files ? {
+    # Cursor rules
     ".cursor/rules/00-fundamentals.mdc" = "${local.repo_files}/always-sync/.cursor/rules/00-fundamentals.mdc"
     ".cursor/rules/01-pr-workflow.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/01-pr-workflow.mdc"
     ".cursor/rules/02-memory-bank.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/02-memory-bank.mdc"
     ".cursor/rules/ci.mdc"              = "${local.repo_files}/always-sync/.cursor/rules/ci.mdc"
     ".cursor/rules/releases.mdc"        = "${local.repo_files}/always-sync/.cursor/rules/releases.mdc"
+    
+    # GitHub workflows
     ".github/workflows/claude-code.yml" = "${local.repo_files}/always-sync/.github/workflows/claude-code.yml"
+    
+    # GitHub community files
+    ".github/PULL_REQUEST_TEMPLATE.md" = "${local.repo_files}/always-sync/.github/PULL_REQUEST_TEMPLATE.md"
+    ".github/CODEOWNERS"               = "${local.repo_files}/always-sync/.github/CODEOWNERS"
+    ".github/dependabot.yml"           = "${local.repo_files}/always-sync/.github/dependabot.yml"
+    
+    # AI agent instructions
+    ".github/agents/README.md"          = "${local.repo_files}/always-sync/.github/agents/README.md"
+    ".github/agents/code-reviewer.md"   = "${local.repo_files}/always-sync/.github/agents/code-reviewer.md"
+    ".github/agents/test-runner.md"     = "${local.repo_files}/always-sync/.github/agents/test-runner.md"
+    ".github/agents/project-manager.md" = "${local.repo_files}/always-sync/.github/agents/project-manager.md"
   } : {}
 
   # Language-specific files (always sync)
@@ -383,8 +397,22 @@ locals {
 
   # Initial-only files (create once, repos customize after)
   initial_only_files = var.sync_files ? {
+    # Cursor environment
     ".cursor/environment.json"             = "${local.repo_files}/initial-only/.cursor/environment.json"
+    ".cursor/Dockerfile"                   = "${local.repo_files}/initial-only/.cursor/Dockerfile"
+    
+    # GitHub workflows
     ".github/workflows/docs.yml"           = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
+    
+    # Issue templates (repos customize after creation)
+    ".github/ISSUE_TEMPLATE/config.yml"  = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/config.yml"
+    ".github/ISSUE_TEMPLATE/bug.yml"     = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/bug.yml"
+    ".github/ISSUE_TEMPLATE/feature.yml" = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/feature.yml"
+    
+    # Security policy
+    ".github/SECURITY.md" = "${local.repo_files}/initial-only/.github/SECURITY.md"
+    
+    # Documentation scaffold
     "docs/Makefile"                        = "${local.repo_files}/initial-only/docs/Makefile"
     "docs/conf.py"                         = "${local.repo_files}/initial-only/docs/conf.py"
     "docs/index.rst"                       = "${local.repo_files}/initial-only/docs/index.rst"
