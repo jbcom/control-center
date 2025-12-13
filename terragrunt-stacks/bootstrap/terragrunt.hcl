@@ -6,16 +6,16 @@
 #   terragrunt init
 #   terragrunt plan
 #   terragrunt apply
-
-include "root" {
-  path = find_in_parent_folders()
-}
+#
+# NOTE: This stack does NOT include the root config because it needs
+# completely different provider (TFE instead of GitHub) and backend settings.
+# This avoids duplicate generate block names when running terragrunt run-all.
 
 terraform {
   source = "../modules/tfe-workspaces"
 }
 
-# Override the backend - bootstrap uses its own workspace
+# Configure backend - bootstrap uses its own workspace
 generate "backend" {
   path      = "backend.tf"
   if_exists = "overwrite_terragrunt"
@@ -32,7 +32,7 @@ terraform {
 EOF
 }
 
-# Override the provider - bootstrap needs TFE provider, not GitHub
+# Configure provider - bootstrap needs TFE provider, not GitHub
 # NOTE: TF_API_TOKEN is used for BOTH backend auth AND TFE provider auth
 # The TFE provider automatically uses TFE_TOKEN or TF_API_TOKEN
 generate "provider" {

@@ -145,3 +145,43 @@ repository-files/
 ---
 
 *Updated: 2025-12-09*
+
+---
+
+## Session: 2025-12-13 (Terragrunt Duplicate Generate Blocks Fix)
+
+### Issue
+- `terragrunt run-all` failing with "Detected generate blocks with the same name: [provider backend]"
+- Root cause: bootstrap/terragrunt.hcl included root AND redefined same generate blocks
+
+### Solution Implemented
+1. **Fixed bootstrap config**: Removed `include "root"` from bootstrap/terragrunt.hcl
+   - Bootstrap needs different provider (TFE vs GitHub) and backend
+   - Still reads root config via `read_terragrunt_config()` for repo lists
+   
+2. **Added validation**: `scripts/validate-terragrunt-generate-blocks.sh`
+   - Checks all terragrunt.hcl for duplicate generate block names
+   - Runs in CI before Terraform validate
+   
+3. **Added testing**: `scripts/test-generate-blocks.sh`
+   - 3 test scenarios to verify validation logic
+   - Uses mktemp and trap for security
+   
+4. **Added docs**: `docs/TERRAGRUNT-GENERATE-BLOCKS.md`
+   - Problem explanation and solutions
+   - Best practices and troubleshooting
+
+### Verified
+✅ `terragrunt run-all plan` works without duplicate errors
+✅ Validation script passes
+✅ Test suite passes (3/3)
+✅ Bootstrap generates TFE provider correctly
+✅ Regular repos generate GitHub provider correctly
+✅ Code review completed (minor nitpicks only)
+✅ CodeQL security scan passed
+
+### For Next Agent
+- PR is ready for merge
+- CI will validate on push
+- All acceptance criteria met
+
