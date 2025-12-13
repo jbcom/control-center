@@ -64,6 +64,52 @@ variable "feature_branch_patterns" {
 }
 
 # =============================================================================
+# OPTIONAL VARIABLES - Branch protection settings
+# =============================================================================
+
+variable "require_signed_commits" {
+  type        = bool
+  default     = false
+  description = "Require signed commits on the default branch"
+}
+
+variable "allow_force_pushes" {
+  type        = bool
+  default     = false
+  description = "Allow force pushes to the default branch"
+}
+
+variable "allow_deletions" {
+  type        = bool
+  default     = false
+  description = "Allow deletion of the default branch"
+}
+
+variable "lock_branch" {
+  type        = bool
+  default     = false
+  description = "Lock the default branch (prevent any pushes)"
+}
+
+variable "required_linear_history" {
+  type        = bool
+  default     = false
+  description = "Require linear history on the default branch"
+}
+
+variable "required_status_checks_strict" {
+  type        = bool
+  default     = false
+  description = "Require branches to be up to date before merging"
+}
+
+variable "required_status_checks_contexts" {
+  type        = list(string)
+  default     = []
+  description = "List of required status check contexts"
+}
+
+# =============================================================================
 # SECRETS - Passed from CI via TF_VAR_* environment variables
 # =============================================================================
 
@@ -133,18 +179,18 @@ locals {
     vulnerability_alerts   = true
   }
 
-  # Main branch protection - standardized
+  # Main branch protection - uses variables for configurable settings
   main_branch_protection = {
     required_approvals              = 0
     dismiss_stale_reviews           = false
     require_code_owner_reviews      = false
     require_last_push_approval      = false
     require_conversation_resolution = true
-    required_linear_history         = false
-    require_signed_commits          = false
-    allow_force_pushes              = false
-    allow_deletions                 = false
-    lock_branch                     = false
+    required_linear_history         = var.required_linear_history
+    require_signed_commits          = var.require_signed_commits
+    allow_force_pushes              = var.allow_force_pushes
+    allow_deletions                 = var.allow_deletions
+    lock_branch                     = var.lock_branch
   }
 
   # Feature branch protection - lighter than main
@@ -257,6 +303,19 @@ resource "github_repository_ruleset" "main" {
       require_code_owner_review         = local.main_branch_protection.require_code_owner_reviews
       require_last_push_approval        = local.main_branch_protection.require_last_push_approval
       required_review_thread_resolution = local.main_branch_protection.require_conversation_resolution
+    }
+
+    dynamic "required_status_checks" {
+      for_each = length(var.required_status_checks_contexts) > 0 ? [1] : []
+      content {
+        strict_required_status_checks_policy = var.required_status_checks_strict
+        dynamic "required_check" {
+          for_each = var.required_status_checks_contexts
+          content {
+            context = required_check.value
+          }
+        }
+      }
     }
   }
 
