@@ -1,12 +1,29 @@
 # Repository module - manages a single GitHub repository
-# Also syncs standard files (Cursor rules, workflows) via github_repository_file
+# Modern, modular, DRY design using github_repository_ruleset (not deprecated branch_protection)
+#
+# Features:
+# - Repository settings (merge strategies, features)
+# - Branch protection via rulesets (modern API)
+# - File synchronization from control center
+# - Secrets management via for_each
+
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    github = {
+      source  = "integrations/github"
+      version = ">= 6.0"
+    }
+  }
+}
 
 # =============================================================================
-# REQUIRED VARIABLES - These differ per repository
+# REQUIRED VARIABLES
 # =============================================================================
 
 variable "name" {
-  type = string
+  type        = string
+  description = "Repository name"
 }
 
 variable "language" {
@@ -19,7 +36,7 @@ variable "language" {
 }
 
 # =============================================================================
-# OPTIONAL VARIABLES - Repository features that may differ
+# OPTIONAL VARIABLES - Repository features
 # =============================================================================
 
 variable "visibility" {
@@ -57,15 +74,15 @@ variable "default_branch" {
   default = "main"
 }
 
-variable "feature_branch_patterns" {
-  type        = list(string)
-  default     = []
-  description = "List of branch patterns for feature branches (e.g., ['feature/*', 'bugfix/*'])"
-}
-
 # =============================================================================
 # OPTIONAL VARIABLES - Branch protection settings
 # =============================================================================
+
+variable "feature_branch_patterns" {
+  type        = list(string)
+  default     = []
+  description = "Branch patterns WITHOUT refs/heads/ prefix (e.g., ['feature/*', 'bugfix/*'])"
+}
 
 variable "require_signed_commits" {
   type        = bool
@@ -110,60 +127,53 @@ variable "required_status_checks_contexts" {
 }
 
 # =============================================================================
-# SECRETS - Passed from CI via TF_VAR_* environment variables
+# SECRETS - Passed via TF_VAR_* environment variables, managed via for_each
 # =============================================================================
 
 variable "ci_github_token" {
-  type        = string
-  sensitive   = true
-  description = "CI GitHub token for workflows"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "pypi_token" {
-  type        = string
-  sensitive   = true
-  description = "PyPI token for package publishing"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "npm_token" {
-  type        = string
-  sensitive   = true
-  description = "NPM token for package publishing"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "dockerhub_username" {
-  type        = string
-  sensitive   = true
-  description = "DockerHub username"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "dockerhub_token" {
-  type        = string
-  sensitive   = true
-  description = "DockerHub token"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "anthropic_api_key" {
-  type        = string
-  sensitive   = true
-  description = "Anthropic API key for AI features"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 variable "ollama_api_key" {
-  type        = string
-  sensitive   = true
-  description = "Ollama Cloud API key for AI triage"
-  default     = ""
+  type      = string
+  sensitive = true
+  default   = ""
 }
 
 # =============================================================================
-# LOCALS - Standard settings, no need for variables
+# LOCALS
 # =============================================================================
 
 locals {
@@ -179,7 +189,7 @@ locals {
     vulnerability_alerts   = true
   }
 
-  # Main branch protection - uses variables for configurable settings
+  # Main branch protection settings
   main_branch_protection = {
     required_approvals              = 0
     dismiss_stale_reviews           = false
@@ -195,17 +205,41 @@ locals {
 
   # Feature branch protection - lighter than main
   feature_branch_protection = {
-    allow_deletions                 = true
-    allow_force_pushes              = false
-    require_conversation_resolution = false
+    allow_deletions    = true
+    allow_force_pushes = false
   }
 
-  # File sync paths
+  # Convert branch patterns to refs/heads/ format for rulesets
+  # GitHub rulesets require the refs/heads/ prefix for branch patterns
+  feature_branch_refs = [
+    for pattern in var.feature_branch_patterns :
+    "refs/heads/${pattern}"
+  ]
+
+  # DRY secrets map - only include non-empty secrets
+  secrets_map = {
+    CI_GITHUB_TOKEN    = var.ci_github_token
+    PYPI_TOKEN         = var.pypi_token
+    NPM_TOKEN          = var.npm_token
+    DOCKERHUB_USERNAME = var.dockerhub_username
+    DOCKERHUB_TOKEN    = var.dockerhub_token
+    ANTHROPIC_API_KEY  = var.anthropic_api_key
+    OLLAMA_API_KEY     = var.ollama_api_key
+  }
+
+  # Filter to only non-empty secrets
+  secrets_to_sync = {
+    for name, value in local.secrets_map :
+    name => value if value != ""
+  }
+
+  # File sync - exclude directories, binary files, and special files
   always_sync_files = {
     for file in setunion(
       fileset("${local.repo_files}/always-sync", "**/*"),
       fileset("${local.repo_files}/always-sync", "**/.[!.]*")
     ) : file => "${local.repo_files}/always-sync/${file}"
+    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
   }
 
   language_files = {
@@ -213,6 +247,7 @@ locals {
       fileset("${local.repo_files}/${var.language}", "**/*"),
       fileset("${local.repo_files}/${var.language}", "**/.[!.]*")
     ) : file => "${local.repo_files}/${var.language}/${file}"
+    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
   }
 
   initial_only_files = {
@@ -220,6 +255,7 @@ locals {
       fileset("${local.repo_files}/initial-only", "**/*"),
       fileset("${local.repo_files}/initial-only", "**/.[!.]*")
     ) : file => "${local.repo_files}/initial-only/${file}"
+    if !can(regex("\\.(png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|pdf|zip|tar|gz)$", file))
   }
 
   all_synced_files = merge(local.always_sync_files, local.language_files)
@@ -228,11 +264,6 @@ locals {
 # =============================================================================
 # REPOSITORY
 # =============================================================================
-
-import {
-  to = github_repository.this
-  id = var.name
-}
 
 resource "github_repository" "this" {
   name       = var.name
@@ -274,11 +305,11 @@ resource "github_repository" "this" {
 }
 
 # =============================================================================
-# BRANCH PROTECTION RULESETS
+# BRANCH PROTECTION RULESETS (Modern API - replaces deprecated branch_protection)
 # =============================================================================
 
 resource "github_repository_ruleset" "main" {
-  name        = "Main"
+  name        = "main-branch-protection"
   repository  = github_repository.this.name
   target      = "branch"
   enforcement = "active"
@@ -326,17 +357,19 @@ resource "github_repository_ruleset" "main" {
   }
 }
 
+# Feature branch protection ruleset - only created if patterns are provided
 resource "github_repository_ruleset" "feature" {
   count = length(var.feature_branch_patterns) > 0 ? 1 : 0
 
-  name        = "Feature"
+  name        = "feature-branch-protection"
   repository  = github_repository.this.name
   target      = "branch"
   enforcement = "active"
 
   conditions {
     ref_name {
-      include = var.feature_branch_patterns
+      # Use refs/heads/ prefix for branch patterns as required by GitHub API
+      include = local.feature_branch_refs
       exclude = []
     }
   }
@@ -392,56 +425,15 @@ resource "github_repository_file" "initial" {
 }
 
 # =============================================================================
-# SECRETS
+# SECRETS - DRY implementation using for_each
 # =============================================================================
 
-resource "github_actions_secret" "ci_github_token" {
-  count           = var.ci_github_token != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "CI_GITHUB_TOKEN"
-  plaintext_value = var.ci_github_token
-}
+resource "github_actions_secret" "managed" {
+  for_each = local.secrets_to_sync
 
-resource "github_actions_secret" "pypi_token" {
-  count           = var.pypi_token != "" ? 1 : 0
   repository      = github_repository.this.name
-  secret_name     = "PYPI_TOKEN"
-  plaintext_value = var.pypi_token
-}
-
-resource "github_actions_secret" "npm_token" {
-  count           = var.npm_token != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "NPM_TOKEN"
-  plaintext_value = var.npm_token
-}
-
-resource "github_actions_secret" "dockerhub_username" {
-  count           = var.dockerhub_username != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "DOCKERHUB_USERNAME"
-  plaintext_value = var.dockerhub_username
-}
-
-resource "github_actions_secret" "dockerhub_token" {
-  count           = var.dockerhub_token != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "DOCKERHUB_TOKEN"
-  plaintext_value = var.dockerhub_token
-}
-
-resource "github_actions_secret" "anthropic_api_key" {
-  count           = var.anthropic_api_key != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "ANTHROPIC_API_KEY"
-  plaintext_value = var.anthropic_api_key
-}
-
-resource "github_actions_secret" "ollama_api_key" {
-  count           = var.ollama_api_key != "" ? 1 : 0
-  repository      = github_repository.this.name
-  secret_name     = "OLLAMA_API_KEY"
-  plaintext_value = var.ollama_api_key
+  secret_name     = each.key
+  plaintext_value = each.value
 }
 
 # =============================================================================
@@ -449,19 +441,23 @@ resource "github_actions_secret" "ollama_api_key" {
 # =============================================================================
 
 output "url" {
-  value = github_repository.this.html_url
+  value       = github_repository.this.html_url
+  description = "Repository URL"
 }
 
 output "id" {
-  value = github_repository.this.id
+  value       = github_repository.this.id
+  description = "Repository ID"
 }
 
 output "synced_files" {
-  value = keys(local.all_synced_files)
+  value       = keys(local.all_synced_files)
+  description = "List of files synced to repository"
 }
 
 output "initial_files" {
-  value = keys(local.initial_only_files)
+  value       = keys(local.initial_only_files)
+  description = "List of initial-only files"
 }
 
 output "main_ruleset" {
@@ -469,16 +465,20 @@ output "main_ruleset" {
     name        = github_repository_ruleset.main.name
     enforcement = github_repository_ruleset.main.enforcement
   }
-}
-
-output "feature_branch_patterns" {
-  value = var.feature_branch_patterns
+  description = "Main branch protection ruleset"
 }
 
 output "feature_ruleset" {
   value = length(var.feature_branch_patterns) > 0 ? {
     name        = github_repository_ruleset.feature[0].name
     enforcement = github_repository_ruleset.feature[0].enforcement
-    patterns    = var.feature_branch_patterns
+    patterns    = local.feature_branch_refs
   } : null
+  description = "Feature branch protection ruleset"
+}
+
+output "secrets_synced" {
+  value       = keys(local.secrets_to_sync)
+  description = "List of secrets synced to repository"
+  sensitive   = false
 }
