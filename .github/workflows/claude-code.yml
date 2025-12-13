@@ -44,6 +44,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================
   # AUTOMATIC MODE: PR code review
@@ -68,5 +69,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          # Use default behavior - let Claude use its built-in tools
-          # The action handles PR context automatically
+          # Provide github_token to bypass OIDC workflow validation
+          # Required when workflow file differs from default branch
+          github_token: ${{ secrets.GITHUB_TOKEN }}
