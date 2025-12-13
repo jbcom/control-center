@@ -362,38 +362,28 @@ output "id" {
 
 locals {
   # Path to repository-files relative to this module
-  # Uses path.root to get workspace root, then goes up to repo root
   repo_files = "${path.root}/../../../repository-files"
 
-  # Dynamically discover all files in always-sync directory
-  always_sync_file_list = var.sync_files ? fileset("${local.repo_files}/always-sync", "**/*") : []
-  
-  # Build map of destination -> source for always-sync files
-  always_sync_files = var.sync_files ? {
-    for file in local.always_sync_file_list :
+  # Always-sync: one fileset call with **/* globbing
+  always_sync_files = {
+    for file in fileset("${local.repo_files}/always-sync", "**/*") :
     file => "${local.repo_files}/always-sync/${file}"
-  } : {}
+  }
 
-  # Dynamically discover all files in language-specific directory
-  language_file_list = var.sync_files ? fileset("${local.repo_files}/${var.language}", "**/*") : []
-  
-  # Build map of destination -> source for language-specific files
-  language_files = var.sync_files ? {
-    for file in local.language_file_list :
+  # Language-specific files: one fileset call
+  language_files = {
+    for file in fileset("${local.repo_files}/${var.language}", "**/*") :
     file => "${local.repo_files}/${var.language}/${file}"
-  } : {}
+  }
 
-  # Dynamically discover all files in initial-only directory
-  initial_only_file_list = var.sync_files ? fileset("${local.repo_files}/initial-only", "**/*") : []
-  
-  # Build map of destination -> source for initial-only files
-  initial_only_files = var.sync_files ? {
-    for file in local.initial_only_file_list :
+  # Initial-only: one fileset call with **/* globbing
+  initial_only_files = {
+    for file in fileset("${local.repo_files}/initial-only", "**/*") :
     file => "${local.repo_files}/initial-only/${file}"
-  } : {}
+  }
 
-  # All always-sync files (common + language-specific)
-  all_synced_files = merge(local.always_sync_files, local.language_files)
+  # Merge always-sync + language-specific for synced files
+  all_synced_files = var.sync_files ? merge(local.always_sync_files, local.language_files) : {}
 }
 
 # Always-sync files - overwrite on every apply
@@ -416,7 +406,7 @@ resource "github_repository_file" "synced" {
 
 # Initial-only files - create once, repos customize after
 resource "github_repository_file" "initial" {
-  for_each = local.initial_only_files
+  for_each = var.sync_files ? local.initial_only_files : {}
 
   repository          = github_repository.this.name
   branch              = var.default_branch
