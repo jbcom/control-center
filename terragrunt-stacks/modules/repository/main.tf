@@ -422,13 +422,12 @@ output "initial_files" {
   value = keys(local.initial_only_files)
 }
 
-output "main_branch_protection" {
+output "main_ruleset" {
   value = {
-    pattern                         = github_branch_protection.main.pattern
-    require_conversation_resolution = github_branch_protection.main.require_conversation_resolution
-    required_linear_history         = github_branch_protection.main.required_linear_history
+    name        = github_repository_ruleset.main.name
+    enforcement = github_repository_ruleset.main.enforcement
   }
-  description = "Main branch protection settings"
+  description = "Main branch ruleset settings"
 }
 
 output "feature_branch_patterns" {
