@@ -14,12 +14,6 @@ variable "language" {
   }
 }
 
-variable "sync_files" {
-  type        = bool
-  default     = true
-  description = "Whether to sync standard files (Cursor rules, workflows)"
-}
-
 variable "visibility" {
   type    = string
   default = "public"
@@ -383,7 +377,7 @@ locals {
   }
 
   # Merge always-sync + language-specific for synced files
-  all_synced_files = var.sync_files ? merge(local.always_sync_files, local.language_files) : {}
+  all_synced_files = merge(local.always_sync_files, local.language_files)
 }
 
 # Always-sync files - overwrite on every apply
@@ -406,7 +400,7 @@ resource "github_repository_file" "synced" {
 
 # Initial-only files - create once, repos customize after
 resource "github_repository_file" "initial" {
-  for_each = var.sync_files ? local.initial_only_files : {}
+  for_each = local.initial_only_files
 
   repository          = github_repository.this.name
   branch              = var.default_branch
