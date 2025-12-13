@@ -4,7 +4,7 @@
 locals {
   # GitHub owner - use jbdevprimary until repos are transferred to jbcom org
   github_owner = "jbdevprimary"
-  
+
   # Terraform Cloud organization (already set up as jbcom)
   tfc_organization = "jbcom"
 
@@ -14,7 +14,7 @@ locals {
     "lifecyclelogging", "python-terraform-bridge", "rivers-of-reckoning", "vendor-connectors"
   ]
   nodejs_repos = [
-    "agentic-control", "otter-river-rush", "otterfall", 
+    "agentic-control", "otter-river-rush", "otterfall",
     "pixels-pygame-palace", "rivermarsh", "strata"
   ]
   go_repos = ["port-api", "vault-secret-sync"]
@@ -28,15 +28,12 @@ locals {
     local.terraform_repos
   )
 
-  # Common settings - feature branch patterns all repos get
-  common_branch_protection = {
-    feature_branch_patterns = [
-      "feature/*",
-      "bugfix/*",
-      "hotfix/*",
-      "fix/*",
-      "feat/*"
-    ]
+  # Common settings - based on Strata patterns
+  # Main branch: linear history, PRs required, conversation resolution
+  common_settings = {
+    required_linear_history         = true
+    required_approving_review_count = 0
+    require_conversation_resolution = true
   }
 }
 

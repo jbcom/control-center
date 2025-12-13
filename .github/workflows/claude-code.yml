@@ -44,6 +44,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
 
   # ============================================
   # AUTOMATIC MODE: PR code review
@@ -68,19 +69,6 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Provide github_token to bypass OIDC workflow validation
+          # Required when workflow file differs from default branch
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          prompt: |
-            You are reviewing PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
-
-            Review this pull request and provide feedback on:
-            - Code quality and best practices
-            - Potential bugs or issues
-            - Performance considerations
-            - Security concerns
-            - Test coverage
-
-            Be constructive and helpful. Focus on actionable feedback.
-
-            Use `gh pr comment` to leave your review as a comment on the PR.
-
-          claude_args: '--allowed-tools "Bash(gh pr:*)"'
