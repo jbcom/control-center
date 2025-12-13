@@ -118,17 +118,24 @@ Repositories are managed in 4 language categories:
 - Build type: GitHub Actions workflow
 
 ### File Sync (`github_repository_file`)
-- **Always-sync files** (overwritten every apply):
-  - Cursor rules (fundamentals, PR workflow, memory bank, CI, releases)
-  - Claude Code workflow
-  - AI agent instructions (code-reviewer, test-runner, project-manager)
-  - PR template, CODEOWNERS, dependabot.yml
-- **Initial-only files** (created once, repos customize):
-  - Cursor environment config
-  - Issue templates (bug, feature, config)
-  - Security policy
-  - Documentation scaffold
-- **Language-specific rules**: Python, Node.js, Go, Terraform rules
+
+The module uses Terraform's `fileset()` function to **dynamically discover** all files in the `repository-files/` directories. This means:
+
+- **No hardcoded file lists** - Add/remove files without updating Terraform code
+- **Automatic detection** - New files are picked up on next plan/apply
+- **Consistent structure** - All files maintain their directory hierarchy
+
+**Always-sync files** (overwritten every apply):
+  - Discovered from `repository-files/always-sync/`
+  - Includes: Cursor rules, Claude Code workflow, AI agent instructions, PR template, CODEOWNERS, dependabot.yml
+
+**Initial-only files** (created once, repos customize):
+  - Discovered from `repository-files/initial-only/`
+  - Includes: Cursor environment config, issue templates, security policy, documentation scaffold
+
+**Language-specific rules**:
+  - Discovered from `repository-files/{language}/`
+  - Python, Node.js, Go, Terraform rules synced based on repository language
 
 ### Secrets (`github_actions_secret`)
 - **All repository secrets** managed via Terraform

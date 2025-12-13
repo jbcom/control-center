@@ -365,81 +365,34 @@ locals {
   # Uses path.root to get workspace root, then goes up to repo root
   repo_files = "${path.root}/../../../repository-files"
 
-  # Always-sync files (overwrite every time)
+  # Dynamically discover all files in always-sync directory
+  always_sync_file_list = var.sync_files ? fileset("${local.repo_files}/always-sync", "**/*") : []
+  
+  # Build map of destination -> source for always-sync files
   always_sync_files = var.sync_files ? {
-    # Cursor rules
-    ".cursor/rules/00-fundamentals.mdc" = "${local.repo_files}/always-sync/.cursor/rules/00-fundamentals.mdc"
-    ".cursor/rules/01-pr-workflow.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/01-pr-workflow.mdc"
-    ".cursor/rules/02-memory-bank.mdc"  = "${local.repo_files}/always-sync/.cursor/rules/02-memory-bank.mdc"
-    ".cursor/rules/ci.mdc"              = "${local.repo_files}/always-sync/.cursor/rules/ci.mdc"
-    ".cursor/rules/releases.mdc"        = "${local.repo_files}/always-sync/.cursor/rules/releases.mdc"
-
-    # GitHub workflows
-    ".github/workflows/claude-code.yml" = "${local.repo_files}/always-sync/.github/workflows/claude-code.yml"
-
-    # GitHub community files
-    ".github/PULL_REQUEST_TEMPLATE.md" = "${local.repo_files}/always-sync/.github/PULL_REQUEST_TEMPLATE.md"
-    ".github/CODEOWNERS"               = "${local.repo_files}/always-sync/.github/CODEOWNERS"
-    ".github/dependabot.yml"           = "${local.repo_files}/always-sync/.github/dependabot.yml"
-
-    # AI agent instructions
-    ".github/agents/README.md"          = "${local.repo_files}/always-sync/.github/agents/README.md"
-    ".github/agents/code-reviewer.md"   = "${local.repo_files}/always-sync/.github/agents/code-reviewer.md"
-    ".github/agents/test-runner.md"     = "${local.repo_files}/always-sync/.github/agents/test-runner.md"
-    ".github/agents/project-manager.md" = "${local.repo_files}/always-sync/.github/agents/project-manager.md"
+    for file in local.always_sync_file_list :
+    file => "${local.repo_files}/always-sync/${file}"
   } : {}
 
-  # Language-specific files (always sync)
-  language_file_paths = {
-    python    = "${local.repo_files}/python/.cursor/rules/python.mdc"
-    nodejs    = "${local.repo_files}/nodejs/.cursor/rules/typescript.mdc"
-    go        = "${local.repo_files}/go/.cursor/rules/go.mdc"
-    terraform = "${local.repo_files}/terraform/.cursor/rules/terraform.mdc"
-  }
-
-  language_file_dest = {
-    python    = ".cursor/rules/python.mdc"
-    nodejs    = ".cursor/rules/typescript.mdc"
-    go        = ".cursor/rules/go.mdc"
-    terraform = ".cursor/rules/terraform.mdc"
-  }
-
+  # Dynamically discover all files in language-specific directory
+  language_file_list = var.sync_files ? fileset("${local.repo_files}/${var.language}", "**/*") : []
+  
+  # Build map of destination -> source for language-specific files
   language_files = var.sync_files ? {
-    (local.language_file_dest[var.language]) = local.language_file_paths[var.language]
+    for file in local.language_file_list :
+    file => "${local.repo_files}/${var.language}/${file}"
   } : {}
 
-  # Initial-only files (create once, repos customize after)
+  # Dynamically discover all files in initial-only directory
+  initial_only_file_list = var.sync_files ? fileset("${local.repo_files}/initial-only", "**/*") : []
+  
+  # Build map of destination -> source for initial-only files
   initial_only_files = var.sync_files ? {
-    # Cursor environment
-    ".cursor/environment.json" = "${local.repo_files}/initial-only/.cursor/environment.json"
-    ".cursor/Dockerfile"       = "${local.repo_files}/initial-only/.cursor/Dockerfile"
-
-    # GitHub workflows
-    ".github/workflows/docs.yml" = "${local.repo_files}/initial-only/.github/workflows/docs.yml"
-
-    # Issue templates (repos customize after creation)
-    ".github/ISSUE_TEMPLATE/config.yml"  = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/config.yml"
-    ".github/ISSUE_TEMPLATE/bug.yml"     = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/bug.yml"
-    ".github/ISSUE_TEMPLATE/feature.yml" = "${local.repo_files}/initial-only/.github/ISSUE_TEMPLATE/feature.yml"
-
-    # Security policy
-    ".github/SECURITY.md" = "${local.repo_files}/initial-only/.github/SECURITY.md"
-
-    # Documentation scaffold
-    "docs/Makefile"                        = "${local.repo_files}/initial-only/docs/Makefile"
-    "docs/conf.py"                         = "${local.repo_files}/initial-only/docs/conf.py"
-    "docs/index.rst"                       = "${local.repo_files}/initial-only/docs/index.rst"
-    "docs/.nojekyll"                       = "${local.repo_files}/initial-only/docs/.nojekyll"
-    "docs/_static/custom.css"              = "${local.repo_files}/initial-only/docs/_static/custom.css"
-    "docs/_templates/.gitkeep"             = "${local.repo_files}/initial-only/docs/_templates/.gitkeep"
-    "docs/api/index.rst"                   = "${local.repo_files}/initial-only/docs/api/index.rst"
-    "docs/api/modules.rst"                 = "${local.repo_files}/initial-only/docs/api/modules.rst"
-    "docs/development/contributing.md"     = "${local.repo_files}/initial-only/docs/development/contributing.md"
-    "docs/getting-started/installation.md" = "${local.repo_files}/initial-only/docs/getting-started/installation.md"
-    "docs/getting-started/quickstart.md"   = "${local.repo_files}/initial-only/docs/getting-started/quickstart.md"
+    for file in local.initial_only_file_list :
+    file => "${local.repo_files}/initial-only/${file}"
   } : {}
 
-  # All always-sync files
+  # All always-sync files (common + language-specific)
   all_synced_files = merge(local.always_sync_files, local.language_files)
 }
 
