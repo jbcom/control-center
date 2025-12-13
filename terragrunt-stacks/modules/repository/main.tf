@@ -277,63 +277,122 @@ resource "github_repository" "this" {
   }
 }
 
-resource "github_branch_protection" "main" {
-  repository_id = github_repository.this.node_id
-  pattern       = var.default_branch
+# Main branch ruleset
+resource "github_repository_ruleset" "main" {
+  name        = "Main"
+  repository  = github_repository.this.name
+  target      = "branch"
+  enforcement = "active"
 
-  required_pull_request_reviews {
-    dismiss_stale_reviews           = var.dismiss_stale_reviews
-    require_code_owner_reviews      = var.require_code_owner_reviews
-    required_approving_review_count = var.required_approvals
-    require_last_push_approval      = var.require_last_push_approval
+  conditions {
+    ref_name {
+      include = ["~DEFAULT_BRANCH"]
+      exclude = []
+    }
   }
 
-  # Status checks - configurable per repository
-  # Default: no required checks (repos can customize via terragrunt inputs)
-  required_status_checks {
-    strict   = var.required_status_checks_strict
-    contexts = var.required_status_checks_contexts
-  }
+  rules {
+    # Pull request requirements
+    pull_request {
+      dismiss_stale_reviews_on_push     = var.dismiss_stale_reviews
+      require_code_owner_review         = var.require_code_owner_reviews
+      required_approving_review_count   = var.required_approvals
+      require_last_push_approval        = var.require_last_push_approval
+      required_review_thread_resolution = var.require_conversation_resolution
+    }
 
-  required_linear_history         = var.required_linear_history
-  require_signed_commits          = var.require_signed_commits
-  require_conversation_resolution = var.require_conversation_resolution
-  allows_force_pushes             = var.allow_force_pushes
-  allows_deletions                = var.allow_deletions
-  lock_branch                     = var.lock_branch
+    # Prevent force pushes
+    dynamic "non_fast_forward" {
+      for_each = var.allow_force_pushes ? [] : [1]
+      content {}
+    }
+
+    # Prevent deletions
+    dynamic "deletion" {
+      for_each = var.allow_deletions ? [] : [1]
+      content {}
+    }
+
+    # Required linear history
+    dynamic "required_linear_history" {
+      for_each = var.required_linear_history ? [1] : []
+      content {}
+    }
+
+    # Required signed commits
+    dynamic "required_signatures" {
+      for_each = var.require_signed_commits ? [1] : []
+      content {}
+    }
+
+    # Required status checks
+    dynamic "required_status_checks" {
+      for_each = length(var.required_status_checks_contexts) > 0 ? [1] : []
+      content {
+        strict_required_status_checks_policy = var.required_status_checks_strict
+        dynamic "required_check" {
+          for_each = var.required_status_checks_contexts
+          content {
+            context = required_check.value
+          }
+        }
+      }
+    }
+  }
 }
 
-# Feature branch protection - separate rules for non-main branches
-# Allows lighter protection on feature/bugfix/etc branches while keeping main strict
-resource "github_branch_protection" "feature" {
-  for_each = toset(var.feature_branch_patterns)
+# Feature branch ruleset
+resource "github_repository_ruleset" "feature" {
+  count = length(var.feature_branch_patterns) > 0 ? 1 : 0
 
-  repository_id = github_repository.this.node_id
-  pattern       = each.value
+  name        = "Feature Branches"
+  repository  = github_repository.this.name
+  target      = "branch"
+  enforcement = "active"
 
-  # Feature branches typically have lighter requirements
-  # Adjust based on team workflow needs
-  dynamic "required_pull_request_reviews" {
-    for_each = var.feature_required_approvals > 0 ? [1] : []
-    content {
-      required_approving_review_count = var.feature_required_approvals
+  conditions {
+    ref_name {
+      include = [for p in var.feature_branch_patterns : "refs/heads/${p}"]
+      exclude = []
     }
   }
 
-  # Optional status checks for feature branches
-  dynamic "required_status_checks" {
-    for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
-    content {
-      strict   = false # Feature branches don't need to be up-to-date with base
-      contexts = var.feature_required_status_checks_contexts
+  rules {
+    # Pull request requirements (if approvals required)
+    dynamic "pull_request" {
+      for_each = var.feature_required_approvals > 0 ? [1] : []
+      content {
+        required_approving_review_count   = var.feature_required_approvals
+        required_review_thread_resolution = var.feature_require_conversation_resolution
+      }
+    }
+
+    # Prevent force pushes on feature branches
+    dynamic "non_fast_forward" {
+      for_each = var.feature_allow_force_pushes ? [] : [1]
+      content {}
+    }
+
+    # Allow deletions on feature branches (configurable)
+    dynamic "deletion" {
+      for_each = var.feature_allow_deletions ? [] : [1]
+      content {}
+    }
+
+    # Required status checks for feature branches
+    dynamic "required_status_checks" {
+      for_each = length(var.feature_required_status_checks_contexts) > 0 ? [1] : []
+      content {
+        strict_required_status_checks_policy = false
+        dynamic "required_check" {
+          for_each = var.feature_required_status_checks_contexts
+          content {
+            context = required_check.value
+          }
+        }
+      }
     }
   }
-
-  allows_force_pushes = var.feature_allow_force_pushes
-  allows_deletions    = var.feature_allow_deletions
-
-  # Feature branches can have independent conversation resolution policy
-  require_conversation_resolution = var.feature_require_conversation_resolution
 }
 
 output "url" {
