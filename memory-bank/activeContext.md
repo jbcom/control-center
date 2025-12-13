@@ -1,6 +1,23 @@
 # Active Context - jbcom Control Center
 
-## Current Status: TERRAGRUNT REPOSITORY MANAGEMENT
+## Current Status: TERRAGRUNT REPOSITORY MANAGEMENT - IMPORT FIX
+
+Fixed import issue for strata repository's Main ruleset.
+
+### Session: 2025-12-13 (Import Fix)
+
+**Issue**: CI failing with "Name must be unique" error for strata's Main ruleset
+**Root Cause**: strata's "Main" ruleset (ID: 11068179) was created manually on 2025-12-12, before Terraform started managing repos on 2025-12-13
+**Fix**: Added `import` block to `terragrunt-stacks/nodejs/strata/terragrunt.hcl` to import existing ruleset
+
+**Verified**:
+- All 18 repositories exist in GitHub ✅
+- All other repos have "Main" rulesets created by Terraform (2025-12-13T17:07) ✅
+- Only strata needed import (pre-existing ruleset from 2025-12-12) ✅
+
+---
+
+## Previous Status: TERRAGRUNT REPOSITORY MANAGEMENT
 
 Migrating from passive bash script sync to active Terragrunt-managed repository configuration with file synchronization.
 
