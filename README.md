@@ -100,7 +100,7 @@ export GITHUB_FSC_TOKEN="..."    # FlipsideCrypto repos
 ### Terragrunt Repository Management (Terraform Cloud backend)
 
 ```bash
-# Authenticate once (stores token in ~/.terraform.d/credentials.tfrc.json)
+# Authenticate with HCP Terraform: `terraform login` for interactive use, or `export TF_API_TOKEN` for CI
 terraform login
 
 # Plan changes for all repositories (uses HCP Terraform remote state)

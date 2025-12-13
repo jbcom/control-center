@@ -86,6 +86,26 @@ locals {
     local.go_repos,
     local.terraform_repos
   )
+  
+  # Generate import block content for all repos
+  # This imports existing TFE workspaces into state on first apply
+  import_blocks = join("\n\n", [
+    for repo in keys(local.all_repos) : <<-EOT
+# Import existing workspace for ${repo}
+import {
+  to = tfe_workspace.repo["${repo}"]
+  id = "jbcom/jbcom-repo-${repo}"
+}
+EOT
+  ])
+}
+
+# Generate import blocks for existing TFE workspaces
+# These are idempotent - Terraform skips imports if resource already in state
+generate "imports" {
+  path      = "imports.tf"
+  if_exists = "overwrite_terragrunt"
+  contents  = local.import_blocks
 }
 
 inputs = {
