@@ -116,14 +116,7 @@ docker run --rm -e GH_TOKEN -e OLLAMA_API_KEY jbdevprimary/agentic-triage assess
 
 ## GitHub Action
 
-```yaml
-- uses: jbdevprimary/agentic-triage@v0.2.0
-  with:
-    command: assess
-    issue: \${{ github.event.issue.number }}
-    github_token: \${{ secrets.GITHUB_TOKEN }}
-    ollama_api_key: \${{ secrets.OLLAMA_API_KEY }}
-```
+See [GitHub](https://github.com/jbdevprimary/agentic-triage) for GitHub Action usage.
 
 ## Links
 
