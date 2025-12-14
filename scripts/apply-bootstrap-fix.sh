@@ -26,8 +26,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Script directory (using $0 for POSIX compatibility)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 BOOTSTRAP_DIR="${REPO_ROOT}/terragrunt-stacks/bootstrap"
 
@@ -64,10 +64,10 @@ if ! command -v terraform &> /dev/null; then
     exit 1
 fi
 TF_VERSION=$(terraform version 2>/dev/null | head -1 | sed 's/Terraform //' || echo "unknown")
-if [ -z "$TF_VERSION" ] || [ "$TF_VERSION" = "unknown" ]; then
-    echo -e "${GREEN}✓ terraform installed${NC}"
-else
+if [ -n "$TF_VERSION" ] && [ "$TF_VERSION" != "unknown" ]; then
     echo -e "${GREEN}✓ terraform ${TF_VERSION}${NC}"
+else
+    echo -e "${GREEN}✓ terraform installed${NC}"
 fi
 
 # Check terragrunt
@@ -77,10 +77,10 @@ if ! command -v terragrunt &> /dev/null; then
     exit 1
 fi
 TG_VERSION=$(terragrunt --version 2>/dev/null | head -1 || echo "unknown")
-if [ -z "$TG_VERSION" ] || [ "$TG_VERSION" = "unknown" ]; then
-    echo -e "${GREEN}✓ terragrunt installed${NC}"
-else
+if [ -n "$TG_VERSION" ] && [ "$TG_VERSION" != "unknown" ]; then
     echo -e "${GREEN}✓ terragrunt ${TG_VERSION}${NC}"
+else
+    echo -e "${GREEN}✓ terragrunt installed${NC}"
 fi
 
 echo ""
