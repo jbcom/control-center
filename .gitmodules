@@ -10,3 +10,6 @@
 [submodule "ecosystems/oss/agentic-triage"]
 	path = ecosystems/oss/agentic-triage
 	url = https://github.com/jbdevprimary/agentic-triage.git
+[submodule "ecosystems/oss/vendor-connectors"]
+	path = ecosystems/oss/vendor-connectors
+	url = https://github.com/jbdevprimary/vendor-connectors.git
