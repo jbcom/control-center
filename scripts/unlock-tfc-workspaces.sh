@@ -10,6 +10,11 @@
 #   --dry-run              List locked workspaces without unlocking
 #   --workspace NAME       Unlock only specific workspace (default: all)
 #   --organization ORG     TFC organization (default: jbcom)
+#
+# Exit Codes:
+#   0 - Success (no locked workspaces or all unlocked)
+#   1 - Found locked workspaces (dry-run only) or failed to unlock some
+#   2 - API error or configuration error
 
 set -euo pipefail
 
@@ -68,38 +73,86 @@ tfc_api() {
     local method="$1"
     local endpoint="$2"
     local data="${3:-}"
+    local http_code
+    local response
     
     if [ -n "$data" ]; then
-        curl -s -X "$method" \
+        response=$(curl -s -w "\n%{http_code}" --fail-with-body -X "$method" \
             --header "Authorization: Bearer $TOKEN" \
             --header "Content-Type: application/vnd.api+json" \
             --data "$data" \
-            "${TFC_API_BASE}${endpoint}"
+            "${TFC_API_BASE}${endpoint}" 2>&1)
     else
-        curl -s -X "$method" \
+        response=$(curl -s -w "\n%{http_code}" --fail-with-body -X "$method" \
             --header "Authorization: Bearer $TOKEN" \
             --header "Content-Type: application/vnd.api+json" \
-            "${TFC_API_BASE}${endpoint}"
+            "${TFC_API_BASE}${endpoint}" 2>&1)
     fi
+    
+    # Check curl exit code
+    local curl_exit=$?
+    if [ $curl_exit -ne 0 ]; then
+        echo -e "${RED}Error: API call failed (curl exit code: $curl_exit)${NC}" >&2
+        return 1
+    fi
+    
+    # Extract HTTP code and body
+    http_code=$(echo "$response" | tail -n1)
+    response=$(echo "$response" | sed '$d')
+    
+    # Check HTTP status
+    if [[ ! "$http_code" =~ ^2[0-9][0-9]$ ]]; then
+        echo -e "${RED}Error: API returned HTTP $http_code${NC}" >&2
+        echo "$response" >&2
+        return 1
+    fi
+    
+    # Validate JSON
+    if ! echo "$response" | jq empty 2>/dev/null; then
+        echo -e "${RED}Error: Invalid JSON response from API${NC}" >&2
+        return 1
+    fi
+    
+    echo "$response"
 }
 
 # Function to list workspaces
 list_workspaces() {
     local page=1
     local all_workspaces="[]"
+    local page_size=100
     
     while true; do
-        local response=$(tfc_api GET "/organizations/${ORG}/workspaces?page%5Bnumber%5D=${page}&page%5Bsize%5D=100")
-        local workspaces=$(echo "$response" | jq -r '.data')
+        # URL encode the query parameters
+        local query="page[number]=${page}&page[size]=${page_size}"
+        local encoded_query=$(echo "$query" | sed 's/\[/%5B/g; s/\]/%5D/g')
         
-        if [ "$workspaces" = "null" ] || [ "$workspaces" = "[]" ]; then
+        local response
+        if ! response=$(tfc_api GET "/organizations/${ORG}/workspaces?${encoded_query}"); then
+            echo -e "${RED}Error: Failed to list workspaces${NC}" >&2
+            return 1
+        fi
+        
+        # Safely extract data array
+        local workspaces
+        if ! workspaces=$(echo "$response" | jq -r '.data // empty' 2>/dev/null); then
+            echo -e "${RED}Error: Failed to parse workspace data${NC}" >&2
+            return 1
+        fi
+        
+        if [ -z "$workspaces" ] || [ "$workspaces" = "null" ] || [ "$workspaces" = "[]" ]; then
             break
         fi
         
-        all_workspaces=$(echo "$all_workspaces" | jq ". + $workspaces")
+        # Merge workspaces
+        if ! all_workspaces=$(echo "$all_workspaces" | jq ". + $workspaces" 2>/dev/null); then
+            echo -e "${RED}Error: Failed to merge workspace data${NC}" >&2
+            return 1
+        fi
         
         # Check if there are more pages
-        local next_page=$(echo "$response" | jq -r '.meta.pagination."next-page" // empty')
+        local next_page
+        next_page=$(echo "$response" | jq -r '.meta.pagination."next-page" // empty' 2>/dev/null)
         if [ -z "$next_page" ]; then
             break
         fi
@@ -122,16 +175,21 @@ unlock_workspace() {
     
     echo -e "${BLUE}Unlocking workspace: ${workspace_name}${NC}"
     
-    local response=$(tfc_api POST "/workspaces/${workspace_id}/actions/force-unlock")
+    local response
+    if ! response=$(tfc_api POST "/workspaces/${workspace_id}/actions/force-unlock"); then
+        echo -e "${RED}Failed to unlock ${workspace_name}: API call failed${NC}"
+        return 1
+    fi
     
+    # Check for errors in response
     if echo "$response" | jq -e '.errors' > /dev/null 2>&1; then
-        local error_message=$(echo "$response" | jq -r '.errors[0].detail')
+        local error_message=$(echo "$response" | jq -r '.errors[0].detail // "Unknown error"')
         echo -e "${RED}Failed to unlock ${workspace_name}: ${error_message}${NC}"
         return 1
-    else
-        echo -e "${GREEN}✓ Successfully unlocked: ${workspace_name}${NC}"
-        return 0
     fi
+    
+    echo -e "${GREEN}✓ Successfully unlocked: ${workspace_name}${NC}"
+    return 0
 }
 
 # Main execution
@@ -153,11 +211,14 @@ echo "=========================================="
 echo ""
 
 echo "Fetching workspaces..."
-workspaces=$(list_workspaces)
+if ! workspaces=$(list_workspaces); then
+    echo -e "${RED}Failed to fetch workspaces from organization: $ORG${NC}"
+    exit 2
+fi
 
 if [ "$workspaces" = "[]" ] || [ -z "$workspaces" ]; then
     echo -e "${RED}No workspaces found in organization: $ORG${NC}"
-    exit 1
+    exit 2
 fi
 
 total_count=$(echo "$workspaces" | jq 'length')
@@ -179,7 +240,7 @@ if [ "$locked_count" -eq 0 ]; then
     else
         echo -e "${GREEN}No locked workspaces found!${NC}"
     fi
-    exit 0
+    exit 0  # Success - no locks
 fi
 
 echo -e "${YELLOW}Found ${locked_count} locked workspace(s):${NC}"
@@ -206,11 +267,15 @@ echo "Total workspaces: $total_count"
 echo "Locked workspaces: $locked_count"
 if [ "$DRY_RUN" = true ]; then
     echo -e "${YELLOW}Would unlock: ${locked_count}${NC}"
+    echo "=========================================="
+    exit 1  # Exit with 1 to signal locks found (allows automation to detect locks)
 else
     echo -e "${GREEN}Successfully unlocked: ${unlocked}${NC}"
     if [ $failed -gt 0 ]; then
         echo -e "${RED}Failed to unlock: ${failed}${NC}"
-        exit 1
+        echo "=========================================="
+        exit 1  # Exit with 1 to signal partial failure
     fi
+    echo "=========================================="
+    exit 0  # Success - all unlocked
 fi
-echo "=========================================="

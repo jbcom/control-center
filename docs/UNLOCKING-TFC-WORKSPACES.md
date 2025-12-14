@@ -58,6 +58,16 @@ export TF_API_TOKEN="your-token-here"
 | `--organization ORG` | Target organization (default: jbcom) |
 | `-h, --help` | Show help message |
 
+### Exit Codes
+
+The script uses exit codes for automation:
+
+| Exit Code | Meaning |
+|-----------|---------|
+| 0 | Success: No locked workspaces or all unlocked successfully |
+| 1 | Locked workspaces found (dry-run) or failed to unlock some workspaces |
+| 2 | Configuration or API error (missing token, invalid org, etc.) |
+
 ## Using in GitHub Actions
 
 ### Option 1: Manual Workflow Dispatch
