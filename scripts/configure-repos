@@ -176,6 +176,9 @@ configure_repo() {
       configure_security "$repo"
     fi
   fi
+  
+  # Sync rulesets (works in both dry-run and apply modes)
+  sync_rulesets "$repo"
 }
 
 configure_security() {
@@ -183,16 +186,75 @@ configure_security() {
   local full_repo="${GITHUB_ORG}/${repo}"
   
   # Enable Dependabot security updates
-  if [[ "$(get_default 'security.dependabot_security_updates')" == "true" ]]; then
-    gh api "repos/${full_repo}/automated-security-fixes" -X PUT >/dev/null 2>&1 || true
-  fi
+  gh api "repos/${full_repo}/automated-security-fixes" -X PUT >/dev/null 2>&1 || true
+}
+
+get_existing_rulesets() {
+  local repo="$1"
+  gh api "repos/${GITHUB_ORG}/${repo}/rulesets" --jq '.[].name' 2>/dev/null || echo ""
+}
+
+sync_ruleset() {
+  local repo="$1"
+  local ruleset_key="$2"
+  local full_repo="${GITHUB_ORG}/${repo}"
   
-  # Secret scanning is usually enabled at org level, but we can try
-  # These may fail if not available for the repo type
-  if [[ "$(get_default 'security.secret_scanning')" == "true" ]]; then
-    gh api "repos/${full_repo}" -X PATCH \
-      -f security_and_analysis='{"secret_scanning":{"status":"enabled"}}' >/dev/null 2>&1 || true
+  # Get ruleset config from JSON
+  local ruleset_config
+  ruleset_config=$(jq -c ".rulesets.${ruleset_key}" "$CONFIG_FILE")
+  
+  local ruleset_name
+  ruleset_name=$(echo "$ruleset_config" | jq -r '.name')
+  
+  # Check if ruleset already exists
+  local existing_id
+  existing_id=$(gh api "repos/${full_repo}/rulesets" --jq ".[] | select(.name == \"${ruleset_name}\") | .id" 2>/dev/null || echo "")
+  
+  # Build the API payload
+  local payload
+  payload=$(echo "$ruleset_config" | jq '{
+    name: .name,
+    target: .target,
+    enforcement: .enforcement,
+    conditions: .conditions,
+    bypass_actors: .bypass_actors,
+    rules: .rules
+  }')
+  
+  if [[ -n "$existing_id" ]]; then
+    # Update existing ruleset
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "    [DRY RUN] Would update ruleset: $ruleset_name (id: $existing_id)"
+    else
+      if gh api "repos/${full_repo}/rulesets/${existing_id}" -X PUT --input - <<< "$payload" >/dev/null 2>&1; then
+        log_ok "    Updated ruleset: $ruleset_name"
+      else
+        log_warn "    Failed to update ruleset: $ruleset_name"
+      fi
+    fi
+  else
+    # Create new ruleset
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "    [DRY RUN] Would create ruleset: $ruleset_name"
+    else
+      if gh api "repos/${full_repo}/rulesets" -X POST --input - <<< "$payload" >/dev/null 2>&1; then
+        log_ok "    Created ruleset: $ruleset_name"
+      else
+        log_warn "    Failed to create ruleset: $ruleset_name (may need higher permissions)"
+      fi
+    fi
   fi
+}
+
+sync_rulesets() {
+  local repo="$1"
+  
+  log_info "  Syncing rulesets..."
+  
+  # Sync each defined ruleset
+  for ruleset_key in $(jq -r '.rulesets | keys[] | select(. != "_comment")' "$CONFIG_FILE"); do
+    sync_ruleset "$repo" "$ruleset_key"
+  done
 }
 
 show_help() {
