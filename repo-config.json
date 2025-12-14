@@ -1,27 +1,24 @@
 {
   "$schema": "./schemas/repo-config.schema.json",
   "version": "1.0.0",
-  "description": "Repository configuration template - based on strata settings",
+  "description": "Repository configuration - only fields we want to propagate",
   
   "defaults": {
-    "visibility": "public",
-    "default_branch": "main",
-    "has_issues": true,
-    "has_projects": true,
-    "has_wiki": false,
-    "has_discussions": true,
-    "has_pages": true,
-    "allow_squash_merge": true,
-    "allow_merge_commit": false,
-    "allow_rebase_merge": false,
-    "allow_auto_merge": false,
-    "delete_branch_on_merge": true,
-    "squash_merge_commit_title": "COMMIT_OR_PR_TITLE",
-    "squash_merge_commit_message": "COMMIT_MESSAGES",
-    "security": {
-      "dependabot_security_updates": true,
-      "secret_scanning": true,
-      "secret_scanning_push_protection": true
+    "_comment": "These are the ONLY settings we manage. Visibility and description are NEVER touched.",
+    
+    "merge_settings": {
+      "allow_squash_merge": true,
+      "allow_merge_commit": false,
+      "allow_rebase_merge": false,
+      "delete_branch_on_merge": true,
+      "squash_merge_commit_title": "COMMIT_OR_PR_TITLE",
+      "squash_merge_commit_message": "COMMIT_MESSAGES"
+    },
+    
+    "features": {
+      "has_issues": true,
+      "has_projects": true,
+      "has_wiki": false
     }
   },
   
@@ -77,36 +74,6 @@
         "terraform-github-markdown",
         "terraform-repository-automation"
       ]
-    }
-  },
-  
-  "overrides": {
-    "agentic-crew": {
-      "description": "Framework-agnostic AI crew orchestration - declare once, run on CrewAI, LangGraph, or Strands"
-    },
-    "agentic-control": {
-      "description": "Unified AI agent fleet management, triage, and orchestration toolkit"
-    },
-    "agentic-triage": {
-      "description": "AI-powered GitHub issue triage, PR review, and sprint planning CLI"
-    },
-    "strata": {
-      "description": "Procedural 3D graphics library for React Three Fiber - terrain, water, vegetation, sky, volumetrics"
-    },
-    "vendor-connectors": {
-      "description": "API connectors for external vendors"
-    },
-    "lifecyclelogging": {
-      "description": "Flexible Python logging library with rich console formatting, file output, and verbosity controls"
-    },
-    "extended-data-types": {
-      "description": "Extended Python data types"
-    },
-    "secretsync": {
-      "description": "Enterprise-grade secret synchronization pipeline"
-    },
-    "vault-secret-sync": {
-      "description": "Automated real-time secret synchronization from HashiCorp Vault to cloud secret stores"
     }
   }
 }
