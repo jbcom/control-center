@@ -51,7 +51,7 @@ variable "default_execution_mode" {
     - "remote": TFC runs Terraform (requires .tf files in working_directory, not compatible with Terragrunt-only repos)
     - "agent": TFC agent runs Terraform
   EOT
-  default     = "remote"
+  default     = "local"
   validation {
     condition     = contains(["remote", "local", "agent"], var.default_execution_mode)
     error_message = "Execution mode must be one of: remote, local, agent"

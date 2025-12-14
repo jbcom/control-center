@@ -63,7 +63,8 @@ if ! command -v terraform &> /dev/null; then
     echo "Install from: https://developer.hashicorp.com/terraform/install"
     exit 1
 fi
-echo -e "${GREEN}✓ terraform $(terraform version -json | grep -oP '"terraform_version":"\K[^"]+')${NC}"
+TF_VERSION=$(terraform version 2>/dev/null | head -1 | sed 's/Terraform //')
+echo -e "${GREEN}✓ terraform ${TF_VERSION:-installed}${NC}"
 
 # Check terragrunt
 if ! command -v terragrunt &> /dev/null; then
@@ -71,7 +72,8 @@ if ! command -v terragrunt &> /dev/null; then
     echo "Install from: https://terragrunt.gruntwork.io/docs/getting-started/install/"
     exit 1
 fi
-echo -e "${GREEN}✓ terragrunt $(terragrunt --version | grep -oP 'v[\d.]+')${NC}"
+TG_VERSION=$(terragrunt --version 2>/dev/null | head -1)
+echo -e "${GREEN}✓ terragrunt ${TG_VERSION:-installed}${NC}"
 
 echo ""
 echo -e "${YELLOW}Issue Background:${NC}"
@@ -131,10 +133,12 @@ echo -e "${YELLOW}Applying changes...${NC}"
 echo ""
 echo "This will update all 18 TFC workspaces with execution_mode = 'local'"
 echo ""
-read -p "Do you want to continue? (yes/no): " -r
+read -p "Do you want to continue? (yes/y/no/n): " -r
 echo ""
 
-if [[ ! "${REPLY}" =~ ^[Yy][Ee][Ss]$ ]]; then
+# Convert to lowercase for comparison
+REPLY_LOWER="${REPLY,,}"
+if [[ ! "${REPLY_LOWER}" =~ ^(y|yes)$ ]]; then
     echo -e "${YELLOW}Aborted by user${NC}"
     exit 0
 fi
