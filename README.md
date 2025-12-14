@@ -153,7 +153,8 @@ See [Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md) for detailed do
 ## Documentation
 
 - **[Terraform Repository Management](docs/TERRAFORM-REPOSITORY-MANAGEMENT.md)** - Active configuration management
-- **[Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md)** - Unlock locked Terraform Cloud workspaces
+- **[Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md)** - Complete guide to unlock locked Terraform Cloud workspaces
+- **[Quick Unlock Guide](docs/QUICK-UNLOCK-GUIDE.md)** - Quick reference for unlocking workspaces
 - **[FSC Infrastructure](docs/FSC-INFRASTRUCTURE.md)** - FlipsideCrypto production infrastructure
 - **[Token Management](docs/TOKEN-MANAGEMENT.md)** - GitHub token configuration
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)** - Environment configuration
