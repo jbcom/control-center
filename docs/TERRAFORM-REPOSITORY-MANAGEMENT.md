@@ -78,9 +78,16 @@ repository-files/
 - **Backend**: HCP Terraform (Terraform Cloud) - secure encrypted remote state
 - **Organization**: `jbcom`
 - **Workspaces**: `jbcom-repo-{repo-name}` (auto-generated per repository)
+- **Execution Mode**: `local` (Terraform runs in GitHub Actions, TFC only stores state)
 - **Security**: State is encrypted at rest, secrets never stored locally in plaintext
 - **Authentication**: Uses `TF_API_TOKEN` secret via `TF_TOKEN_app_terraform_io` environment variable
 - **Import**: Uses Terraform 1.5+ import blocks for zero-destroy import
+
+**Important**: The workspaces use `execution_mode = "local"` because:
+- GitHub Actions runs Terragrunt locally (CLI-driven workflow)
+- Terragrunt generates `.tf` files dynamically (not in repo)
+- TFC is used ONLY for state storage, not for executing Terraform
+- See [TFC Workspace Execution Mode](TFC-WORKSPACE-EXECUTION-MODE.md) for details
 
 ### Repository Categories
 
