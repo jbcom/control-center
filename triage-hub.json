@@ -1,0 +1,253 @@
+{
+  "$schema": "./schemas/triage-hub.schema.json",
+  "version": "1.0.0",
+  "organization": "jbdevprimary",
+  "migrating_to": "jbcom",
+  "description": "Centralized triage hub for jbcom ecosystem - manages all AI agent operations from private control center",
+  
+  "projects": {
+    "roadmap": {
+      "name": "Roadmap",
+      "id_var": "ROADMAP_PROJECT_ID",
+      "description": "Quarterly planning and feature roadmap"
+    },
+    "integration": {
+      "name": "Integration",
+      "id_var": "INTEGRATION_PROJECT_ID", 
+      "description": "Cross-package integration and dependency tracking"
+    }
+  },
+  
+  "ecosystems": {
+    "python": {
+      "language": "Python",
+      "package_manager": "pip/pypi",
+      "doc_patterns": ["docs/", "README.md", "pyproject.toml"],
+      "test_command": "pytest",
+      "lint_command": "ruff check",
+      "release_workflow": "release.yml",
+      "packages": {
+        "agentic-crew": {
+          "description": "Multi-agent orchestration framework",
+          "dependencies": ["lifecyclelogging", "extended-data-types"],
+          "consumers": [],
+          "pypi_name": "agentic-crew",
+          "doc_url": "https://github.com/jbdevprimary/agentic-crew#readme"
+        },
+        "vendor-connectors": {
+          "description": "API connectors for external vendors",
+          "dependencies": ["lifecyclelogging"],
+          "consumers": ["agentic-crew"],
+          "pypi_name": "vendor-connectors"
+        },
+        "extended-data-types": {
+          "description": "Extended Python data types",
+          "dependencies": [],
+          "consumers": ["agentic-crew", "directed-inputs-class"],
+          "pypi_name": "extended-data-types"
+        },
+        "directed-inputs-class": {
+          "description": "Type-safe input validation",
+          "dependencies": ["extended-data-types"],
+          "consumers": [],
+          "pypi_name": "directed-inputs-class"
+        },
+        "lifecyclelogging": {
+          "description": "Flexible Python logging library",
+          "dependencies": [],
+          "consumers": ["vendor-connectors", "agentic-crew", "python-terraform-bridge"],
+          "pypi_name": "lifecyclelogging"
+        },
+        "python-terraform-bridge": {
+          "description": "Python to Terraform module generator",
+          "dependencies": ["lifecyclelogging"],
+          "consumers": [],
+          "pypi_name": "python-terraform-bridge"
+        },
+        "rivers-of-reckoning": {
+          "description": "Game project",
+          "dependencies": [],
+          "consumers": [],
+          "pypi_name": null
+        },
+        "ai_game_dev": {
+          "description": "AI-powered game development",
+          "dependencies": [],
+          "consumers": [],
+          "pypi_name": null
+        }
+      }
+    },
+    
+    "typescript": {
+      "language": "TypeScript",
+      "package_manager": "npm/pnpm",
+      "doc_patterns": ["docs/", "README.md", "package.json"],
+      "test_command": "vitest",
+      "lint_command": "eslint",
+      "release_workflow": "release.yml",
+      "packages": {
+        "agentic-control": {
+          "description": "Core AI agent control framework",
+          "dependencies": [],
+          "consumers": ["agentic-triage", "strata"],
+          "npm_name": "agentic-control",
+          "doc_url": "https://github.com/jbdevprimary/agentic-control#readme"
+        },
+        "agentic-triage": {
+          "description": "AI-powered GitHub triage CLI",
+          "dependencies": ["agentic-control"],
+          "consumers": [],
+          "npm_name": "agentic-triage",
+          "doc_url": "https://github.com/jbdevprimary/agentic-triage#readme"
+        },
+        "strata": {
+          "description": "Procedural 3D graphics for React Three Fiber",
+          "dependencies": [],
+          "consumers": ["rivermarsh", "otter-river-rush"],
+          "npm_name": "@jbcom/strata",
+          "doc_url": "https://github.com/jbdevprimary/strata#readme"
+        },
+        "rivermarsh": {
+          "description": "Mobile-first 3D exploration game",
+          "dependencies": ["strata"],
+          "consumers": [],
+          "npm_name": null
+        },
+        "otter-river-rush": {
+          "description": "River adventure game",
+          "dependencies": ["strata"],
+          "consumers": [],
+          "npm_name": null
+        },
+        "otterfall": {
+          "description": "Waterfall game",
+          "dependencies": [],
+          "consumers": [],
+          "npm_name": null
+        },
+        "pixels-pygame-palace": {
+          "description": "Pixel art game platform",
+          "dependencies": [],
+          "consumers": [],
+          "npm_name": null
+        }
+      }
+    },
+    
+    "go": {
+      "language": "Go",
+      "package_manager": "go modules",
+      "doc_patterns": ["docs/", "README.md", "go.mod"],
+      "test_command": "go test ./...",
+      "lint_command": "golangci-lint run",
+      "release_workflow": "release.yml",
+      "packages": {
+        "port-api": {
+          "description": "Multi-language port API",
+          "dependencies": [],
+          "consumers": [],
+          "go_module": "github.com/jbdevprimary/port-api"
+        },
+        "vault-secret-sync": {
+          "description": "Vault to cloud secret synchronization",
+          "dependencies": [],
+          "consumers": [],
+          "go_module": "github.com/jbdevprimary/vault-secret-sync"
+        },
+        "secretsync": {
+          "description": "Enterprise-grade secret synchronization pipeline",
+          "dependencies": [],
+          "consumers": [],
+          "go_module": "github.com/jbdevprimary/secretsync"
+        }
+      }
+    },
+    
+    "terraform": {
+      "language": "HCL",
+      "package_manager": "terraform registry",
+      "doc_patterns": ["docs/", "README.md", "*.tf"],
+      "test_command": "terraform validate",
+      "lint_command": "tflint",
+      "release_workflow": "release.yml",
+      "packages": {
+        "terraform-github-markdown": {
+          "description": "GitHub markdown Terraform module",
+          "dependencies": [],
+          "consumers": []
+        },
+        "terraform-repository-automation": {
+          "description": "Repository automation Terraform module",
+          "dependencies": [],
+          "consumers": []
+        }
+      }
+    },
+    
+    "rust": {
+      "language": "Rust",
+      "package_manager": "cargo/crates.io",
+      "doc_patterns": ["docs/", "README.md", "Cargo.toml"],
+      "test_command": "cargo test",
+      "lint_command": "cargo clippy",
+      "release_workflow": "release.yml",
+      "packages": {
+        "echoes-of-beastlight": {
+          "description": "Rust game project",
+          "dependencies": [],
+          "consumers": [],
+          "crate_name": null
+        }
+      }
+    }
+  },
+  
+  "triage": {
+    "centralized": true,
+    "description": "All AI agent operations are managed from jbcom-control-center",
+    "strategies": {
+      "issue_assessment": {
+        "enabled": true,
+        "auto_label": true,
+        "auto_assign": false,
+        "update_project": true
+      },
+      "pr_review": {
+        "enabled": true,
+        "require_ai_review": true,
+        "auto_merge_if_approved": false
+      },
+      "release_coordination": {
+        "enabled": true,
+        "cascade_updates": true,
+        "update_dependents": true
+      }
+    },
+    "schedule": {
+      "sprint_planning": "0 12 * * 1",
+      "roadmap_update": "0 12 1 * *",
+      "health_check": "0 6 * * *"
+    }
+  },
+  
+  "documentation": {
+    "lookup_strategy": "context7",
+    "sources": {
+      "python": {
+        "base_url": "https://github.com/jbdevprimary",
+        "doc_paths": [
+          "{repo}/docs/",
+          "{repo}/README.md"
+        ]
+      },
+      "typescript": {
+        "base_url": "https://github.com/jbdevprimary",
+        "doc_paths": [
+          "{repo}/docs/",
+          "{repo}/README.md"
+        ]
+      }
+    }
+  }
+}

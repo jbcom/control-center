@@ -1,14 +1,36 @@
-name: Agentic Triage Projects
+name: Agentic Triage Hub
 
 on:
   workflow_dispatch:
     inputs:
       command:
-        description: 'agentic-triage command (supports flags, e.g., "roadmap --update-project")'
+        description: 'Triage command (roadmap, sprint, cascade, assess, review)'
         required: false
-        default: 'roadmap --update-project'
+        default: 'roadmap'
+        type: choice
+        options:
+          - roadmap
+          - sprint
+          - cascade
+          - assess
+          - review
+          - health
+      target_repo:
+        description: 'Target repo (leave empty for all managed repos)'
+        required: false
+        default: ''
+      update_project:
+        description: 'Update GitHub Projects'
+        required: false
+        default: true
+        type: boolean
   schedule:
+    # Weekly sprint planning - Monday 12:00 UTC
     - cron: '0 12 * * 1'
+  issues:
+    types: [opened, labeled]
+  pull_request_target:
+    types: [opened, ready_for_review]
 
 permissions:
   contents: read
@@ -17,171 +39,259 @@ permissions:
   projects: write
 
 env:
+  GITHUB_ORG: jbdevprimary
   ROADMAP_PROJECT_ID: ${{ vars.ROADMAP_PROJECT_ID }}
   INTEGRATION_PROJECT_ID: ${{ vars.INTEGRATION_PROJECT_ID }}
+  GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'llama3.1:70b' }}
 
 jobs:
-  triage:
-    name: Run agentic-triage against managed repos
+  # =============================================================================
+  # Generate dynamic matrix from ecosystem configuration
+  # =============================================================================
+  generate-matrix:
+    name: Generate Ecosystem Matrix
     runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Generate matrix from ecosystem
+        id: matrix
+        run: |
+          # Build matrix dynamically from terragrunt stacks
+          MATRIX=$(./scripts/ecosystem matrix 2>/dev/null || cat <<'EOF'
+          {
+            "include": [
+              {"ecosystem": "python", "repo": "jbdevprimary/agentic-crew", "submodule": "ecosystems/oss/agentic-crew"},
+              {"ecosystem": "python", "repo": "jbdevprimary/vendor-connectors", "submodule": "ecosystems/oss/vendor-connectors"},
+              {"ecosystem": "python", "repo": "jbdevprimary/extended-data-types", "submodule": "ecosystems/oss/extended-data-types"},
+              {"ecosystem": "python", "repo": "jbdevprimary/directed-inputs-class", "submodule": "ecosystems/oss/directed-inputs-class"},
+              {"ecosystem": "python", "repo": "jbdevprimary/lifecyclelogging", "submodule": "ecosystems/oss/lifecyclelogging"},
+              {"ecosystem": "python", "repo": "jbdevprimary/python-terraform-bridge", "submodule": "ecosystems/oss/python-terraform-bridge"},
+              {"ecosystem": "python", "repo": "jbdevprimary/rivers-of-reckoning", "submodule": "ecosystems/oss/rivers-of-reckoning"},
+              {"ecosystem": "python", "repo": "jbdevprimary/ai_game_dev", "submodule": "ecosystems/oss/ai_game_dev"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/agentic-control", "submodule": "ecosystems/oss/agentic-control"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/agentic-triage", "submodule": "ecosystems/oss/agentic-triage"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/strata", "submodule": "ecosystems/oss/strata"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/otter-river-rush", "submodule": "ecosystems/oss/otter-river-rush"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/otterfall", "submodule": "ecosystems/oss/otterfall"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/rivermarsh", "submodule": "ecosystems/oss/rivermarsh"},
+              {"ecosystem": "typescript", "repo": "jbdevprimary/pixels-pygame-palace", "submodule": "ecosystems/oss/pixels-pygame-palace"},
+              {"ecosystem": "go", "repo": "jbdevprimary/port-api", "submodule": "ecosystems/oss/port-api"},
+              {"ecosystem": "go", "repo": "jbdevprimary/vault-secret-sync", "submodule": "ecosystems/oss/vault-secret-sync"},
+              {"ecosystem": "terraform", "repo": "jbdevprimary/terraform-github-markdown", "submodule": "ecosystems/oss/terraform-github-markdown"},
+              {"ecosystem": "terraform", "repo": "jbdevprimary/terraform-repository-automation", "submodule": "ecosystems/oss/terraform-repository-automation"}
+            ]
+          }
+          EOF
+          )
+          
+          # If target_repo is specified, filter matrix
+          TARGET="${{ github.event.inputs.target_repo }}"
+          if [[ -n "$TARGET" ]]; then
+            MATRIX=$(echo "$MATRIX" | jq --arg target "$TARGET" '.include |= map(select(.repo | contains($target)))')
+          fi
+          
+          echo "matrix=$(echo "$MATRIX" | jq -c '.')" >> $GITHUB_OUTPUT
+          echo "Generated matrix with $(echo "$MATRIX" | jq '.include | length') repos"
+
+  # =============================================================================
+  # Centralized Triage - runs from control center
+  # =============================================================================
+  triage:
+    name: Triage ${{ matrix.repo }}
+    needs: generate-matrix
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          # Python
-          - ecosystem: python
-            repo: jbdevprimary/agentic-crew
-            downstream_package: terragrunt-stacks/python/agentic-crew
-          - ecosystem: python
-            repo: jbdevprimary/ai_game_dev
-            downstream_package: terragrunt-stacks/python/ai_game_dev
-          - ecosystem: python
-            repo: jbdevprimary/directed-inputs-class
-            downstream_package: terragrunt-stacks/python/directed-inputs-class
-          - ecosystem: python
-            repo: jbdevprimary/extended-data-types
-            downstream_package: terragrunt-stacks/python/extended-data-types
-          - ecosystem: python
-            repo: jbdevprimary/lifecyclelogging
-            downstream_package: terragrunt-stacks/python/lifecyclelogging
-          - ecosystem: python
-            repo: jbdevprimary/python-terraform-bridge
-            downstream_package: terragrunt-stacks/python/python-terraform-bridge
-          - ecosystem: python
-            repo: jbdevprimary/rivers-of-reckoning
-            downstream_package: terragrunt-stacks/python/rivers-of-reckoning
-          - ecosystem: python
-            repo: jbdevprimary/vendor-connectors
-            downstream_package: terragrunt-stacks/python/vendor-connectors
-
-          # TypeScript (Node.js)
-          - ecosystem: typescript
-            repo: jbdevprimary/agentic-control
-            downstream_package: terragrunt-stacks/nodejs/agentic-control
-          - ecosystem: typescript
-            repo: jbdevprimary/otter-river-rush
-            downstream_package: terragrunt-stacks/nodejs/otter-river-rush
-          - ecosystem: typescript
-            repo: jbdevprimary/otterfall
-            downstream_package: terragrunt-stacks/nodejs/otterfall
-          - ecosystem: typescript
-            repo: jbdevprimary/pixels-pygame-palace
-            downstream_package: terragrunt-stacks/nodejs/pixels-pygame-palace
-          - ecosystem: typescript
-            repo: jbdevprimary/rivermarsh
-            downstream_package: terragrunt-stacks/nodejs/rivermarsh
-          - ecosystem: typescript
-            repo: jbdevprimary/strata
-            downstream_package: terragrunt-stacks/nodejs/strata
-
-          # Go
-          - ecosystem: go
-            repo: jbdevprimary/port-api
-            downstream_package: terragrunt-stacks/go/port-api
-          - ecosystem: go
-            repo: jbdevprimary/vault-secret-sync
-            downstream_package: terragrunt-stacks/go/vault-secret-sync
-
-          # Rust (no repos enumerated in README yet; tracked explicitly)
-          - ecosystem: rust
-            repo: ""
-            downstream_package: ""
-            skip: true
-
+      matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
+    
     steps:
       - name: Checkout control center
         uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Run agentic-triage
-        id: triage
-        if: ${{ matrix.skip != true }}
-        uses: ./ecosystems/oss/agentic-triage
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          command: ${{ github.event.inputs.command || 'roadmap --update-project' }}
-          repo: ${{ matrix.repo }}
-          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
-          ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
-          ollama_host: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
-          ollama_model: ${{ vars.OLLAMA_MODEL || 'llama3.1:70b' }}
-
-      - name: Add Roadmap project draft
-        if: ${{ matrix.skip != true }}
+          node-version: '22'
+      
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+      
+      - name: Load triage hub configuration
+        id: config
+        run: |
+          # Extract package config from triage-hub.json
+          ECOSYSTEM="${{ matrix.ecosystem }}"
+          REPO_NAME=$(echo "${{ matrix.repo }}" | cut -d'/' -f2)
+          
+          CONFIG=$(jq -r ".ecosystems.${ECOSYSTEM}.packages[\"${REPO_NAME}\"] // {}" triage-hub.json)
+          echo "Package config: $CONFIG"
+          
+          # Get dependencies for context
+          DEPS=$(echo "$CONFIG" | jq -r '.dependencies // [] | join(",")')
+          CONSUMERS=$(echo "$CONFIG" | jq -r '.consumers // [] | join(",")')
+          
+          echo "dependencies=$DEPS" >> $GITHUB_OUTPUT
+          echo "consumers=$CONSUMERS" >> $GITHUB_OUTPUT
+      
+      - name: Run triage command
+        id: triage
+        run: |
+          COMMAND="${{ github.event.inputs.command || 'roadmap' }}"
+          REPO="${{ matrix.repo }}"
+          
+          echo "Running: agentic-triage $COMMAND --repo $REPO"
+          
+          # Build command with flags
+          FLAGS=""
+          if [[ "${{ github.event.inputs.update_project }}" == "true" ]]; then
+            FLAGS="$FLAGS --update-project"
+          fi
+          
+          # Run the triage command
+          RESULT=$(agentic-triage $COMMAND --repo "$REPO" $FLAGS 2>&1) || true
+          
+          # Extract summary if available
+          SUMMARY=$(echo "$RESULT" | grep -A5 "Summary:" | head -5 || echo "Triage completed")
+          
+          echo "result<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESULT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+      
+      - name: Update Roadmap Project
+        if: github.event.inputs.update_project != 'false' && env.ROADMAP_PROJECT_ID != ''
         uses: actions/github-script@v7
         env:
           PROJECT_ID: ${{ env.ROADMAP_PROJECT_ID }}
           TARGET_REPO: ${{ matrix.repo }}
           ECOSYSTEM: ${{ matrix.ecosystem }}
-          DOWNSTREAM_PACKAGE: ${{ matrix.downstream_package }}
-          TRIAGE_SUMMARY: ${{ steps.triage.outputs.summary }}
+          TRIAGE_RESULT: ${{ steps.triage.outputs.summary }}
+          DEPENDENCIES: ${{ steps.config.outputs.dependencies }}
+          CONSUMERS: ${{ steps.config.outputs.consumers }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
           script: |
-            const { PROJECT_ID, TARGET_REPO, ECOSYSTEM, DOWNSTREAM_PACKAGE, TRIAGE_SUMMARY, RUN_URL } = process.env;
+            const { PROJECT_ID, TARGET_REPO, ECOSYSTEM, TRIAGE_RESULT, DEPENDENCIES, CONSUMERS, RUN_URL } = process.env;
+            
             if (!PROJECT_ID) {
               core.info('ROADMAP_PROJECT_ID not set; skipping project update.');
               return;
             }
-
-            const title = `${TARGET_REPO} (${ECOSYSTEM}) triage update`;
+            
+            const title = `[${ECOSYSTEM}] ${TARGET_REPO.split('/')[1]} - Triage Update`;
             const bodyLines = [
-              `Run: ${RUN_URL}`,
-              TRIAGE_SUMMARY ? `Summary: ${TRIAGE_SUMMARY}` : 'Summary: pending from agentic-triage',
-              DOWNSTREAM_PACKAGE ? `Downstream package: ${DOWNSTREAM_PACKAGE}` : `Downstream package: ${TARGET_REPO}`,
+              `## Triage Summary`,
+              `**Repository:** ${TARGET_REPO}`,
+              `**Ecosystem:** ${ECOSYSTEM}`,
+              `**Run:** ${RUN_URL}`,
+              ``,
+              `### Dependencies`,
+              DEPENDENCIES ? DEPENDENCIES.split(',').map(d => `- ${d}`).join('\n') : '_None_',
+              ``,
+              `### Downstream Consumers`,
+              CONSUMERS ? CONSUMERS.split(',').map(c => `- ${c}`).join('\n') : '_None_',
+              ``,
+              `### Result`,
+              TRIAGE_RESULT || 'Completed',
             ];
-
-            await github.graphql(
-              `mutation($projectId: ID!, $title: String!, $body: String) {
-                addProjectV2DraftIssue(input: {projectId: $projectId, title: $title, body: $body}) {
-                  projectItem { id }
+            
+            try {
+              await github.graphql(
+                `mutation($projectId: ID!, $title: String!, $body: String) {
+                  addProjectV2DraftIssue(input: {projectId: $projectId, title: $title, body: $body}) {
+                    projectItem { id }
+                  }
+                }`,
+                {
+                  projectId: PROJECT_ID,
+                  title,
+                  body: bodyLines.join('\n'),
                 }
-              }`,
-              {
-                projectId: PROJECT_ID,
-                title,
-                body: bodyLines.join('\n'),
-              }
-            );
-            core.notice(`Added draft item to Roadmap project for ${TARGET_REPO}`);
-
-      - name: Add Integration project draft
-        if: ${{ matrix.skip != true }}
-        uses: actions/github-script@v7
-        env:
-          PROJECT_ID: ${{ env.INTEGRATION_PROJECT_ID }}
-          TARGET_REPO: ${{ matrix.repo }}
-          ECOSYSTEM: ${{ matrix.ecosystem }}
-          DOWNSTREAM_PACKAGE: ${{ matrix.downstream_package }}
-          TRIAGE_SUMMARY: ${{ steps.triage.outputs.summary }}
-          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        with:
-          github-token: ${{ secrets.CI_GITHUB_TOKEN }}
-          script: |
-            const { PROJECT_ID, TARGET_REPO, ECOSYSTEM, DOWNSTREAM_PACKAGE, TRIAGE_SUMMARY, RUN_URL } = process.env;
-            if (!PROJECT_ID) {
-              core.info('INTEGRATION_PROJECT_ID not set; skipping project update.');
-              return;
+              );
+              core.notice(`Added draft item to Roadmap project for ${TARGET_REPO}`);
+            } catch (error) {
+              core.warning(`Failed to update project: ${error.message}`);
             }
 
-            const title = `${TARGET_REPO} (${ECOSYSTEM}) integration triage`;
-            const bodyLines = [
-              `Run: ${RUN_URL}`,
-              TRIAGE_SUMMARY ? `Summary: ${TRIAGE_SUMMARY}` : 'Summary: pending from agentic-triage',
-              DOWNSTREAM_PACKAGE ? `Downstream package: ${DOWNSTREAM_PACKAGE}` : `Downstream package: ${TARGET_REPO}`,
-            ];
+  # =============================================================================
+  # Issue Triage - triggered by new issues in managed repos
+  # =============================================================================
+  issue-triage:
+    name: Triage Issue
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+      
+      - name: Assess issue
+        run: |
+          agentic-triage assess ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }}
 
-            await github.graphql(
-              `mutation($projectId: ID!, $title: String!, $body: String) {
-                addProjectV2DraftIssue(input: {projectId: $projectId, title: $title, body: $body}) {
-                  projectItem { id }
-                }
-              }`,
-              {
-                projectId: PROJECT_ID,
-                title,
-                body: bodyLines.join('\n'),
-              }
-            );
-            core.notice(`Added draft item to Integration project for ${TARGET_REPO}`);
+  # =============================================================================
+  # PR Review - triggered by new PRs in managed repos
+  # =============================================================================
+  pr-review:
+    name: Review PR
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request_target'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+      
+      - name: Review PR
+        run: |
+          agentic-triage review ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }}
+
+  # =============================================================================
+  # Ecosystem Health Check
+  # =============================================================================
+  health-check:
+    name: Ecosystem Health
+    runs-on: ubuntu-latest
+    if: github.event.inputs.command == 'health'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      
+      - name: Run health check
+        run: |
+          ./scripts/ecosystem health
+      
+      - name: Check for missing submodules
+        run: |
+          ./scripts/ecosystem sync --dry-run

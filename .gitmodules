@@ -55,3 +55,6 @@
 [submodule "ecosystems/oss/terraform-repository-automation"]
 	path = ecosystems/oss/terraform-repository-automation
 	url = https://github.com/jbdevprimary/terraform-repository-automation.git
+[submodule "ecosystems/oss/secretsync"]
+	path = ecosystems/oss/secretsync
+	url = https://github.com/jbdevprimary/secretsync.git
