@@ -1,0 +1,12 @@
+[submodule "ecosystems/oss/strata"]
+	path = ecosystems/oss/strata
+	url = https://github.com/jbdevprimary/strata.git
+[submodule "ecosystems/oss/agentic-control"]
+	path = ecosystems/oss/agentic-control
+	url = https://github.com/jbdevprimary/agentic-control.git
+[submodule "ecosystems/oss/agentic-crew"]
+	path = ecosystems/oss/agentic-crew
+	url = https://github.com/jbdevprimary/agentic-crew.git
+[submodule "ecosystems/oss/agentic-triage"]
+	path = ecosystems/oss/agentic-triage
+	url = https://github.com/jbdevprimary/agentic-triage.git
