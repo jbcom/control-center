@@ -94,6 +94,7 @@ export GITHUB_FSC_TOKEN="..."    #  repos
 | `terraform-sync.yml` | Pull request | Plan and preview changes |
 | `terraform-sync.yml` | Daily at 2 AM UTC | Detect configuration drift |
 | `terraform-sync.yml` | Manual dispatch | Plan or apply on demand |
+| `unlock-tfc-workspaces.yml` | Manual dispatch | Unlock Terraform Cloud workspaces that are stuck in locked state |
 
 ## Quick Start
 
@@ -129,11 +130,31 @@ To trigger manually:
 gh workflow run terraform-sync.yml -f apply=true
 ```
 
+### Troubleshooting: Locked Workspaces
+
+If the `terraform-sync` workflow fails due to locked Terraform Cloud workspaces:
+
+1. **Automatic unlock**: The workflow now automatically checks for and unlocks locked workspaces before running Terraform
+2. **Manual unlock**: Use the dedicated unlock workflow:
+   ```bash
+   gh workflow run unlock-tfc-workspaces.yml -f dry_run=false
+   ```
+3. **Script**: Run the unlock script directly (requires TFC token):
+   ```bash
+   export TF_API_TOKEN="your-token"
+   ./scripts/unlock-tfc-workspaces.sh --dry-run  # List locked workspaces
+   ./scripts/unlock-tfc-workspaces.sh             # Unlock all
+   ```
+
+See [Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md) for detailed documentation.
+
 ---
 
 ## Documentation
 
 - **[Terraform Repository Management](docs/TERRAFORM-REPOSITORY-MANAGEMENT.md)** - Active configuration management
+- **[Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md)** - Complete guide to unlock locked Terraform Cloud workspaces
+- **[Quick Unlock Guide](docs/QUICK-UNLOCK-GUIDE.md)** - Quick reference for unlocking workspaces
 - **[FSC Infrastructure](docs/FSC-INFRASTRUCTURE.md)** -  production infrastructure
 - **[Token Management](docs/TOKEN-MANAGEMENT.md)** - GitHub token configuration
 - **[Environment Variables](docs/ENVIRONMENT_VARIABLES.md)** - Environment configuration
