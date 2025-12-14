@@ -148,11 +148,26 @@ If the `terraform-sync` workflow fails due to locked Terraform Cloud workspaces:
 
 See [Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md) for detailed documentation.
 
+### Troubleshooting: "No Terraform configuration files found"
+
+If terraform apply fails with "No Terraform configuration files found in working directory":
+
+This indicates TFC workspaces are configured with `execution_mode = "remote"` but should be `"local"` for CLI-driven workflows.
+
+**Quick Fix:**
+```bash
+export TF_API_TOKEN="your-tfc-token"
+./scripts/apply-bootstrap-fix.sh
+```
+
+See [TFC Workspace Execution Mode](docs/TFC-WORKSPACE-EXECUTION-MODE.md) for details.
+
 ---
 
 ## Documentation
 
 - **[Terraform Repository Management](docs/TERRAFORM-REPOSITORY-MANAGEMENT.md)** - Active configuration management
+- **[TFC Workspace Execution Mode](docs/TFC-WORKSPACE-EXECUTION-MODE.md)** - Fix for "No configuration files found" error
 - **[Unlocking TFC Workspaces](docs/UNLOCKING-TFC-WORKSPACES.md)** - Complete guide to unlock locked Terraform Cloud workspaces
 - **[Quick Unlock Guide](docs/QUICK-UNLOCK-GUIDE.md)** - Quick reference for unlocking workspaces
 - **[FSC Infrastructure](docs/FSC-INFRASTRUCTURE.md)** - FlipsideCrypto production infrastructure
