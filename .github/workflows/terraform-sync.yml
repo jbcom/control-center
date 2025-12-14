@@ -60,6 +60,9 @@ jobs:
       TF_VAR_npm_token: ${{ secrets.NPM_TOKEN }}
       TF_VAR_dockerhub_username: ${{ secrets.DOCKERHUB_USERNAME }}
       TF_VAR_dockerhub_token: ${{ secrets.DOCKERHUB_TOKEN }}
+      # Docker Hub provider auth (non-TF_VAR for provider)
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       TF_VAR_anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
       TF_VAR_ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
 
