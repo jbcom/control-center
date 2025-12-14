@@ -22,6 +22,82 @@
     }
   },
   
+  "rulesets": {
+    "_comment": "Rulesets extracted from strata - applied to all repos",
+    
+    "main": {
+      "name": "Main",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "include": ["~DEFAULT_BRANCH"],
+          "exclude": []
+        }
+      },
+      "bypass_actors": [
+        {
+          "actor_id": 5,
+          "actor_type": "RepositoryRole",
+          "bypass_mode": "always"
+        }
+      ],
+      "rules": [
+        { "type": "non_fast_forward" },
+        { "type": "required_linear_history" },
+        {
+          "type": "pull_request",
+          "parameters": {
+            "allowed_merge_methods": ["squash"],
+            "dismiss_stale_reviews_on_push": false,
+            "require_code_owner_review": false,
+            "require_last_push_approval": false,
+            "required_approving_review_count": 0,
+            "required_review_thread_resolution": true,
+            "required_reviewers": []
+          }
+        }
+      ]
+    },
+    
+    "prs": {
+      "name": "PRs",
+      "target": "branch",
+      "enforcement": "active",
+      "conditions": {
+        "ref_name": {
+          "include": [],
+          "exclude": ["refs/heads/main"]
+        }
+      },
+      "bypass_actors": [],
+      "rules": [
+        {
+          "type": "copilot_code_review",
+          "parameters": {
+            "review_draft_pull_requests": false,
+            "review_on_push": true
+          }
+        },
+        {
+          "type": "copilot_code_review_analysis_tools",
+          "parameters": {
+            "tools": [
+              { "name": "CodeQL" },
+              { "name": "ESLint" }
+            ]
+          }
+        },
+        {
+          "type": "code_quality",
+          "parameters": {
+            "severity": "errors"
+          }
+        }
+      ]
+    }
+  },
+  
   "ecosystems": {
     "python": {
       "files": {
