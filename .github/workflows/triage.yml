@@ -108,6 +108,7 @@ jobs:
           - jbdevprimary/agentic-control
           - jbdevprimary/agentic-crew
           - jbdevprimary/agentic-triage
+          - jbdevprimary/vendor-connectors
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -155,6 +156,7 @@ jobs:
           - jbdevprimary/agentic-control
           - jbdevprimary/agentic-crew
           - jbdevprimary/agentic-triage
+          - jbdevprimary/vendor-connectors
     steps:
       - uses: actions/setup-node@v4
         with:
@@ -184,6 +186,7 @@ jobs:
           - jbdevprimary/agentic-control
           - jbdevprimary/agentic-crew
           - jbdevprimary/agentic-triage
+          - jbdevprimary/vendor-connectors
     steps:
       - uses: actions/setup-node@v4
         with:
