@@ -84,19 +84,25 @@ configure_repo() {
     return 1
   fi
   
-  # Build desired state from defaults + overrides
-  local description
-  description=$(get_repo_override "$repo" "description")
-  [[ -z "$description" ]] && description=$(echo "$current" | jq -r '.description // ""')
+  # SAFETY: Never change these fields
+  # - visibility (private/public) - NEVER CHANGE
+  # - description - only if explicitly set in overrides
+  # - name - NEVER CHANGE
   
-  # Build the update payload
+  local current_visibility
+  current_visibility=$(echo "$current" | jq -r '.visibility // "public"')
+  log_info "  Visibility: $current_visibility (preserved)"
+  
+  # Only include description if explicitly overridden
+  local description_override
+  description_override=$(get_repo_override "$repo" "description")
+  
+  # Build the update payload - ONLY merge/branch settings, not visibility or description
   local payload
   payload=$(jq -n \
-    --arg desc "$description" \
     --argjson has_issues "$(get_default 'has_issues')" \
     --argjson has_projects "$(get_default 'has_projects')" \
     --argjson has_wiki "$(get_default 'has_wiki')" \
-    --argjson has_discussions "$(get_default 'has_discussions')" \
     --argjson allow_squash_merge "$(get_default 'allow_squash_merge')" \
     --argjson allow_merge_commit "$(get_default 'allow_merge_commit')" \
     --argjson allow_rebase_merge "$(get_default 'allow_rebase_merge')" \
@@ -105,11 +111,9 @@ configure_repo() {
     --arg squash_title "$(get_default 'squash_merge_commit_title')" \
     --arg squash_message "$(get_default 'squash_merge_commit_message')" \
     '{
-      description: $desc,
       has_issues: $has_issues,
       has_projects: $has_projects,
       has_wiki: $has_wiki,
-      has_discussions: $has_discussions,
       allow_squash_merge: $allow_squash_merge,
       allow_merge_commit: $allow_merge_commit,
       allow_rebase_merge: $allow_rebase_merge,
@@ -119,12 +123,25 @@ configure_repo() {
       squash_merge_commit_message: $squash_message
     }')
   
+  # Only add description if explicitly overridden (don't clobber existing)
+  if [[ -n "$description_override" ]]; then
+    payload=$(echo "$payload" | jq --arg desc "$description_override" '. + {description: $desc}')
+    log_info "  Description override: $description_override"
+  fi
+  
+  # has_discussions requires a separate API call and visibility check
+  # Only enable for public repos
+  local enable_discussions=false
+  if [[ "$current_visibility" == "public" ]] && [[ "$(get_default 'has_discussions')" == "true" ]]; then
+    enable_discussions=true
+  fi
+  
   # Show diff if requested
   if [[ "$SHOW_DIFF" == "true" ]]; then
-    echo "  Current vs Desired:"
+    echo "  Current vs Desired (safe fields only):"
     
-    # Compare key fields
-    local fields=("has_wiki" "has_discussions" "allow_squash_merge" "allow_merge_commit" "allow_rebase_merge" "delete_branch_on_merge")
+    # Compare key fields - only the ones we actually manage
+    local fields=("has_wiki" "allow_squash_merge" "allow_merge_commit" "allow_rebase_merge" "delete_branch_on_merge")
     local has_diff=false
     
     for field in "${fields[@]}"; do
@@ -138,8 +155,13 @@ configure_repo() {
       fi
     done
     
+    # Show protected fields
+    echo "  Protected (never changed):"
+    echo "    visibility: $(echo "$current" | jq -r '.visibility')"
+    echo "    description: $(echo "$current" | jq -r '.description // "(none)"' | head -c 50)..."
+    
     if [[ "$has_diff" != "true" ]]; then
-      log_ok "  No differences"
+      log_ok "  No differences in managed fields"
     fi
     
     return 0
@@ -147,18 +169,21 @@ configure_repo() {
   
   # Apply configuration
   if [[ "$DRY_RUN" == "true" ]]; then
-    log_info "  [DRY RUN] Would apply:"
+    log_info "  [DRY RUN] Would apply (safe fields only):"
     echo "$payload" | jq -c '.'
+    log_info "  [DRY RUN] Protected fields preserved: visibility, description"
   else
     if gh api "repos/${full_repo}" -X PATCH --input - <<< "$payload" >/dev/null 2>&1; then
-      log_ok "  Configuration applied"
+      log_ok "  Configuration applied (visibility/description preserved)"
     else
       log_error "  Failed to apply configuration"
       return 1
     fi
     
-    # Configure security settings
-    configure_security "$repo"
+    # Configure security settings (only for public repos)
+    if [[ "$current_visibility" == "public" ]]; then
+      configure_security "$repo"
+    fi
   fi
 }
 
