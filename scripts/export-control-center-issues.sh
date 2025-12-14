@@ -10,6 +10,11 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 1
 fi
 
+if ! command -v jq >/dev/null 2>&1; then
+  echo "ERROR: jq is required (https://stedolan.github.io/jq/)" >&2
+  exit 1
+fi
+
 if [[ -z "${GH_TOKEN_VALUE}" ]]; then
   echo "ERROR: Set GITHUB_JBCOM_TOKEN, GITHUB_TOKEN, or GH_TOKEN to access ${REPO}" >&2
   exit 1

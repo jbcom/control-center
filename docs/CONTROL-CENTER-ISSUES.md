@@ -8,7 +8,8 @@ flows can ingest and consider them alongside ecosystem tasks.
 
 1. Install the GitHub CLI if it is not already available:
    ```bash
-   sudo apt-get update && sudo apt-get install -y gh
+   # For installation instructions, see the official GitHub CLI documentation:
+   # https://cli.github.com/
    ```
 
 2. Export the issues using a token that can read `jbcom/jbcom-control-center`:
