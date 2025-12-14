@@ -42,7 +42,7 @@ while [[ $# -gt 0 ]]; do
             shift 2
             ;;
         -h|--help)
-            grep "^#" "$0" | grep -v "#!/bin/bash" | sed 's/^# //'
+            head -n 20 "$0" | grep "^#" | grep -v "#!/bin/bash" | sed 's/^# //'
             exit 0
             ;;
         *)
