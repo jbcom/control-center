@@ -124,7 +124,7 @@ After applying the bootstrap changes, test that terraform-sync workflow works:
 
 ## Prevention
 
-The `default_execution_mode` variable in `terragrunt-stacks/modules/tfe-workspaces/main.tf` now has enhanced documentation:
+The `default_execution_mode` variable in `terragrunt-stacks/modules/tfe-workspaces/main.tf` now has enhanced documentation and the default has been changed to prevent this issue from recurring:
 
 ```hcl
 variable "default_execution_mode" {
@@ -135,10 +135,12 @@ variable "default_execution_mode" {
     - "remote": TFC runs Terraform (requires .tf files in working_directory, not compatible with Terragrunt-only repos)
     - "agent": TFC agent runs Terraform
   EOT
-  default     = "remote"
+  default     = "local"  # Changed from "remote" to prevent misconfiguration
   ...
 }
 ```
+
+**Note**: The module default was changed from `"remote"` to `"local"` to ensure new workspaces are created with the correct execution mode for CLI-driven workflows.
 
 ## References
 
