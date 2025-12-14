@@ -1,30 +1,68 @@
 {
   "$schema": "./schemas/repo-config.schema.json",
   "version": "1.0.0",
-  "description": "Repository configuration - only fields we want to propagate",
+  "description": "Comprehensive repository configuration - extracted from strata as template",
+  
+  "_protected_fields": [
+    "visibility",
+    "name", 
+    "description",
+    "homepage",
+    "private",
+    "archived"
+  ],
   
   "defaults": {
-    "_comment": "These are the ONLY settings we manage. Visibility and description are NEVER touched.",
-    
     "merge_settings": {
       "allow_squash_merge": true,
       "allow_merge_commit": false,
       "allow_rebase_merge": false,
+      "allow_auto_merge": false,
       "delete_branch_on_merge": true,
+      "allow_update_branch": false,
       "squash_merge_commit_title": "COMMIT_OR_PR_TITLE",
-      "squash_merge_commit_message": "COMMIT_MESSAGES"
+      "squash_merge_commit_message": "COMMIT_MESSAGES",
+      "merge_commit_title": "MERGE_MESSAGE",
+      "merge_commit_message": "PR_TITLE",
+      "use_squash_pr_title_as_default": false
     },
     
     "features": {
       "has_issues": true,
       "has_projects": true,
-      "has_wiki": false
+      "has_wiki": false,
+      "has_discussions": true,
+      "has_downloads": false,
+      "is_template": false,
+      "allow_forking": true,
+      "web_commit_signoff_required": false
+    },
+    
+    "security": {
+      "dependabot_security_updates": "enabled",
+      "secret_scanning": "enabled",
+      "secret_scanning_push_protection": "enabled",
+      "secret_scanning_non_provider_patterns": "disabled",
+      "secret_scanning_validity_checks": "disabled",
+      "vulnerability_alerts": true
+    },
+    
+    "actions": {
+      "enabled": true,
+      "allowed_actions": "all",
+      "sha_pinning_required": false
+    },
+    
+    "pages": {
+      "enabled": true,
+      "build_type": "workflow",
+      "source_branch": "main",
+      "source_path": "/",
+      "https_enforced": true
     }
   },
   
   "rulesets": {
-    "_comment": "Rulesets extracted from strata - applied to all repos",
-    
     "main": {
       "name": "Main",
       "target": "branch",
@@ -98,6 +136,43 @@
     }
   },
   
+  "environments": {
+    "github-pages": {
+      "deployment_branch_policy": {
+        "protected_branches": false,
+        "custom_branch_policies": true
+      },
+      "can_admins_bypass": true
+    }
+  },
+  
+  "labels": {
+    "_comment": "Standard labels to sync across all repos",
+    "standard": [
+      { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
+      { "name": "enhancement", "color": "a2eeef", "description": "New feature or request" },
+      { "name": "documentation", "color": "0075ca", "description": "Improvements or additions to documentation" },
+      { "name": "good first issue", "color": "7057ff", "description": "Good for newcomers" },
+      { "name": "help wanted", "color": "008672", "description": "Extra attention is needed" },
+      { "name": "question", "color": "d876e3", "description": "Further information is requested" },
+      { "name": "duplicate", "color": "cfd3d7", "description": "This issue or pull request already exists" },
+      { "name": "invalid", "color": "e4e669", "description": "This doesn't seem right" },
+      { "name": "epic", "color": "7057ff", "description": "Epic issue tracking multiple sub-tasks" },
+      { "name": "priority: critical", "color": "b60205", "description": "Critical priority - must fix immediately" },
+      { "name": "priority: high", "color": "d93f0b", "description": "High priority" },
+      { "name": "priority: medium", "color": "fbca04", "description": "Medium priority" },
+      { "name": "ci", "color": "d0cce4", "description": "CI/CD related" },
+      { "name": "queued", "color": "bdba7f", "description": "Queued for processing" },
+      { "name": "dequeued", "color": "648202", "description": "Removed from queue" },
+      { "name": "extraction", "color": "0E8A16", "description": "Work being extracted from integration branch" }
+    ],
+    "ai_agents": [
+      { "name": "Amazon Q development agent", "color": "008dff", "description": "Generate new features or iterate code based on issue descriptions and comments." },
+      { "name": "Amazon Q transform agent", "color": "7f33ff", "description": "Upgrade codebase to latest language version." },
+      { "name": "codex", "color": "ededed", "description": "Codex AI agent" }
+    ]
+  },
+  
   "ecosystems": {
     "python": {
       "files": {
@@ -113,7 +188,35 @@
         "python-terraform-bridge",
         "rivers-of-reckoning",
         "ai_game_dev"
-      ]
+      ],
+      "ruleset_overrides": {
+        "prs": {
+          "rules": [
+            {
+              "type": "copilot_code_review",
+              "parameters": {
+                "review_draft_pull_requests": false,
+                "review_on_push": true
+              }
+            },
+            {
+              "type": "copilot_code_review_analysis_tools",
+              "parameters": {
+                "tools": [
+                  { "name": "CodeQL" },
+                  { "name": "Ruff" }
+                ]
+              }
+            },
+            {
+              "type": "code_quality",
+              "parameters": {
+                "severity": "errors"
+              }
+            }
+          ]
+        }
+      }
     },
     "nodejs": {
       "files": {
@@ -139,7 +242,35 @@
         "port-api",
         "vault-secret-sync",
         "secretsync"
-      ]
+      ],
+      "ruleset_overrides": {
+        "prs": {
+          "rules": [
+            {
+              "type": "copilot_code_review",
+              "parameters": {
+                "review_draft_pull_requests": false,
+                "review_on_push": true
+              }
+            },
+            {
+              "type": "copilot_code_review_analysis_tools",
+              "parameters": {
+                "tools": [
+                  { "name": "CodeQL" },
+                  { "name": "golangci-lint" }
+                ]
+              }
+            },
+            {
+              "type": "code_quality",
+              "parameters": {
+                "severity": "errors"
+              }
+            }
+          ]
+        }
+      }
     },
     "terraform": {
       "files": {
@@ -149,7 +280,11 @@
       "repos": [
         "terraform-github-markdown",
         "terraform-repository-automation"
-      ]
+      ],
+      "feature_overrides": {
+        "has_pages": false,
+        "has_discussions": false
+      }
     }
   }
 }
