@@ -45,7 +45,12 @@ variable "repositories" {
 
 variable "default_execution_mode" {
   type        = string
-  description = "Default execution mode for workspaces"
+  description = <<-EOT
+    Execution mode for workspaces:
+    - "local": Terraform runs locally (CLI-driven), TFC only stores state (recommended for this setup)
+    - "remote": TFC runs Terraform (requires .tf files in working_directory, not compatible with Terragrunt-only repos)
+    - "agent": TFC agent runs Terraform
+  EOT
   default     = "remote"
   validation {
     condition     = contains(["remote", "local", "agent"], var.default_execution_mode)
@@ -91,6 +96,9 @@ resource "tfe_workspace" "repo" {
   auto_apply     = var.auto_apply
 
   # Working directory - each repo has its own terragrunt directory
+  # NOTE: This directory only contains terragrunt.hcl, not .tf files
+  # For execution_mode = "local", this is informational only
+  # For execution_mode = "remote", TFC would expect .tf files here (not compatible with Terragrunt)
   working_directory = "terragrunt-stacks/${each.value.language}/${each.key}"
 
   # Allow destroy operations

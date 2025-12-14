@@ -114,7 +114,9 @@ inputs = {
   repositories  = local.all_repos
   
   # Workspace settings
-  default_execution_mode = "remote"
+  # Use "local" execution mode for CLI-driven workflow (GitHub Actions runs Terragrunt locally)
+  # TFC is used ONLY for remote state storage, not for executing Terraform
+  default_execution_mode = "local"
   auto_apply             = false
   allow_destroy_plan     = true
   global_remote_state    = true
