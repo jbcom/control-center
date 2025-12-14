@@ -63,8 +63,12 @@ if ! command -v terraform &> /dev/null; then
     echo "Install from: https://developer.hashicorp.com/terraform/install"
     exit 1
 fi
-TF_VERSION=$(terraform version 2>/dev/null | head -1 | sed 's/Terraform //')
-echo -e "${GREEN}✓ terraform ${TF_VERSION:-installed}${NC}"
+TF_VERSION=$(terraform version 2>/dev/null | head -1 | sed 's/Terraform //' || echo "unknown")
+if [ -z "$TF_VERSION" ] || [ "$TF_VERSION" = "unknown" ]; then
+    echo -e "${GREEN}✓ terraform installed${NC}"
+else
+    echo -e "${GREEN}✓ terraform ${TF_VERSION}${NC}"
+fi
 
 # Check terragrunt
 if ! command -v terragrunt &> /dev/null; then
@@ -72,8 +76,12 @@ if ! command -v terragrunt &> /dev/null; then
     echo "Install from: https://terragrunt.gruntwork.io/docs/getting-started/install/"
     exit 1
 fi
-TG_VERSION=$(terragrunt --version 2>/dev/null | head -1)
-echo -e "${GREEN}✓ terragrunt ${TG_VERSION:-installed}${NC}"
+TG_VERSION=$(terragrunt --version 2>/dev/null | head -1 || echo "unknown")
+if [ -z "$TG_VERSION" ] || [ "$TG_VERSION" = "unknown" ]; then
+    echo -e "${GREEN}✓ terragrunt installed${NC}"
+else
+    echo -e "${GREEN}✓ terragrunt ${TG_VERSION}${NC}"
+fi
 
 echo ""
 echo -e "${YELLOW}Issue Background:${NC}"
@@ -136,8 +144,8 @@ echo ""
 read -p "Do you want to continue? (yes/y/no/n): " -r
 echo ""
 
-# Convert to lowercase for comparison
-REPLY_LOWER="${REPLY,,}"
+# Convert to lowercase for comparison (using tr for bash 3.x compatibility)
+REPLY_LOWER=$(echo "${REPLY}" | tr '[:upper:]' '[:lower:]')
 if [[ ! "${REPLY_LOWER}" =~ ^(y|yes)$ ]]; then
     echo -e "${YELLOW}Aborted by user${NC}"
     exit 0

@@ -1,5 +1,18 @@
 # TFC Workspace "No Configuration Files" Fix - Summary
 
+## ⚠️ Breaking Change Notice
+
+The `default_execution_mode` in `terragrunt-stacks/modules/tfe-workspaces/main.tf` has been changed from `"remote"` to `"local"`. This is correct for CLI-driven workflows (our current setup) but represents a **breaking change** for the module:
+
+- **Before**: New workspaces defaulted to `execution_mode = "remote"` (TFC executes Terraform)
+- **After**: New workspaces default to `execution_mode = "local"` (local execution, TFC only stores state)
+
+This change:
+- ✅ Fixes the current issue
+- ✅ Prevents the issue from recurring
+- ✅ Aligns with our GitHub Actions CLI-driven workflow
+- ⚠️ May affect users who intentionally want remote execution (unlikely in this setup)
+
 ## Issue
 After workspace unlock and Docker Hub removal, all 18 TFC workspaces were failing with:
 ```
