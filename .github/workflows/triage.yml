@@ -1,0 +1,198 @@
+name: Triage
+
+on:
+  # Trigger on new issues
+  issues:
+    types: [opened, labeled]
+
+  # Trigger on new PRs for review
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+  # Manual trigger for different triage commands
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Triage command to run'
+        required: true
+        type: choice
+        options:
+          - sprint
+          - roadmap
+          - cascade
+          - security
+        default: sprint
+      target:
+        description: 'Target repository (owner/repo) or "all" for all OSS repos'
+        required: false
+        default: 'all'
+
+  # Weekly sprint planning
+  schedule:
+    - cron: '0 9 * * 1'  # Monday 9am UTC
+
+concurrency:
+  group: triage-${{ github.event_name }}-${{ github.event.issue.number || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+
+jobs:
+  # ============================================
+  # ISSUE TRIAGE: Assess and label new issues
+  # ============================================
+  assess-issue:
+    name: Assess Issue
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Assess issue
+        run: |
+          agentic-triage assess ${{ github.event.issue.number }} \
+            --repo ${{ github.repository }}
+
+  # ============================================
+  # PR REVIEW: Review new/updated PRs
+  # ============================================
+  review-pr:
+    name: Review PR
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Review PR
+        run: |
+          agentic-triage review ${{ github.event.pull_request.number }} \
+            --repo ${{ github.repository }}
+
+  # ============================================
+  # SPRINT PLANNING: Weekly automated sprint
+  # ============================================
+  sprint-planning:
+    name: Sprint Planning
+    if: |
+      github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'sprint')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - jbdevprimary/strata
+          - jbdevprimary/agentic-control
+          - jbdevprimary/agentic-crew
+          - jbdevprimary/agentic-triage
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Run sprint planning
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo || github.event_name == 'schedule'
+        run: |
+          agentic-triage sprint --repo ${{ matrix.repo }}
+
+  # ============================================
+  # ROADMAP: Quarterly roadmap generation
+  # ============================================
+  roadmap:
+    name: Generate Roadmap
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'roadmap'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Generate roadmap
+        run: |
+          agentic-triage roadmap --repo ${{ github.event.inputs.target || github.repository }}
+
+  # ============================================
+  # SECURITY: Security scanning and alerts
+  # ============================================
+  security-scan:
+    name: Security Scan
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'security'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        repo:
+          - jbdevprimary/strata
+          - jbdevprimary/agentic-control
+          - jbdevprimary/agentic-crew
+          - jbdevprimary/agentic-triage
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Run security scan
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo
+        run: |
+          agentic-triage security --repo ${{ matrix.repo }}
+
+  # ============================================
+  # CASCADE: Full automation cycle
+  # ============================================
+  cascade:
+    name: Cascade Automation
+    if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'cascade'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        repo:
+          - jbdevprimary/strata
+          - jbdevprimary/agentic-control
+          - jbdevprimary/agentic-crew
+          - jbdevprimary/agentic-triage
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install agentic-triage
+        run: npm install -g agentic-triage@latest
+
+      - name: Run cascade
+        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo
+        run: |
+          agentic-triage cascade --repo ${{ matrix.repo }}
