@@ -243,3 +243,55 @@ repository-files/
 - Bootstrap workspace configuration tested and validated
 - All 18 repository workspaces will use new pattern
 
+
+## Session: 2025-12-14 (TFC Workspace Unlock)
+
+### Issue
+Terraform Cloud workspaces becoming locked causing terraform-sync workflow to fail with state lock errors.
+
+### Solution Implemented
+
+1. **Unlock Script** (`scripts/unlock-tfc-workspaces.sh`)
+   - Lists all workspaces in TFC organization via API
+   - Identifies locked workspaces
+   - Force-unlocks via TFC API endpoint
+   - Supports dry-run, specific workspace targeting
+   - Robust error handling (HTTP codes, JSON validation, curl failures)
+   - Structured exit codes for automation (0=success, 1=locks found, 2=error)
+
+2. **Manual Unlock Workflow** (`.github/workflows/unlock-tfc-workspaces.yml`)
+   - Workflow dispatch for on-demand unlocking
+   - Dry-run enabled by default for safety
+   - Clear step summaries with lock status
+
+3. **Automatic Unlock in terraform-sync** (`.github/workflows/terraform-sync.yml`)
+   - Pre-flight lock check before Terraform operations
+   - Automatic unlock if locks detected
+   - Fails fast on unlock failure
+
+4. **Documentation** (`docs/UNLOCKING-TFC-WORKSPACES.md`)
+   - Complete usage guide
+   - Exit codes documented
+   - Troubleshooting and prevention tips
+   - API references
+
+### Changes Made
+- Created `scripts/unlock-tfc-workspaces.sh` (213 lines)
+- Created `.github/workflows/unlock-tfc-workspaces.yml`
+- Updated `.github/workflows/terraform-sync.yml` (added lock check)
+- Created `docs/UNLOCKING-TFC-WORKSPACES.md`
+- Updated `README.md` (added troubleshooting section)
+
+### Verified
+✅ Script syntax validation
+✅ Help output
+✅ Error handling (no token, invalid options)
+✅ Exit code behavior
+✅ Code review (all feedback addressed)
+✅ Security scan (no issues)
+
+### For Next Agent
+- Script is ready to use but needs TFC API token to test with actual workspaces
+- Can be tested manually or via workflow dispatch once merged
+- Monitor terraform-sync workflow to ensure automatic unlock works as expected
+
