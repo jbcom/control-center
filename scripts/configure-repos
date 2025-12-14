@@ -59,9 +59,14 @@ get_repo_override() {
     '.overrides[$repo][$field] // empty' "$CONFIG_FILE"
 }
 
-get_default() {
+get_merge_setting() {
   local field="$1"
-  jq -r ".defaults.${field}" "$CONFIG_FILE"
+  jq -r ".defaults.merge_settings.${field}" "$CONFIG_FILE"
+}
+
+get_feature() {
+  local field="$1"
+  jq -r ".defaults.features.${field}" "$CONFIG_FILE"
 }
 
 get_current_config() {
@@ -97,19 +102,19 @@ configure_repo() {
   local description_override
   description_override=$(get_repo_override "$repo" "description")
   
-  # Build the update payload - ONLY merge/branch settings, not visibility or description
+  # Build the update payload - ONLY merge/branch settings and features
+  # NEVER: visibility, description, name
   local payload
   payload=$(jq -n \
-    --argjson has_issues "$(get_default 'has_issues')" \
-    --argjson has_projects "$(get_default 'has_projects')" \
-    --argjson has_wiki "$(get_default 'has_wiki')" \
-    --argjson allow_squash_merge "$(get_default 'allow_squash_merge')" \
-    --argjson allow_merge_commit "$(get_default 'allow_merge_commit')" \
-    --argjson allow_rebase_merge "$(get_default 'allow_rebase_merge')" \
-    --argjson allow_auto_merge "$(get_default 'allow_auto_merge')" \
-    --argjson delete_branch_on_merge "$(get_default 'delete_branch_on_merge')" \
-    --arg squash_title "$(get_default 'squash_merge_commit_title')" \
-    --arg squash_message "$(get_default 'squash_merge_commit_message')" \
+    --argjson has_issues "$(get_feature 'has_issues')" \
+    --argjson has_projects "$(get_feature 'has_projects')" \
+    --argjson has_wiki "$(get_feature 'has_wiki')" \
+    --argjson allow_squash_merge "$(get_merge_setting 'allow_squash_merge')" \
+    --argjson allow_merge_commit "$(get_merge_setting 'allow_merge_commit')" \
+    --argjson allow_rebase_merge "$(get_merge_setting 'allow_rebase_merge')" \
+    --argjson delete_branch_on_merge "$(get_merge_setting 'delete_branch_on_merge')" \
+    --arg squash_title "$(get_merge_setting 'squash_merge_commit_title')" \
+    --arg squash_message "$(get_merge_setting 'squash_merge_commit_message')" \
     '{
       has_issues: $has_issues,
       has_projects: $has_projects,
@@ -117,24 +122,10 @@ configure_repo() {
       allow_squash_merge: $allow_squash_merge,
       allow_merge_commit: $allow_merge_commit,
       allow_rebase_merge: $allow_rebase_merge,
-      allow_auto_merge: $allow_auto_merge,
       delete_branch_on_merge: $delete_branch_on_merge,
       squash_merge_commit_title: $squash_title,
       squash_merge_commit_message: $squash_message
     }')
-  
-  # Only add description if explicitly overridden (don't clobber existing)
-  if [[ -n "$description_override" ]]; then
-    payload=$(echo "$payload" | jq --arg desc "$description_override" '. + {description: $desc}')
-    log_info "  Description override: $description_override"
-  fi
-  
-  # has_discussions requires a separate API call and visibility check
-  # Only enable for public repos
-  local enable_discussions=false
-  if [[ "$current_visibility" == "public" ]] && [[ "$(get_default 'has_discussions')" == "true" ]]; then
-    enable_discussions=true
-  fi
   
   # Show diff if requested
   if [[ "$SHOW_DIFF" == "true" ]]; then
