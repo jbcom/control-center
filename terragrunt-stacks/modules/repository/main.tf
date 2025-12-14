@@ -40,8 +40,8 @@ variable "has_issues" {
 
 variable "has_projects" {
   type        = bool
-  default     = false
-  description = "Enable GitHub Projects"
+  default     = true
+  description = "Enable GitHub Projects (allows linking to org-level projects)"
 }
 
 variable "has_wiki" {
