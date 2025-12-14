@@ -36,7 +36,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
-  projects: write
+  repository-projects: write
 
 env:
   GITHUB_ORG: jbdevprimary
@@ -161,14 +161,16 @@ jobs:
           # Run the triage command
           RESULT=$(agentic-triage $COMMAND --repo "$REPO" $FLAGS 2>&1) || true
           
-          # Extract summary if available
+          # Extract summary if available (use heredoc for multi-line)
           SUMMARY=$(echo "$RESULT" | grep -A5 "Summary:" | head -5 || echo "Triage completed")
           
           echo "result<<EOF" >> $GITHUB_OUTPUT
           echo "$RESULT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
           
-          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+          echo "summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       
       - name: Update Roadmap Project
         if: github.event.inputs.update_project != 'false' && env.ROADMAP_PROJECT_ID != ''

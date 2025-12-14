@@ -29,14 +29,7 @@ export TERRAGRUNT_ROOT="${TERRAGRUNT_ROOT:-${REPO_ROOT}/terragrunt-stacks}"
 export ECOSYSTEM_CACHE_DIR="${REPO_ROOT}/.cache/ecosystem"
 export ECOSYSTEM_CACHE_TTL="${ECOSYSTEM_CACHE_TTL:-300}"
 
-# Ecosystem categories
-declare -A ECOSYSTEM_LANGUAGES=(
-  ["python"]="py"
-  ["nodejs"]="ts"
-  ["go"]="go"
-  ["terraform"]="tf"
-  ["rust"]="rs"
-)
+# Ecosystem categories are defined in repo-config.json
 
 # =============================================================================
 # Logging
@@ -148,12 +141,7 @@ detect_repo_ecosystem() {
   if [[ -f "$repo_path/pyproject.toml" ]] || [[ -f "$repo_path/setup.py" ]] || [[ -f "$repo_path/requirements.txt" ]]; then
     echo "python"
   elif [[ -f "$repo_path/package.json" ]]; then
-    if grep -q '"type": "module"' "$repo_path/package.json" 2>/dev/null || \
-       [[ -f "$repo_path/tsconfig.json" ]]; then
-      echo "nodejs"
-    else
-      echo "nodejs"
-    fi
+    echo "nodejs"
   elif [[ -f "$repo_path/go.mod" ]]; then
     echo "go"
   elif [[ -f "$repo_path/Cargo.toml" ]]; then
@@ -266,29 +254,6 @@ submodule_update_all() {
   git -C "$REPO_ROOT" submodule update --remote --recursive
 }
 
-# Sync submodules with managed repos
-submodule_sync() {
-  local dry_run="${1:-false}"
-  local missing
-  
-  missing=$(list_missing_submodules)
-  
-  if [[ -z "$missing" ]]; then
-    log_info "All managed repos have submodules"
-    return 0
-  fi
-  
-  echo "$missing" | while read -r repo; do
-    if [[ -n "$repo" ]]; then
-      if [[ "$dry_run" == "true" ]]; then
-        log_info "[DRY RUN] Would add submodule: $repo"
-      else
-        submodule_add "$repo"
-      fi
-    fi
-  done
-}
-
 # =============================================================================
 # Repository Classification
 # =============================================================================
@@ -297,49 +262,6 @@ submodule_sync() {
 get_repos_by_ecosystem() {
   local ecosystem="$1"
   list_managed_repos "$ecosystem"
-}
-
-# Build matrix JSON for GitHub Actions
-build_matrix_json() {
-  local include_skip="${1:-false}"
-  
-  echo "["
-  local first=true
-  
-  for eco in python nodejs go terraform; do
-    list_managed_repos "$eco" 2>/dev/null | while read -r entry; do
-      local repo_name
-      repo_name=$(basename "$entry")
-      
-      if [[ "$first" != "true" ]]; then
-        echo ","
-      fi
-      first=false
-      
-      cat <<EOF
-  {
-    "ecosystem": "$eco",
-    "repo": "${GITHUB_ORG}/${repo_name}",
-    "downstream_package": "terragrunt-stacks/${eco}/${repo_name}",
-    "submodule_path": "ecosystems/oss/${repo_name}"
-  }
-EOF
-    done
-  done
-  
-  if [[ "$include_skip" == "true" ]]; then
-    echo ","
-    cat <<EOF
-  {
-    "ecosystem": "rust",
-    "repo": "",
-    "downstream_package": "",
-    "skip": true
-  }
-EOF
-  fi
-  
-  echo "]"
 }
 
 # =============================================================================
@@ -403,13 +325,13 @@ ecosystem_health() {
   # Check if gh is available
   if ! command -v gh >/dev/null 2>&1; then
     log_error "GitHub CLI (gh) not found"
-    ((errors++))
+    errors=$((errors + 1))
   fi
   
   # Check if authenticated
   if ! gh auth status >/dev/null 2>&1; then
     log_error "Not authenticated with GitHub CLI"
-    ((errors++))
+    errors=$((errors + 1))
   fi
   
   # Check for missing submodules
@@ -444,7 +366,7 @@ export -f cache_get cache_set cache_clear
 export -f gh_list_org_repos gh_repo_info gh_repo_exists
 export -f detect_repo_ecosystem list_managed_repos list_ecosystem_submodules
 export -f list_missing_submodules list_orphan_submodules
-export -f submodule_add submodule_update submodule_init_all submodule_update_all submodule_sync
-export -f get_repos_by_ecosystem build_matrix_json
+export -f submodule_add submodule_update submodule_init_all submodule_update_all
+export -f get_repos_by_ecosystem
 export -f sync_to_downstream pull_from_upstream
 export -f ecosystem_health
