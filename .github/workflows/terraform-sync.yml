@@ -90,6 +90,44 @@ jobs:
           terragrunt --version
 
       # =================================================================
+      # TFC WORKSPACE MANAGEMENT - Unlock any locked workspaces
+      # =================================================================
+      - name: Check for Locked Workspaces
+        id: check_locks
+        run: |
+          chmod +x scripts/unlock-tfc-workspaces.sh
+          
+          echo "## Workspace Lock Status" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check for locked workspaces
+          if ./scripts/unlock-tfc-workspaces.sh --dry-run | tee lock_check.txt | grep -q "No locked workspaces found"; then
+            echo "✅ All workspaces are unlocked" >> $GITHUB_STEP_SUMMARY
+            echo "has_locks=false" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Found locked workspaces - attempting to unlock..." >> $GITHUB_STEP_SUMMARY
+            echo "has_locks=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Unlock Workspaces
+        if: steps.check_locks.outputs.has_locks == 'true'
+        run: |
+          echo "Unlocking workspaces..." | tee -a $GITHUB_STEP_SUMMARY
+          ./scripts/unlock-tfc-workspaces.sh | tee unlock_output.txt
+          
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat unlock_output.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+          # Verify unlock was successful
+          if grep -q "Successfully unlocked:" unlock_output.txt; then
+            echo "✅ Workspaces unlocked successfully" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Failed to unlock some workspaces" >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+      # =================================================================
       # VALIDATION - Ensure Terraform code is syntactically valid
       # =================================================================
       - name: Validate Generate Blocks
