@@ -70,7 +70,7 @@ jobs:
           fi
       
       - name: Unlock Workspaces
-        if: inputs.dry_run == false && steps.list.outputs.locked_count != '0'
+        if: inputs.dry_run != true && steps.list.outputs.locked_count != '0'
         run: |
           echo "## Unlocking Workspaces" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
