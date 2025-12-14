@@ -13,15 +13,8 @@
 #     }
 #   }
 
-terraform {
-  required_version = ">= 1.5.0"
-  required_providers {
-    dockerhub = {
-      source  = "artificialinc/dockerhub"
-      version = "~> 0.0.15"
-    }
-  }
-}
+# Note: required_providers is defined in terragrunt generate "provider" block
+# Do not add terraform {} block here to avoid conflicts
 
 variable "namespace" {
   type        = string
