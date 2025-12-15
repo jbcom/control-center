@@ -1,5 +1,52 @@
 # Session Progress Log
 
+## Session: 2025-12-15 (PR Consolidation)
+
+### What Was Done
+
+1. **Analyzed All Open PRs**
+   - Identified 5 open PRs: #381, #382, #383, #384, #385
+   - Mapped CI failures (Lint Workflows on #385)
+   - Reviewed AI feedback from Gemini Code Assist and Cursor Bugbot
+
+2. **Closed Unnecessary PRs**
+   - #381 (Copilot draft) - Reverted changes no longer needed
+   - #385 (ecosystem sync) - Superseded by #384
+   - #386, #387 (auto-generated) - Created during merge, superseded
+
+3. **Addressed AI Feedback on PR #384**
+   - HIGH: Refactored `cmd_matrix()` to use `jq` for JSON generation
+   - MEDIUM: Fixed dependency graph (removed strata from agentic-control consumers)
+   - Verified permission scope and heredoc format already correct
+
+4. **Merged PRs in Order**
+   - #382 → #383 → #384 (with conflict resolution via rebase)
+
+5. **Resolved Merge Conflicts**
+   - `docs/TRIAGE-HUB.md` conflict between #382 and #384
+   - Kept comprehensive version from #384, rebased and force-pushed
+
+### Final PR Status
+
+| PR # | Title | Action |
+|------|-------|--------|
+| #381 | Revert execution_mode (DRAFT) | ❌ CLOSED |
+| #382 | Clarify Triage Hub docs | ✅ MERGED |
+| #383 | Improve issue export auth | ✅ MERGED |
+| #384 | Agentic triage workflow setup | ✅ MERGED |
+| #385 | chore(ecosystem): sync submodules | ❌ CLOSED |
+| #386 | chore(ecosystem): sync submodules | ❌ CLOSED |
+| #387 | chore(ecosystem): sync submodules | ❌ CLOSED |
+
+### Key Deliverables Merged
+
+- Centralized Triage Hub (`triage-hub.json`, workflows, scripts)
+- Ecosystem management CLI (`scripts/ecosystem`)
+- 20 OSS submodules in `ecosystems/oss/`
+- Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
+
+---
+
 ## Session: 2025-12-08 (Repository Audit & Rivermarsh Integration)
 
 ### What Was Done

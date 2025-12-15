@@ -1,6 +1,54 @@
 # Active Context - jbcom Control Center
 
-## Current Status: TERRAGRUNT REPOSITORY MANAGEMENT - IMPORT FIX
+## Current Status: ALL PRs RESOLVED - MAIN BRANCH CLEAN
+
+Successfully consolidated and merged all outstanding PRs into main. The repository is now clean with no open PRs.
+
+---
+
+## Session: 2025-12-15 (PR Consolidation)
+
+### Issue
+Multiple outstanding PRs needed review, AI feedback addressed, CI fixes, and merge in correct order.
+
+### PRs Resolved
+
+| PR # | Title | Action | Notes |
+|------|-------|--------|-------|
+| #381 | Revert execution_mode (DRAFT) | ✅ Closed | Draft from Copilot, no longer needed |
+| #382 | Clarify Triage Hub docs | ✅ Merged | Documentation-only, AI feedback already addressed |
+| #383 | Improve issue export auth | ✅ Merged | Scripts with jq check, AI feedback already addressed |
+| #384 | Agentic triage workflow setup | ✅ Merged | Main triage hub PR with all fixes |
+| #385 | chore(ecosystem): sync submodules | ✅ Closed | Superseded by #384 |
+| #386 | chore(ecosystem): sync submodules | ✅ Closed | Auto-generated during merge, superseded |
+| #387 | chore(ecosystem): sync submodules | ✅ Closed | Auto-generated during merge, superseded |
+
+### AI Feedback Addressed (PR #384)
+
+1. **HIGH Priority**: Refactored `cmd_matrix()` in `scripts/ecosystem` to use `jq` for proper JSON generation instead of fragile echo statements
+2. **MEDIUM Priority**: Fixed bidirectional dependency graph in `triage-hub.json` - removed `strata` from `agentic-control` consumers (3D graphics lib has no dependency on AI agent framework)
+3. **Already Fixed**: Permission scope uses `repository-projects` (not `projects`)
+4. **Already Fixed**: Multi-line outputs use heredoc format
+
+### Changes Merged to Main
+
+- **Workflows**: `agentic-triage.yml`, `ecosystem-sync.yml`, `repo-sync.yml`, `triage.yml`
+- **Scripts**: `ecosystem` CLI, `configure-repos`, `sync-files`, `export-control-center-issues.sh`
+- **Config**: `triage-hub.json`, `repo-config.json`
+- **Docs**: `TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`
+- **Submodules**: 20 OSS repos now tracked in `ecosystems/oss/`
+
+### Merge Order
+1. #382 (docs) → 2. #383 (scripts) → 3. #384 (main triage hub with conflict resolution)
+
+### Verified
+✅ All CI checks passing (Lint, Terragrunt, Validate Ecosystem Config, etc.)
+✅ Main branch is clean with no open PRs
+✅ All AI review feedback addressed and documented
+
+---
+
+## Previous Status: TERRAGRUNT REPOSITORY MANAGEMENT - IMPORT FIX
 
 Fixed import issue for strata repository's Main ruleset.
 
