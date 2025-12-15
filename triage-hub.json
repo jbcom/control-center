@@ -90,7 +90,7 @@
         "agentic-control": {
           "description": "Core AI agent control framework",
           "dependencies": [],
-          "consumers": ["agentic-triage", "strata"],
+          "consumers": ["agentic-triage"],
           "npm_name": "agentic-control",
           "doc_url": "https://github.com/jbdevprimary/agentic-control#readme"
         },

@@ -164,73 +164,59 @@ cmd_health() {
 }
 
 cmd_matrix() {
-  local include_all="${1:-}"
-  
-  # Build matrix dynamically from terragrunt stacks
-  echo "{"
-  echo '  "include": ['
-  
-  local first=true
+  # Build matrix dynamically from terragrunt stacks using jq for proper JSON
+  local matrix_items=()
   
   # Python repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/python/*/; do
     [[ -d "$repo_dir" ]] || continue
     local repo_name=$(basename "$repo_dir")
-    [[ "$first" != "true" ]] && echo ","
-    first=false
-    echo "    {"
-    echo "      \"ecosystem\": \"python\","
-    echo "      \"repo\": \"${GITHUB_ORG}/${repo_name}\","
-    echo "      \"downstream_package\": \"terragrunt-stacks/python/${repo_name}\","
-    echo "      \"submodule_path\": \"ecosystems/oss/${repo_name}\""
-    echo -n "    }"
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "python" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/python/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
   done
   
   # Node.js repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/nodejs/*/; do
     [[ -d "$repo_dir" ]] || continue
     local repo_name=$(basename "$repo_dir")
-    [[ "$first" != "true" ]] && echo ","
-    first=false
-    echo "    {"
-    echo "      \"ecosystem\": \"typescript\","
-    echo "      \"repo\": \"${GITHUB_ORG}/${repo_name}\","
-    echo "      \"downstream_package\": \"terragrunt-stacks/nodejs/${repo_name}\","
-    echo "      \"submodule_path\": \"ecosystems/oss/${repo_name}\""
-    echo -n "    }"
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "typescript" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/nodejs/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
   done
   
   # Go repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/go/*/; do
     [[ -d "$repo_dir" ]] || continue
     local repo_name=$(basename "$repo_dir")
-    [[ "$first" != "true" ]] && echo ","
-    first=false
-    echo "    {"
-    echo "      \"ecosystem\": \"go\","
-    echo "      \"repo\": \"${GITHUB_ORG}/${repo_name}\","
-    echo "      \"downstream_package\": \"terragrunt-stacks/go/${repo_name}\","
-    echo "      \"submodule_path\": \"ecosystems/oss/${repo_name}\""
-    echo -n "    }"
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "go" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/go/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
   done
   
   # Terraform repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/terraform/*/; do
     [[ -d "$repo_dir" ]] || continue
     local repo_name=$(basename "$repo_dir")
-    [[ "$first" != "true" ]] && echo ","
-    first=false
-    echo "    {"
-    echo "      \"ecosystem\": \"terraform\","
-    echo "      \"repo\": \"${GITHUB_ORG}/${repo_name}\","
-    echo "      \"downstream_package\": \"terragrunt-stacks/terraform/${repo_name}\","
-    echo "      \"submodule_path\": \"ecosystems/oss/${repo_name}\""
-    echo -n "    }"
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "terraform" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/terraform/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
   done
   
-  echo ""
-  echo "  ]"
-  echo "}"
+  # Combine all items into a JSON array with jq
+  printf '%s\n' "${matrix_items[@]}" | jq -s '{include: .}'
 }
 
 cmd_triage() {
