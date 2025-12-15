@@ -1,0 +1,501 @@
+#!/usr/bin/env bash
+# =============================================================================
+# ecosystem - Main CLI for jbcom ecosystem management
+# =============================================================================
+# This is the primary entry point for all ecosystem operations.
+#
+# Usage:
+#   ./scripts/ecosystem <command> [options]
+#
+# Commands:
+#   discover     - Discover all repos in the organization
+#   sync         - Sync submodules with discovered repos
+#   health       - Check ecosystem health
+#   matrix       - Generate GitHub Actions matrix JSON
+#   deps         - Show package dependencies
+#   triage       - Run triage operations
+#   release      - Coordinate releases
+# =============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/lib/ecosystem.sh"
+
+# =============================================================================
+# Commands
+# =============================================================================
+
+cmd_discover() {
+  local format="${1:-table}"
+  local org="${GITHUB_ORG:-jbdevprimary}"
+  
+  log_info "Discovering repositories in $org..."
+  
+  local repos
+  repos=$(gh repo list "$org" \
+    --json name,description,primaryLanguage,pushedAt,isArchived \
+    --limit 200 \
+    --jq '.[] | select(.isArchived == false)')
+  
+  if [[ "$format" == "json" ]]; then
+    echo "$repos" | jq -s '.'
+  else
+    echo ""
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo "  JBCOM ECOSYSTEM REPOSITORIES"
+    echo "═══════════════════════════════════════════════════════════════════════════════"
+    echo ""
+    
+    for lang in "Python" "TypeScript" "Go" "HCL" "Rust" "GDScript"; do
+      local lang_repos
+      lang_repos=$(echo "$repos" | jq -r "select(.primaryLanguage.name == \"$lang\") | .name" | sort)
+      
+      if [[ -n "$lang_repos" ]]; then
+        echo "  [$lang]"
+        echo "$lang_repos" | while read -r repo; do
+          local has_submodule=" "
+          [[ -d "${ECOSYSTEM_ROOT}/${repo}" ]] && has_submodule="✓"
+          local has_terragrunt=" "
+          [[ -d "${TERRAGRUNT_ROOT}/python/${repo}" ]] || \
+          [[ -d "${TERRAGRUNT_ROOT}/nodejs/${repo}" ]] || \
+          [[ -d "${TERRAGRUNT_ROOT}/go/${repo}" ]] || \
+          [[ -d "${TERRAGRUNT_ROOT}/terraform/${repo}" ]] && has_terragrunt="✓"
+          echo "    [$has_submodule] [$has_terragrunt] $repo"
+        done
+        echo ""
+      fi
+    done
+    
+    echo "  Legend: [submodule] [terragrunt] repo-name"
+    echo ""
+  fi
+}
+
+cmd_sync() {
+  local dry_run="${1:-}"
+  
+  log_info "Syncing ecosystem submodules..."
+  
+  # Get all non-archived repos
+  local repos
+  repos=$(gh repo list "$GITHUB_ORG" \
+    --json name,primaryLanguage,isArchived \
+    --limit 200 \
+    --jq '.[] | select(.isArchived == false) | .name')
+  
+  # Define which repos should be submodules (those with terragrunt configs)
+  local managed_repos
+  managed_repos=$(list_managed_repos | awk -F'/' '{print $2}' | sort -u)
+  
+  # Add missing submodules
+  echo "$managed_repos" | while read -r repo; do
+    if [[ -n "$repo" ]] && [[ ! -d "${ECOSYSTEM_ROOT}/${repo}" ]]; then
+      if echo "$repos" | grep -q "^${repo}$"; then
+        if [[ "$dry_run" == "--dry-run" ]]; then
+          log_info "[DRY RUN] Would add submodule: $repo"
+        else
+          submodule_add "$repo"
+        fi
+      else
+        log_warn "Managed repo not found in GitHub: $repo"
+      fi
+    fi
+  done
+  
+  # Initialize all submodules
+  if [[ "$dry_run" != "--dry-run" ]]; then
+    submodule_init_all
+  fi
+  
+  log_info "Sync complete"
+}
+
+cmd_health() {
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo "  ECOSYSTEM HEALTH CHECK"
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo ""
+  
+  # Check gh authentication
+  echo -n "  GitHub CLI authentication: "
+  if gh auth status >/dev/null 2>&1; then
+    echo "✓ OK"
+  else
+    echo "✗ FAILED"
+  fi
+  
+  # Check submodule status
+  local total_managed
+  local total_submodules
+  local missing
+  local orphans
+  
+  total_managed=$(list_managed_repos | wc -l)
+  total_submodules=$(list_ecosystem_submodules | wc -l)
+  missing=$(list_missing_submodules | wc -l)
+  orphans=$(list_orphan_submodules | wc -l)
+  
+  echo ""
+  echo "  Terragrunt-managed repos:  $total_managed"
+  echo "  Submodules in oss/:        $total_submodules"
+  echo "  Missing submodules:        $missing"
+  echo "  Orphan submodules:         $orphans"
+  
+  if [[ "$missing" -gt 0 ]]; then
+    echo ""
+    echo "  Missing submodules:"
+    list_missing_submodules | while read -r repo; do
+      echo "    - $repo"
+    done
+  fi
+  
+  if [[ "$orphans" -gt 0 ]]; then
+    echo ""
+    echo "  Orphan submodules (not in terragrunt):"
+    list_orphan_submodules | while read -r repo; do
+      echo "    - $repo"
+    done
+  fi
+  
+  echo ""
+  ecosystem_health
+}
+
+cmd_matrix() {
+  # Build matrix dynamically from terragrunt stacks using jq for proper JSON
+  local matrix_items=()
+  
+  # Python repos
+  for repo_dir in "${TERRAGRUNT_ROOT}"/python/*/; do
+    [[ -d "$repo_dir" ]] || continue
+    local repo_name=$(basename "$repo_dir")
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "python" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/python/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+  done
+  
+  # Node.js repos
+  for repo_dir in "${TERRAGRUNT_ROOT}"/nodejs/*/; do
+    [[ -d "$repo_dir" ]] || continue
+    local repo_name=$(basename "$repo_dir")
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "typescript" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/nodejs/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+  done
+  
+  # Go repos
+  for repo_dir in "${TERRAGRUNT_ROOT}"/go/*/; do
+    [[ -d "$repo_dir" ]] || continue
+    local repo_name=$(basename "$repo_dir")
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "go" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/go/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+  done
+  
+  # Terraform repos
+  for repo_dir in "${TERRAGRUNT_ROOT}"/terraform/*/; do
+    [[ -d "$repo_dir" ]] || continue
+    local repo_name=$(basename "$repo_dir")
+    matrix_items+=("$(jq -n \
+      --arg ecosystem "terraform" \
+      --arg repo "${GITHUB_ORG}/${repo_name}" \
+      --arg downstream "terragrunt-stacks/terraform/${repo_name}" \
+      --arg submodule "ecosystems/oss/${repo_name}" \
+      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+  done
+  
+  # Combine all items into a JSON array with jq
+  printf '%s\n' "${matrix_items[@]}" | jq -s '{include: .}'
+}
+
+cmd_triage() {
+  local subcommand="${1:-help}"
+  shift || true
+  
+  case "$subcommand" in
+    issues)
+      cmd_triage_issues "$@"
+      ;;
+    prs)
+      cmd_triage_prs "$@"
+      ;;
+    roadmap)
+      cmd_triage_roadmap "$@"
+      ;;
+    cascade)
+      cmd_triage_cascade "$@"
+      ;;
+    help|*)
+      echo "Usage: ecosystem triage <subcommand>"
+      echo ""
+      echo "Subcommands:"
+      echo "  issues    - Triage open issues across all repos"
+      echo "  prs       - Manage PRs from control center"
+      echo "  roadmap   - Update roadmap project"
+      echo "  cascade   - Run full cascade across ecosystem"
+      ;;
+  esac
+}
+
+cmd_triage_issues() {
+  local repo="${1:-}"
+  
+  log_info "Triaging issues..."
+  
+  if [[ -n "$repo" ]]; then
+    # Triage specific repo
+    npx agentic-triage sprint --repo "${GITHUB_ORG}/${repo}"
+  else
+    # Triage all managed repos
+    list_managed_repos | while read -r entry; do
+      local eco=$(dirname "$entry")
+      local repo_name=$(basename "$entry")
+      log_info "Triaging: $repo_name"
+      npx agentic-triage assess --repo "${GITHUB_ORG}/${repo_name}" || true
+    done
+  fi
+}
+
+cmd_triage_prs() {
+  local action="${1:-list}"
+  
+  log_info "Managing PRs from control center..."
+  
+  case "$action" in
+    list)
+      # List all open PRs across ecosystem
+      list_managed_repos | while read -r entry; do
+        local repo_name=$(basename "$entry")
+        local prs
+        prs=$(gh pr list --repo "${GITHUB_ORG}/${repo_name}" --json number,title,author,createdAt 2>/dev/null || echo "[]")
+        local count=$(echo "$prs" | jq length)
+        if [[ "$count" -gt 0 ]]; then
+          echo ""
+          echo "[$repo_name] ($count open PRs)"
+          echo "$prs" | jq -r '.[] | "  #\(.number): \(.title) (@\(.author.login))"'
+        fi
+      done
+      ;;
+    review)
+      local repo="${2:-}"
+      local pr="${3:-}"
+      if [[ -z "$repo" ]] || [[ -z "$pr" ]]; then
+        echo "Usage: ecosystem triage prs review <repo> <pr-number>"
+        return 1
+      fi
+      npx agentic-triage review "$pr" --repo "${GITHUB_ORG}/${repo}"
+      ;;
+  esac
+}
+
+cmd_triage_roadmap() {
+  log_info "Updating roadmap..."
+  
+  # Run roadmap command for each managed repo
+  list_managed_repos | while read -r entry; do
+    local repo_name=$(basename "$entry")
+    log_info "Generating roadmap for: $repo_name"
+    npx agentic-triage roadmap --repo "${GITHUB_ORG}/${repo_name}" --update-project || true
+  done
+}
+
+cmd_triage_cascade() {
+  log_info "Running full cascade across ecosystem..."
+  
+  # This is the main automation command
+  list_managed_repos | while read -r entry; do
+    local repo_name=$(basename "$entry")
+    log_info "Cascading: $repo_name"
+    npx agentic-triage cascade --repo "${GITHUB_ORG}/${repo_name}" || true
+  done
+}
+
+cmd_deps() {
+  local repo="${1:-}"
+  
+  if [[ -z "$repo" ]]; then
+    echo "Usage: ecosystem deps <repo-name>"
+    echo ""
+    echo "Shows dependencies for a package and its downstream consumers."
+    return 1
+  fi
+  
+  local repo_path="${ECOSYSTEM_ROOT}/${repo}"
+  
+  if [[ ! -d "$repo_path" ]]; then
+    log_error "Repository not found: $repo"
+    log_info "Run 'ecosystem sync' to add missing submodules"
+    return 1
+  fi
+  
+  local ecosystem
+  ecosystem=$(detect_repo_ecosystem "$repo_path")
+  
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo "  DEPENDENCY ANALYSIS: $repo"
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "  Ecosystem: $ecosystem"
+  echo ""
+  
+  case "$ecosystem" in
+    python)
+      echo "  Dependencies (from pyproject.toml/requirements.txt):"
+      if [[ -f "$repo_path/pyproject.toml" ]]; then
+        grep -A50 '^\[project\]' "$repo_path/pyproject.toml" | \
+          grep -A20 'dependencies' | \
+          grep -E '^\s+"' | \
+          sed 's/^/    /'
+      elif [[ -f "$repo_path/requirements.txt" ]]; then
+        head -20 "$repo_path/requirements.txt" | sed 's/^/    /'
+      fi
+      ;;
+    nodejs)
+      echo "  Dependencies (from package.json):"
+      if [[ -f "$repo_path/package.json" ]]; then
+        jq -r '.dependencies // {} | to_entries[] | "    \(.key): \(.value)"' "$repo_path/package.json" 2>/dev/null || true
+      fi
+      ;;
+    go)
+      echo "  Dependencies (from go.mod):"
+      if [[ -f "$repo_path/go.mod" ]]; then
+        grep -E '^\s+' "$repo_path/go.mod" | head -20 | sed 's/^/    /'
+      fi
+      ;;
+  esac
+  
+  echo ""
+  echo "  Internal ecosystem dependencies:"
+  
+  # Find ecosystem packages this depends on
+  local internal_deps=""
+  list_ecosystem_submodules | while read -r sub; do
+    if [[ "$sub" != "$repo" ]]; then
+      case "$ecosystem" in
+        python)
+          if grep -q "$sub" "$repo_path/pyproject.toml" 2>/dev/null || \
+             grep -q "$sub" "$repo_path/requirements.txt" 2>/dev/null; then
+            echo "    → $sub"
+          fi
+          ;;
+        nodejs)
+          if grep -q "\"$sub\"" "$repo_path/package.json" 2>/dev/null; then
+            echo "    → $sub"
+          fi
+          ;;
+      esac
+    fi
+  done
+  
+  echo ""
+}
+
+cmd_release() {
+  local repo="${1:-}"
+  local version="${2:-}"
+  
+  if [[ -z "$repo" ]]; then
+    echo "Usage: ecosystem release <repo-name> [version]"
+    echo ""
+    echo "Coordinates a release for a package and updates dependents."
+    return 1
+  fi
+  
+  log_info "Coordinating release for: $repo"
+  
+  # Run the agentic-triage release command
+  if [[ -n "$version" ]]; then
+    npx agentic-triage release --repo "${GITHUB_ORG}/${repo}" --version "$version"
+  else
+    npx agentic-triage release --repo "${GITHUB_ORG}/${repo}"
+  fi
+}
+
+cmd_help() {
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo "  JBCOM ECOSYSTEM MANAGEMENT CLI"
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo ""
+  echo "  Usage: ecosystem <command> [options]"
+  echo ""
+  echo "  Discovery & Sync:"
+  echo "    discover [--json]     List all repos in the organization"
+  echo "    sync [--dry-run]      Sync submodules with managed repos"
+  echo "    health                Check ecosystem health"
+  echo ""
+  echo "  Workflows:"
+  echo "    matrix                Generate GitHub Actions matrix JSON"
+  echo "    deps <repo>           Show package dependencies"
+  echo ""
+  echo "  Triage (centralized management):"
+  echo "    triage issues [repo]  Triage open issues"
+  echo "    triage prs list       List all open PRs"
+  echo "    triage prs review     Review a PR from control center"
+  echo "    triage roadmap        Update roadmap project"
+  echo "    triage cascade        Full automation cascade"
+  echo ""
+  echo "  Releases:"
+  echo "    release <repo> [ver]  Coordinate package release"
+  echo ""
+  echo "  Environment Variables:"
+  echo "    GITHUB_ORG            GitHub organization (default: jbdevprimary)"
+  echo "    GH_TOKEN              GitHub token for API access"
+  echo "    OLLAMA_API_KEY        Ollama API key for AI operations"
+  echo ""
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+main() {
+  local command="${1:-help}"
+  shift || true
+  
+  case "$command" in
+    discover)
+      cmd_discover "$@"
+      ;;
+    sync)
+      cmd_sync "$@"
+      ;;
+    health)
+      cmd_health "$@"
+      ;;
+    matrix)
+      cmd_matrix "$@"
+      ;;
+    deps)
+      cmd_deps "$@"
+      ;;
+    triage)
+      cmd_triage "$@"
+      ;;
+    release)
+      cmd_release "$@"
+      ;;
+    help|--help|-h)
+      cmd_help
+      ;;
+    *)
+      log_error "Unknown command: $command"
+      cmd_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"

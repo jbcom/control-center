@@ -1,0 +1,242 @@
+#!/usr/bin/env bash
+# =============================================================================
+# sync-files - Rsync repository files to ecosystem submodules
+# =============================================================================
+# Replaces Terraform file sync with simple rsync operations.
+#
+# Usage:
+#   ./scripts/sync-files [options] [repo...]
+#
+# Options:
+#   --dry-run       Show what would be synced without making changes
+#   --initial       Also sync initial-only files (for new repos)
+#   --push          Commit and push changes to each repo
+#   --all           Sync all repos (default if no repo specified)
+#
+# Examples:
+#   ./scripts/sync-files                    # Sync all repos
+#   ./scripts/sync-files strata agentic-crew # Sync specific repos
+#   ./scripts/sync-files --dry-run --all    # Preview all syncs
+#   ./scripts/sync-files --initial strata   # Include initial-only files
+# =============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${SCRIPT_DIR}/.."
+ECOSYSTEM_ROOT="${REPO_ROOT}/ecosystems/oss"
+FILES_ROOT="${REPO_ROOT}/repository-files"
+CONFIG_FILE="${REPO_ROOT}/repo-config.json"
+
+# Options
+DRY_RUN=false
+INCLUDE_INITIAL=false
+PUSH_CHANGES=false
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+# =============================================================================
+# Functions
+# =============================================================================
+
+get_repo_ecosystem() {
+  local repo="$1"
+  jq -r --arg repo "$repo" '
+    .ecosystems | to_entries[] | 
+    select(.value.repos | index($repo)) | 
+    .key
+  ' "$CONFIG_FILE"
+}
+
+get_ecosystem_repos() {
+  local ecosystem="$1"
+  jq -r ".ecosystems.${ecosystem}.repos[]" "$CONFIG_FILE"
+}
+
+get_all_repos() {
+  jq -r '.ecosystems | to_entries[] | .value.repos[]' "$CONFIG_FILE"
+}
+
+sync_repo() {
+  local repo="$1"
+  local ecosystem
+  local target_path="${ECOSYSTEM_ROOT}/${repo}"
+  
+  # Get ecosystem for this repo
+  ecosystem=$(get_repo_ecosystem "$repo")
+  
+  if [[ -z "$ecosystem" ]]; then
+    log_warn "Repo '$repo' not found in config, skipping"
+    return 0
+  fi
+  
+  if [[ ! -d "$target_path" ]]; then
+    log_warn "Submodule not found: $target_path"
+    log_info "Run './scripts/ecosystem sync' to add missing submodules"
+    return 0
+  fi
+  
+  log_info "Syncing: $repo (${ecosystem})"
+  
+  # Build rsync options
+  local rsync_opts="-av --exclude='.git'"
+  if [[ "$DRY_RUN" == "true" ]]; then
+    rsync_opts="$rsync_opts --dry-run"
+  fi
+  
+  # Sync always-sync files
+  if [[ -d "${FILES_ROOT}/always-sync" ]]; then
+    if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+      log_info "  → always-sync/"
+    fi
+    rsync $rsync_opts "${FILES_ROOT}/always-sync/" "${target_path}/" 2>/dev/null || true
+  fi
+  
+  # Sync ecosystem-specific files
+  if [[ -d "${FILES_ROOT}/${ecosystem}" ]]; then
+    if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+      log_info "  → ${ecosystem}/"
+    fi
+    rsync $rsync_opts "${FILES_ROOT}/${ecosystem}/" "${target_path}/" 2>/dev/null || true
+  fi
+  
+  # Sync initial-only files (only if requested and files don't exist)
+  if [[ "$INCLUDE_INITIAL" == "true" ]] && [[ -d "${FILES_ROOT}/initial-only" ]]; then
+    if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+      log_info "  → initial-only/ (non-destructive)"
+    fi
+    # Use --ignore-existing to not overwrite
+    rsync $rsync_opts --ignore-existing "${FILES_ROOT}/initial-only/" "${target_path}/" 2>/dev/null || true
+  fi
+  
+  # Check if there are changes
+  if [[ "$DRY_RUN" != "true" ]]; then
+    local changes
+    changes=$(git -C "$target_path" status --porcelain 2>/dev/null || echo "")
+    
+    if [[ -n "$changes" ]]; then
+      log_ok "  Changes synced"
+      
+      if [[ "$PUSH_CHANGES" == "true" ]]; then
+        log_info "  Committing and pushing..."
+        git -C "$target_path" add -A
+        git -C "$target_path" commit -m "chore: sync repository files from control center" || true
+        git -C "$target_path" push origin HEAD || log_warn "  Push failed (may need manual push)"
+      fi
+    else
+      log_ok "  Already up to date"
+    fi
+  fi
+}
+
+show_help() {
+  echo ""
+  echo "Usage: sync-files [options] [repo...]"
+  echo ""
+  echo "Rsync repository files from repository-files/ to ecosystem submodules."
+  echo ""
+  echo "Options:"
+  echo "  --dry-run     Show what would be synced without making changes"
+  echo "  --initial     Also sync initial-only files (for new repos)"
+  echo "  --push        Commit and push changes to each repo"
+  echo "  --verbose     Show detailed output"
+  echo "  --all         Sync all repos (default if no repo specified)"
+  echo "  --help        Show this help"
+  echo ""
+  echo "Examples:"
+  echo "  ./scripts/sync-files                        # Sync all repos"
+  echo "  ./scripts/sync-files strata                 # Sync specific repo"
+  echo "  ./scripts/sync-files --dry-run --all        # Preview changes"
+  echo "  ./scripts/sync-files --initial --push strata # Full sync with push"
+  echo ""
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+main() {
+  local repos=()
+  local sync_all=false
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --dry-run)
+        DRY_RUN=true
+        shift
+        ;;
+      --initial)
+        INCLUDE_INITIAL=true
+        shift
+        ;;
+      --push)
+        PUSH_CHANGES=true
+        shift
+        ;;
+      --verbose|-v)
+        VERBOSE=true
+        shift
+        ;;
+      --all)
+        sync_all=true
+        shift
+        ;;
+      --help|-h)
+        show_help
+        exit 0
+        ;;
+      -*)
+        log_error "Unknown option: $1"
+        show_help
+        exit 1
+        ;;
+      *)
+        repos+=("$1")
+        shift
+        ;;
+    esac
+  done
+  
+  # If no repos specified, sync all
+  if [[ ${#repos[@]} -eq 0 ]] || [[ "$sync_all" == "true" ]]; then
+    mapfile -t repos < <(get_all_repos)
+  fi
+  
+  echo ""
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo "  FILE SYNC: repository-files/ → ecosystems/oss/"
+  echo "═══════════════════════════════════════════════════════════════════════════════"
+  echo ""
+  
+  if [[ "$DRY_RUN" == "true" ]]; then
+    log_warn "DRY RUN - no changes will be made"
+    echo ""
+  fi
+  
+  local count=0
+  for repo in "${repos[@]}"; do
+    sync_repo "$repo"
+    ((count++))
+  done
+  
+  echo ""
+  log_ok "Synced $count repositories"
+  
+  if [[ "$PUSH_CHANGES" != "true" ]] && [[ "$DRY_RUN" != "true" ]]; then
+    log_info "Changes are local. Use --push to commit and push."
+  fi
+}
+
+main "$@"
