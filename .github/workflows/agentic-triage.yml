@@ -144,22 +144,22 @@ jobs:
           echo "dependencies=$DEPS" >> $GITHUB_OUTPUT
           echo "consumers=$CONSUMERS" >> $GITHUB_OUTPUT
       
+      - name: Clone target repository
+        run: |
+          REPO="${{ matrix.repo }}"
+          git clone "https://github.com/$REPO.git" /tmp/target-repo
+      
       - name: Run triage command
         id: triage
+        working-directory: /tmp/target-repo
         run: |
           COMMAND="${{ github.event.inputs.command || 'roadmap' }}"
           REPO="${{ matrix.repo }}"
           
-          echo "Running: agentic-triage $COMMAND --repo $REPO"
+          echo "Running: agentic-triage $COMMAND in $REPO"
           
-          # Build command with flags
-          FLAGS=""
-          if [[ "${{ github.event.inputs.update_project }}" == "true" ]]; then
-            FLAGS="$FLAGS --update-project"
-          fi
-          
-          # Run the triage command
-          RESULT=$(agentic-triage $COMMAND --repo "$REPO" $FLAGS 2>&1) || true
+          # Run the triage command in target repo context
+          RESULT=$(agentic-triage $COMMAND 2>&1) || true
           
           # Extract summary if available (use heredoc for multi-line)
           SUMMARY=$(echo "$RESULT" | grep -A5 "Summary:" | head -5 || echo "Triage completed")
@@ -249,9 +249,7 @@ jobs:
         run: npm install -g agentic-triage@latest
       
       - name: Assess issue
-        run: |
-          agentic-triage assess ${{ github.event.issue.number }} \
-            --repo ${{ github.repository }}
+        run: agentic-triage assess ${{ github.event.issue.number }}
 
   # =============================================================================
   # PR Review - triggered by new PRs in managed repos
@@ -274,9 +272,7 @@ jobs:
         run: npm install -g agentic-triage@latest
       
       - name: Review PR
-        run: |
-          agentic-triage review ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }}
+        run: agentic-triage review ${{ github.event.pull_request.number }}
 
   # =============================================================================
   # Ecosystem Health Check

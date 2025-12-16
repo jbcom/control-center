@@ -22,10 +22,6 @@ on:
           - cascade
           - security
         default: sprint
-      target:
-        description: 'Target repository (owner/repo) or "all" for all OSS repos'
-        required: false
-        default: 'all'
 
   # Weekly sprint planning
   schedule:
@@ -63,9 +59,7 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Assess issue
-        run: |
-          agentic-triage assess ${{ github.event.issue.number }} \
-            --repo ${{ github.repository }}
+        run: agentic-triage assess ${{ github.event.issue.number }}
 
   # ============================================
   # PR REVIEW: Review new/updated PRs
@@ -87,9 +81,7 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Review PR
-        run: |
-          agentic-triage review ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }}
+        run: agentic-triage review ${{ github.event.pull_request.number }}
 
   # ============================================
   # SPRINT PLANNING: Weekly automated sprint
@@ -100,16 +92,9 @@ jobs:
       github.event_name == 'schedule' ||
       (github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'sprint')
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        repo:
-          - jbdevprimary/strata
-          - jbdevprimary/agentic-control
-          - jbdevprimary/agentic-crew
-          - jbdevprimary/agentic-triage
-          - jbdevprimary/vendor-connectors
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -118,9 +103,7 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Run sprint planning
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo || github.event_name == 'schedule'
-        run: |
-          agentic-triage sprint --repo ${{ matrix.repo }}
+        run: agentic-triage sprint --trigger
 
   # ============================================
   # ROADMAP: Quarterly roadmap generation
@@ -130,6 +113,8 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'roadmap'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -138,8 +123,7 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Generate roadmap
-        run: |
-          agentic-triage roadmap --repo ${{ github.event.inputs.target || github.repository }}
+        run: agentic-triage roadmap
 
   # ============================================
   # SECURITY: Security scanning and alerts
@@ -148,16 +132,9 @@ jobs:
     name: Security Scan
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'security'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        repo:
-          - jbdevprimary/strata
-          - jbdevprimary/agentic-control
-          - jbdevprimary/agentic-crew
-          - jbdevprimary/agentic-triage
-          - jbdevprimary/vendor-connectors
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -166,9 +143,7 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Run security scan
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo
-        run: |
-          agentic-triage security --repo ${{ matrix.repo }}
+        run: agentic-triage security
 
   # ============================================
   # CASCADE: Full automation cycle
@@ -177,17 +152,9 @@ jobs:
     name: Cascade Automation
     if: github.event_name == 'workflow_dispatch' && github.event.inputs.command == 'cascade'
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 1
-      matrix:
-        repo:
-          - jbdevprimary/strata
-          - jbdevprimary/agentic-control
-          - jbdevprimary/agentic-crew
-          - jbdevprimary/agentic-triage
-          - jbdevprimary/vendor-connectors
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -196,6 +163,4 @@ jobs:
         run: npm install -g agentic-triage@latest
 
       - name: Run cascade
-        if: github.event.inputs.target == 'all' || github.event.inputs.target == matrix.repo
-        run: |
-          agentic-triage cascade --repo ${{ matrix.repo }}
+        run: agentic-triage cascade
