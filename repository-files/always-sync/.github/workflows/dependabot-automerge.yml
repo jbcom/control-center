@@ -1,0 +1,80 @@
+# Dependabot Automerge Workflow
+# Automatically merges Dependabot PRs for minor and patch updates
+# Major updates require manual review
+#
+# Synced from jbcom-control-center (always-sync)
+# DO NOT EDIT - changes will be overwritten
+
+name: Dependabot Automerge
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  automerge:
+    name: Automerge Dependabot PRs
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+
+    steps:
+      - name: Fetch Dependabot Metadata
+        id: metadata
+        # dependabot/fetch-metadata v2.4.0
+        # Docs: https://github.com/dependabot/fetch-metadata
+        uses: dependabot/fetch-metadata@v2.4.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Check Update Type
+        id: check
+        run: |
+          echo "Update type: ${{ steps.metadata.outputs.update-type }}"
+          echo "Package ecosystem: ${{ steps.metadata.outputs.package-ecosystem }}"
+          echo "Dependency names: ${{ steps.metadata.outputs.dependency-names }}"
+
+          # Automerge minor and patch updates only
+          if [[ "${{ steps.metadata.outputs.update-type }}" == "version-update:semver-minor" ]] || \
+             [[ "${{ steps.metadata.outputs.update-type }}" == "version-update:semver-patch" ]]; then
+            echo "should_merge=true" >> $GITHUB_OUTPUT
+            echo "✅ Minor/patch update - will automerge"
+          else
+            echo "should_merge=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Major update - requires manual review"
+          fi
+
+      - name: Wait for CI
+        if: steps.check.outputs.should_merge == 'true'
+        run: |
+          echo "Waiting for CI checks to complete..."
+          sleep 30
+
+      - name: Approve PR
+        if: steps.check.outputs.should_merge == 'true'
+        run: |
+          gh pr review --approve "$PR_URL" \
+            --body "✅ Automerging ${{ steps.metadata.outputs.update-type }} update for ${{ steps.metadata.outputs.dependency-names }}"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable Auto-Merge
+        if: steps.check.outputs.should_merge == 'true'
+        run: |
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Add Label for Major Updates
+        if: steps.check.outputs.should_merge == 'false'
+        run: |
+          gh pr edit "$PR_URL" --add-label "needs-review,major-update"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
