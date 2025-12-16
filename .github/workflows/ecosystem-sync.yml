@@ -1,30 +1,39 @@
 name: Ecosystem Sync
 
+# ONE nightly job that:
+# 1. Updates all submodules to latest
+# 2. Syncs repository-files to each repo (opens PRs)
+# 3. Automerges when CI passes
+
 on:
   workflow_dispatch:
     inputs:
+      sync_files:
+        description: 'Sync files to repos'
+        required: false
+        default: true
+        type: boolean
       update_submodules:
-        description: 'Update all submodules to latest'
+        description: 'Update submodules to latest'
         required: false
         default: true
         type: boolean
-      sync_missing:
-        description: 'Add missing submodules'
+      target_repo:
+        description: 'Target repo (empty for all)'
         required: false
-        default: true
-        type: boolean
+        default: ''
       dry_run:
         description: 'Dry run (no changes)'
         required: false
         default: false
         type: boolean
   schedule:
-    # Daily sync at 6:00 UTC
-    - cron: '0 6 * * *'
+    # Nightly at 3:00 UTC
+    - cron: '0 3 * * *'
   push:
     branches: [main]
     paths:
-      - 'triage-hub.json'
+      - 'repository-files/**'
       - 'repo-config.json'
 
 permissions:
@@ -32,16 +41,192 @@ permissions:
   pull-requests: write
 
 env:
-  GITHUB_ORG: jbdevprimary
   GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
 
 jobs:
   # =============================================================================
-  # Discover and sync ecosystem repositories
+  # Build matrix of repos to sync
   # =============================================================================
-  sync:
-    name: Sync Ecosystem Submodules
+  matrix:
+    name: Build Repo Matrix
     runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.repos.outputs.repos }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get repos from config
+        id: repos
+        run: |
+          TARGET="${{ github.event.inputs.target_repo }}"
+          
+          if [[ -n "$TARGET" ]]; then
+            # Single repo
+            REPOS=$(jq -c "[{name: \"$TARGET\", language: .repositories[\"$TARGET\"].language}]" repo-config.json)
+          else
+            # All repos
+            REPOS=$(jq -c '[.repositories | to_entries[] | {name: .key, language: .value.language}]' repo-config.json)
+          fi
+          
+          echo "repos=$REPOS" >> $GITHUB_OUTPUT
+          echo "Will sync $(echo "$REPOS" | jq length) repos"
+
+  # =============================================================================
+  # Sync files to each repository
+  # =============================================================================
+  sync-repo:
+    name: Sync ${{ matrix.repo.name }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    if: github.event.inputs.sync_files != 'false'
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        repo: ${{ fromJson(needs.matrix.outputs.repos) }}
+    
+    steps:
+      - name: Checkout control center
+        uses: actions/checkout@v4
+        with:
+          path: control-center
+      
+      - name: Clone target repo
+        run: |
+          gh repo clone "jbdevprimary/${{ matrix.repo.name }}" target-repo
+          cd target-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Sync always-sync files
+        run: |
+          echo "Syncing always-sync files to ${{ matrix.repo.name }}..."
+          
+          # Sync always-sync (overwrites)
+          if [[ -d "control-center/repository-files/always-sync" ]]; then
+            rsync -av --exclude='.git' \
+              control-center/repository-files/always-sync/ \
+              target-repo/
+          fi
+      
+      - name: Sync language-specific files
+        run: |
+          LANG="${{ matrix.repo.language }}"
+          echo "Syncing $LANG files to ${{ matrix.repo.name }}..."
+          
+          # Map language to directory
+          case "$LANG" in
+            python) DIR="python" ;;
+            typescript|javascript) DIR="nodejs" ;;
+            go) DIR="go" ;;
+            terraform|hcl) DIR="terraform" ;;
+            *) DIR="" ;;
+          esac
+          
+          if [[ -n "$DIR" && -d "control-center/repository-files/$DIR" ]]; then
+            rsync -av --exclude='.git' \
+              "control-center/repository-files/$DIR/" \
+              target-repo/
+          fi
+      
+      - name: Sync initial-only files (if missing)
+        run: |
+          echo "Syncing initial-only files (only if missing)..."
+          
+          if [[ -d "control-center/repository-files/initial-only" ]]; then
+            # Only copy files that don't exist
+            cd control-center/repository-files/initial-only
+            find . -type f | while read -r file; do
+              dest="../../target-repo/$file"
+              if [[ ! -f "$dest" ]]; then
+                mkdir -p "$(dirname "$dest")"
+                cp "$file" "$dest"
+                echo "  Added: $file"
+              fi
+            done
+          fi
+      
+      - name: Check for changes
+        id: changes
+        working-directory: target-repo
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "No changes for ${{ matrix.repo.name }}"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "Changes detected:"
+            git status --short
+          fi
+      
+      - name: Create or update PR
+        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
+        working-directory: target-repo
+        run: |
+          BRANCH="auto/control-center-sync"
+          REPO="jbdevprimary/${{ matrix.repo.name }}"
+          
+          # Check for existing PR
+          EXISTING_PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "Updating existing PR #$EXISTING_PR..."
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+          else
+            git checkout -b "$BRANCH"
+          fi
+          
+          # Stage and commit
+          git add -A
+          git commit -m "chore: sync from control center
+
+          Automated sync of:
+          - Cursor rules and configs
+          - Workflow templates
+          - Language-specific settings
+
+          Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || {
+            echo "No new changes to commit"
+            exit 0
+          }
+          
+          # Push
+          git push -u origin "$BRANCH" --force-with-lease
+          
+          if [[ -z "$EXISTING_PR" ]]; then
+            # Create PR
+            gh pr create --repo "$REPO" \
+              --title "chore: sync from control center" \
+              --body "## Control Center Sync
+
+          Automated synchronization of shared configurations.
+
+          This PR will automerge when CI passes.
+
+          **Source:** ${{ github.server_url }}/${{ github.repository }}" \
+              --base main
+            
+            # Enable automerge
+            sleep 2
+            NEW_PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number')
+            if [[ -n "$NEW_PR" ]]; then
+              gh pr merge "$NEW_PR" --repo "$REPO" --auto --squash || echo "Could not enable automerge (may need branch protection)"
+            fi
+          else
+            echo "PR #$EXISTING_PR updated"
+            gh pr merge "$EXISTING_PR" --repo "$REPO" --auto --squash 2>/dev/null || true
+          fi
+
+  # =============================================================================
+  # Update submodules in control center
+  # =============================================================================
+  update-submodules:
+    name: Update Submodules
+    runs-on: ubuntu-latest
+    if: github.event.inputs.update_submodules != 'false'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -55,185 +240,57 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       
-      - name: Discover organization repos
-        id: discover
-        run: |
-          echo "Discovering repos in $GITHUB_ORG..."
-          
-          # Get all non-archived repos
-          REPOS=$(gh repo list "$GITHUB_ORG" \
-            --json name,primaryLanguage,isArchived \
-            --limit 200 \
-            --jq '.[] | select(.isArchived == false) | .name')
-          
-          echo "Found $(echo "$REPOS" | wc -l) active repos"
-          echo "$REPOS"
-          
-          # Save for later steps
-          echo "repos<<EOF" >> $GITHUB_OUTPUT
-          echo "$REPOS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      
-      - name: Check for missing submodules
-        id: missing
-        run: |
-          source ./scripts/lib/ecosystem.sh
-          
-          echo "Checking for missing submodules..."
-          MISSING=$(list_missing_submodules || echo "")
-          
-          if [[ -n "$MISSING" ]]; then
-            echo "Missing submodules:"
-            echo "$MISSING"
-            echo "has_missing=true" >> $GITHUB_OUTPUT
-            echo "missing<<EOF" >> $GITHUB_OUTPUT
-            echo "$MISSING" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "All managed repos have submodules"
-            echo "has_missing=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Add missing submodules
-        if: steps.missing.outputs.has_missing == 'true' && github.event.inputs.sync_missing != 'false' && github.event.inputs.dry_run != 'true'
-        run: |
-          source ./scripts/lib/ecosystem.sh
-          
-          echo "${{ steps.missing.outputs.missing }}" | while read -r repo; do
-            if [[ -n "$repo" ]]; then
-              echo "Adding submodule: $repo"
-              submodule_add "$repo" || echo "Failed to add $repo"
-            fi
-          done
-      
       - name: Update submodules to latest
-        if: github.event.inputs.update_submodules != 'false' && github.event.inputs.dry_run != 'true'
         run: |
           echo "Updating all submodules to latest..."
           git submodule update --remote --recursive || true
-          
-          # Show what changed
-          git status --short ecosystems/oss/
+          git status --short
       
-      - name: Create or update PR for changes
+      - name: Create or update PR
         if: github.event.inputs.dry_run != 'true'
         run: |
-          # Check if there are changes
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "No changes to commit"
+          # Check for changes
+          if git diff --quiet; then
+            echo "No submodule changes"
             exit 0
           fi
           
-          # Use a stable branch name so we update the same PR
-          BRANCH="auto/ecosystem-sync"
+          BRANCH="auto/submodule-sync"
           
-          # Check if branch exists and has an open PR
+          # Check for existing PR
           EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
           
           if [[ -n "$EXISTING_PR" ]]; then
-            echo "Found existing PR #$EXISTING_PR - updating..."
-            
-            # Fetch and checkout existing branch
+            echo "Updating existing PR #$EXISTING_PR..."
             git fetch origin "$BRANCH" 2>/dev/null || true
             git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
-            
-            # Pull latest main to rebase
             git fetch origin main
             git rebase origin/main || git rebase --abort
           else
-            echo "Creating new branch..."
             git checkout -b "$BRANCH"
           fi
           
-          # Add and commit
-          git add .gitmodules ecosystems/oss/
-          
-          # Build commit message
-          CHANGES=$(git diff --staged --stat | tail -5)
-          
-          git commit -m "chore(ecosystem): sync submodules
+          git add -A
+          git commit -m "chore: update submodules to latest
 
-          Automated ecosystem synchronization:
-          - Updated submodules to latest commits
-          - Added missing submodules for managed repos
-
-          Changes:
-          $CHANGES" || echo "No new changes to commit"
+          Automated submodule sync from upstream repos." || {
+            echo "No new changes"
+            exit 0
+          }
           
-          # Push (force since we may have rebased)
           git push -u origin "$BRANCH" --force-with-lease
           
           if [[ -z "$EXISTING_PR" ]]; then
-            # Create new PR with automerge
             gh pr create \
-              --title "chore(ecosystem): sync submodules" \
-              --body "## Ecosystem Sync
-
-          Automated synchronization of ecosystem submodules.
-
-          This PR is automatically updated and will automerge when CI passes.
-
-          ### Triggered by
-          - Event: ${{ github.event_name }}
-          - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          " \
+              --title "chore: update submodules to latest" \
+              --body "Automated submodule update. Automerges when CI passes." \
               --base main
             
-            # Get the new PR number and enable automerge
+            sleep 2
             NEW_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
             if [[ -n "$NEW_PR" ]]; then
               gh pr merge "$NEW_PR" --auto --squash || echo "Could not enable automerge"
             fi
           else
-            echo "PR #$EXISTING_PR updated"
-            # Ensure automerge is still enabled
-            gh pr merge "$EXISTING_PR" --auto --squash || echo "Automerge already enabled or not available"
+            gh pr merge "$EXISTING_PR" --auto --squash 2>/dev/null || true
           fi
-
-  # =============================================================================
-  # Validate ecosystem configuration
-  # =============================================================================
-  validate:
-    name: Validate Ecosystem Config
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      
-      - name: Validate triage-hub.json
-        run: |
-          if [[ ! -f "triage-hub.json" ]]; then
-            echo "ERROR: triage-hub.json not found"
-            exit 1
-          fi
-          
-          # Validate JSON syntax
-          jq empty triage-hub.json || {
-            echo "ERROR: Invalid JSON in triage-hub.json"
-            exit 1
-          }
-          
-          echo "✅ triage-hub.json is valid JSON"
-      
-      - name: Check ecosystem consistency
-        run: |
-          echo "Checking ecosystem consistency..."
-          
-          # Get packages from triage-hub.json
-          CONFIGURED=$(jq -r '.ecosystems | to_entries[] | .value.packages | keys[]' triage-hub.json | sort)
-          
-          # Get packages from repo-config.json
-          MANAGED=$(jq -r '.repositories | keys[]' repo-config.json | sort)
-          
-          # Compare
-          echo ""
-          echo "Packages in triage-hub.json but not in repo-config.json:"
-          comm -23 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /' || echo "  (none)"
-          
-          echo ""
-          echo "Packages in repo-config.json but not in triage-hub.json:"
-          comm -13 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /' || echo "  (none)"
-          
-          echo ""
-          echo "✅ Ecosystem consistency check complete"
