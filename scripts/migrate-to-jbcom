@@ -269,6 +269,8 @@ cmd_migrate() {
     if ! git clone --mirror "https://github.com/${SOURCE_ORG}/${source}.git" "${tmp_dir}/${source}.git" 2>/dev/null; then
       log_error "Failed to clone: ${SOURCE_ORG}/${source}"
       ((fail_count++))
+      rm -rf "$tmp_dir"
+      trap - EXIT
       continue
     fi
     
@@ -278,6 +280,8 @@ cmd_migrate() {
       log_error "Failed to push to: ${TARGET_ORG}/${target}"
       ((fail_count++))
       cd - >/dev/null
+      rm -rf "$tmp_dir"
+      trap - EXIT
       continue
     fi
     cd - >/dev/null
