@@ -74,8 +74,8 @@ declare -a MIGRATION_MAP=(
 # GitHub Projects to migrate (org-level projects)
 # Format: "source_project_name:target_project_name"
 declare -a PROJECT_MAP=(
-  "jbcom Ecosystem:Ecosystem"
-  "Roadmap:Roadmap"
+  "Ecosystem Integration:Ecosystem"
+  "Ecosystem Roadmap:Roadmap"
 )
 
 # ==============================================================================
@@ -174,7 +174,7 @@ cmd_plan() {
       status="${RED}(not found in source)${NC}"
     else
       status="${GREEN}(ready)${NC}"
-      ((migrate_count++))
+      ((migrate_count+=1))
     fi
     
     printf "  %-35s → %-40s %b\n" "$source" "$target" "$status"
@@ -233,14 +233,14 @@ cmd_migrate() {
     # Check if source exists
     if ! repo_exists "$SOURCE_ORG" "$source"; then
       log_error "Source repo not found: ${SOURCE_ORG}/${source}"
-      ((fail_count++))
+      ((fail_count+=1))
       continue
     fi
     
     # Check if target already exists
     if repo_exists "$TARGET_ORG" "$target"; then
       log_warn "Target already exists: ${TARGET_ORG}/${target} - skipping"
-      ((skip_count++))
+      ((skip_count+=1))
       continue
     fi
     
@@ -251,7 +251,7 @@ cmd_migrate() {
     if [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY RUN] Would create: ${TARGET_ORG}/${target}"
       log_info "[DRY RUN] Would mirror: ${SOURCE_ORG}/${source} → ${TARGET_ORG}/${target}"
-      ((success_count++))
+      ((success_count+=1))
       continue
     fi
     
@@ -262,7 +262,7 @@ cmd_migrate() {
       --description "${description}" \
       2>/dev/null; then
       log_error "Failed to create repo: ${TARGET_ORG}/${target}"
-      ((fail_count++))
+      ((fail_count+=1))
       continue
     fi
     log_success "Created: ${TARGET_ORG}/${target}"
@@ -275,7 +275,7 @@ cmd_migrate() {
     log_info "Mirror cloning: ${SOURCE_ORG}/${source}"
     if ! git clone --mirror "https://github.com/${SOURCE_ORG}/${source}.git" "${tmp_dir}/${source}.git" 2>/dev/null; then
       log_error "Failed to clone: ${SOURCE_ORG}/${source}"
-      ((fail_count++))
+      ((fail_count+=1))
       rm -rf "$tmp_dir"
       trap - EXIT
       continue
@@ -285,7 +285,7 @@ cmd_migrate() {
     cd "${tmp_dir}/${source}.git"
     if ! git push --mirror "https://github.com/${TARGET_ORG}/${target}.git" 2>/dev/null; then
       log_error "Failed to push to: ${TARGET_ORG}/${target}"
-      ((fail_count++))
+      ((fail_count+=1))
       cd - >/dev/null
       rm -rf "$tmp_dir"
       trap - EXIT
@@ -294,7 +294,7 @@ cmd_migrate() {
     cd - >/dev/null
     
     log_success "Migrated: ${source} → ${target}"
-    ((success_count++))
+    ((success_count+=1))
     
     # Cleanup
     rm -rf "$tmp_dir"
@@ -422,9 +422,9 @@ cmd_status() {
   for mapping in "${MIGRATION_MAP[@]}"; do
     local target="${mapping#*:}"
     if repo_exists "$TARGET_ORG" "$target"; then
-      ((migrated++))
+      ((migrated+=1))
     else
-      ((pending++))
+      ((pending+=1))
     fi
   done
   
@@ -433,7 +433,7 @@ cmd_status() {
     local visibility
     visibility=$(get_repo_visibility "$SOURCE_ORG" "$repo")
     if [[ "$visibility" == "private" ]]; then
-      ((sunset++))
+      ((sunset+=1))
     fi
   done
   
@@ -478,7 +478,7 @@ cmd_migrate_projects() {
     
     if [[ -z "$source_project_number" ]]; then
       log_error "Source project not found: ${SOURCE_ORG}/${source}"
-      ((fail_count++))
+      ((fail_count+=1))
       continue
     fi
     log_info "Found source project #${source_project_number}"
@@ -490,13 +490,13 @@ cmd_migrate_projects() {
     
     if [[ -n "$target_exists" ]]; then
       log_warn "Target project already exists: ${TARGET_ORG}/${target} (#${target_exists}) - skipping"
-      ((skip_count++))
+      ((skip_count+=1))
       continue
     fi
     
     if [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY RUN] Would copy project: ${SOURCE_ORG}/${source} (#${source_project_number}) → ${TARGET_ORG}/${target}"
-      ((success_count++))
+      ((success_count+=1))
       continue
     fi
     
@@ -510,11 +510,11 @@ cmd_migrate_projects() {
       --drafts 2>&1); then
       log_success "Copied: ${source} → ${target}"
       log_info "New project URL: ${new_project_url}"
-      ((success_count++))
+      ((success_count+=1))
     else
       log_error "Failed to copy project: ${source}"
       log_error "Error: ${new_project_url}"
-      ((fail_count++))
+      ((fail_count+=1))
     fi
     
     echo ""
@@ -558,7 +558,7 @@ cmd_plan_projects() {
       status="${RED}(not found in source)${NC}"
     else
       status="${GREEN}(ready - #${source_num})${NC}"
-      ((migrate_count++))
+      ((migrate_count+=1))
     fi
     
     printf "  %-30s → %-20s %b\n" "$source" "$target" "$status"
@@ -622,6 +622,12 @@ main() {
       ;;
     status)
       cmd_status
+      ;;
+    plan-projects)
+      cmd_plan_projects
+      ;;
+    migrate-projects)
+      cmd_migrate_projects "$@"
       ;;
     -h|--help|help|"")
       show_help
