@@ -1,23 +1,12 @@
 name: Ecosystem Sync
 
 # ONE nightly job that:
-# 1. Updates all submodules to latest
-# 2. Syncs repository-files to each repo (opens PRs)
-# 3. Automerges when CI passes
+# 1. Syncs repository-files directly to each repo (pushes to main)
+# 2. Updates submodules to latest
 
 on:
   workflow_dispatch:
     inputs:
-      sync_files:
-        description: 'Sync files to repos'
-        required: false
-        default: true
-        type: boolean
-      update_submodules:
-        description: 'Update submodules to latest'
-        required: false
-        default: true
-        type: boolean
       target_repo:
         description: 'Target repo (empty for all)'
         required: false
@@ -38,7 +27,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
   GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -61,10 +49,8 @@ jobs:
           TARGET="${{ github.event.inputs.target_repo }}"
           
           if [[ -n "$TARGET" ]]; then
-            # Single repo
             REPOS=$(jq -c "[{name: \"$TARGET\", language: .repositories[\"$TARGET\"].language}]" repo-config.json)
           else
-            # All repos
             REPOS=$(jq -c '[.repositories | to_entries[] | {name: .key, language: .value.language}]' repo-config.json)
           fi
           
@@ -72,13 +58,12 @@ jobs:
           echo "Will sync $(echo "$REPOS" | jq length) repos"
 
   # =============================================================================
-  # Sync files to each repository
+  # Sync files directly to each repository
   # =============================================================================
   sync-repo:
     name: Sync ${{ matrix.repo.name }}
     needs: matrix
     runs-on: ubuntu-latest
-    if: github.event.inputs.sync_files != 'false'
     strategy:
       fail-fast: false
       max-parallel: 5
@@ -100,9 +85,7 @@ jobs:
       
       - name: Sync always-sync files
         run: |
-          echo "Syncing always-sync files to ${{ matrix.repo.name }}..."
-          
-          # Sync always-sync (overwrites)
+          echo "Syncing always-sync files..."
           if [[ -d "control-center/repository-files/always-sync" ]]; then
             rsync -av --exclude='.git' \
               control-center/repository-files/always-sync/ \
@@ -112,9 +95,6 @@ jobs:
       - name: Sync language-specific files
         run: |
           LANG="${{ matrix.repo.language }}"
-          echo "Syncing $LANG files to ${{ matrix.repo.name }}..."
-          
-          # Map language to directory
           case "$LANG" in
             python) DIR="python" ;;
             typescript|javascript) DIR="nodejs" ;;
@@ -124,109 +104,52 @@ jobs:
           esac
           
           if [[ -n "$DIR" && -d "control-center/repository-files/$DIR" ]]; then
+            echo "Syncing $DIR files..."
             rsync -av --exclude='.git' \
               "control-center/repository-files/$DIR/" \
               target-repo/
           fi
       
-      - name: Sync initial-only files (if missing)
+      - name: Sync initial-only files
         run: |
-          echo "Syncing initial-only files (only if missing)..."
-          
           if [[ -d "control-center/repository-files/initial-only" ]]; then
-            # Only copy files that don't exist
             cd control-center/repository-files/initial-only
             find . -type f | while read -r file; do
-              dest="../../target-repo/$file"
+              dest="../../../target-repo/$file"
               if [[ ! -f "$dest" ]]; then
                 mkdir -p "$(dirname "$dest")"
                 cp "$file" "$dest"
-                echo "  Added: $file"
+                echo "Added: $file"
               fi
             done
           fi
       
-      - name: Check for changes
-        id: changes
+      - name: Push changes
+        if: github.event.inputs.dry_run != 'true'
         working-directory: target-repo
         run: |
           if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            echo "has_changes=false" >> $GITHUB_OUTPUT
             echo "No changes for ${{ matrix.repo.name }}"
-          else
-            echo "has_changes=true" >> $GITHUB_OUTPUT
-            echo "Changes detected:"
-            git status --short
-          fi
-      
-      - name: Create or update PR
-        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
-        working-directory: target-repo
-        run: |
-          BRANCH="auto/control-center-sync"
-          REPO="jbdevprimary/${{ matrix.repo.name }}"
-          
-          # Check for existing PR
-          EXISTING_PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
-          
-          if [[ -n "$EXISTING_PR" ]]; then
-            echo "Updating existing PR #$EXISTING_PR..."
-            git fetch origin "$BRANCH" 2>/dev/null || true
-            git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
-            git fetch origin main
-            git rebase origin/main || git rebase --abort
-          else
-            git checkout -b "$BRANCH"
+            exit 0
           fi
           
-          # Stage and commit
           git add -A
           git commit -m "chore: sync from control center
 
-          Automated sync of:
-          - Cursor rules and configs
-          - Workflow templates
-          - Language-specific settings
-
-          Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" || {
-            echo "No new changes to commit"
-            exit 0
-          }
+          Automated sync of shared configurations.
+          Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           
-          # Push
-          git push -u origin "$BRANCH" --force-with-lease
-          
-          if [[ -z "$EXISTING_PR" ]]; then
-            # Create PR
-            gh pr create --repo "$REPO" \
-              --title "chore: sync from control center" \
-              --body "## Control Center Sync
-
-          Automated synchronization of shared configurations.
-
-          This PR will automerge when CI passes.
-
-          **Source:** ${{ github.server_url }}/${{ github.repository }}" \
-              --base main
-            
-            # Enable automerge
-            sleep 2
-            NEW_PR=$(gh pr list --repo "$REPO" --head "$BRANCH" --state open --json number --jq '.[0].number')
-            if [[ -n "$NEW_PR" ]]; then
-              gh pr merge "$NEW_PR" --repo "$REPO" --auto --squash || echo "Could not enable automerge (may need branch protection)"
-            fi
-          else
-            echo "PR #$EXISTING_PR updated"
-            gh pr merge "$EXISTING_PR" --repo "$REPO" --auto --squash 2>/dev/null || true
-          fi
+          git push origin main
+          echo "✅ Pushed to ${{ matrix.repo.name }}"
 
   # =============================================================================
   # Update submodules in control center
   # =============================================================================
   update-submodules:
     name: Update Submodules
+    needs: sync-repo
     runs-on: ubuntu-latest
-    if: github.event.inputs.update_submodules != 'false'
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -240,57 +163,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       
-      - name: Update submodules to latest
+      - name: Update submodules
         run: |
-          echo "Updating all submodules to latest..."
           git submodule update --remote --recursive || true
-          git status --short
       
-      - name: Create or update PR
+      - name: Push submodule updates
         if: github.event.inputs.dry_run != 'true'
         run: |
-          # Check for changes
           if git diff --quiet; then
             echo "No submodule changes"
             exit 0
           fi
           
-          BRANCH="auto/submodule-sync"
-          
-          # Check for existing PR
-          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
-          
-          if [[ -n "$EXISTING_PR" ]]; then
-            echo "Updating existing PR #$EXISTING_PR..."
-            git fetch origin "$BRANCH" 2>/dev/null || true
-            git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
-            git fetch origin main
-            git rebase origin/main || git rebase --abort
-          else
-            git checkout -b "$BRANCH"
-          fi
-          
           git add -A
-          git commit -m "chore: update submodules to latest
-
-          Automated submodule sync from upstream repos." || {
-            echo "No new changes"
-            exit 0
-          }
-          
-          git push -u origin "$BRANCH" --force-with-lease
-          
-          if [[ -z "$EXISTING_PR" ]]; then
-            gh pr create \
-              --title "chore: update submodules to latest" \
-              --body "Automated submodule update. Automerges when CI passes." \
-              --base main
-            
-            sleep 2
-            NEW_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
-            if [[ -n "$NEW_PR" ]]; then
-              gh pr merge "$NEW_PR" --auto --squash || echo "Could not enable automerge"
-            fi
-          else
-            gh pr merge "$EXISTING_PR" --auto --squash 2>/dev/null || true
-          fi
+          git commit -m "chore: update submodules to latest"
+          git push origin main
+          echo "✅ Submodules updated"
