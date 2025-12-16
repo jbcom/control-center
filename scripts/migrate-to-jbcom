@@ -114,6 +114,44 @@ get_repo_visibility() {
   gh api "/repos/${org}/${repo}" -q '.visibility' 2>/dev/null || echo "unknown"
 }
 
+# Check if repo is archived
+is_repo_archived() {
+  local org="$1"
+  local repo="$2"
+  [[ "$(gh api "/repos/${org}/${repo}" -q '.archived' 2>/dev/null)" == "true" ]]
+}
+
+# Make repo private, handling archived repos
+make_repo_private() {
+  local org="$1"
+  local repo="$2"
+  local was_archived=false
+  
+  # Check if archived and unarchive if needed
+  if is_repo_archived "$org" "$repo"; then
+    was_archived=true
+    if ! gh api -X PATCH "/repos/${org}/${repo}" -f archived=false >/dev/null 2>&1; then
+      return 1
+    fi
+  fi
+  
+  # Make private
+  if ! gh repo edit "${org}/${repo}" --visibility private --accept-visibility-change-consequences >/dev/null 2>&1; then
+    # Re-archive if we unarchived it
+    if [[ "$was_archived" == "true" ]]; then
+      gh api -X PATCH "/repos/${org}/${repo}" -f archived=true >/dev/null 2>&1 || true
+    fi
+    return 1
+  fi
+  
+  # Re-archive if it was archived
+  if [[ "$was_archived" == "true" ]]; then
+    gh api -X PATCH "/repos/${org}/${repo}" -f archived=true >/dev/null 2>&1 || true
+  fi
+  
+  return 0
+}
+
 # Parse migration mapping
 get_target_name() {
   local source="$1"
@@ -343,7 +381,7 @@ cmd_privatize() {
     fi
     
     log_info "Making private: ${SOURCE_ORG}/${repo}"
-    if gh repo edit "${SOURCE_ORG}/${repo}" --visibility private 2>/dev/null; then
+    if make_repo_private "${SOURCE_ORG}" "${repo}"; then
       log_success "Made private: $repo"
     else
       log_error "Failed to make private: $repo"
@@ -392,7 +430,7 @@ cmd_privatize_migrated() {
     fi
     
     log_info "Making private: ${SOURCE_ORG}/${source}"
-    if gh repo edit "${SOURCE_ORG}/${source}" --visibility private 2>/dev/null; then
+    if make_repo_private "${SOURCE_ORG}" "${source}"; then
       log_success "Made private: $source"
     else
       log_error "Failed to make private: $source"

@@ -1,6 +1,56 @@
 # Active Context - jbcom Control Center
 
-## Current Status: ALL PRs RESOLVED - MAIN BRANCH CLEAN
+## Current Status: JBDEVPRIMARY → JBCOM MIGRATION COMPLETE
+
+Successfully completed the full migration from jbdevprimary to jbcom organization.
+
+---
+
+## Session: 2025-12-16 (Organization Migration)
+
+### Completed
+
+1. **Fixed temp directory cleanup bug** in `scripts/migrate-to-jbcom`
+   - Added cleanup before `continue` statements in error paths
+   - Prevents orphaned temp directories on failed migrations
+
+2. **Added GitHub Projects migration support**
+   - New commands: `plan-projects`, `migrate-projects`
+   - Migrated "Ecosystem Integration" → "Ecosystem" (#1 in jbcom)
+   - Migrated "Ecosystem Roadmap" → "Roadmap" (#2 in jbcom)
+
+3. **Fixed bash arithmetic bug**
+   - Changed `((count++))` to `((count+=1))` throughout
+   - Prevents false failures with `set -e` when incrementing from 0
+
+4. **Made sunset repos private** (archived repos in jbdevprimary)
+   - jbcom-oss-ecosystem ✅
+   - chef-selenium-grid-extras ✅
+   - hamachi-vpn ✅
+   - openapi-31-to-30-converter ✅
+
+5. **Added archived repo handling**
+   - New helper: `make_repo_private()` handles unarchive→privatize→re-archive
+   - Updated `privatize` and `privatize-migrated` commands
+
+### Migration Summary
+
+| Category | Count | Status |
+|----------|-------|--------|
+| Repos migrated | 19/19 | ✅ Complete |
+| Sunset repos privatized | 4/4 | ✅ Complete |
+| GitHub Projects migrated | 2/2 | ✅ Complete |
+| Source repos (jbdevprimary) | 0 public | ✅ All private/migrated |
+
+### For Next Agent
+
+- Migration is complete - no further action needed
+- Script `scripts/migrate-to-jbcom` is fully functional for future use
+- All repos now in jbcom org with language prefixes
+
+---
+
+## Previous Status: ALL PRs RESOLVED - MAIN BRANCH CLEAN
 
 Successfully consolidated and merged all outstanding PRs into main. The repository is now clean with no open PRs.
 
