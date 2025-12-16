@@ -1,5 +1,47 @@
 # Session Progress Log
 
+## Session: 2025-12-16 (jbdevprimary → jbcom Migration)
+
+### What Was Done
+
+1. **Bug Fix: Temp Directory Cleanup**
+   - Fixed resource leak in `scripts/migrate-to-jbcom`
+   - Added cleanup before `continue` in error paths (clone/push failures)
+   - Prevents orphaned temp directories
+
+2. **Feature: GitHub Projects Migration**
+   - Added `plan-projects` and `migrate-projects` commands
+   - Added `PROJECT_MAP` configuration
+   - Migrated 2 projects:
+     - "Ecosystem Integration" → "Ecosystem" (jbcom #1)
+     - "Ecosystem Roadmap" → "Roadmap" (jbcom #2)
+
+3. **Bug Fix: Bash Arithmetic with set -e**
+   - Changed all `((count++))` to `((count+=1))`
+   - Fixes exit code 1 when incrementing from 0
+
+4. **Sunset Repos Made Private**
+   - jbcom-oss-ecosystem (archived)
+   - chef-selenium-grid-extras (archived)
+   - hamachi-vpn (archived)
+   - openapi-31-to-30-converter (archived)
+
+5. **Improved Archived Repo Handling**
+   - Added `is_repo_archived()` helper
+   - Added `make_repo_private()` helper (unarchive→private→re-archive)
+   - Updated both privatize commands
+
+### Final State
+
+| Item | Status |
+|------|--------|
+| Repos migrated | 19/19 ✅ |
+| Sunset repos | 4/4 private ✅ |
+| GitHub Projects | 2/2 migrated ✅ |
+| jbdevprimary public repos | 0 ✅ |
+
+---
+
 ## Session: 2025-12-15 (PR Consolidation)
 
 ### What Was Done
