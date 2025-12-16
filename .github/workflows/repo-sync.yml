@@ -162,16 +162,43 @@ jobs:
             git diff --stat
           fi
       
-      - name: Create PR for submodule updates
+      - name: Create or update PR for submodule updates
         if: steps.changes.outputs.has_changes == 'true'
         run: |
-          BRANCH="auto/submodule-update-$(date +%Y%m%d)"
-          git checkout -b "$BRANCH"
-          git add -A
-          git commit -m "chore: update submodules to latest"
-          git push -u origin "$BRANCH"
+          # Use stable branch name to avoid stacking PRs
+          BRANCH="auto/submodule-update"
           
-          gh pr create \
-            --title "chore: update submodules to latest" \
-            --body "Automated submodule update to latest upstream commits." \
-            --base main
+          # Check for existing open PR
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "Found existing PR #$EXISTING_PR - updating..."
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+          else
+            git checkout -b "$BRANCH"
+          fi
+          
+          git add -A
+          git commit -m "chore: update submodules to latest" || echo "No new changes"
+          git push -u origin "$BRANCH" --force-with-lease
+          
+          if [[ -z "$EXISTING_PR" ]]; then
+            gh pr create \
+              --title "chore: update submodules to latest" \
+              --body "Automated submodule update to latest upstream commits.
+
+          This PR automerges when CI passes." \
+              --base main
+            
+            # Enable automerge
+            NEW_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+            if [[ -n "$NEW_PR" ]]; then
+              gh pr merge "$NEW_PR" --auto --squash || echo "Could not enable automerge"
+            fi
+          else
+            echo "PR #$EXISTING_PR updated"
+            gh pr merge "$EXISTING_PR" --auto --squash || echo "Automerge already enabled"
+          fi

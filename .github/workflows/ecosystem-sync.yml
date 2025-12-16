@@ -22,9 +22,10 @@ on:
     # Daily sync at 6:00 UTC
     - cron: '0 6 * * *'
   push:
+    branches: [main]
     paths:
-      - 'terragrunt-stacks/**/terragrunt.hcl'
       - 'triage-hub.json'
+      - 'repo-config.json'
 
 permissions:
   contents: write
@@ -114,7 +115,7 @@ jobs:
           # Show what changed
           git status --short ecosystems/oss/
       
-      - name: Create PR for changes
+      - name: Create or update PR for changes
         if: github.event.inputs.dry_run != 'true'
         run: |
           # Check if there are changes
@@ -123,9 +124,26 @@ jobs:
             exit 0
           fi
           
-          # Create branch
-          BRANCH="ecosystem-sync/$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
+          # Use a stable branch name so we update the same PR
+          BRANCH="auto/ecosystem-sync"
+          
+          # Check if branch exists and has an open PR
+          EXISTING_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number' || echo "")
+          
+          if [[ -n "$EXISTING_PR" ]]; then
+            echo "Found existing PR #$EXISTING_PR - updating..."
+            
+            # Fetch and checkout existing branch
+            git fetch origin "$BRANCH" 2>/dev/null || true
+            git checkout -B "$BRANCH" origin/"$BRANCH" 2>/dev/null || git checkout -b "$BRANCH"
+            
+            # Pull latest main to rebase
+            git fetch origin main
+            git rebase origin/main || git rebase --abort
+          else
+            echo "Creating new branch..."
+            git checkout -b "$BRANCH"
+          fi
           
           # Add and commit
           git add .gitmodules ecosystems/oss/
@@ -140,27 +158,37 @@ jobs:
           - Added missing submodules for managed repos
 
           Changes:
-          $CHANGES"
+          $CHANGES" || echo "No new changes to commit"
           
-          # Push and create PR
-          git push -u origin "$BRANCH"
+          # Push (force since we may have rebased)
+          git push -u origin "$BRANCH" --force-with-lease
           
-          gh pr create \
-            --title "chore(ecosystem): sync submodules" \
-            --body "## Ecosystem Sync
+          if [[ -z "$EXISTING_PR" ]]; then
+            # Create new PR with automerge
+            gh pr create \
+              --title "chore(ecosystem): sync submodules" \
+              --body "## Ecosystem Sync
 
           Automated synchronization of ecosystem submodules.
 
-          ### Changes
-          \`\`\`
-          $CHANGES
-          \`\`\`
+          This PR is automatically updated and will automerge when CI passes.
 
           ### Triggered by
           - Event: ${{ github.event_name }}
           - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           " \
-            --base main
+              --base main
+            
+            # Get the new PR number and enable automerge
+            NEW_PR=$(gh pr list --head "$BRANCH" --state open --json number --jq '.[0].number')
+            if [[ -n "$NEW_PR" ]]; then
+              gh pr merge "$NEW_PR" --auto --squash || echo "Could not enable automerge"
+            fi
+          else
+            echo "PR #$EXISTING_PR updated"
+            # Ensure automerge is still enabled
+            gh pr merge "$EXISTING_PR" --auto --squash || echo "Automerge already enabled or not available"
+          fi
 
   # =============================================================================
   # Validate ecosystem configuration
@@ -190,21 +218,22 @@ jobs:
       
       - name: Check ecosystem consistency
         run: |
-          source ./scripts/lib/ecosystem.sh
-          
           echo "Checking ecosystem consistency..."
           
           # Get packages from triage-hub.json
           CONFIGURED=$(jq -r '.ecosystems | to_entries[] | .value.packages | keys[]' triage-hub.json | sort)
           
-          # Get packages from terragrunt stacks
-          MANAGED=$(list_managed_repos | awk -F'/' '{print $2}' | sort)
+          # Get packages from repo-config.json
+          MANAGED=$(jq -r '.repositories | keys[]' repo-config.json | sort)
           
           # Compare
           echo ""
-          echo "Packages in triage-hub.json but not in terragrunt:"
-          comm -23 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /'
+          echo "Packages in triage-hub.json but not in repo-config.json:"
+          comm -23 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /' || echo "  (none)"
           
           echo ""
-          echo "Packages in terragrunt but not in triage-hub.json:"
-          comm -13 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /'
+          echo "Packages in repo-config.json but not in triage-hub.json:"
+          comm -13 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /' || echo "  (none)"
+          
+          echo ""
+          echo "✅ Ecosystem consistency check complete"
