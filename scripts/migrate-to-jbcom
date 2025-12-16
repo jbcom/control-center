@@ -350,6 +350,57 @@ cmd_privatize_migrated() {
   echo ""
 }
 
+# Migrate open PRs from source to target
+migrate_prs() {
+  local source="$1" target="$2" token="$3"
+  
+  log_info "Migrating open PRs..."
+  
+  # Get open PRs from source
+  local prs
+  prs=$(gh api "/repos/${SOURCE_ORG}/${source}/pulls?state=open" -q '.[] | "\(.number)|\(.head.ref)|\(.base.ref)|\(.title)|\(.body // "")"' 2>/dev/null || echo "")
+  
+  if [[ -z "$prs" ]]; then
+    log_info "No open PRs to migrate"
+    return 0
+  fi
+  
+  echo "$prs" | while IFS='|' read -r pr_num head_ref base_ref title body; do
+    log_info "PR #${pr_num}: ${title}"
+    
+    # Check if branch exists in target
+    if ! gh api "/repos/${TARGET_ORG}/${target}/branches/${head_ref}" &>/dev/null; then
+      log_warn "  Branch ${head_ref} not found in target - skipping"
+      continue
+    fi
+    
+    # Check if PR already exists with same head
+    local existing
+    existing=$(gh api "/repos/${TARGET_ORG}/${target}/pulls?head=${TARGET_ORG}:${head_ref}&state=open" -q 'length' 2>/dev/null || echo "0")
+    if [[ "$existing" -gt 0 ]]; then
+      log_success "  PR already exists - skipping"
+      continue
+    fi
+    
+    # Create PR in target
+    local new_body="Migrated from ${SOURCE_ORG}/${source}#${pr_num}
+
+---
+${body}"
+    
+    if gh pr create \
+      --repo "${TARGET_ORG}/${target}" \
+      --head "${head_ref}" \
+      --base "${base_ref}" \
+      --title "${title}" \
+      --body "${new_body}" 2>/dev/null; then
+      log_success "  Created PR"
+    else
+      log_warn "  Failed to create PR (branch may need push)"
+    fi
+  done
+}
+
 cmd_status() {
   echo "=============================================="
   echo "  Migration Status"
