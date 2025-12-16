@@ -238,7 +238,7 @@ Two projects track the ecosystem:
 
 | Variable | Description |
 |----------|-------------|
-| `GITHUB_ORG` | GitHub organization (default: `jbdevprimary`) |
+| `GITHUB_ORG` | GitHub organization (default: `jbcom`) |
 | `GH_TOKEN` | GitHub token for API access |
 | `OLLAMA_API_KEY` | Ollama API key for AI operations |
 | `OLLAMA_HOST` | Ollama API endpoint |
@@ -279,12 +279,11 @@ Two projects track the ecosystem:
 
 ## Migration to jbcom
 
-The repos are currently under `jbdevprimary` but migrating to `jbcom`. The configuration supports this:
+The repos have been migrated from `jbdevprimary` to `jbcom`:
 
 ```json
 {
-  "organization": "jbdevprimary",
-  "migrating_to": "jbcom"
+  "organization": "jbcom"
 }
 ```
 

@@ -1,60 +1,60 @@
-[submodule "ecosystems/oss/strata"]
-	path = ecosystems/oss/strata
-	url = https://github.com/jbdevprimary/strata.git
-[submodule "ecosystems/oss/agentic-control"]
-	path = ecosystems/oss/agentic-control
-	url = https://github.com/jbdevprimary/agentic-control.git
-[submodule "ecosystems/oss/agentic-crew"]
-	path = ecosystems/oss/agentic-crew
-	url = https://github.com/jbdevprimary/agentic-crew.git
-[submodule "ecosystems/oss/agentic-triage"]
-	path = ecosystems/oss/agentic-triage
-	url = https://github.com/jbdevprimary/agentic-triage.git
-[submodule "ecosystems/oss/vendor-connectors"]
-	path = ecosystems/oss/vendor-connectors
-	url = https://github.com/jbdevprimary/vendor-connectors.git
-[submodule "ecosystems/oss/directed-inputs-class"]
-	path = ecosystems/oss/directed-inputs-class
-	url = https://github.com/jbdevprimary/directed-inputs-class.git
-[submodule "ecosystems/oss/ai_game_dev"]
-	path = ecosystems/oss/ai_game_dev
-	url = https://github.com/jbdevprimary/ai_game_dev.git
-[submodule "ecosystems/oss/extended-data-types"]
-	path = ecosystems/oss/extended-data-types
-	url = https://github.com/jbdevprimary/extended-data-types.git
-[submodule "ecosystems/oss/lifecyclelogging"]
-	path = ecosystems/oss/lifecyclelogging
-	url = https://github.com/jbdevprimary/lifecyclelogging.git
+[submodule "ecosystems/oss/nodejs-strata"]
+	path = ecosystems/oss/nodejs-strata
+	url = https://github.com/jbcom/nodejs-strata.git
+[submodule "ecosystems/oss/nodejs-agentic-control"]
+	path = ecosystems/oss/nodejs-agentic-control
+	url = https://github.com/jbcom/nodejs-agentic-control.git
+[submodule "ecosystems/oss/python-agentic-crew"]
+	path = ecosystems/oss/python-agentic-crew
+	url = https://github.com/jbcom/python-agentic-crew.git
+[submodule "ecosystems/oss/nodejs-agentic-triage"]
+	path = ecosystems/oss/nodejs-agentic-triage
+	url = https://github.com/jbcom/nodejs-agentic-triage.git
+[submodule "ecosystems/oss/python-vendor-connectors"]
+	path = ecosystems/oss/python-vendor-connectors
+	url = https://github.com/jbcom/python-vendor-connectors.git
+[submodule "ecosystems/oss/python-directed-inputs-class"]
+	path = ecosystems/oss/python-directed-inputs-class
+	url = https://github.com/jbcom/python-directed-inputs-class.git
+[submodule "ecosystems/oss/python-ai-game-dev"]
+	path = ecosystems/oss/python-ai-game-dev
+	url = https://github.com/jbcom/python-ai-game-dev.git
+[submodule "ecosystems/oss/python-extended-data-types"]
+	path = ecosystems/oss/python-extended-data-types
+	url = https://github.com/jbcom/python-extended-data-types.git
+[submodule "ecosystems/oss/python-lifecyclelogging"]
+	path = ecosystems/oss/python-lifecyclelogging
+	url = https://github.com/jbcom/python-lifecyclelogging.git
 [submodule "ecosystems/oss/python-terraform-bridge"]
 	path = ecosystems/oss/python-terraform-bridge
-	url = https://github.com/jbdevprimary/python-terraform-bridge.git
-[submodule "ecosystems/oss/rivers-of-reckoning"]
-	path = ecosystems/oss/rivers-of-reckoning
-	url = https://github.com/jbdevprimary/rivers-of-reckoning.git
-[submodule "ecosystems/oss/otter-river-rush"]
-	path = ecosystems/oss/otter-river-rush
-	url = https://github.com/jbdevprimary/otter-river-rush.git
-[submodule "ecosystems/oss/otterfall"]
-	path = ecosystems/oss/otterfall
-	url = https://github.com/jbdevprimary/otterfall.git
-[submodule "ecosystems/oss/pixels-pygame-palace"]
-	path = ecosystems/oss/pixels-pygame-palace
-	url = https://github.com/jbdevprimary/pixels-pygame-palace.git
-[submodule "ecosystems/oss/port-api"]
-	path = ecosystems/oss/port-api
-	url = https://github.com/jbdevprimary/port-api.git
-[submodule "ecosystems/oss/rivermarsh"]
-	path = ecosystems/oss/rivermarsh
-	url = https://github.com/jbdevprimary/rivermarsh.git
-[submodule "ecosystems/oss/vault-secret-sync"]
-	path = ecosystems/oss/vault-secret-sync
-	url = https://github.com/jbdevprimary/vault-secret-sync.git
+	url = https://github.com/jbcom/python-terraform-bridge.git
+[submodule "ecosystems/oss/python-rivers-of-reckoning"]
+	path = ecosystems/oss/python-rivers-of-reckoning
+	url = https://github.com/jbcom/python-rivers-of-reckoning.git
+[submodule "ecosystems/oss/nodejs-otter-river-rush"]
+	path = ecosystems/oss/nodejs-otter-river-rush
+	url = https://github.com/jbcom/nodejs-otter-river-rush.git
+[submodule "ecosystems/oss/nodejs-otterfall"]
+	path = ecosystems/oss/nodejs-otterfall
+	url = https://github.com/jbcom/nodejs-otterfall.git
+[submodule "ecosystems/oss/nodejs-pixels-pygame-palace"]
+	path = ecosystems/oss/nodejs-pixels-pygame-palace
+	url = https://github.com/jbcom/nodejs-pixels-pygame-palace.git
+[submodule "ecosystems/oss/go-port-api"]
+	path = ecosystems/oss/go-port-api
+	url = https://github.com/jbcom/go-port-api.git
+[submodule "ecosystems/oss/nodejs-rivermarsh"]
+	path = ecosystems/oss/nodejs-rivermarsh
+	url = https://github.com/jbcom/nodejs-rivermarsh.git
+[submodule "ecosystems/oss/go-vault-secret-sync"]
+	path = ecosystems/oss/go-vault-secret-sync
+	url = https://github.com/jbcom/go-vault-secret-sync.git
 [submodule "ecosystems/oss/terraform-github-markdown"]
 	path = ecosystems/oss/terraform-github-markdown
-	url = https://github.com/jbdevprimary/terraform-github-markdown.git
+	url = https://github.com/jbcom/terraform-github-markdown.git
 [submodule "ecosystems/oss/terraform-repository-automation"]
 	path = ecosystems/oss/terraform-repository-automation
-	url = https://github.com/jbdevprimary/terraform-repository-automation.git
-[submodule "ecosystems/oss/secretsync"]
-	path = ecosystems/oss/secretsync
-	url = https://github.com/jbdevprimary/secretsync.git
+	url = https://github.com/jbcom/terraform-repository-automation.git
+[submodule "ecosystems/oss/go-secretsync"]
+	path = ecosystems/oss/go-secretsync
+	url = https://github.com/jbcom/go-secretsync.git

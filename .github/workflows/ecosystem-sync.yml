@@ -78,7 +78,7 @@ jobs:
       
       - name: Clone target repo
         run: |
-          gh repo clone "jbdevprimary/${{ matrix.repo.name }}" target-repo
+          gh repo clone "jbcom/${{ matrix.repo.name }}" target-repo
           cd target-repo
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -172,7 +172,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          # submodules disabled until migration complete
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
       
