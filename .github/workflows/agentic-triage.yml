@@ -1,3 +1,12 @@
+# =============================================================================
+# Agentic Triage Hub
+# =============================================================================
+# ARCHITECTURE NOTE:
+# - agentic-triage provides CLI + primitives (Vercel AI SDK tools)
+# - agentic-control consumes these primitives (see jbcom/agentic-control#22)
+# - This workflow uses the agentic-triage CLI directly
+# - Future: migrate to agentic-control CLI once Issue #22 is resolved
+# =============================================================================
 name: Agentic Triage Hub
 
 on:

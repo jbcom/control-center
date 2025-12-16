@@ -33,5 +33,81 @@
   "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "jbcom/jbcom-control-center",
   "logLevel": "info",
-  "agents": {}
+  "crewDirectory": ".crew",
+  "agents": {
+    "triage": {
+      "description": "Issue and PR triage across the ecosystem",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "assess_new_issue",
+      "tools": ["github_issues", "github_prs", "mcp_filesystem"]
+    },
+    "ecosystem": {
+      "description": "Cross-repo dependency and sync coordination",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "check_dependency_graph",
+      "tools": ["github_repos", "github_releases", "github_actions", "mcp_filesystem"]
+    },
+    "planning": {
+      "description": "Sprint and roadmap management",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "generate_weekly_sprint",
+      "tools": ["github_issues", "github_projects", "github_milestones"]
+    }
+  },
+  "ecosystem": {
+    "managedRepos": [
+      "jbcom/agentic-control",
+      "jbcom/agentic-crew",
+      "jbcom/agentic-triage",
+      "jbcom/vendor-connectors",
+      "jbcom/extended-data-types",
+      "jbcom/directed-inputs-class",
+      "jbcom/lifecyclelogging",
+      "jbcom/python-terraform-bridge",
+      "jbcom/strata",
+      "jbcom/pixels-pygame-palace",
+      "jbcom/otter-river-rush",
+      "jbcom/otterfall",
+      "jbcom/rivermarsh",
+      "jbcom/rivers-of-reckoning",
+      "jbcom/ai_game_dev",
+      "jbcom/port-api",
+      "jbcom/secretsync",
+      "jbcom/terraform-github-markdown",
+      "jbcom/terraform-repository-automation"
+    ],
+    "dependencyGraph": {
+      "agentic-control": {
+        "consumes": ["agentic-triage"],
+        "consumers": []
+      },
+      "agentic-triage": {
+        "consumes": [],
+        "consumers": ["agentic-control"]
+      },
+      "agentic-crew": {
+        "consumes": ["vendor-connectors", "extended-data-types", "directed-inputs-class"],
+        "consumers": ["agentic-control"]
+      },
+      "vendor-connectors": {
+        "consumes": ["extended-data-types"],
+        "consumers": ["agentic-crew"]
+      },
+      "extended-data-types": {
+        "consumes": [],
+        "consumers": ["vendor-connectors", "agentic-crew"]
+      },
+      "directed-inputs-class": {
+        "consumes": [],
+        "consumers": ["agentic-crew"]
+      }
+    },
+    "projects": {
+      "integration": "PVT_kwHOAChyN84BJLOn",
+      "roadmap": "PVT_kwHOAChyN84BKeDX"
+    }
+  }
 }

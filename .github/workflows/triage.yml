@@ -1,3 +1,12 @@
+# =============================================================================
+# Triage Workflow (this repo)
+# =============================================================================
+# ARCHITECTURE NOTE:
+# - agentic-triage provides CLI + primitives (Vercel AI SDK tools)
+# - agentic-control consumes these primitives (see jbcom/agentic-control#22)
+# - This workflow uses the agentic-triage CLI for this repo only
+# - For cross-repo triage, see agentic-triage.yml (Agentic Triage Hub)
+# =============================================================================
 name: Triage
 
 on:

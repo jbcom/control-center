@@ -1,0 +1,138 @@
+# Control Center Task Definitions
+# These tasks orchestrate agentic-control operations across the ecosystem
+
+# =============================================================================
+# TRIAGE TASKS
+# =============================================================================
+assess_new_issue:
+  description: >
+    Assess a newly opened issue in {repository}.
+    
+    1. Read the issue title and body
+    2. Determine category: bug, feature, enhancement, documentation, infrastructure
+    3. Assess priority: critical, high, medium, low
+    4. Estimate complexity: trivial, small, medium, large, epic
+    5. Identify affected packages in the ecosystem
+    6. Check for duplicate or related issues
+    7. Apply appropriate labels
+    8. Add to correct GitHub Project (Integration or Roadmap)
+  expected_output: >
+    A structured assessment with:
+    - Category and priority labels applied
+    - Complexity estimate in issue comment
+    - Related issues linked
+    - Added to appropriate project board
+  agent: triage_assessor
+
+review_pull_request:
+  description: >
+    Review PR #{pr_number} in {repository}.
+    
+    1. Understand the PR purpose from title and description
+    2. Review all changed files for:
+       - Code quality and style consistency
+       - Test coverage for new code
+       - Breaking API changes
+       - Security concerns
+       - Documentation updates needed
+    3. Check CI status and any failing checks
+    4. Identify if changes affect downstream packages
+    5. Provide actionable review feedback
+  expected_output: >
+    A review comment with:
+    - Summary of changes understood
+    - Specific feedback on code quality
+    - Breaking change warnings if applicable
+    - Approval or change requests
+  agent: pr_reviewer
+
+# =============================================================================
+# ECOSYSTEM TASKS
+# =============================================================================
+check_dependency_graph:
+  description: >
+    Analyze the ecosystem dependency graph and identify:
+    
+    1. Current package versions across all repos
+    2. Outdated dependencies that need updates
+    3. Version conflicts between packages
+    4. Breaking changes in pending PRs that affect consumers
+    5. Packages ready for release
+  expected_output: >
+    A dependency health report with:
+    - Packages needing updates
+    - Suggested version bump order
+    - Breaking change impact analysis
+  agent: dependency_tracker
+
+sync_repositories:
+  description: >
+    Verify repository synchronization status:
+    
+    1. Check each managed repo for latest Cursor rules
+    2. Verify CI workflows match control center templates
+    3. Confirm Dependabot configs are consistent
+    4. Check submodule refs are up to date
+    5. Report any drift from expected configuration
+  expected_output: >
+    A sync status report with:
+    - Repos that are out of sync
+    - Specific files that differ
+    - Recommended sync actions
+  agent: sync_coordinator
+
+# =============================================================================
+# PLANNING TASKS
+# =============================================================================
+generate_weekly_sprint:
+  description: >
+    Create the weekly sprint plan:
+    
+    1. Review all open issues labeled 'sprint-candidate'
+    2. Check dependency order for blocked issues
+    3. Balance work across repos (avoid clustering)
+    4. Prioritize by: critical bugs > features > enhancements > docs
+    5. Estimate total story points and capacity
+    6. Create sprint milestone if not exists
+  expected_output: >
+    Sprint plan with:
+    - Issues assigned to sprint milestone
+    - Suggested assignment order
+    - Capacity vs commitment analysis
+  agent: sprint_planner
+
+update_roadmap:
+  description: >
+    Update the quarterly roadmap:
+    
+    1. Review all EPICs and their progress
+    2. Check milestone completion percentages
+    3. Identify EPICs at risk of missing target
+    4. Update GitHub Project board status
+    5. Generate roadmap summary for stakeholders
+  expected_output: >
+    Roadmap update with:
+    - EPIC status summary
+    - At-risk items highlighted
+    - Recommended priority adjustments
+  agent: roadmap_curator
+
+# =============================================================================
+# COMPOSITE TASKS
+# =============================================================================
+full_ecosystem_triage:
+  description: >
+    Run comprehensive triage across the entire ecosystem:
+    
+    1. Assess all new issues (last 7 days) across all repos
+    2. Review all open PRs for stale reviews
+    3. Check dependency graph health
+    4. Verify sync status
+    5. Update roadmap tracking
+  expected_output: >
+    Ecosystem health report with all assessments consolidated
+  agent: triage_assessor
+  context:
+    - check_dependency_graph
+    - sync_repositories
+    - update_roadmap
