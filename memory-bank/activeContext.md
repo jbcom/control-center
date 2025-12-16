@@ -74,12 +74,41 @@ Attempted to add starter workflows from GitHub's starter-workflows repo, but sel
 
 **Future approach:** Workflows should be opt-in, not forced via always-sync.
 
+---
+
+## Session: 2025-12-16 (Migration Cleanup)
+
+### Completed
+
+1. **Updated all configurations to use jbcom org:**
+   - `.gitmodules` - All 20 submodules now point to jbcom with language prefixes
+   - `triage-hub.json` - Organization set to jbcom, all package names updated
+   - `repo-config.json` - All ecosystem repos updated with new names
+   - `agentic.config.json` - managedRepos updated, dependency graph updated
+
+2. **Updated workflows:**
+   - `agentic-triage.yml` - GITHUB_ORG=jbcom, matrix fallback updated
+   - `ecosystem-sync.yml` - Clone from jbcom
+   - `project-sync.yml` - Project URLs updated
+
+3. **Updated scripts:**
+   - `scripts/ecosystem` - Default org is jbcom
+   - `scripts/lib/ecosystem.sh` - GITHUB_ORG defaults to jbcom
+   - `scripts/sync-projects` - Uses jbcom
+   - `scripts/configure-repos` - Uses jbcom
+
+4. **Updated documentation:**
+   - `docs/TRIAGE-HUB.md` - Migration note updated
+
+5. **Verified ecosystem discover works:**
+   - All 20 repos discovered in jbcom organization
+   - Python (8), Node.js (7), Go (3), HCL (1) repos found
+
 ### For Next Agent
 
-1. Update `triage-hub.json` with new repo names
-2. Update `repo-config.json` with new repo names
-3. Update submodules in `ecosystems/oss/` to point to new jbcom repos
-4. Update any CI/CD that references old repo names
+1. Run `git submodule update --init --recursive` to clone new submodules
+2. Consider creating GitHub Projects in jbcom org (currently on jbdevprimary user)
+3. Test full triage workflow
 
 ---
 

@@ -31,7 +31,7 @@
     "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
   "defaultModel": "claude-sonnet-4-5-20250929",
-  "defaultRepository": "jbcom/jbcom-control-center",
+  "defaultRepository": "jbcom/control-center",
   "logLevel": "info",
   "crewDirectory": ".crew",
   "agents": {
@@ -59,50 +59,59 @@
   },
   "ecosystem": {
     "managedRepos": [
-      "jbcom/agentic-control",
-      "jbcom/agentic-crew",
-      "jbcom/agentic-triage",
-      "jbcom/vendor-connectors",
-      "jbcom/extended-data-types",
-      "jbcom/directed-inputs-class",
-      "jbcom/lifecyclelogging",
+      "jbcom/nodejs-agentic-control",
+      "jbcom/nodejs-agentic-triage",
+      "jbcom/python-agentic-crew",
+      "jbcom/python-vendor-connectors",
+      "jbcom/python-extended-data-types",
+      "jbcom/python-directed-inputs-class",
+      "jbcom/python-lifecyclelogging",
       "jbcom/python-terraform-bridge",
-      "jbcom/strata",
-      "jbcom/pixels-pygame-palace",
-      "jbcom/otter-river-rush",
-      "jbcom/otterfall",
-      "jbcom/rivermarsh",
-      "jbcom/rivers-of-reckoning",
-      "jbcom/ai_game_dev",
-      "jbcom/port-api",
-      "jbcom/secretsync",
+      "jbcom/python-rivers-of-reckoning",
+      "jbcom/python-ai-game-dev",
+      "jbcom/nodejs-strata",
+      "jbcom/nodejs-pixels-pygame-palace",
+      "jbcom/nodejs-otter-river-rush",
+      "jbcom/nodejs-otterfall",
+      "jbcom/nodejs-rivermarsh",
+      "jbcom/go-port-api",
+      "jbcom/go-secretsync",
+      "jbcom/go-vault-secret-sync",
       "jbcom/terraform-github-markdown",
       "jbcom/terraform-repository-automation"
     ],
     "dependencyGraph": {
-      "agentic-control": {
-        "consumes": ["agentic-triage"],
+      "nodejs-agentic-control": {
+        "consumes": [],
+        "consumers": ["nodejs-agentic-triage"]
+      },
+      "nodejs-agentic-triage": {
+        "consumes": ["nodejs-agentic-control"],
         "consumers": []
       },
-      "agentic-triage": {
+      "python-agentic-crew": {
+        "consumes": ["python-vendor-connectors", "python-extended-data-types", "python-directed-inputs-class"],
+        "consumers": []
+      },
+      "python-vendor-connectors": {
+        "consumes": ["python-lifecyclelogging"],
+        "consumers": ["python-agentic-crew"]
+      },
+      "python-extended-data-types": {
         "consumes": [],
-        "consumers": ["agentic-control"]
+        "consumers": ["python-vendor-connectors", "python-agentic-crew", "python-directed-inputs-class"]
       },
-      "agentic-crew": {
-        "consumes": ["vendor-connectors", "extended-data-types", "directed-inputs-class"],
-        "consumers": ["agentic-control"]
+      "python-directed-inputs-class": {
+        "consumes": ["python-extended-data-types"],
+        "consumers": ["python-agentic-crew"]
       },
-      "vendor-connectors": {
-        "consumes": ["extended-data-types"],
-        "consumers": ["agentic-crew"]
-      },
-      "extended-data-types": {
+      "python-lifecyclelogging": {
         "consumes": [],
-        "consumers": ["vendor-connectors", "agentic-crew"]
+        "consumers": ["python-vendor-connectors", "python-agentic-crew", "python-terraform-bridge"]
       },
-      "directed-inputs-class": {
+      "nodejs-strata": {
         "consumes": [],
-        "consumers": ["agentic-crew"]
+        "consumers": ["nodejs-rivermarsh", "nodejs-otter-river-rush"]
       }
     },
     "projects": {

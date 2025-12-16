@@ -48,7 +48,7 @@ permissions:
   repository-projects: write
 
 env:
-  GITHUB_ORG: jbdevprimary
+  GITHUB_ORG: jbcom
   ROADMAP_PROJECT_ID: ${{ vars.ROADMAP_PROJECT_ID }}
   INTEGRATION_PROJECT_ID: ${{ vars.INTEGRATION_PROJECT_ID }}
   GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -67,8 +67,8 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        # Note: submodules disabled - using matrix fallback instead
+        # Enable after submodule migration is complete
       
       - name: Generate matrix from ecosystem
         id: matrix
@@ -77,25 +77,26 @@ jobs:
           MATRIX=$(./scripts/ecosystem matrix 2>/dev/null || cat <<'EOF'
           {
             "include": [
-              {"ecosystem": "python", "repo": "jbdevprimary/agentic-crew", "submodule": "ecosystems/oss/agentic-crew"},
-              {"ecosystem": "python", "repo": "jbdevprimary/vendor-connectors", "submodule": "ecosystems/oss/vendor-connectors"},
-              {"ecosystem": "python", "repo": "jbdevprimary/extended-data-types", "submodule": "ecosystems/oss/extended-data-types"},
-              {"ecosystem": "python", "repo": "jbdevprimary/directed-inputs-class", "submodule": "ecosystems/oss/directed-inputs-class"},
-              {"ecosystem": "python", "repo": "jbdevprimary/lifecyclelogging", "submodule": "ecosystems/oss/lifecyclelogging"},
-              {"ecosystem": "python", "repo": "jbdevprimary/python-terraform-bridge", "submodule": "ecosystems/oss/python-terraform-bridge"},
-              {"ecosystem": "python", "repo": "jbdevprimary/rivers-of-reckoning", "submodule": "ecosystems/oss/rivers-of-reckoning"},
-              {"ecosystem": "python", "repo": "jbdevprimary/ai_game_dev", "submodule": "ecosystems/oss/ai_game_dev"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/agentic-control", "submodule": "ecosystems/oss/agentic-control"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/agentic-triage", "submodule": "ecosystems/oss/agentic-triage"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/strata", "submodule": "ecosystems/oss/strata"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/otter-river-rush", "submodule": "ecosystems/oss/otter-river-rush"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/otterfall", "submodule": "ecosystems/oss/otterfall"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/rivermarsh", "submodule": "ecosystems/oss/rivermarsh"},
-              {"ecosystem": "typescript", "repo": "jbdevprimary/pixels-pygame-palace", "submodule": "ecosystems/oss/pixels-pygame-palace"},
-              {"ecosystem": "go", "repo": "jbdevprimary/port-api", "submodule": "ecosystems/oss/port-api"},
-              {"ecosystem": "go", "repo": "jbdevprimary/vault-secret-sync", "submodule": "ecosystems/oss/vault-secret-sync"},
-              {"ecosystem": "terraform", "repo": "jbdevprimary/terraform-github-markdown", "submodule": "ecosystems/oss/terraform-github-markdown"},
-              {"ecosystem": "terraform", "repo": "jbdevprimary/terraform-repository-automation", "submodule": "ecosystems/oss/terraform-repository-automation"}
+              {"ecosystem": "python", "repo": "jbcom/python-agentic-crew", "submodule": "ecosystems/oss/python-agentic-crew"},
+              {"ecosystem": "python", "repo": "jbcom/python-vendor-connectors", "submodule": "ecosystems/oss/python-vendor-connectors"},
+              {"ecosystem": "python", "repo": "jbcom/python-extended-data-types", "submodule": "ecosystems/oss/python-extended-data-types"},
+              {"ecosystem": "python", "repo": "jbcom/python-directed-inputs-class", "submodule": "ecosystems/oss/python-directed-inputs-class"},
+              {"ecosystem": "python", "repo": "jbcom/python-lifecyclelogging", "submodule": "ecosystems/oss/python-lifecyclelogging"},
+              {"ecosystem": "python", "repo": "jbcom/python-terraform-bridge", "submodule": "ecosystems/oss/python-terraform-bridge"},
+              {"ecosystem": "python", "repo": "jbcom/python-rivers-of-reckoning", "submodule": "ecosystems/oss/python-rivers-of-reckoning"},
+              {"ecosystem": "python", "repo": "jbcom/python-ai-game-dev", "submodule": "ecosystems/oss/python-ai-game-dev"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-agentic-control", "submodule": "ecosystems/oss/nodejs-agentic-control"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-agentic-triage", "submodule": "ecosystems/oss/nodejs-agentic-triage"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-strata", "submodule": "ecosystems/oss/nodejs-strata"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-otter-river-rush", "submodule": "ecosystems/oss/nodejs-otter-river-rush"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-otterfall", "submodule": "ecosystems/oss/nodejs-otterfall"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-rivermarsh", "submodule": "ecosystems/oss/nodejs-rivermarsh"},
+              {"ecosystem": "typescript", "repo": "jbcom/nodejs-pixels-pygame-palace", "submodule": "ecosystems/oss/nodejs-pixels-pygame-palace"},
+              {"ecosystem": "go", "repo": "jbcom/go-port-api", "submodule": "ecosystems/oss/go-port-api"},
+              {"ecosystem": "go", "repo": "jbcom/go-vault-secret-sync", "submodule": "ecosystems/oss/go-vault-secret-sync"},
+              {"ecosystem": "go", "repo": "jbcom/go-secretsync", "submodule": "ecosystems/oss/go-secretsync"},
+              {"ecosystem": "terraform", "repo": "jbcom/terraform-github-markdown", "submodule": "ecosystems/oss/terraform-github-markdown"},
+              {"ecosystem": "terraform", "repo": "jbcom/terraform-repository-automation", "submodule": "ecosystems/oss/terraform-repository-automation"}
             ]
           }
           EOF
@@ -125,8 +126,7 @@ jobs:
     steps:
       - name: Checkout control center
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        # Note: submodules disabled until migration complete
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -246,8 +246,7 @@ jobs:
     if: github.event_name == 'issues'
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        # Note: submodules disabled until migration complete
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -269,8 +268,7 @@ jobs:
     if: github.event_name == 'pull_request_target'
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        # Note: submodules disabled until migration complete
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -292,8 +290,7 @@ jobs:
     if: github.event.inputs.command == 'health'
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: recursive
+        # Note: submodules disabled until migration complete
       
       - name: Run health check
         run: |
