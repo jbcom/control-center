@@ -350,42 +350,79 @@ cmd_privatize_migrated() {
   echo ""
 }
 
-# Migrate open PRs from source to target
-migrate_prs() {
-  local source="$1" target="$2" token="$3"
-  
-  log_info "Migrating open PRs..."
+# Migrate open PRs from source to target (idempotent)
+migrate_prs_for_repo() {
+  local source="$1" target="$2" dry_run="${3:-}"
+  local created=0 skipped=0 failed=0
   
   # Get open PRs from source
   local prs
-  prs=$(gh api "/repos/${SOURCE_ORG}/${source}/pulls?state=open" -q '.[] | "\(.number)|\(.head.ref)|\(.base.ref)|\(.title)|\(.body // "")"' 2>/dev/null || echo "")
+  prs=$(gh api "/repos/${SOURCE_ORG}/${source}/pulls?state=open&per_page=100" \
+    -q '.[] | @base64' 2>/dev/null || echo "")
   
   if [[ -z "$prs" ]]; then
-    log_info "No open PRs to migrate"
+    log_info "No open PRs in source"
     return 0
   fi
   
-  echo "$prs" | while IFS='|' read -r pr_num head_ref base_ref title body; do
-    log_info "PR #${pr_num}: ${title}"
+  for pr_b64 in $prs; do
+    local pr_json
+    pr_json=$(echo "$pr_b64" | base64 -d)
     
-    # Check if branch exists in target
+    local pr_num head_ref base_ref title body
+    pr_num=$(echo "$pr_json" | jq -r '.number')
+    head_ref=$(echo "$pr_json" | jq -r '.head.ref')
+    base_ref=$(echo "$pr_json" | jq -r '.base.ref')
+    title=$(echo "$pr_json" | jq -r '.title')
+    body=$(echo "$pr_json" | jq -r '.body // ""')
+    
+    echo "  PR #${pr_num}: ${title:0:50}..."
+    
+    # IDEMPOTENT CHECK 1: Does target PR already exist with same title?
+    local existing_by_title
+    existing_by_title=$(gh api "/repos/${TARGET_ORG}/${target}/pulls?state=all&per_page=100" \
+      -q ".[] | select(.title == \"${title}\") | .number" 2>/dev/null | head -1 || echo "")
+    if [[ -n "$existing_by_title" ]]; then
+      log_success "    Already exists as #${existing_by_title} - skip"
+      skipped=$((skipped + 1))
+      continue
+    fi
+    
+    # IDEMPOTENT CHECK 2: Does target have open PR with same head branch?
+    local existing_by_branch
+    existing_by_branch=$(gh api "/repos/${TARGET_ORG}/${target}/pulls?state=open&head=${TARGET_ORG}:${head_ref}" \
+      -q '.[0].number' 2>/dev/null || echo "")
+    if [[ -n "$existing_by_branch" && "$existing_by_branch" != "null" ]]; then
+      log_success "    Branch ${head_ref} has PR #${existing_by_branch} - skip"
+      skipped=$((skipped + 1))
+      continue
+    fi
+    
+    # Check if head branch exists in target
     if ! gh api "/repos/${TARGET_ORG}/${target}/branches/${head_ref}" &>/dev/null; then
-      log_warn "  Branch ${head_ref} not found in target - skipping"
+      log_warn "    Branch ${head_ref} missing in target - skip"
+      failed=$((failed + 1))
       continue
     fi
     
-    # Check if PR already exists with same head
-    local existing
-    existing=$(gh api "/repos/${TARGET_ORG}/${target}/pulls?head=${TARGET_ORG}:${head_ref}&state=open" -q 'length' 2>/dev/null || echo "0")
-    if [[ "$existing" -gt 0 ]]; then
-      log_success "  PR already exists - skipping"
+    # Check if base branch exists
+    if ! gh api "/repos/${TARGET_ORG}/${target}/branches/${base_ref}" &>/dev/null; then
+      log_warn "    Base ${base_ref} missing - skip"
+      failed=$((failed + 1))
       continue
     fi
     
-    # Create PR in target
-    local new_body="Migrated from ${SOURCE_ORG}/${source}#${pr_num}
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "    [DRY] Would create PR"
+      created=$((created + 1))
+      continue
+    fi
+    
+    # Create PR
+    local new_body="*Migrated from [${SOURCE_ORG}/${source}#${pr_num}](https://github.com/${SOURCE_ORG}/${source}/pull/${pr_num})*
 
 ---
+
 ${body}"
     
     if gh pr create \
@@ -394,10 +431,47 @@ ${body}"
       --base "${base_ref}" \
       --title "${title}" \
       --body "${new_body}" 2>/dev/null; then
-      log_success "  Created PR"
+      log_success "    Created"
+      created=$((created + 1))
     else
-      log_warn "  Failed to create PR (branch may need push)"
+      log_error "    Failed to create"
+      failed=$((failed + 1))
     fi
+  done
+  
+  echo "    PRs: ${created} created, ${skipped} skipped, ${failed} failed"
+}
+
+cmd_migrate_prs() {
+  local dry_run="${1:-}"
+  [[ "$dry_run" == "--dry-run" ]] && log_info "DRY RUN MODE" && echo ""
+  
+  echo "=============================================="
+  echo "  Migrating PRs: ${SOURCE_ORG} → ${TARGET_ORG}"
+  echo "=============================================="
+  echo ""
+  
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    # Only migrate PRs if target repo exists and has commits
+    if ! repo_exists "$TARGET_ORG" "$target"; then
+      log_warn "$target - repo doesn't exist, skipping PRs"
+      continue
+    fi
+    
+    if ! repo_has_commits "$TARGET_ORG" "$target"; then
+      log_warn "$target - repo empty, skipping PRs"
+      continue
+    fi
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  ${source} → ${target}"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    migrate_prs_for_repo "$source" "$target" "$dry_run"
+    echo ""
   done
 }
 
