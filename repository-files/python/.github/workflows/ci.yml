@@ -1,0 +1,61 @@
+# Python CI Workflow
+# Synced from jbcom/control-center
+#
+# Runs tests, linting, and type checking on Python projects.
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[dev]" || uv pip install --system -e ".[test]" || uv pip install --system -r requirements.txt
+
+      - name: Lint with ruff
+        run: |
+          uv pip install --system ruff
+          ruff check .
+          ruff format --check .
+
+      - name: Type check with mypy
+        run: |
+          uv pip install --system mypy
+          mypy . --ignore-missing-imports || true
+
+      - name: Test with pytest
+        run: |
+          uv pip install --system pytest pytest-cov
+          pytest --cov --cov-report=xml || pytest
+
+      - name: Upload coverage
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          files: ./coverage.xml
+          fail_ci_if_error: false

@@ -1,0 +1,95 @@
+# PR Labeler Configuration
+# Synced from jbcom/control-center
+#
+# Automatically labels PRs based on file paths.
+# See: https://github.com/actions/labeler
+
+# Documentation changes
+documentation:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**'
+      - 'README*'
+
+# CI/CD changes
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - '.circleci/**'
+      - '.travis.yml'
+
+# Dependencies
+dependencies:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'requirements*.txt'
+      - 'pyproject.toml'
+      - 'poetry.lock'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Gemfile*'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+
+# Configuration
+config:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '*.json'
+      - '*.yaml'
+      - '*.yml'
+      - '*.toml'
+      - '*.ini'
+      - '*.cfg'
+
+# Tests
+tests:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/test/**'
+      - '**/tests/**'
+      - '**/*_test.*'
+      - '**/*_spec.*'
+      - '**/*.test.*'
+      - '**/*.spec.*'
+
+# Python
+python:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.py'
+
+# JavaScript/TypeScript
+javascript:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.js'
+      - '**/*.ts'
+      - '**/*.jsx'
+      - '**/*.tsx'
+
+# Go
+go:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.go'
+
+# Terraform/Infrastructure
+terraform:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.tf'
+      - '**/*.tfvars'
+      - '**/*.hcl'
+
+# Docker
+docker:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'Dockerfile*'
+      - 'docker-compose*.yml'
+      - '.dockerignore'

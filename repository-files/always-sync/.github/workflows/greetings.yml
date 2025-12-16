@@ -1,0 +1,46 @@
+# First-time Contributor Greetings
+# Synced from jbcom/control-center
+#
+# Welcomes first-time contributors to the project.
+
+name: Greetings
+
+on:
+  pull_request_target:
+    types: [opened]
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  greeting:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            👋 Thanks for opening your first issue here!
+            
+            We appreciate you taking the time to report this. A maintainer will review it soon.
+            
+            In the meantime, please make sure you've:
+            - Searched for similar issues to avoid duplicates
+            - Provided clear steps to reproduce (if applicable)
+            - Included relevant environment details
+            
+            Welcome to the community! 🎉
+          pr-message: |
+            🎉 Thanks for opening your first pull request!
+            
+            We're excited to have you contribute. A maintainer will review your changes soon.
+            
+            Quick checklist:
+            - [ ] Tests pass locally
+            - [ ] Code follows project conventions
+            - [ ] Documentation updated (if applicable)
+            
+            Welcome to the project! 🚀
