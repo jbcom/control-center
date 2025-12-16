@@ -64,6 +64,13 @@ declare -a MIGRATION_MAP=(
   "terraform-repository-automation:terraform-repository-automation"
 )
 
+# GitHub Projects to migrate (org-level projects)
+# Format: "source_project_name:target_project_name"
+declare -a PROJECT_MAP=(
+  "Ecosystem Integration:Ecosystem"
+  "Ecosystem Roadmap:Roadmap"
+)
+
 # ==============================================================================
 # HELPERS
 # ==============================================================================
@@ -105,6 +112,31 @@ get_repo_visibility() {
 
 get_default_branch() {
   gh api "/repos/${1}/${2}" -q '.default_branch' 2>/dev/null || echo "main"
+}
+
+# Check if repo is archived
+is_repo_archived() {
+  local org="$1" repo="$2"
+  [[ "$(gh api "/repos/${org}/${repo}" -q '.archived' 2>/dev/null)" == "true" ]]
+}
+
+# Make repo private, handling archived repos (unarchive → private → re-archive)
+make_repo_private() {
+  local org="$1" repo="$2"
+  local was_archived=false
+  
+  if is_repo_archived "$org" "$repo"; then
+    was_archived=true
+    gh api -X PATCH "/repos/${org}/${repo}" -f archived=false >/dev/null 2>&1 || return 1
+  fi
+  
+  if ! gh repo edit "${org}/${repo}" --visibility private --accept-visibility-change-consequences >/dev/null 2>&1; then
+    [[ "$was_archived" == "true" ]] && gh api -X PATCH "/repos/${org}/${repo}" -f archived=true >/dev/null 2>&1
+    return 1
+  fi
+  
+  [[ "$was_archived" == "true" ]] && gh api -X PATCH "/repos/${org}/${repo}" -f archived=true >/dev/null 2>&1
+  return 0
 }
 
 # ==============================================================================
@@ -307,8 +339,8 @@ cmd_privatize() {
     elif [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY] Would make private: $repo"
     else
-    log_info "Making private: $repo"
-    if gh repo edit "${SOURCE_ORG}/${repo}" --visibility private --accept-visibility-change-consequences 2>/dev/null; then
+      log_info "Making private: $repo"
+      if make_repo_private "$SOURCE_ORG" "$repo"; then
         log_success "Done"
       else
         log_error "Failed"
@@ -343,8 +375,8 @@ cmd_privatize_migrated() {
     elif [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY] Would make private: $source"
     else
-    log_info "Making private: $source"
-    if gh repo edit "${SOURCE_ORG}/${source}" --visibility private --accept-visibility-change-consequences 2>/dev/null; then
+      log_info "Making private: $source"
+      if make_repo_private "$SOURCE_ORG" "$source"; then
         log_success "Done"
       else
         log_error "Failed"
@@ -612,6 +644,114 @@ cmd_status() {
   echo ""
 }
 
+cmd_plan_projects() {
+  echo "=============================================="
+  echo "  Project Migration Plan: ${SOURCE_ORG} → ${TARGET_ORG}"
+  echo "=============================================="
+  echo ""
+  
+  echo "📋 PROJECTS TO MIGRATE:"
+  echo "-----------------------"
+  local migrate_count=0
+  
+  for mapping in "${PROJECT_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    local status=""
+    
+    local source_num
+    source_num=$(gh project list --owner "$SOURCE_ORG" --format json \
+      | jq -r --arg name "$source" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    local target_num
+    target_num=$(gh project list --owner "$TARGET_ORG" --format json \
+      | jq -r --arg name "$target" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -n "$target_num" ]]; then
+      status="${GREEN}(done - #${target_num})${NC}"
+    elif [[ -z "$source_num" ]]; then
+      status="${RED}(source not found)${NC}"
+    else
+      status="${BLUE}(ready - #${source_num})${NC}"
+      migrate_count=$((migrate_count + 1))
+    fi
+    
+    printf "  %-30s → %-20s %b\n" "$source" "$target" "$status"
+  done
+  echo ""
+  echo "  To migrate: $migrate_count"
+  echo ""
+}
+
+cmd_migrate_projects() {
+  local dry_run="${1:-}"
+  [[ "$dry_run" == "--dry-run" ]] && log_info "DRY RUN" && echo ""
+  
+  echo "=============================================="
+  echo "  GitHub Projects Migration"
+  echo "=============================================="
+  echo ""
+  
+  local success=0 skip=0 fail=0
+  
+  for mapping in "${PROJECT_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  $source → $target"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    local source_num
+    source_num=$(gh project list --owner "$SOURCE_ORG" --format json \
+      | jq -r --arg name "$source" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -z "$source_num" ]]; then
+      log_error "Source not found"
+      fail=$((fail + 1))
+      continue
+    fi
+    
+    local target_num
+    target_num=$(gh project list --owner "$TARGET_ORG" --format json \
+      | jq -r --arg name "$target" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -n "$target_num" ]]; then
+      log_success "Already exists (#${target_num}) - skip"
+      skip=$((skip + 1))
+      continue
+    fi
+    
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "[DRY] Would copy project #${source_num}"
+      success=$((success + 1))
+      continue
+    fi
+    
+    log_info "Copying project #${source_num}"
+    if gh project copy "$source_num" \
+      --source-owner "$SOURCE_ORG" \
+      --target-owner "$TARGET_ORG" \
+      --title "$target" \
+      --drafts >/dev/null 2>&1; then
+      log_success "Copied"
+      success=$((success + 1))
+    else
+      log_error "Failed to copy"
+      fail=$((fail + 1))
+    fi
+    echo ""
+  done
+  
+  echo "=============================================="
+  echo "  Summary"
+  echo "=============================================="
+  echo -e "  ${GREEN}Success:${NC} $success"
+  echo -e "  ${YELLOW}Skipped:${NC} $skip"
+  echo -e "  ${RED}Failed:${NC}  $fail"
+  echo ""
+}
+
 cmd_migrate_all() {
   local dry_run="${1:-}"
   
@@ -650,15 +790,19 @@ show_help() {
   cat << EOF
 Usage: $(basename "$0") <command> [options]
 
-Commands:
+Repository Commands:
   plan                      Show migration plan
   status                    Show migration status
-  
   migrate [--dry-run]       Migrate code (branches, tags)
   migrate-issues [--dry-run] Migrate open issues
   migrate-prs [--dry-run]   Migrate open PRs
   migrate-all [--dry-run]   Full migration (code + issues + PRs)
-  
+
+Project Commands:
+  plan-projects             Show GitHub Projects migration plan
+  migrate-projects [--dry-run]  Migrate GitHub Projects
+
+Cleanup Commands:
   privatize [--dry-run]     Make sunset repos private
   privatize-migrated        Make migrated source repos private
 
@@ -680,6 +824,8 @@ main() {
     migrate-issues) cmd_migrate_issues "$@" ;;
     migrate-prs) cmd_migrate_prs "$@" ;;
     migrate-all) cmd_migrate_all "$@" ;;
+    plan-projects) cmd_plan_projects ;;
+    migrate-projects) cmd_migrate_projects "$@" ;;
     privatize) cmd_privatize "$@" ;;
     privatize-migrated) cmd_privatize_migrated "$@" ;;
     -h|--help|help|"") show_help ;;
