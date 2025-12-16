@@ -34,7 +34,7 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 
 | COPILOT_MCP Prefix | Standard Names | Usage |
 |-------------------|----------------|-------|
-| `COPILOT_MCP_GITHUB_TOKEN` | `GITHUB_JBCOM_TOKEN`, `GITHUB_TOKEN` | GitHub API, PR operations, MCP server |
+| `COPILOT_MCP_GITHUB_TOKEN` | `GITHUB_TOKEN`, `CI_GITHUB_TOKEN` | GitHub API, PR operations, MCP server |
 
 **Used in:**
 - `packages/agentic-control/src/fleet.ts`
@@ -67,7 +67,7 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 ```bash
 # Standard environment variables
 export CURSOR_API_KEY="your-cursor-key"
-export GITHUB_JBCOM_TOKEN="your-github-token"
+export GITHUB_TOKEN="your-github-token"
 export ANTHROPIC_API_KEY="your-anthropic-key"
 
 # Run tools
@@ -133,8 +133,8 @@ export class MyClass {
 async function doSomething(config: Config) {
   const token = config.token 
     ?? process.env.COPILOT_MCP_GITHUB_TOKEN 
-    ?? process.env.GITHUB_JBCOM_TOKEN
-    ?? process.env.GITHUB_TOKEN;
+    ?? process.env.GITHUB_TOKEN
+    ?? process.env.CI_GITHUB_TOKEN;
 }
 ```
 
@@ -166,7 +166,7 @@ Expected output:
 ✅ Cursor Agent MCP
    Environment: COPILOT_MCP_CURSOR_API_KEY or CURSOR_API_KEY (set)
 ✅ GitHub MCP
-   Environment: COPILOT_MCP_GITHUB_TOKEN or GITHUB_JBCOM_TOKEN or GITHUB_TOKEN (set)
+   Environment: COPILOT_MCP_GITHUB_TOKEN or GITHUB_TOKEN (set)
 ⚠️ Context7 MCP
    Environment: CONTEXT7_API_KEY (optional) (not set)
 ```

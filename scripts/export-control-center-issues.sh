@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO=${REPO:-jbcom/jbcom-control-center}
-GH_TOKEN_VALUE=${GITHUB_JBCOM_TOKEN:-${GITHUB_TOKEN:-${GH_TOKEN:-}}}
+GH_TOKEN_VALUE=${GITHUB_TOKEN:-${CI_GITHUB_TOKEN:-${GH_TOKEN:-}}}
 OUTPUT_PATH=${1:-docs/CONTROL-CENTER-ISSUES.md}
 
 if ! command -v gh >/dev/null 2>&1; then
@@ -16,7 +16,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 if [[ -z "${GH_TOKEN_VALUE}" ]]; then
-  echo "ERROR: Set GITHUB_JBCOM_TOKEN, GITHUB_TOKEN, or GH_TOKEN to access ${REPO}" >&2
+  echo "ERROR: Set GITHUB_TOKEN or GH_TOKEN to access ${REPO}" >&2
   exit 1
 fi
 

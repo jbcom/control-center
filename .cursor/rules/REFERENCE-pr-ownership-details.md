@@ -257,8 +257,8 @@ When all feedback addressed and CI passes:
 gh pr checks <NUM>  # All green?
 gh pr reviews <NUM>  # All approved or acknowledged?
 
-# Merge
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge <NUM> --squash --delete-branch --auto
+# Merge (gh CLI auto-uses GITHUB_TOKEN)
+gh pr merge <NUM> --squash --delete-branch --auto
 ```
 
 **Post-merge:**

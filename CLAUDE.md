@@ -46,22 +46,20 @@ jbcom Control Center is a unified hub that:
 
 ## Authentication
 
-Two GitHub organizations require different tokens:
+A unified GitHub token is used for all operations:
 
-| Organization | Token Variable | Use Case |
-|--------------|----------------|----------|
-| jbcom | `GITHUB_JBCOM_TOKEN` | jbcom repos (default) |
-| FlipsideCrypto | `GITHUB_FSC_TOKEN` | Enterprise infrastructure |
+| Variable | Use Case |
+|----------|----------|
+| `GITHUB_TOKEN` | All GitHub API operations (gh CLI, Terraform, etc.) |
+| `CI_GITHUB_TOKEN` | Same token, used in CI workflows |
 
 ```bash
-# jbcom repos
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list --repo jbcom/jbcom-control-center
-
-# FlipsideCrypto repos
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
+# All repos use the same token
+gh pr list --repo jbcom/jbcom-control-center
+gh pr list --repo FlipsideCrypto/terraform-modules
 ```
 
-Token mapping is defined in `agentic.config.json`.
+The `gh` CLI automatically uses `GITHUB_TOKEN` from environment.
 
 ## Custom Agents
 

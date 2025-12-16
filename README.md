@@ -82,8 +82,8 @@ These consume jbcom packages:
 ## Token Configuration
 
 ```bash
-export GITHUB_JBCOM_TOKEN="..."  # jbcom repos
-export GITHUB_FSC_TOKEN="..."    # FlipsideCrypto repos
+export GITHUB_TOKEN="..."       # All GitHub API operations
+export CI_GITHUB_TOKEN="..."    # Same token (for CI workflows)
 ```
 
 ## Workflows

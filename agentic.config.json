@@ -4,31 +4,31 @@
     "organizations": {
       "jbcom": {
         "name": "jbcom",
-        "tokenEnvVar": "GITHUB_JBCOM_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": false
       },
       "FlipsideCrypto": {
         "name": "FlipsideCrypto",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       },
       "fsc-platform": {
         "name": "fsc-platform",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       },
       "fsc-internal-tooling-administration": {
         "name": "fsc-internal-tooling-administration",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",
-    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+    "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
   "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "jbcom/jbcom-control-center",

@@ -115,13 +115,13 @@ AWS Lambda functions for secrets management. See individual README files:
 
 ## Token Configuration
 
-FlipsideCrypto operations require `GITHUB_FSC_TOKEN`:
+All operations use the unified `GITHUB_TOKEN`:
 
 ```bash
-export GITHUB_FSC_TOKEN="ghp_..."
+export GITHUB_TOKEN="ghp_..."
 ```
 
-The unified `agentic-control` CLI handles token switching automatically based on repository organization.
+The `gh` CLI automatically uses `GITHUB_TOKEN` from environment.
 
 ## Dependencies
 
