@@ -143,6 +143,20 @@ variable "ollama_api_key" {
   description = "Ollama Cloud API key"
 }
 
+variable "openrouter_api_key" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "OpenRouter API key for AI model routing"
+}
+
+variable "openai_api_key" {
+  type        = string
+  sensitive   = true
+  default     = ""
+  description = "OpenAI API key for Codex and other OpenAI models"
+}
+
 # =============================================================================
 # LOCALS
 # =============================================================================
@@ -361,6 +375,20 @@ resource "github_actions_secret" "ollama_api_key" {
   repository      = github_repository.this.name
   secret_name     = "OLLAMA_API_KEY"
   plaintext_value = var.ollama_api_key
+}
+
+resource "github_actions_secret" "openrouter_api_key" {
+  count           = var.openrouter_api_key != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "OPENROUTER_API_KEY"
+  plaintext_value = var.openrouter_api_key
+}
+
+resource "github_actions_secret" "openai_api_key" {
+  count           = var.openai_api_key != "" ? 1 : 0
+  repository      = github_repository.this.name
+  secret_name     = "OPENAI_API_KEY"
+  plaintext_value = var.openai_api_key
 }
 
 # =============================================================================
