@@ -14,7 +14,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_FILE="${SCRIPT_DIR}/../repo-config.json"
-GITHUB_ORG="${GITHUB_ORG:-jbdevprimary}"
+GITHUB_ORG="${GITHUB_ORG:-jbcom}"
 
 # Project IDs (from GraphQL query)
 INTEGRATION_PROJECT_ID="PVT_kwHOAChyN84BJLOn"

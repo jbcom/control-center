@@ -28,7 +28,7 @@ source "${SCRIPT_DIR}/lib/ecosystem.sh"
 
 cmd_discover() {
   local format="${1:-table}"
-  local org="${GITHUB_ORG:-jbdevprimary}"
+  local org="${GITHUB_ORG:-jbcom}"
   
   log_info "Discovering repositories in $org..."
   
@@ -451,7 +451,7 @@ cmd_help() {
   echo "    release <repo> [ver]  Coordinate package release"
   echo ""
   echo "  Environment Variables:"
-  echo "    GITHUB_ORG            GitHub organization (default: jbdevprimary)"
+  echo "    GITHUB_ORG            GitHub organization (default: jbcom)"
   echo "    GH_TOKEN              GitHub token for API access"
   echo "    OLLAMA_API_KEY        Ollama API key for AI operations"
   echo ""

@@ -8,14 +8,14 @@
       "id": "PVT_kwHOAChyN84BJLOn",
       "number": 2,
       "name": "Ecosystem Integration",
-      "url": "https://github.com/users/jbdevprimary/projects/2",
+      "url": "https://github.com/orgs/jbcom/projects/2",
       "purpose": "Cross-cutting integration issues, bugs, CI/infra"
     },
     "roadmap": {
       "id": "PVT_kwHOAChyN84BKeDX",
       "number": 8,
       "name": "Ecosystem Roadmap",
-      "url": "https://github.com/users/jbdevprimary/projects/8",
+      "url": "https://github.com/orgs/jbcom/projects/8",
       "purpose": "Feature roadmap, EPICs, enhancements"
     }
   },
@@ -198,14 +198,14 @@
         "initial": ["initial-only"]
       },
       "repos": [
-        "agentic-crew",
-        "vendor-connectors",
-        "extended-data-types",
-        "directed-inputs-class",
-        "lifecyclelogging",
+        "python-agentic-crew",
+        "python-vendor-connectors",
+        "python-extended-data-types",
+        "python-directed-inputs-class",
+        "python-lifecyclelogging",
         "python-terraform-bridge",
-        "rivers-of-reckoning",
-        "ai_game_dev"
+        "python-rivers-of-reckoning",
+        "python-ai-game-dev"
       ],
       "ruleset_overrides": {
         "prs": {
@@ -242,13 +242,13 @@
         "initial": ["initial-only"]
       },
       "repos": [
-        "agentic-control",
-        "agentic-triage",
-        "strata",
-        "otter-river-rush",
-        "otterfall",
-        "rivermarsh",
-        "pixels-pygame-palace"
+        "nodejs-agentic-control",
+        "nodejs-agentic-triage",
+        "nodejs-strata",
+        "nodejs-otter-river-rush",
+        "nodejs-otterfall",
+        "nodejs-rivermarsh",
+        "nodejs-pixels-pygame-palace"
       ]
     },
     "go": {
@@ -257,9 +257,9 @@
         "initial": ["initial-only"]
       },
       "repos": [
-        "port-api",
-        "vault-secret-sync",
-        "secretsync"
+        "go-port-api",
+        "go-vault-secret-sync",
+        "go-secretsync"
       ],
       "ruleset_overrides": {
         "prs": {
@@ -310,7 +310,7 @@
         "initial": []
       },
       "repos": [
-        "jbcom-control-center"
+        "control-center"
       ],
       "_comment": "Control center - no file sync, just project tracking"
     }

@@ -14,7 +14,7 @@ permissions:
   issues: read
 
 env:
-  # Project IDs from jbdevprimary organization
+  # Project IDs from jbcom organization
   INTEGRATION_PROJECT_ID: "PVT_kwHOAChyN84BJLOn"
   ROADMAP_PROJECT_ID: "PVT_kwHOAChyN84BKeDX"
 
@@ -68,12 +68,12 @@ jobs:
         if: steps.issue.outputs.add_integration == 'true'
         uses: actions/add-to-project@v1.0.2
         with:
-          project-url: https://github.com/users/jbdevprimary/projects/2
+          project-url: https://github.com/orgs/jbcom/projects/2
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Add to Roadmap Project
         if: steps.issue.outputs.add_roadmap == 'true'
         uses: actions/add-to-project@v1.0.2
         with:
-          project-url: https://github.com/users/jbdevprimary/projects/8
+          project-url: https://github.com/orgs/jbcom/projects/8
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}
