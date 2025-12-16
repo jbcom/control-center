@@ -1,8 +1,39 @@
 # Active Context - jbcom Control Center
 
-## Current Status: PR-REVIEW WORKFLOW FIXED
+## Current Status: SETTINGS APP DEPLOYED
 
-Fixed multi-AI PR review workflow with SHA-pinned actions and bot permissions.
+Deployed Settings app configuration to all 21 repos + org defaults.
+
+---
+
+## Session: 2025-12-16 (Settings App Rollout)
+
+### Settings App Deployment
+
+Installed and configured [repository-settings/app](https://probot.github.io/apps/settings/) for declarative repo management.
+
+**Created:**
+- `jbcom/.github` repo (private) with org-wide `settings.yml`
+- `repository-files/always-sync/.github/settings.yml` for sync to all repos
+
+**Deployed to 21 repositories:**
+- Python: 8 repos
+- Node.js: 8 repos (including jbcom.github.io)
+- Go: 3 repos
+- Terraform: 2 repos
+
+**Configuration Applied:**
+| Setting | Value |
+|---------|-------|
+| Merge strategy | Squash only |
+| Delete branch on merge | Yes |
+| Wiki | Disabled |
+| Standard labels | 20 labels |
+| Main branch ruleset | Linear history, PR required |
+| PR branch ruleset | Copilot code review |
+| GitHub Pages | Environment configured |
+
+### PR Review Workflow Fixed
 
 ---
 
