@@ -1,6 +1,57 @@
 # Active Context - jbcom Control Center
 
-## Current Status: MIGRATION COMPLETE + TRIAGE DONE
+## Current Status: PR-REVIEW WORKFLOW FIXED
+
+Fixed multi-AI PR review workflow with SHA-pinned actions and bot permissions.
+
+---
+
+## Session: 2025-12-16 (Workflow Fix)
+
+### Issue
+PR review workflow failing on jbcom.github.io#16 with 3 different errors:
+1. `jonit-dev/diffguard@v1` - version not found (only v1.0.0 exists)
+2. `anthropics/claude-code-action` - Bot actors not allowed (cursor[bot])
+3. `openai/codex-action` - Bot actors need permission
+
+### Fixes Applied
+
+1. **Pinned all actions to SHA hashes** (security best practice):
+   - `actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8` (v6.0.1)
+   - `jonit-dev/diffguard@88f63615c769f8db6031973503c2c40a9a3f4feb` (v1.0.0)
+   - `anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127` (v1)
+   - `openai/codex-action@086169432f1d2ab2f4057540b1754d550f6a1189` (v1.4)
+   - `actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd` (v8)
+
+2. **Added bot permissions**:
+   - Claude: `allowed_bots: '*'` and `github_token: ${{ secrets.GITHUB_TOKEN }}`
+   - Codex: `allow-bots: "true"` and `allow-users: "*"`
+
+3. **Removed unsupported DiffGuard inputs**:
+   - Removed `exclude_files` and `minimum_score` (not supported by v1.0.0)
+
+4. **Added jbcom.github.io to repo-config.json** for future syncs
+
+### Remaining Issues (Not Workflow Related)
+The target repo (jbcom.github.io) has invalid API key secrets:
+- `OPENROUTER_API_KEY` - 401 "User not found"
+- `OPENAI_API_KEY` - 401 "Incorrect API key"
+
+These need to be fixed in the repo's Settings > Secrets.
+
+### Files Changed
+- `repository-files/always-sync/.github/workflows/pr-review.yml`
+- `repo-config.json` (added jbcom.github.io to nodejs ecosystem)
+
+### For Next Agent
+1. Commit and push the local changes to this branch
+2. Create PR to merge workflow fixes to main
+3. Fix API key secrets in jbcom.github.io repo settings
+4. The ecosystem-sync workflow will auto-deploy on merge
+
+---
+
+## Previous Status: MIGRATION COMPLETE + TRIAGE DONE
 
 Successfully completed migration AND comprehensive ecosystem triage.
 
