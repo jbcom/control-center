@@ -427,7 +427,7 @@ cmd_status() {
   done
   
   echo "  Source repos (${SOURCE_ORG}): $total_source"
-  echo "  Target repos (${TARGET_ORG}): $(gh api "/orgs/${TARGET_ORG}/repos" -q 'length' 2>/dev/null || echo "?")"
+  echo "  Target repos (${TARGET_ORG}): $(gh api "/orgs/${TARGET_ORG}/repos" --paginate -q 'length' 2>/dev/null | awk '{sum+=$1} END{print sum}' || echo "?")"
   echo ""
   echo "  Migrated:        $migrated / ${#MIGRATION_MAP[@]}"
   echo "  Pending:         $pending"
