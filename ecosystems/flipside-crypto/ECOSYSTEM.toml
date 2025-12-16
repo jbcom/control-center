@@ -109,4 +109,4 @@ memory_bank = "memory-bank"
 
 [agent.fleet]
 counterparty = "jbcom-control-center"
-token_env = "GITHUB_JBCOM_TOKEN"
+token_env = "GITHUB_TOKEN"

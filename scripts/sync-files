@@ -228,7 +228,7 @@ main() {
   local count=0
   for repo in "${repos[@]}"; do
     sync_repo "$repo"
-    ((count++))
+    count=$((count + 1))
   done
   
   echo ""

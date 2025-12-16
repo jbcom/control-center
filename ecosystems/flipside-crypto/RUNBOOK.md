@@ -17,20 +17,20 @@ node packages/agentic-control/dist/cli.js config
 
 ## Token Configuration
 
-Configured in `/workspace/agentic.config.json`:
+All organizations use the unified `GITHUB_TOKEN`:
 
 ```json
 {
   "tokens": {
     "organizations": {
-      "jbcom": { "tokenEnvVar": "GITHUB_JBCOM_TOKEN" },
-      "FlipsideCrypto": { "tokenEnvVar": "GITHUB_FSC_TOKEN" }
+      "jbcom": { "tokenEnvVar": "GITHUB_TOKEN" },
+      "FlipsideCrypto": { "tokenEnvVar": "GITHUB_TOKEN" }
     }
   }
 }
 ```
 
-The CLI automatically selects the right token based on repo organization.
+The `gh` CLI automatically uses `GITHUB_TOKEN` from environment.
 
 ## Managing FlipsideCrypto/terraform-modules
 
@@ -54,10 +54,10 @@ node packages/agentic-control/dist/cli.js triage analyze <agent-id> --create-iss
 ### Via gh CLI (Direct)
 
 ```bash
-# The token is auto-selected, but for gh you must set GH_TOKEN explicitly
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo FlipsideCrypto/terraform-modules
+# gh CLI auto-uses GITHUB_TOKEN from environment
+gh pr list --repo FlipsideCrypto/terraform-modules
+gh issue list --repo FlipsideCrypto/terraform-modules
+gh run list --repo FlipsideCrypto/terraform-modules
 ```
 
 ## CLI Commands Reference
@@ -93,8 +93,8 @@ terraform-modules content is absorbed at:
 ## Current Issues
 
 ```bash
-# Check what needs work
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh issue list --repo FlipsideCrypto/terraform-modules --state open
+# Check what needs work (gh CLI auto-uses GITHUB_TOKEN)
+gh issue list --repo FlipsideCrypto/terraform-modules --state open
 ```
 
 ---

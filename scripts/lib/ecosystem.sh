@@ -9,7 +9,7 @@
 #   source "$(dirname "$0")/lib/ecosystem.sh"
 #
 # Environment Variables:
-#   GITHUB_ORG          - GitHub organization (default: jbdevprimary)
+#   GITHUB_ORG          - GitHub organization (default: jbcom)
 #   ECOSYSTEM_ROOT      - Path to ecosystems/oss (auto-detected)
 #   TERRAGRUNT_ROOT     - Path to terragrunt-stacks (auto-detected)
 #   GH_TOKEN            - GitHub token for API access
@@ -22,7 +22,7 @@ set -euo pipefail
 # Configuration
 # =============================================================================
 
-export GITHUB_ORG="${GITHUB_ORG:-jbdevprimary}"
+export GITHUB_ORG="${GITHUB_ORG:-jbcom}"
 export REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo "/workspace")}"
 export ECOSYSTEM_ROOT="${ECOSYSTEM_ROOT:-${REPO_ROOT}/ecosystems/oss}"
 export TERRAGRUNT_ROOT="${TERRAGRUNT_ROOT:-${REPO_ROOT}/terragrunt-stacks}"

@@ -27,15 +27,13 @@ cat memory-bank/progress.md
 
 | Token | Usage |
 |-------|-------|
-| `GITHUB_JBCOM_TOKEN` | jbcom repos (default) |
-| `GITHUB_FSC_TOKEN` | FlipsideCrypto repos |
+| `GITHUB_TOKEN` | All GitHub API operations |
+| `CI_GITHUB_TOKEN` | Same token (CI workflows) |
 
 ```bash
-# jbcom repos
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list --repo jbcom/jbcom-control-center
-
-# FlipsideCrypto repos (if needed)
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/<repo>
+# All repos - gh CLI auto-uses GITHUB_TOKEN
+gh pr list --repo jbcom/jbcom-control-center
+gh pr list --repo FlipsideCrypto/<repo>
 ```
 
 ## 📁 Key Locations

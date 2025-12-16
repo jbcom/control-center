@@ -5,100 +5,78 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What This Repo Does
 
 jbcom Control Center is a unified hub that:
-1. **Manages all repository configuration** via Terragrunt (settings, branch protection, security, secrets, files)
-2. **Holds FSC infrastructure** (Terraform modules, SAM Lambda apps, Python utilities)
+1. **Manages all repository configuration** via shell scripts + gh CLI
+2. **Syncs files** to all managed repos (Cursor rules, workflows, etc.)
+3. **Holds FSC infrastructure** (Terraform modules, SAM Lambda apps, Python utilities)
 
 ## Structure
 
 ```
 .
-├── terragrunt-stacks/       # Repository configuration (Terragrunt)
-│   ├── terragrunt.hcl       # Root config (provider, local backend)
-│   ├── modules/repository/  # Shared repository module
-│   ├── python/              # Python repos (8 repos)
-│   ├── nodejs/              # Node.js repos (6 repos)
-│   ├── go/                  # Go repos (2 repos)
-│   └── terraform/           # Terraform repos (2 repos)
-├── .github/
-│   ├── agents/              # Custom AI agent configurations
-│   │   └── terraform-repository-manager.md  # Terraform MCP agent
-│   └── workflows/
-│       └── terraform-sync.yml  # Repository config management (all-in-one)
+├── repo-config.json         # Repository configuration (source of truth)
 ├── repository-files/        # Files synced to target repos
-│   ├── always-sync/         # Always overwrite (Cursor rules)
+│   ├── always-sync/         # Always overwrite (Cursor rules, workflows)
 │   ├── initial-only/        # Sync once, repos customize after
 │   ├── python/              # Python language rules
 │   ├── nodejs/              # Node.js/TypeScript rules
 │   ├── go/                  # Go language rules
 │   └── terraform/           # Terraform/HCL language rules
+├── scripts/                 # Shell scripts for repo management
+│   ├── sync-files           # Rsync files to repos
+│   ├── configure-repos      # Configure repo settings via gh CLI
+│   └── sync-secrets         # Sync secrets to repos
+├── .github/workflows/
+│   └── repo-sync.yml        # Orchestrates all syncing
 ├── ecosystems/flipside-crypto/  # FSC infrastructure
 │   ├── terraform/           # Modules + workspaces
 │   ├── sam/                 # Lambda applications
-│   ├── lib/                 # Python utilities (terraform_modules package)
-│   └── external/            # Terraform external data modules
+│   └── lib/                 # Python utilities
 ├── docs/                    # Documentation
-│   ├── TERRAFORM-REPOSITORY-MANAGEMENT.md  # Terraform approach
-│   └── TERRAFORM-AGENT-QUICKSTART.md       # Agent quick start
-├── scripts/                 # Helper scripts
 ├── memory-bank/             # Agent session context
-└── packages/                # Local packages (agentic-control)
+└── packages/                # Local packages
 ```
 
 ## Authentication
 
-Two GitHub organizations require different tokens:
+A unified GitHub token is used for all operations:
 
-| Organization | Token Variable | Use Case |
-|--------------|----------------|----------|
-| jbcom | `GITHUB_JBCOM_TOKEN` | jbcom repos (default) |
-| FlipsideCrypto | `GITHUB_FSC_TOKEN` | Enterprise infrastructure |
+| Variable | Use Case |
+|----------|----------|
+| `GITHUB_TOKEN` | All GitHub API operations (gh CLI) |
+| `CI_GITHUB_TOKEN` | Same token, used in CI workflows |
 
 ```bash
-# jbcom repos
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr list --repo jbcom/jbcom-control-center
-
-# FlipsideCrypto repos
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo FlipsideCrypto/terraform-modules
+# All repos use the same token - gh CLI auto-uses GITHUB_TOKEN
+gh pr list --repo jbcom/jbcom-control-center
+gh pr list --repo FlipsideCrypto/terraform-modules
 ```
 
-Token mapping is defined in `agentic.config.json`.
+## Repository Management
 
-## Custom Agents
+### Configuration
+All repo settings are defined in `repo-config.json`:
+- Merge settings (squash only, delete branch on merge)
+- Features (issues, projects, wiki, discussions, pages)
+- Security (Dependabot, secret scanning)
+- Rulesets (branch protection)
+- Labels
 
-### terraform-repository-manager
+### Scripts
 
-**Purpose**: Actively manages all 18 jbcom repositories using Terraform MCP server.
+```bash
+# Sync files to all repos
+./scripts/sync-files --all
 
-**When to Use**:
-- Changing repository settings (merge strategies, branch protection, etc.)
-- Adding/removing repositories from management
-- Detecting and fixing configuration drift
-- Applying policy changes across all repos
+# Configure repo settings
+./scripts/configure-repos --all
 
-**Invocation**:
+# Sync secrets
+./scripts/sync-secrets --all
+
+# Preview without making changes
+./scripts/sync-files --dry-run --all
+./scripts/configure-repos --dry-run --all
 ```
-@terraform-repository-manager <task description>
-```
-
-**Examples**:
-```
-@terraform-repository-manager Initialize Terraform and import all repositories
-@terraform-repository-manager Enable wiki on agentic-control repository
-@terraform-repository-manager Check for drift and reapply configuration
-```
-
-**What It Manages**:
-- Repository settings (merge strategies, features)
-- Branch protection (PR requirements, force push protection)
-- Security settings (secret scanning, Dependabot)
-- GitHub Pages (Actions workflow builds)
-
-**State Storage**: Local state files (in each Terragrunt unit directory)
-
-**Documentation**:
-- Instructions: `.github/agents/terraform-repository-manager.md`
-- Quick Start: `docs/TERRAFORM-AGENT-QUICKSTART.md`
-- Full Guide: `docs/TERRAFORM-REPOSITORY-MANAGEMENT.md`
 
 ## Session Start/End Protocol
 
@@ -109,9 +87,7 @@ cat memory-bank/progress.md
 ```
 
 ### End of Session
-Update memory bank before ending:
 ```bash
-# Update context for next agent
 cat >> memory-bank/activeContext.md << EOF
 
 ## Session: $(date +%Y-%m-%d)
@@ -131,44 +107,28 @@ git commit -m "docs: update memory bank for handoff"
 
 | Directory | Behavior | Purpose |
 |-----------|----------|---------|
-| `always-sync/` | Always overwrite | Cursor rules must stay consistent |
-| `initial-only/` | Sync once (`replace: false`) | Dockerfile, env, docs scaffold |
+| `always-sync/` | Always overwrite | Cursor rules, workflows |
+| `initial-only/` | Sync once | Dockerfile, env, docs scaffold |
 | `python/`, `nodejs/`, `go/`, `terraform/` | Always overwrite | Language-specific rules |
 
-Target repos:
+## Managed Repositories
 
-**Python:**
-- `jbcom/agentic-crew`
-- `jbcom/ai_game_dev`
-- `jbcom/directed-inputs-class`
-- `jbcom/extended-data-types`
-- `jbcom/lifecyclelogging`
-- `jbcom/python-terraform-bridge`
-- `jbcom/rivers-of-reckoning`
-- `jbcom/vendor-connectors`
+Defined in `repo-config.json`:
 
-**Node.js/TypeScript:**
-- `jbcom/agentic-control`
-- `jbcom/otter-river-rush`
-- `jbcom/otterfall`
-- `jbcom/pixels-pygame-palace`
-- `jbcom/rivermarsh`
-- `jbcom/strata`
+**Python:** agentic-crew, ai_game_dev, directed-inputs-class, extended-data-types, lifecyclelogging, python-terraform-bridge, rivers-of-reckoning, vendor-connectors
 
-**Go:**
-- `jbcom/port-api`
-- `jbcom/secretsync`
+**Node.js:** agentic-control, agentic-triage, strata, otter-river-rush, otterfall, rivermarsh, pixels-pygame-palace
 
-**Terraform/HCL:**
-- `jbcom/terraform-github-markdown`
-- `jbcom/terraform-repository-automation`
+**Go:** port-api, vault-secret-sync, secretsync
+
+**Terraform:** terraform-github-markdown, terraform-repository-automation
 
 ## FSC Infrastructure (ecosystems/flipside-crypto/)
 
 ### Terraform
-- Modules in `terraform/modules/aws/`
+- Modules in `terraform/modules/`
 - Workspaces in `terraform/workspaces/`
-- Standard Terraform workflow: `terraform init`, `plan`, `apply`
+- Standard workflow: `terraform init`, `plan`, `apply`
 
 ### SAM Lambda Apps
 Located in `sam/`:
@@ -177,18 +137,15 @@ Located in `sam/`:
 - `secrets-syncing/` - Sync secrets
 
 ### Python Utilities
-`lib/terraform_modules/` - Utilities for Terraform data sources:
-- AWS, Google, GitHub, Vault clients
-- Doppler/Vault config management
-- Terraform resource helpers
+`lib/terraform_modules/` - Utilities for Terraform data sources
 
 ## Workflow Triggers
 
 | Event | Actions |
 |-------|---------|
-| Push to main | Sync files + secrets + branch protection + Pages |
-| Daily schedule | Sync secrets to all repos |
-| Manual dispatch | Selective sync with dry-run option |
+| Push to main (repository-files/**) | Sync files to all repos |
+| Daily schedule | Sync secrets |
+| Manual dispatch | Selective sync with dry-run |
 
 ## Rules
 

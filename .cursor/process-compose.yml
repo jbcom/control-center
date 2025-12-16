@@ -1,7 +1,7 @@
 version: "1.0"
 
 environment:
-  GITHUB_TOKEN: "${GITHUB_JBCOM_TOKEN}"
+  GITHUB_TOKEN: "${GITHUB_TOKEN}"
 
 processes:
   github-mcp:
@@ -13,7 +13,7 @@ processes:
       restart: "on_failure"
       max_restarts: 3
     environment:
-      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_JBCOM_TOKEN}"
+      GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_TOKEN}"
     log_location: "/tmp/mcp-github.log"
 
   filesystem-mcp:

@@ -15,7 +15,7 @@ flows can ingest and consider them alongside ecosystem tasks.
 2. Export the issues using a token that can read `jbcom/jbcom-control-center`:
    ```bash
    # Requires a GitHub token with access to jbcom/jbcom-control-center
-   export GITHUB_JBCOM_TOKEN="<token>"  # or set GITHUB_TOKEN / GH_TOKEN
+   export GITHUB_TOKEN="<token>"
 
    # Optional: override repo name (defaults to jbcom/jbcom-control-center)
    # export REPO="jbcom/jbcom-control-center"
