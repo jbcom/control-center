@@ -1,5 +1,5 @@
 # Dependabot Configuration
-# Groups all dependency updates into TWO PRs per ecosystem:
+# Groups all dependency updates into TWO PRs per ecosystem (except git submodules):
 #   - ONE PR for all minor/patch updates (automerged)
 #   - ONE PR for all major updates (requires review)
 #

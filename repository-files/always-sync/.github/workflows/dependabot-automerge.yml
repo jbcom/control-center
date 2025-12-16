@@ -47,12 +47,6 @@ jobs:
             echo "⚠️ Major update - requires manual review"
           fi
 
-      - name: Wait for CI
-        if: steps.check.outputs.should_merge == 'true'
-        run: |
-          echo "Waiting for CI checks to complete..."
-          sleep 30
-
       - name: Approve PR
         if: steps.check.outputs.should_merge == 'true'
         run: |

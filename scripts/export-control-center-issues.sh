@@ -16,7 +16,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 
 if [[ -z "${GH_TOKEN_VALUE}" ]]; then
-  echo "ERROR: Set GITHUB_TOKEN or GH_TOKEN to access ${REPO}" >&2
+  echo "ERROR: Set GITHUB_TOKEN, CI_GITHUB_TOKEN, or GH_TOKEN to access ${REPO}" >&2
   exit 1
 fi
 
