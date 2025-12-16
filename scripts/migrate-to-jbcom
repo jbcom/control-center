@@ -69,10 +69,13 @@ declare -a MIGRATION_MAP=(
   # Terraform modules (already have terraform- prefix)
   "terraform-github-markdown:terraform-github-markdown"
   "terraform-repository-automation:terraform-repository-automation"
-  
-  # Meta/documentation projects
-  "ecosystem:ecosystem"
-  "roadmap:roadmap"
+)
+
+# GitHub Projects to migrate (org-level projects)
+# Format: "source_project_name:target_project_name"
+declare -a PROJECT_MAP=(
+  "jbcom Ecosystem:Ecosystem"
+  "Roadmap:Roadmap"
 )
 
 # ==============================================================================
@@ -443,6 +446,128 @@ cmd_status() {
   echo ""
 }
 
+cmd_migrate_projects() {
+  local dry_run="${1:-}"
+  
+  if [[ "$dry_run" == "--dry-run" ]]; then
+    log_info "DRY RUN - no changes will be made"
+    echo ""
+  fi
+  
+  echo "=============================================="
+  echo "  GitHub Projects Migration: ${SOURCE_ORG} → ${TARGET_ORG}"
+  echo "=============================================="
+  echo ""
+  
+  local success_count=0
+  local skip_count=0
+  local fail_count=0
+  
+  for mapping in "${PROJECT_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Project: $source → $target"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Get source project number
+    local source_project_number
+    source_project_number=$(gh project list --owner "$SOURCE_ORG" --format json \
+      | jq -r --arg name "$source" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -z "$source_project_number" ]]; then
+      log_error "Source project not found: ${SOURCE_ORG}/${source}"
+      ((fail_count++))
+      continue
+    fi
+    log_info "Found source project #${source_project_number}"
+    
+    # Check if target project already exists
+    local target_exists
+    target_exists=$(gh project list --owner "$TARGET_ORG" --format json \
+      | jq -r --arg name "$target" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -n "$target_exists" ]]; then
+      log_warn "Target project already exists: ${TARGET_ORG}/${target} (#${target_exists}) - skipping"
+      ((skip_count++))
+      continue
+    fi
+    
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "[DRY RUN] Would copy project: ${SOURCE_ORG}/${source} (#${source_project_number}) → ${TARGET_ORG}/${target}"
+      ((success_count++))
+      continue
+    fi
+    
+    # Copy the project to target org
+    log_info "Copying project to ${TARGET_ORG}..."
+    local new_project_url
+    if new_project_url=$(gh project copy "$source_project_number" \
+      --source-owner "$SOURCE_ORG" \
+      --target-owner "$TARGET_ORG" \
+      --title "$target" \
+      --drafts 2>&1); then
+      log_success "Copied: ${source} → ${target}"
+      log_info "New project URL: ${new_project_url}"
+      ((success_count++))
+    else
+      log_error "Failed to copy project: ${source}"
+      log_error "Error: ${new_project_url}"
+      ((fail_count++))
+    fi
+    
+    echo ""
+  done
+  
+  echo "=============================================="
+  echo "  Project Migration Summary"
+  echo "=============================================="
+  echo -e "  ${GREEN}Success:${NC} $success_count"
+  echo -e "  ${YELLOW}Skipped:${NC} $skip_count"
+  echo -e "  ${RED}Failed:${NC}  $fail_count"
+  echo ""
+}
+
+cmd_plan_projects() {
+  echo "=============================================="
+  echo "  Project Migration Plan: ${SOURCE_ORG} → ${TARGET_ORG}"
+  echo "=============================================="
+  echo ""
+  
+  echo "📋 PROJECTS TO MIGRATE:"
+  echo "-----------------------"
+  local migrate_count=0
+  
+  for mapping in "${PROJECT_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    local status=""
+    local source_num
+    source_num=$(gh project list --owner "$SOURCE_ORG" --format json \
+      | jq -r --arg name "$source" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    local target_num
+    target_num=$(gh project list --owner "$TARGET_ORG" --format json \
+      | jq -r --arg name "$target" '.projects[] | select(.title == $name) | .number' 2>/dev/null)
+    
+    if [[ -n "$target_num" ]]; then
+      status="${YELLOW}(exists in target #${target_num})${NC}"
+    elif [[ -z "$source_num" ]]; then
+      status="${RED}(not found in source)${NC}"
+    else
+      status="${GREEN}(ready - #${source_num})${NC}"
+      ((migrate_count++))
+    fi
+    
+    printf "  %-30s → %-20s %b\n" "$source" "$target" "$status"
+  done
+  echo ""
+  echo "  Total to migrate: $migrate_count"
+  echo ""
+}
+
 # ==============================================================================
 # MAIN
 # ==============================================================================
@@ -451,18 +576,24 @@ show_help() {
   cat << EOF
 Usage: $(basename "$0") <command> [options]
 
-Commands:
-  plan                    Show migration plan (what will be done)
-  migrate [--dry-run]     Execute full migration
+Repository Commands:
+  plan                    Show repository migration plan
+  migrate [--dry-run]     Execute repository migration
   privatize [--dry-run]   Make sunset repos private
   privatize-migrated [--dry-run]  Make migrated source repos private
   status                  Show migration status
+
+Project Commands:
+  plan-projects           Show GitHub Projects migration plan
+  migrate-projects [--dry-run]  Migrate GitHub Projects to target org
 
 Examples:
   $(basename "$0") plan
   $(basename "$0") migrate --dry-run
   $(basename "$0") migrate
-  $(basename "$0") privatize --dry-run
+  $(basename "$0") plan-projects
+  $(basename "$0") migrate-projects --dry-run
+  $(basename "$0") migrate-projects
   $(basename "$0") privatize-migrated
 
 Environment:
