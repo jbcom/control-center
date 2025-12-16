@@ -307,8 +307,8 @@ cmd_privatize() {
     elif [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY] Would make private: $repo"
     else
-      log_info "Making private: $repo"
-      if gh repo edit "${SOURCE_ORG}/${repo}" --visibility private 2>/dev/null; then
+    log_info "Making private: $repo"
+    if gh repo edit "${SOURCE_ORG}/${repo}" --visibility private --accept-visibility-change-consequences 2>/dev/null; then
         log_success "Done"
       else
         log_error "Failed"
@@ -343,8 +343,8 @@ cmd_privatize_migrated() {
     elif [[ "$dry_run" == "--dry-run" ]]; then
       log_info "[DRY] Would make private: $source"
     else
-      log_info "Making private: $source"
-      if gh repo edit "${SOURCE_ORG}/${source}" --visibility private 2>/dev/null; then
+    log_info "Making private: $source"
+    if gh repo edit "${SOURCE_ORG}/${source}" --visibility private --accept-visibility-change-consequences 2>/dev/null; then
         log_success "Done"
       else
         log_error "Failed"
