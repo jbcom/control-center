@@ -302,6 +302,17 @@
         "has_pages": false,
         "has_discussions": false
       }
+    },
+    "control": {
+      "files": {
+        "always": [],
+        "initial": []
+      },
+      "repos": [
+        "jbcom-control-center",
+        "jbcom-oss-ecosystem"
+      ],
+      "_comment": "Control repos - no file sync, just project tracking"
     }
   }
 }
