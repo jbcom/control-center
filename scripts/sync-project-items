@@ -1,0 +1,286 @@
+#!/usr/bin/env bash
+#
+# sync-project-items - Sync GitHub Project items from source to target org
+#
+# Handles:
+# - Repo name mapping (jbdevprimary/* -> jbcom/*)
+# - Adding issues/PRs to target projects
+# - Creating draft items for external/unmapped content
+#
+set -euo pipefail
+
+SOURCE_ORG="jbdevprimary"
+TARGET_ORG="jbcom"
+
+# Repo name mapping: old_name -> new_name
+declare -A REPO_MAP=(
+  ["agentic-crew"]="python-agentic-crew"
+  ["vendor-connectors"]="python-vendor-connectors"
+  ["extended-data-types"]="python-extended-data-types"
+  ["directed-inputs-class"]="python-directed-inputs-class"
+  ["lifecyclelogging"]="python-lifecyclelogging"
+  ["python-terraform-bridge"]="python-terraform-bridge"
+  ["rivers-of-reckoning"]="python-rivers-of-reckoning"
+  ["ai_game_dev"]="python-ai-game-dev"
+  ["agentic-control"]="nodejs-agentic-control"
+  ["strata"]="nodejs-strata"
+  ["otter-river-rush"]="nodejs-otter-river-rush"
+  ["otterfall"]="nodejs-otterfall"
+  ["rivermarsh"]="nodejs-rivermarsh"
+  ["pixels-pygame-palace"]="nodejs-pixels-pygame-palace"
+  ["port-api"]="go-port-api"
+  ["secretsync"]="go-secretsync"
+  ["vault-secret-sync"]="go-vault-secret-sync"
+  ["terraform-github-markdown"]="terraform-github-markdown"
+  ["terraform-repository-automation"]="terraform-repository-automation"
+  ["control-center"]="control-center"
+  ["agentic-triage"]="nodejs-agentic-triage"
+)
+
+# Project mapping
+declare -A PROJECT_MAP=(
+  ["Ecosystem Integration"]="1"  # jbcom project #1 = Ecosystem
+  ["Ecosystem Roadmap"]="2"      # jbcom project #2 = Roadmap
+)
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
+log_success() { echo -e "${GREEN}✓${NC} $*"; }
+log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
+log_error() { echo -e "${RED}✗${NC} $*" >&2; }
+
+# Map old repo URL to new repo
+map_repo_url() {
+  local url="$1"
+  local org repo new_repo
+  
+  # Extract org and repo from URL
+  if [[ "$url" =~ github\.com/([^/]+)/([^/]+) ]]; then
+    org="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    
+    # If it's from source org, try to map it
+    if [[ "$org" == "$SOURCE_ORG" ]]; then
+      new_repo="${REPO_MAP[$repo]:-}"
+      if [[ -n "$new_repo" ]]; then
+        echo "https://github.com/${TARGET_ORG}/${new_repo}"
+        return 0
+      fi
+    fi
+    
+    # If it's already jbcom, return as-is
+    if [[ "$org" == "$TARGET_ORG" ]]; then
+      echo "$url"
+      return 0
+    fi
+  fi
+  
+  # Can't map - return empty
+  echo ""
+  return 1
+}
+
+# Add issue/PR to project
+add_to_project() {
+  local project_num="$1"
+  local item_url="$2"
+  
+  gh project item-add "$project_num" --owner "$TARGET_ORG" --url "$item_url" 2>/dev/null
+}
+
+# Create draft issue in project
+add_draft_to_project() {
+  local project_num="$1"
+  local title="$2"
+  local body="$3"
+  
+  gh project item-create "$project_num" --owner "$TARGET_ORG" --title "$title" --body "$body" 2>/dev/null
+}
+
+# Sync a single project
+sync_project() {
+  local source_project_num="$1"
+  local target_project_num="$2"
+  local items_file="$3"
+  
+  local added=0 drafted=0 skipped=0 failed=0
+  
+  while IFS= read -r item; do
+    local title status item_type repo_url issue_url body
+    title=$(echo "$item" | jq -r '.title')
+    status=$(echo "$item" | jq -r '.status // "Todo"')
+    item_type=$(echo "$item" | jq -r '.content.type // "Draft"')
+    repo_url=$(echo "$item" | jq -r '.content.repository // ""')
+    issue_url=$(echo "$item" | jq -r '.content.url // ""')
+    body=$(echo "$item" | jq -r '.content.body // ""')
+    
+    echo -n "  Processing: ${title:0:50}... "
+    
+    # Try to map the repo URL
+    if [[ -n "$issue_url" ]]; then
+      local mapped_url
+      mapped_url=$(map_repo_url "$issue_url") || true
+      
+      if [[ -n "$mapped_url" ]]; then
+        # Try to add the mapped issue/PR
+        if add_to_project "$target_project_num" "$mapped_url" 2>/dev/null; then
+          echo -e "${GREEN}added${NC}"
+          ((added++))
+        else
+          echo -e "${YELLOW}skipped (may exist)${NC}"
+          ((skipped++))
+        fi
+      else
+        # Can't map - create as draft with reference
+        local draft_body="**Migrated from:** ${issue_url}
+
+---
+
+${body:0:1000}"
+        if add_draft_to_project "$target_project_num" "[MIGRATED] $title" "$draft_body" 2>/dev/null; then
+          echo -e "${BLUE}drafted${NC}"
+          ((drafted++))
+        else
+          echo -e "${RED}failed${NC}"
+          ((failed++))
+        fi
+      fi
+    else
+      # Already a draft - recreate it
+      if add_draft_to_project "$target_project_num" "$title" "$body" 2>/dev/null; then
+        echo -e "${BLUE}drafted${NC}"
+        ((drafted++))
+      else
+        echo -e "${RED}failed${NC}"
+        ((failed++))
+      fi
+    fi
+  done < <(jq -c '.[]' "$items_file")
+  
+  echo ""
+  echo "  Summary: $added added, $drafted drafted, $skipped skipped, $failed failed"
+}
+
+# Add all jbcom issues to a project
+add_jbcom_issues_to_project() {
+  local project_num="$1"
+  local filter="${2:-}"  # Optional filter: "epic", "strata", etc.
+  
+  local added=0 skipped=0
+  
+  for repo in $(gh repo list jbcom --json name -q '.[].name'); do
+    local issues
+    issues=$(gh issue list --repo "jbcom/$repo" --state open --json number,title,url,labels 2>/dev/null) || continue
+    
+    echo "$issues" | jq -c '.[]' | while read -r issue; do
+      local url title labels
+      url=$(echo "$issue" | jq -r '.url')
+      title=$(echo "$issue" | jq -r '.title')
+      labels=$(echo "$issue" | jq -r '[.labels[].name] | join(",")')
+      
+      # Apply filter if specified
+      if [[ -n "$filter" ]]; then
+        case "$filter" in
+          epic) [[ "$labels" != *"epic"* ]] && continue ;;
+          strata) [[ "$repo" != *"strata"* ]] && continue ;;
+          *) [[ "$title" != *"$filter"* && "$labels" != *"$filter"* ]] && continue ;;
+        esac
+      fi
+      
+      echo -n "  Adding $repo#$(echo "$issue" | jq -r '.number'): ${title:0:40}... "
+      if add_to_project "$project_num" "$url" 2>/dev/null; then
+        echo -e "${GREEN}added${NC}"
+      else
+        echo -e "${YELLOW}exists${NC}"
+      fi
+    done
+  done
+}
+
+show_help() {
+  cat << 'EOF'
+Usage: sync-project-items <command> [options]
+
+Commands:
+  sync-ecosystem      Sync Ecosystem project items from source
+  sync-roadmap        Sync Roadmap project items from source  
+  add-issues          Add all jbcom open issues to Ecosystem project
+  add-epics           Add all epic-labeled issues to Ecosystem project
+  add-strata          Add all strata issues to Roadmap project
+  status              Show project item counts
+
+Options:
+  --dry-run          Show what would be done without doing it
+
+Examples:
+  sync-project-items sync-ecosystem
+  sync-project-items add-issues
+  sync-project-items status
+EOF
+}
+
+cmd_sync_ecosystem() {
+  log_info "Syncing Ecosystem project items..."
+  if [[ ! -f "/workspace/migration-data/ecosystem_full.json" ]]; then
+    log_error "Missing /workspace/migration-data/ecosystem_full.json"
+    exit 1
+  fi
+  sync_project 2 1 "/workspace/migration-data/ecosystem_full.json"
+}
+
+cmd_sync_roadmap() {
+  log_info "Syncing Roadmap project items..."
+  if [[ ! -f "/workspace/migration-data/roadmap_full.json" ]]; then
+    log_error "Missing /workspace/migration-data/roadmap_full.json"
+    exit 1
+  fi
+  sync_project 8 2 "/workspace/migration-data/roadmap_full.json"
+}
+
+cmd_add_issues() {
+  log_info "Adding all jbcom open issues to Ecosystem project..."
+  add_jbcom_issues_to_project 1
+}
+
+cmd_add_epics() {
+  log_info "Adding epic issues to Ecosystem project..."
+  add_jbcom_issues_to_project 1 "epic"
+}
+
+cmd_add_strata() {
+  log_info "Adding strata issues to Roadmap project..."
+  add_jbcom_issues_to_project 2 "strata"
+}
+
+cmd_status() {
+  echo "=== Project Status ==="
+  echo ""
+  echo "Ecosystem (jbcom #1):"
+  gh project item-list 1 --owner jbcom --format json | jq -r '.items | group_by(.status) | .[] | "  \(.[0].status // "No Status"): \(length)"'
+  echo ""
+  echo "Roadmap (jbcom #2):"
+  gh project item-list 2 --owner jbcom --format json | jq -r '.items | group_by(.status) | .[] | "  \(.[0].status // "No Status"): \(length)"'
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  
+  case "$cmd" in
+    sync-ecosystem) cmd_sync_ecosystem ;;
+    sync-roadmap) cmd_sync_roadmap ;;
+    add-issues) cmd_add_issues ;;
+    add-epics) cmd_add_epics ;;
+    add-strata) cmd_add_strata ;;
+    status) cmd_status ;;
+    -h|--help|help|"") show_help ;;
+    *) log_error "Unknown: $cmd"; show_help; exit 1 ;;
+  esac
+}
+
+main "$@"

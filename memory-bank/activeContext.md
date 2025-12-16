@@ -1,52 +1,71 @@
 # Active Context - jbcom Control Center
 
-## Current Status: JBDEVPRIMARY → JBCOM MIGRATION COMPLETE
+## Current Status: MIGRATION COMPLETE + TRIAGE DONE
 
-Successfully completed the full migration from jbdevprimary to jbcom organization.
+Successfully completed migration AND comprehensive ecosystem triage.
 
 ---
 
-## Session: 2025-12-16 (Organization Migration)
+## Session: 2025-12-16 (Migration + Triage)
 
-### Completed
+### Phase 1: Migration ✅
 
 1. **Fixed temp directory cleanup bug** in `scripts/migrate-to-jbcom`
-   - Added cleanup before `continue` statements in error paths
-   - Prevents orphaned temp directories on failed migrations
+2. **Added GitHub Projects migration** - Ecosystem (#1), Roadmap (#2)
+3. **Made 4 sunset repos private** with archived repo handling
+4. **Migrated all 19 repos** to jbcom org with language prefixes
 
-2. **Added GitHub Projects migration support**
-   - New commands: `plan-projects`, `migrate-projects`
-   - Migrated "Ecosystem Integration" → "Ecosystem" (#1 in jbcom)
-   - Migrated "Ecosystem Roadmap" → "Roadmap" (#2 in jbcom)
+### Phase 2: Project Items Recovery ✅
 
-3. **Fixed bash arithmetic bug**
-   - Changed `((count++))` to `((count+=1))` throughout
-   - Prevents false failures with `set -e` when incrementing from 0
+1. **Preserved 60 project items** from source org
+   - Saved to `/workspace/migration-data/ecosystem_full.json` (30 items)
+   - Saved to `/workspace/migration-data/roadmap_full.json` (30 items)
 
-4. **Made sunset repos private** (archived repos in jbdevprimary)
-   - jbcom-oss-ecosystem ✅
-   - chef-selenium-grid-extras ✅
-   - hamachi-vpn ✅
-   - openapi-31-to-30-converter ✅
+2. **Populated Ecosystem project** with 43 jbcom issues + 24 migrated items
+3. **Populated Roadmap project** with 30 strata roadmap items
+4. **Created sync script** `/workspace/scripts/sync-project-items`
 
-5. **Added archived repo handling**
-   - New helper: `make_repo_private()` handles unarchive→privatize→re-archive
-   - Updated `privatize` and `privatize-migrated` commands
+### Phase 3: Repo Cleanup ✅
 
-### Migration Summary
+Added descriptions to 8 repos:
+- control-center, python-vendor-connectors, python-directed-inputs-class
+- python-ai-game-dev, python-rivers-of-reckoning
+- nodejs-pixels-pygame-palace, nodejs-otterfall, nodejs-otter-river-rush
 
-| Category | Count | Status |
-|----------|-------|--------|
-| Repos migrated | 19/19 | ✅ Complete |
-| Sunset repos privatized | 4/4 | ✅ Complete |
-| GitHub Projects migrated | 2/2 | ✅ Complete |
-| Source repos (jbdevprimary) | 0 public | ✅ All private/migrated |
+### Phase 4: Comprehensive Triage ✅
+
+**Triage Report:** `/workspace/docs/TRIAGE-REPORT.md`
+
+| Metric | Count |
+|--------|-------|
+| Open Issues | 43 |
+| Open PRs | 68 |
+| Dependency PRs | 56 |
+| Active Epics | 5 |
+
+**Priority Epics:**
+1. #396 - Roadmap Milestones (P0)
+2. #395 - Purify agentic-control (P0)
+3. #349 - Game Dev Ecosystem (P1)
+4. #351 - Unify Professor Pixel (P1)
+5. #340 - Clarify Surface Scope (P2)
+
+### New Scripts Created
+
+| Script | Purpose |
+|--------|---------|
+| `scripts/sync-project-items` | Sync GitHub Project items |
+| `scripts/manage-dependency-prs` | Batch manage dep PRs |
 
 ### For Next Agent
 
-- Migration is complete - no further action needed
-- Script `scripts/migrate-to-jbcom` is fully functional for future use
-- All repos now in jbcom org with language prefixes
+1. **Read triage report:** `/workspace/docs/TRIAGE-REPORT.md`
+2. **P0 Actions:**
+   - Merge safe dependency PRs: `./scripts/manage-dependency-prs merge-low`
+   - Complete Epic #395 (purify agentic-control)
+3. **P1 Actions:**
+   - vendor-connectors AI tools (Issues #1-5)
+   - agentic-control + triage integration
 
 ---
 
