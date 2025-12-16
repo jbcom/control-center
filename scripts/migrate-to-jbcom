@@ -1,0 +1,498 @@
+#!/usr/bin/env bash
+#
+# migrate-to-jbcom - Full historical migration from jbdevprimary to jbcom org
+#
+# This script:
+# 1. Creates new repos in jbcom with language prefixes
+# 2. Does a full git history migration (--mirror)
+# 3. Makes legacy repos private after migration
+#
+# Usage:
+#   ./scripts/migrate-to-jbcom [command] [options]
+#
+# Commands:
+#   plan          Show what would be migrated (dry-run)
+#   migrate       Execute the migration
+#   privatize     Make legacy repos private (after migration)
+#   status        Show migration status
+#
+set -euo pipefail
+
+# ==============================================================================
+# CONFIGURATION
+# ==============================================================================
+
+SOURCE_ORG="jbdevprimary"
+TARGET_ORG="jbcom"
+
+# Repos already migrated to jbcom (skip these)
+declare -a ALREADY_MIGRATED=(
+  "control-center"
+  "agentic-triage"
+)
+
+# Repos to SUNSET (make private, don't migrate)
+# These are old/deprecated projects not worth migrating
+declare -a SUNSET_REPOS=(
+  "jbcom-oss-ecosystem"      # Archived - consolidated into control-center
+  "chef-selenium-grid-extras" # Old Chef recipe, no longer maintained
+  "hamachi-vpn"              # Old containerized VPN, no longer maintained  
+  "openapi-31-to-30-converter" # One-off utility, not worth migrating
+)
+
+# Migration mapping: source_name -> target_name (with language prefix)
+# Format: "source_repo:target_repo"
+declare -a MIGRATION_MAP=(
+  # Python packages
+  "agentic-crew:python-agentic-crew"
+  "vendor-connectors:python-vendor-connectors"
+  "extended-data-types:python-extended-data-types"
+  "directed-inputs-class:python-directed-inputs-class"
+  "lifecyclelogging:python-lifecyclelogging"
+  "python-terraform-bridge:python-terraform-bridge"  # Already has prefix
+  "rivers-of-reckoning:python-rivers-of-reckoning"
+  "ai_game_dev:python-ai-game-dev"  # Normalize underscore to hyphen
+  
+  # TypeScript/Node.js packages
+  "agentic-control:nodejs-agentic-control"
+  "strata:nodejs-strata"
+  "otter-river-rush:nodejs-otter-river-rush"
+  "otterfall:nodejs-otterfall"
+  "rivermarsh:nodejs-rivermarsh"
+  "pixels-pygame-palace:nodejs-pixels-pygame-palace"
+  
+  # Go packages
+  "port-api:go-port-api"
+  "secretsync:go-secretsync"
+  "vault-secret-sync:go-vault-secret-sync"
+  
+  # Terraform modules (already have terraform- prefix)
+  "terraform-github-markdown:terraform-github-markdown"
+  "terraform-repository-automation:terraform-repository-automation"
+)
+
+# ==============================================================================
+# HELPERS
+# ==============================================================================
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
+log_success() { echo -e "${GREEN}✓${NC} $*"; }
+log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
+log_error() { echo -e "${RED}✗${NC} $*" >&2; }
+
+# Check if repo exists in org
+repo_exists() {
+  local org="$1"
+  local repo="$2"
+  gh api "/repos/${org}/${repo}" &>/dev/null
+}
+
+# Get repo description
+get_repo_description() {
+  local org="$1"
+  local repo="$2"
+  gh api "/repos/${org}/${repo}" -q '.description // ""' 2>/dev/null || echo ""
+}
+
+# Get repo visibility
+get_repo_visibility() {
+  local org="$1"
+  local repo="$2"
+  gh api "/repos/${org}/${repo}" -q '.visibility' 2>/dev/null || echo "unknown"
+}
+
+# Parse migration mapping
+get_target_name() {
+  local source="$1"
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local src="${mapping%%:*}"
+    local tgt="${mapping#*:}"
+    if [[ "$src" == "$source" ]]; then
+      echo "$tgt"
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Check if repo is in sunset list
+is_sunset_repo() {
+  local repo="$1"
+  for sunset in "${SUNSET_REPOS[@]}"; do
+    if [[ "$sunset" == "$repo" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# Check if repo is already migrated
+is_already_migrated() {
+  local repo="$1"
+  for migrated in "${ALREADY_MIGRATED[@]}"; do
+    if [[ "$migrated" == "$repo" ]]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
+# ==============================================================================
+# COMMANDS
+# ==============================================================================
+
+cmd_plan() {
+  echo "=============================================="
+  echo "  Migration Plan: ${SOURCE_ORG} → ${TARGET_ORG}"
+  echo "=============================================="
+  echo ""
+  
+  echo "📦 REPOS TO MIGRATE:"
+  echo "--------------------"
+  local migrate_count=0
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    local status=""
+    if repo_exists "$TARGET_ORG" "$target"; then
+      status="${YELLOW}(exists in target)${NC}"
+    elif ! repo_exists "$SOURCE_ORG" "$source"; then
+      status="${RED}(not found in source)${NC}"
+    else
+      status="${GREEN}(ready)${NC}"
+      ((migrate_count++))
+    fi
+    
+    printf "  %-35s → %-40s %b\n" "$source" "$target" "$status"
+  done
+  echo ""
+  echo "  Total to migrate: $migrate_count"
+  echo ""
+  
+  echo "🌅 REPOS TO SUNSET (make private):"
+  echo "-----------------------------------"
+  for repo in "${SUNSET_REPOS[@]}"; do
+    local visibility
+    visibility=$(get_repo_visibility "$SOURCE_ORG" "$repo")
+    if [[ "$visibility" == "private" ]]; then
+      echo -e "  $repo ${GREEN}(already private)${NC}"
+    elif [[ "$visibility" == "unknown" ]]; then
+      echo -e "  $repo ${RED}(not found)${NC}"
+    else
+      echo -e "  $repo ${YELLOW}(currently $visibility)${NC}"
+    fi
+  done
+  echo ""
+  
+  echo "✅ ALREADY MIGRATED (skipped):"
+  echo "------------------------------"
+  for repo in "${ALREADY_MIGRATED[@]}"; do
+    if repo_exists "$TARGET_ORG" "$repo"; then
+      echo -e "  $repo ${GREEN}(exists in $TARGET_ORG)${NC}"
+    else
+      echo -e "  $repo ${RED}(not found in $TARGET_ORG)${NC}"
+    fi
+  done
+  echo ""
+}
+
+cmd_migrate() {
+  local dry_run="${1:-}"
+  
+  if [[ "$dry_run" == "--dry-run" ]]; then
+    log_info "DRY RUN - no changes will be made"
+    echo ""
+  fi
+  
+  local success_count=0
+  local skip_count=0
+  local fail_count=0
+  
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "Migrating: $source → $target"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Check if source exists
+    if ! repo_exists "$SOURCE_ORG" "$source"; then
+      log_error "Source repo not found: ${SOURCE_ORG}/${source}"
+      ((fail_count++))
+      continue
+    fi
+    
+    # Check if target already exists
+    if repo_exists "$TARGET_ORG" "$target"; then
+      log_warn "Target already exists: ${TARGET_ORG}/${target} - skipping"
+      ((skip_count++))
+      continue
+    fi
+    
+    # Get source repo info
+    local description
+    description=$(get_repo_description "$SOURCE_ORG" "$source")
+    
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "[DRY RUN] Would create: ${TARGET_ORG}/${target}"
+      log_info "[DRY RUN] Would mirror: ${SOURCE_ORG}/${source} → ${TARGET_ORG}/${target}"
+      ((success_count++))
+      continue
+    fi
+    
+    # Step 1: Create new repo in target org
+    log_info "Creating repo: ${TARGET_ORG}/${target}"
+    if ! gh repo create "${TARGET_ORG}/${target}" \
+      --public \
+      --description "${description}" \
+      2>/dev/null; then
+      log_error "Failed to create repo: ${TARGET_ORG}/${target}"
+      ((fail_count++))
+      continue
+    fi
+    log_success "Created: ${TARGET_ORG}/${target}"
+    
+    # Step 2: Mirror clone and push
+    local tmp_dir
+    tmp_dir=$(mktemp -d)
+    trap "rm -rf '$tmp_dir'" EXIT
+    
+    log_info "Mirror cloning: ${SOURCE_ORG}/${source}"
+    if ! git clone --mirror "https://github.com/${SOURCE_ORG}/${source}.git" "${tmp_dir}/${source}.git" 2>/dev/null; then
+      log_error "Failed to clone: ${SOURCE_ORG}/${source}"
+      ((fail_count++))
+      continue
+    fi
+    
+    log_info "Pushing to: ${TARGET_ORG}/${target}"
+    cd "${tmp_dir}/${source}.git"
+    if ! git push --mirror "https://github.com/${TARGET_ORG}/${target}.git" 2>/dev/null; then
+      log_error "Failed to push to: ${TARGET_ORG}/${target}"
+      ((fail_count++))
+      cd - >/dev/null
+      continue
+    fi
+    cd - >/dev/null
+    
+    log_success "Migrated: ${source} → ${target}"
+    ((success_count++))
+    
+    # Cleanup
+    rm -rf "$tmp_dir"
+    trap - EXIT
+    
+    echo ""
+  done
+  
+  echo "=============================================="
+  echo "  Migration Summary"
+  echo "=============================================="
+  echo -e "  ${GREEN}Success:${NC} $success_count"
+  echo -e "  ${YELLOW}Skipped:${NC} $skip_count"
+  echo -e "  ${RED}Failed:${NC}  $fail_count"
+  echo ""
+}
+
+cmd_privatize() {
+  local dry_run="${1:-}"
+  
+  if [[ "$dry_run" == "--dry-run" ]]; then
+    log_info "DRY RUN - no changes will be made"
+    echo ""
+  fi
+  
+  echo "Making sunset repos private in ${SOURCE_ORG}..."
+  echo ""
+  
+  for repo in "${SUNSET_REPOS[@]}"; do
+    local visibility
+    visibility=$(get_repo_visibility "$SOURCE_ORG" "$repo")
+    
+    if [[ "$visibility" == "private" ]]; then
+      log_success "$repo - already private"
+      continue
+    fi
+    
+    if [[ "$visibility" == "unknown" ]]; then
+      log_warn "$repo - not found, skipping"
+      continue
+    fi
+    
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "[DRY RUN] Would make private: ${SOURCE_ORG}/${repo}"
+      continue
+    fi
+    
+    log_info "Making private: ${SOURCE_ORG}/${repo}"
+    if gh repo edit "${SOURCE_ORG}/${repo}" --visibility private 2>/dev/null; then
+      log_success "Made private: $repo"
+    else
+      log_error "Failed to make private: $repo"
+    fi
+  done
+  echo ""
+}
+
+cmd_privatize_migrated() {
+  local dry_run="${1:-}"
+  
+  if [[ "$dry_run" == "--dry-run" ]]; then
+    log_info "DRY RUN - no changes will be made"
+    echo ""
+  fi
+  
+  echo "Making successfully migrated repos private in ${SOURCE_ORG}..."
+  echo "(Only repos that exist in both source and target)"
+  echo ""
+  
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local source="${mapping%%:*}"
+    local target="${mapping#*:}"
+    
+    # Check both exist
+    if ! repo_exists "$SOURCE_ORG" "$source"; then
+      continue
+    fi
+    
+    if ! repo_exists "$TARGET_ORG" "$target"; then
+      log_warn "$source - not yet migrated to ${TARGET_ORG}/${target}, skipping"
+      continue
+    fi
+    
+    local visibility
+    visibility=$(get_repo_visibility "$SOURCE_ORG" "$source")
+    
+    if [[ "$visibility" == "private" ]]; then
+      log_success "$source - already private"
+      continue
+    fi
+    
+    if [[ "$dry_run" == "--dry-run" ]]; then
+      log_info "[DRY RUN] Would make private: ${SOURCE_ORG}/${source}"
+      continue
+    fi
+    
+    log_info "Making private: ${SOURCE_ORG}/${source}"
+    if gh repo edit "${SOURCE_ORG}/${source}" --visibility private 2>/dev/null; then
+      log_success "Made private: $source"
+    else
+      log_error "Failed to make private: $source"
+    fi
+  done
+  echo ""
+}
+
+cmd_status() {
+  echo "=============================================="
+  echo "  Migration Status"
+  echo "=============================================="
+  echo ""
+  
+  echo "📊 Summary:"
+  echo "-----------"
+  
+  local total_source=0
+  local migrated=0
+  local pending=0
+  local sunset=0
+  
+  # Count source repos
+  total_source=$(gh api "/users/${SOURCE_ORG}/repos" --paginate -q 'length' 2>/dev/null | awk '{sum+=$1} END{print sum}')
+  
+  # Count migrated
+  for mapping in "${MIGRATION_MAP[@]}"; do
+    local target="${mapping#*:}"
+    if repo_exists "$TARGET_ORG" "$target"; then
+      ((migrated++))
+    else
+      ((pending++))
+    fi
+  done
+  
+  # Count sunset repos that are already private
+  for repo in "${SUNSET_REPOS[@]}"; do
+    local visibility
+    visibility=$(get_repo_visibility "$SOURCE_ORG" "$repo")
+    if [[ "$visibility" == "private" ]]; then
+      ((sunset++))
+    fi
+  done
+  
+  echo "  Source repos (${SOURCE_ORG}): $total_source"
+  echo "  Target repos (${TARGET_ORG}): $(gh api "/orgs/${TARGET_ORG}/repos" -q 'length' 2>/dev/null || echo "?")"
+  echo ""
+  echo "  Migrated:        $migrated / ${#MIGRATION_MAP[@]}"
+  echo "  Pending:         $pending"
+  echo "  Sunset (private): $sunset / ${#SUNSET_REPOS[@]}"
+  echo ""
+}
+
+# ==============================================================================
+# MAIN
+# ==============================================================================
+
+show_help() {
+  cat << EOF
+Usage: $(basename "$0") <command> [options]
+
+Commands:
+  plan                    Show migration plan (what will be done)
+  migrate [--dry-run]     Execute full migration
+  privatize [--dry-run]   Make sunset repos private
+  privatize-migrated [--dry-run]  Make migrated source repos private
+  status                  Show migration status
+
+Examples:
+  $(basename "$0") plan
+  $(basename "$0") migrate --dry-run
+  $(basename "$0") migrate
+  $(basename "$0") privatize --dry-run
+  $(basename "$0") privatize-migrated
+
+Environment:
+  Uses gh CLI (must be authenticated)
+  Source: ${SOURCE_ORG}
+  Target: ${TARGET_ORG}
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  
+  case "$cmd" in
+    plan)
+      cmd_plan
+      ;;
+    migrate)
+      cmd_migrate "$@"
+      ;;
+    privatize)
+      cmd_privatize "$@"
+      ;;
+    privatize-migrated)
+      cmd_privatize_migrated "$@"
+      ;;
+    status)
+      cmd_status
+      ;;
+    -h|--help|help|"")
+      show_help
+      ;;
+    *)
+      log_error "Unknown command: $cmd"
+      show_help
+      exit 1
+      ;;
+  esac
+}
+
+main "$@"
