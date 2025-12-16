@@ -54,10 +54,10 @@ Happy to discuss if you see issues.
 
 ## Cross-Control-Center PRs
 
-For jbcom PRs, use jbcom token:
+For jbcom PRs (gh CLI auto-uses GITHUB_TOKEN):
 
 ```bash
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --repo jbcom/jbcom-control-center ...
+gh pr create --repo jbcom/jbcom-control-center ...
 ```
 
 Follow jbcom conventions when contributing upstream.

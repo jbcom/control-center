@@ -2,27 +2,28 @@
 
 ## Overview
 
-The unified control center manages two GitHub organizations with different tokens:
+The control center uses a unified GitHub token for all operations:
 
-| Organization | Token Env Var | Use Case |
-|--------------|---------------|----------|
-| jbcom | `GITHUB_JBCOM_TOKEN` | Personal repos, packages |
-|  | `GITHUB_FSC_TOKEN` | Enterprise infrastructure |
+| Variable | Purpose |
+|----------|---------|
+| `GITHUB_TOKEN` | All GitHub API operations (gh CLI, Terraform, etc.) |
+| `CI_GITHUB_TOKEN` | Same token, used in CI/CD workflows |
 
 ## Configuration
 
 ### Environment Variables
 
 ```bash
-# Required
-export GITHUB_JBCOM_TOKEN="ghp_..."
-export GITHUB_FSC_TOKEN="ghp_..."
+# Required - set in your environment or CI
+export GITHUB_TOKEN="ghp_..."
 
-# Optional (defaults to GITHUB_JBCOM_TOKEN)
-export GITHUB_TOKEN="$GITHUB_JBCOM_TOKEN"
+# CI workflows use this (same value)
+export CI_GITHUB_TOKEN="$GITHUB_TOKEN"
 ```
 
 ### agentic.config.json
+
+The config maps all organizations to use the unified token:
 
 ```json
 {
@@ -30,78 +31,68 @@ export GITHUB_TOKEN="$GITHUB_JBCOM_TOKEN"
     "organizations": {
       "jbcom": {
         "name": "jbcom",
-        "tokenEnvVar": "GITHUB_JBCOM_TOKEN"
+        "tokenEnvVar": "GITHUB_TOKEN"
       },
       "": {
-        "name": "",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN"
+        "name": "", 
+        "tokenEnvVar": "GITHUB_TOKEN"
       }
     },
-    "defaultTokenEnvVar": "GITHUB_TOKEN",
-    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+    "defaultTokenEnvVar": "GITHUB_TOKEN"
   }
 }
 ```
 
-## Automatic Token Switching
+## Usage
 
-The `agentic-control` CLI automatically selects the correct token based on repository organization:
+### gh CLI
+
+The `gh` CLI automatically uses `GITHUB_TOKEN` from environment:
 
 ```bash
-# Uses GITHUB_JBCOM_TOKEN
-agentic github pr create --repo jbcom/extended-data-types
-
-# Uses GITHUB_FSC_TOKEN
-agentic github pr create --repo /terraform-modules
+# All repos work without explicit token
+gh pr list --repo jbcom/jbcom-control-center
+gh pr list --repo /terraform-modules
+gh issue create --repo jbcom/agentic-control
 ```
 
-### How It Works
+### Terraform/Terragrunt
 
-1. Parse repository URL to extract organization
-2. Look up organization in `agentic.config.json`
-3. Read token from specified environment variable
-4. Use token for API calls
+Terraform uses `GITHUB_TOKEN` via the GitHub provider:
 
-### PR Reviews Exception
-
-**PR reviews ALWAYS use `GITHUB_JBCOM_TOKEN`**, regardless of target repo.
-
-This ensures consistent identity across both ecosystems.
-
-## Manual Token Usage
-
-When using `gh` CLI directly:
-
-```bash
-# jbcom repos
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create ...
-
-#  repos
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create ...
+```hcl
+provider "github" {
+  owner = "jbcom"
+  # Token from GITHUB_TOKEN env var
+}
 ```
 
 ## Token Permissions
 
-### GITHUB_JBCOM_TOKEN
+The unified token requires these scopes:
 
-Required scopes:
 - `repo` - Full repository access
 - `workflow` - GitHub Actions
-- `write:packages` - Package publishing
+- `write:packages` - Package publishing (npm, PyPI)
+- `admin:org` - Organization management (for enterprise repos)
 
-### GITHUB_FSC_TOKEN
+## CI/CD Workflows
 
-Required scopes:
-- `repo` - Full repository access
-- `admin:org` - Organization management (for enterprise)
-- `workflow` - GitHub Actions
+Workflows use `CI_GITHUB_TOKEN` secret:
+
+```yaml
+env:
+  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+```
+
+This is the same token as `GITHUB_TOKEN`, just stored as a secret.
 
 ## Security
 
 ### DO
 - Store tokens in environment variables
-- Use `agentic.config.json` for organization mapping
-- Let `agentic-control` handle token selection
+- Use secrets in CI/CD workflows
+- Rotate tokens periodically
 
 ### DON'T
 - Hardcode tokens in code
@@ -114,8 +105,7 @@ Required scopes:
 ### "Bad credentials"
 
 Token is invalid or expired. Generate a new one at:
-- jbcom: https://github.com/settings/tokens
-- : https://github.com/settings/tokens (with org access)
+- https://github.com/settings/tokens
 
 ### "Resource not accessible"
 
@@ -123,11 +113,11 @@ Token lacks required scopes. Check permissions and regenerate if needed.
 
 ### "Organization access denied"
 
-For , ensure:
+For  or enterprise orgs, ensure:
 1. Token has org access enabled
 2. SSO authorization completed (if required)
 
 ## Related
 
 - [`agentic.config.json`](/agentic.config.json) - Token configuration
-- [`packages/agentic-control/`](/packages/agentic-control/) - Token switching implementation
+- [`.github/workflows/`](/.github/workflows/) - CI/CD workflows using tokens

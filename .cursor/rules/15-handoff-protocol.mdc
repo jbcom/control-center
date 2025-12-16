@@ -77,8 +77,8 @@ cat >> memory-bank/activeContext.md << 'EOF'
 **Reason**: <reason>
 EOF
 
-# Create jbcom issue
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh issue create \
+# Create jbcom issue (gh CLI auto-uses GITHUB_TOKEN)
+gh issue create \
   --repo jbcom/jbcom-control-center \
   --title "🔄 Handoff from FSC: <task>" \
   --body "<context>"

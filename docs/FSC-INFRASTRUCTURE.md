@@ -4,11 +4,13 @@
 
 This control center manages infrastructure that deploys to these FSC repositories:
 
-| Repo | Purpose | Token |
-|------|---------|-------|
-| `/terraform-modules` | Reusable Terraform modules | `GITHUB_FSC_TOKEN` |
-| `/cluster-ops` | Kubernetes cluster operations | `GITHUB_FSC_TOKEN` |
-| `/terraform-organization-administration` | Org-level Terraform | `GITHUB_FSC_TOKEN` |
+| Repo | Purpose |
+|------|---------|
+| `/terraform-modules` | Reusable Terraform modules |
+| `/cluster-ops` | Kubernetes cluster operations |
+| `/terraform-organization-administration` | Org-level Terraform |
+
+All repos use `GITHUB_TOKEN` for API access.
 
 ## Local Infrastructure
 
@@ -37,12 +39,12 @@ These FSC repos consume jbcom packages:
 ### Checking Package Versions in FSC Repos
 
 ```bash
-# terraform-modules
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh api /repos//terraform-modules/contents/requirements.txt \
+# terraform-modules (gh CLI auto-uses GITHUB_TOKEN)
+gh api /repos//terraform-modules/contents/requirements.txt \
   --jq '.content' | base64 -d | grep -E "vendor-connectors|lifecyclelogging|extended-data-types"
 
 # cluster-ops
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh api /repos//cluster-ops/contents/requirements.txt \
+gh api /repos//cluster-ops/contents/requirements.txt \
   --jq '.content' | base64 -d | grep -E "vendor-connectors|lifecyclelogging|extended-data-types"
 ```
 
@@ -51,8 +53,8 @@ GH_TOKEN="$GITHUB_FSC_TOKEN" gh api /repos//cluster-ops/contents/requirements.tx
 After releasing a jbcom package:
 
 ```bash
-# Clone the FSC repo
-GH_TOKEN="$GITHUB_FSC_TOKEN" git clone https://$GITHUB_FSC_TOKEN@github.com//terraform-modules.git /tmp/terraform-modules
+# Clone the FSC repo (uses GITHUB_TOKEN from environment)
+git clone https://github.com//terraform-modules.git /tmp/terraform-modules
 cd /tmp/terraform-modules
 
 # Update requirements
@@ -69,36 +71,38 @@ git commit -m "deps: update jbcom packages
 
 - vendor-connectors: X.Y.Z
 - lifecyclelogging: X.Y.Z"
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr create --title "deps: update jbcom packages"
+gh pr create --title "deps: update jbcom packages"
 ```
 
 ## Token Configuration
 
-| Org | Token | Repos |
-|-----|-------|-------|
-|  | `GITHUB_FSC_TOKEN` | terraform-modules |
-|  | `GITHUB_FSC_TOKEN` | cluster-ops |
-|  | `GITHUB_FSC_TOKEN` | terraform-organization-administration |
+All FSC organizations use the unified `GITHUB_TOKEN`:
 
-The `agentic` CLI handles token switching automatically based on org.
+| Org | Repos |
+|-----|-------|
+|  | terraform-modules |
+|  | cluster-ops |
+|  | terraform-organization-administration |
+
+The `gh` CLI automatically uses `GITHUB_TOKEN` from environment.
 
 ## Key Operations
 
 ### Check CI Status
 
 ```bash
-# terraform-modules
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo /terraform-modules --limit 5
+# terraform-modules (gh CLI auto-uses GITHUB_TOKEN)
+gh run list --repo /terraform-modules --limit 5
 
 # cluster-ops
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh run list --repo /cluster-ops --limit 5
+gh run list --repo /cluster-ops --limit 5
 ```
 
 ### View Open PRs
 
 ```bash
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo /terraform-modules
-GH_TOKEN="$GITHUB_FSC_TOKEN" gh pr list --repo /cluster-ops
+gh pr list --repo /terraform-modules
+gh pr list --repo /cluster-ops
 ```
 
 ### Spawn Agent to FSC Repo

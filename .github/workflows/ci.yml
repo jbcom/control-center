@@ -136,53 +136,53 @@ jobs:
           
           echo "✅ All expression tests passed"
 
-  validate-terragrunt-config:
-    name: Validate Terragrunt Configuration
+  validate-repo-config:
+    name: Validate Repo Configuration
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - name: Check Terragrunt structure exists
+      - name: Check repo-config.json is valid JSON
         run: |
-          echo "Validating Terragrunt repository management structure..."
+          echo "Validating repo-config.json..."
           
-          ERRORS=0
-          
-          # Check required directories exist
-          for dir in terragrunt-stacks/modules/repository terragrunt-stacks/python terragrunt-stacks/nodejs terragrunt-stacks/go terragrunt-stacks/terraform; do
-            if [ ! -d "$dir" ]; then
-              echo "❌ Missing required directory: $dir"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✅ $dir exists"
-            fi
-          done
-          
-          # Check root terragrunt.hcl exists
-          if [ ! -f "terragrunt-stacks/terragrunt.hcl" ]; then
-            echo "❌ Missing root terragrunt.hcl"
-            ERRORS=$((ERRORS + 1))
-          else
-            echo "✅ terragrunt-stacks/terragrunt.hcl exists"
-          fi
-          
-          # Check module has main.tf
-          if [ ! -f "terragrunt-stacks/modules/repository/main.tf" ]; then
-            echo "❌ Missing repository module main.tf"
-            ERRORS=$((ERRORS + 1))
-          else
-            echo "✅ terragrunt-stacks/modules/repository/main.tf exists"
-          fi
-          
-          if [ $ERRORS -gt 0 ]; then
-            echo ""
-            echo "❌ $ERRORS validation error(s)"
+          if [ ! -f "repo-config.json" ]; then
+            echo "❌ Missing repo-config.json"
             exit 1
           fi
           
-          echo ""
-          echo "✅ Terragrunt structure is valid"
+          if ! jq empty repo-config.json 2>/dev/null; then
+            echo "❌ repo-config.json is not valid JSON"
+            exit 1
+          fi
+          
+          echo "✅ repo-config.json is valid JSON"
+
+      - name: Validate scripts exist and are executable
+        run: |
+          echo "Checking management scripts..."
+          
+          ERRORS=0
+          
+          for script in scripts/sync-files scripts/configure-repos scripts/sync-secrets; do
+            if [ ! -f "$script" ]; then
+              echo "❌ Missing script: $script"
+              ERRORS=$((ERRORS + 1))
+            elif [ ! -x "$script" ]; then
+              echo "❌ Script not executable: $script"
+              ERRORS=$((ERRORS + 1))
+            else
+              echo "✅ $script"
+            fi
+          done
+          
+          if [ $ERRORS -gt 0 ]; then
+            echo "❌ $ERRORS script error(s)"
+            exit 1
+          fi
+          
+          echo "✅ All management scripts are valid"
 
       - name: Validate repository-files source paths
         run: |
@@ -349,7 +349,7 @@ jobs:
 
   summary:
     name: CI Summary
-    needs: [lint-workflows, validate-expressions, validate-terragrunt-config, validate-repository-files, dry-run-generate-tests]
+    needs: [lint-workflows, validate-expressions, validate-repo-config, validate-repository-files, dry-run-generate-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -363,7 +363,7 @@ jobs:
             echo "|-------|--------|"
             echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |"
             echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Terragrunt Config | ${{ needs.validate-terragrunt-config.result == 'success' && '✅' || '❌' }} |"
+            echo "| Validate Repo Config | ${{ needs.validate-repo-config.result == 'success' && '✅' || '❌' }} |"
             echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |"
             echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -371,7 +371,7 @@ jobs:
           # Fail if any job failed
           if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
              [ "${{ needs.validate-expressions.result }}" != "success" ] || \
-             [ "${{ needs.validate-terragrunt-config.result }}" != "success" ] || \
+             [ "${{ needs.validate-repo-config.result }}" != "success" ] || \
              [ "${{ needs.validate-repository-files.result }}" != "success" ] || \
              [ "${{ needs.dry-run-generate-tests.result }}" != "success" ]; then
             echo ""

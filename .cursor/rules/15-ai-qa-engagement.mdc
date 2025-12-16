@@ -142,7 +142,7 @@ Before merging ANY PR:
 # 1. Create PR with conventional commit scope
 # Scopes: edt (extended-data-types), dic (directed-inputs-class),
 #         connectors (vendor-connectors), bridge (python-terraform-bridge)
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve API validation bug"
+gh pr create --title "fix(connectors): resolve API validation bug"
 
 # 2. Request AI reviews (post as PR comment)
 # /gemini review
@@ -160,7 +160,7 @@ GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr create --title "fix(connectors): resolve AP
 # 6. Verify merge checklist complete
 
 # 7. Only after ALL feedback addressed:
-GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr merge --squash --delete-branch
+gh pr merge --squash --delete-branch
 ```
 
 ## Repository Settings for Automatic AI Review
