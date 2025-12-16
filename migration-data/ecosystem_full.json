@@ -1,0 +1,533 @@
+[
+  {
+    "content": {
+      "body": "## Overview\nReplace the incomplete/incorrect cloud-connectors integration with the production `vendor-connectors` PyPI package from jbcom ecosystem.\n\n## Background\n- PRs #183 and #185 attempted to extract cloud clients but used non-existent `cloud-connectors` package\n- The correct package is `vendor-connectors` published to PyPI as `vendor-connectors>=202511.1`\n\n## Tasks\n- [ ] Update pyproject.toml to use `vendor-connectors` from PyPI\n- [ ] Remove duplicate dependencies (boto3, hvac, slack-sdk, etc. - now provided by vendor-connectors)\n- [ ] Delete obsolete client files (aws_client.py, github_client.py, etc.)\n- [ ] Update imports from `cloud_connectors` to `vendor_connectors`\n- [ ] Keep terraform-specific errors in terraform_modules/errors.py\n- [ ] Update terraform_data_source.py imports\n- [ ] Update terraform_null_resource.py imports\n- [ ] Test tm_cli commands\n- [ ] Verify all terraform module generation works\n\n## Dependencies Provided by vendor-connectors\n- extended-data-types (includes gitpython, inflection, lark, orjson, ruamel.yaml, sortedcontainers)\n- lifecyclelogging\n- directed-inputs-class\n- boto3, hvac, google-api-python-client, slack-sdk, PyGithub, python-graphql-client\n- google-cloud-billing, google-cloud-resource-manager\n- validators, deepmerge, filelock, more-itertools, requests\n\n## Related\n- Supersedes PR #183 and PR #185\n- Part of jbcom ecosystem integration\n\ncc @jbcom",
+      "number": 200,
+      "repository": "FlipsideCrypto/terraform-modules",
+      "title": "Integrate vendor-connectors PyPI package (replaces cloud-connectors)",
+      "type": "Issue",
+      "url": "https://github.com/FlipsideCrypto/terraform-modules/issues/200"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzghxqe0",
+    "linked pull requests": [
+      "https://github.com/FlipsideCrypto/terraform-modules/pull/203"
+    ],
+    "repository": "https://github.com/FlipsideCrypto/terraform-modules",
+    "status": "Done",
+    "title": "Integrate vendor-connectors PyPI package (replaces cloud-connectors)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nMove deepmerge functionality to extended-data-types as a core utility, with proxy methods in terraform_data_source.py.\n\n## Rationale\n- deepmerge is used by secrets merging pipeline\n- It's a general-purpose utility that belongs in extended-data-types\n- terraform_data_source.py should have proxy methods that call the extended-data-types implementation\n\n## Tasks\n- [ ] Add deepmerge to extended-data-types/map_utils.py\n- [ ] Create proxy method in terraform_data_source.py that calls extended_data_types.deepmerge\n- [ ] Update imports in terraform_modules\n- [ ] Release patch to extended-data-types\n- [ ] Update vendor-connectors dependency version\n\n## Integration Points\n- secrets-merging Lambda uses deepmerge\n- terraform_data_source has deepmerge method\n- Both should use the same underlying implementation\n\ncc @jbcom",
+      "number": 201,
+      "repository": "FlipsideCrypto/terraform-modules",
+      "title": "Add deepmerge to extended-data-types map_utils",
+      "type": "Issue",
+      "url": "https://github.com/FlipsideCrypto/terraform-modules/issues/201"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzghxqgI",
+    "repository": "https://github.com/FlipsideCrypto/terraform-modules",
+    "status": "Done",
+    "title": "Add deepmerge to extended-data-types map_utils"
+  },
+  {
+    "content": {
+      "body": "## Overview\nThe terraform data source wrappers for listing Vault and AWS secrets are only used by the secrets pipeline lambdas. These should be core functionality in vendor-connectors, not terraform wrappers.\n\n## Current State\n- `list_vault_secrets` in terraform_data_source.py - terraform wrapper\n- `list_aws_account_secrets` in terraform_data_source.py - terraform wrapper\n- Called via terraform external data sources from secrets workspace\n- Only used by secrets-merging pipeline\n\n## Target State\n- Move secret listing to VaultConnector and AWSConnector in vendor-connectors\n- Lambdas call vendor-connectors directly (no terraform)\n- Remove terraform wrapper methods from terraform_data_source.py\n- Simpler, more direct architecture\n\n## Tasks\n- [ ] Add `list_secrets()` to VaultConnector in vendor-connectors\n- [ ] Add `list_secrets()` to AWSConnector in vendor-connectors\n- [ ] Update secrets-merging lambda to use vendor-connectors directly\n- [ ] Remove terraform wrapper methods from terraform_data_source.py\n- [ ] Release patch to vendor-connectors\n- [ ] Update terraform-aws-secretsmanager to use new architecture\n\n## Benefits\n- Simpler architecture (no terraform indirection for lambda-only features)\n- Cleaner separation of concerns\n- Easier testing and debugging\n- Reduced complexity in terraform_data_source.py\n\ncc @jbcom",
+      "number": 202,
+      "repository": "FlipsideCrypto/terraform-modules",
+      "title": "Remove Vault/AWS secrets terraform wrappers - migrate to vendor-connectors",
+      "type": "Issue",
+      "url": "https://github.com/FlipsideCrypto/terraform-modules/issues/202"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzghxqgg",
+    "repository": "https://github.com/FlipsideCrypto/terraform-modules",
+    "status": "Done",
+    "title": "Remove Vault/AWS secrets terraform wrappers - migrate to vendor-connectors"
+  },
+  {
+    "content": {
+      "body": "## Overview\nCreate a proper sync mechanism for enterprise secrets using SOPS files as the source of truth.\n\n## Background\n- Current approach using `toJson(secrets)` in GitHub Actions has visibility restrictions\n- `EXTERNAL_CI_BOT_SSH_PRIVATE_KEY` has PRIVATE visibility and isn't accessible\n- The proper solution is to read from SOPS-encrypted source files using AWS KMS\n\n## Proposed Solution\n1. Create JavaScript GitHub Action in org-admin repo\n2. Use `sops-decoder` npm package to decrypt SOPS files\n3. Use `libsodium-wrappers` for GitHub secret encryption\n4. Same AWS auth pattern as generator/secrets jobs\n\n## Files Created (in progress)\n- `.github/actions/sync-enterprise-secrets/` (JavaScript action)\n- `.github/workflows/sync-enterprise-secrets.yml`\n\n## Target Organizations\n- fsc-internal-tooling-administration\n- (other enterprise orgs as needed)\n\n## References\n- Recovered from background agent session bc-c1254c3f-ea3a-43a9-a958-13e921226f5d\n- See memory-bank/activeContext.md for architecture diagram\n\ncc @jbcom",
+      "number": 183,
+      "repository": "jbcom/control-center",
+      "title": "Implement SOPS-based enterprise secrets sync",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/183"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh1EGA",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Implement SOPS-based enterprise secrets sync"
+  },
+  {
+    "content": {
+      "body": "## Overview\nBoth vendor-connectors and lifecyclelogging public repos have CI failures that need investigation.\n\n## vendor-connectors\n- **Last failure**: 2025-11-26T06:59:31Z\n- **Failed step**: PyPI publish (`pypa/gh-action-pypi-publish@release/v1`)\n- **Likely cause**: Version already exists on PyPI (duplicate publish attempt)\n\n## lifecyclelogging\n- **Last failure**: 2025-11-26T19:12:59Z  \n- **Failed job**: CodeQL \"Analyze (actions)\"\n- **Context**: Python analysis passed, only \"actions\" language failed\n\n## Tasks\n- [ ] Investigate vendor-connectors PyPI publish failure\n- [ ] Fix or ignore CodeQL actions analysis for lifecyclelogging\n- [ ] Ensure sync workflow from control-center works correctly\n- [ ] Verify all packages can publish successfully\n\ncc @jbcom",
+      "number": 184,
+      "repository": "jbcom/control-center",
+      "title": "Fix CI for vendor-connectors and lifecyclelogging public repos",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/184"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh1EGI",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Fix CI for vendor-connectors and lifecyclelogging public repos"
+  },
+  {
+    "content": {
+      "body": "# Unified Agentic Management Platform\n\n## Objective\nFormalize agentic management processes across:\n- **jbcom** personal ecosystem (all packages)\n- **FlipsideCrypto** enterprise (Terraform repositories)\n\n## Status: ✅ COMPLETE\n\nAll primary objectives have been achieved.\n\n## Completed Components\n\n### 1. agentic-control Package ✅\n- [x] Core types and interfaces\n- [x] Intelligent token switching  \n- [x] Fleet management (Cursor agents)\n- [x] AI triage (Claude-based)\n- [x] GitHub client (token-aware)\n- [x] Handoff manager\n- [x] CLI with all commands\n- [x] Security fixes (command injection, ReDoS, SSRF)\n- [x] Fully configurable (no hardcoded values)\n- [x] MIT LICENSE\n- [x] 27 tests passing\n- [x] npm published: https://www.npmjs.com/package/agentic-control\n- [x] Public repo: https://github.com/jbcom/agentic-control\n\n### 2. CI/CD ✅\n- [x] Unified release matrix (Python + Node.js)\n- [x] Trusted publishing (id-token: write)\n- [x] npm provenance enabled\n- [x] Sync to public repo on release\n\n### 3. Workspace Configuration ✅\n- [x] agentic.config.json with org definitions\n- [x] .env.example documentation\n- [x] Agent rules updated (.ruler/cursor.md)\n\n### 4. FlipsideCrypto Integration ✅\n- [x] fsc-control-center configured (PR #2 merged)\n- [x] Token configuration documented\n- [x] Cross-ecosystem ready\n\n### 5. Infrastructure ✅\n- [x] Dockerfile with claude-code, ruler (version pinned)\n- [x] NPM_TOKEN secret configured\n\n## Related PRs (All Merged)\n- PR #285: agentic-control package\n- PR #290: Model name fix\n- PR #291: CI build/test jobs\n- PR #293: Version reading fix\n- PR #294: Unified release matrix\n- FSC PR #2: FlipsideCrypto configuration\n\n## Package Links\n- **npm**: https://www.npmjs.com/package/agentic-control\n- **GitHub**: https://github.com/jbcom/agentic-control\n- **Docs**: See README in package\n\n---\n*Epic completed 2025-12-01*",
+      "number": 286,
+      "repository": "jbcom/control-center",
+      "title": "🎯 Epic: Unified Agentic Management Platform",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/286"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh6IcU",
+    "labels": [
+      "priority:high",
+      "epic",
+      "agentic-control"
+    ],
+    "milestone": {
+      "description": "First public release of agentic-control npm package with full OSS configurability and security fixes",
+      "dueOn": "2024-12-14T00:00:00Z",
+      "title": "agentic-control v1.0.0"
+    },
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "🎯 Epic: Unified Agentic Management Platform"
+  },
+  {
+    "content": {
+      "body": "## Parent Epic\nPart of #286 (Unified Agentic Management Platform)\n\n## Task\nSpawn a Cursor background agent in `fsc-control-center` to:\n1. Set up the agentic-control configuration for FlipsideCrypto\n2. Coordinate with jbcom-control-center agent\n3. Begin formalizing Terraform repo management\n\n## Prerequisites\n- [ ] PR #285 merged (agentic-control package)\n- [ ] GITHUB_FSC_TOKEN available\n\n## Implementation\n```bash\nagentic fleet spawn https://github.com/FlipsideCrypto/fsc-control-center \\\n  \"Set up agentic-control configuration for FlipsideCrypto ecosystem. \\\n   Create agentic.config.json, coordinate with jbcom-control-center.\" \\\n  --model claude-sonnet-4-20250514\n```\n\n## Acceptance Criteria\n- [ ] Agent spawned successfully\n- [ ] agentic.config.json created in fsc-control-center\n- [ ] Bidirectional coordination established\n- [ ] Agent can access FlipsideCrypto Terraform repos\n\n## Labels\n`copilot`, `agent-session`",
+      "number": 287,
+      "repository": "jbcom/control-center",
+      "title": "Spawn coordination agent in fsc-control-center",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/287"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh6Icg",
+    "labels": [
+      "fsc-integration",
+      "fleet-management",
+      "phase:4-fsc"
+    ],
+    "milestone": {
+      "description": "First public release of agentic-control npm package with full OSS configurability and security fixes",
+      "dueOn": "2024-12-14T00:00:00Z",
+      "title": "agentic-control v1.0.0"
+    },
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Spawn coordination agent in fsc-control-center"
+  },
+  {
+    "content": {
+      "body": "## Parent Epic\nPart of #286 (Unified Agentic Management Platform)\n\n## Task\nCreate GitHub Actions workflow to publish `agentic-control` to npm on release.\n\n## Requirements\n1. **Semantic Release Integration**\n   - Use conventional commits for version bumps\n   - Scope: `agentic` for agentic-control changes\n   - Tag format: `agentic-control-v{version}`\n\n2. **npm Publishing**\n   - Publish to public npm registry\n   - Use `NPM_TOKEN` secret\n   - Build before publish\n\n3. **CI Workflow Updates**\n   - Add agentic-control to build matrix\n   - Add TypeScript tests to CI\n   - Add npm publish job\n\n## Files to Create/Update\n- [ ] `.github/workflows/ci.yml` - Add agentic-control to matrix\n- [ ] `packages/agentic-control/pyproject.toml` or similar for PSR config (if needed)\n- [ ] npm token configured in repo secrets\n\n## Acceptance Criteria\n- [ ] `pnpm run build` works in CI\n- [ ] `pnpm test` runs in CI\n- [ ] npm publish on release tag\n- [ ] Version managed by semantic-release\n\n## Labels\n`copilot`, `ci`, `infrastructure`",
+      "number": 288,
+      "repository": "jbcom/control-center",
+      "title": "Set up npm publish workflow for agentic-control",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/288"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh6Ico",
+    "labels": [
+      "agentic-control",
+      "phase:5-publish",
+      "ci"
+    ],
+    "milestone": {
+      "description": "First public release of agentic-control npm package with full OSS configurability and security fixes",
+      "dueOn": "2024-12-14T00:00:00Z",
+      "title": "agentic-control v1.0.0"
+    },
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Set up npm publish workflow for agentic-control"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nThis PR introduces **agentic-control** - a new public npm package that unifies all AI agent tooling under one production-grade package. This addresses the request to formalize agentic management processes across both jbcom and FlipsideCrypto organizations.\n\n### Key Features\n\n- **🔐 Intelligent Token Switching**\n  - Automatically selects `GITHUB_FSC_TOKEN` for FlipsideCrypto repos\n  - Automatically selects `GITHUB_JBCOM_TOKEN` for jbcom repos\n  - PR reviews ALWAYS use consistent identity (`GITHUB_JBCOM_TOKEN`)\n  - Extensible via environment variables (`AGENTIC_ORG_<NAME>_TOKEN`)\n\n- **🚀 Fleet Management** (from cursor-fleet)\n  - Spawn, monitor, and coordinate Cursor Background Agents\n  - Diamond pattern orchestration\n  - Bidirectional coordination via PR comments\n  - **Now supports explicit model specification** (`--model claude-sonnet-4-20250514`)\n\n- **🔍 AI-Powered Triage** (from ai-triage)\n  - Conversation analysis\n  - Code review\n  - Task extraction\n  - Issue creation with Copilot labels\n\n- **🤝 Handoff Protocol**\n  - Station-to-station agent continuity\n  - Context preservation\n  - PR takeover automation\n\n### Package Structure\n\n```\npackages/agentic-control/\n├── src/\n│   ├── core/       # Types, tokens, config\n│   ├── fleet/      # Cursor agent management  \n│   ├── triage/     # AI analysis\n│   ├── github/     # Multi-org GitHub client\n│   └── handoff/    # Agent handoff protocols\n└── tests/          # 19 passing tests\n```\n\n### CLI Commands\n\n```bash\n# Token management\nagentic tokens status\nagentic tokens validate\nagentic tokens for-repo FlipsideCrypto/repo\n\n# Fleet management  \nagentic fleet list --running\nagentic fleet spawn <repo> <task> --model claude-sonnet-4-20250514\nagentic fleet coordinate --pr 123\n\n# AI Triage\nagentic triage quick \"error message\"\nagentic triage review --base main\nagentic triage analyze <agent-id> --create-issues\n\n# Handoff\nagentic handoff initiate <id> --pr 123 --branch my-branch\n```\n\n### Dockerfile Updates\n\nAdded globally-installed tools for future agent sessions:\n- `@intellectronica/ruler` - AI agent instruction management\n- `@anthropic-ai/claude-code` - Anthropic's AI coding CLI\n- Verification step for all tools\n\n## Test Plan\n\n- [x] 19 token management tests pass\n- [x] Package builds successfully (`pnpm run build`)\n- [ ] Manual testing of CLI commands\n- [ ] Integration with fsc-control-center\n\n## Related\n\n- Holding PR: #284\n- Addresses: Formalization of agentic processes across jbcom + FlipsideCrypto\n\n## Migration Path\n\n1. Deprecate `@jbcom/cursor-fleet` and `@jbcom/ai-triage`\n2. Update fsc-control-center to use `agentic-control`\n3. Publish to npm as public package\n\n---\n*Part of the unified agentic platform work*\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Introduces the agentic-control package providing a unified CLI and SDK for multi-org token-aware GitHub ops, Cursor agent fleet management, AI triage, and station-to-station handoff, plus Docker image tooling updates.\n> \n> - **agentic-control (new package)**\n>   - **CLI (`src/cli.ts`)**: Commands for `tokens`, `fleet` (list/spawn/followup/summary/coordinate), `triage` (quick/review/analyze), `handoff` (initiate/confirm/takeover), and `config`.\n>   - **Core**: `config.ts` (env/file config, defaults, logging), `tokens.ts` (intelligent multi-org token switching, PR-review identity), `types.ts`, `index.ts` exports.\n>   - **Fleet**: `cursor-api.ts` (direct Cursor API client with validation/error handling), `fleet.ts` (spawn with model, monitor, archive, diamond orchestration, PR-based coordination), `index.ts`.\n>   - **AI Triage**: `analyzer.ts` (Claude-based conversation analysis, code review, quick triage, GitHub issue creation using PR-review token), `index.ts`.\n>   - **GitHub**: `client.ts` (token-aware Octokit wrapper, PR ops, gh helpers), `index.ts`.\n>   - **Handoff**: `manager.ts` (initiate/confirm/takeover with PR merge/branch flow), `index.ts`.\n>   - **Project setup**: `package.json` (build/test/bin/exports), `tsconfig.json`, `.gitignore`, `README.md` with usage, tests for token logic.\n> - **Dockerfile**: Add global CLIs (`@intellectronica/ruler`, `@anthropic-ai/claude-code`) and a verification step; keep `aider` via uv-managed Python 3.12.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit 2eeb569f306aea21f0e4d0f7f2784deb08be4aba. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 285,
+      "repository": "jbcom/control-center",
+      "title": "feat: Unified agentic-control package with intelligent multi-org token switching",
+      "type": "PullRequest",
+      "url": "https://github.com/jbcom/control-center/pull/285"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh6Icw",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "feat: Unified agentic-control package with intelligent multi-org token switching"
+  },
+  {
+    "content": {
+      "body": "## Parent Epic\nPart of #286\n\n## Task\nMerge PR #285 after AI review approval.\n\n## Status\n- [x] CI passing\n- [x] Security issues addressed\n- [x] All hardcoded values removed\n- [x] Tests passing (27/27)\n- [ ] AI review approved\n- [ ] Merged to main\n\n## Blocked By\n- Waiting for `/gemini review` completion\n\n## PR\nhttps://github.com/jbcom/jbcom-control-center/pull/285",
+      "number": 289,
+      "repository": "jbcom/control-center",
+      "title": "Merge PR #285: agentic-control package",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/289"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgh6Ieo",
+    "labels": [
+      "priority:high",
+      "agentic-control",
+      "phase:3-config"
+    ],
+    "milestone": {
+      "description": "First public release of agentic-control npm package with full OSS configurability and security fixes",
+      "dueOn": "2024-12-14T00:00:00Z",
+      "title": "agentic-control v1.0.0"
+    },
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Merge PR #285: agentic-control package"
+  },
+  {
+    "content": {
+      "body": "## Context\n\nThis issue tracks the resolution of **muddled scope and ownership boundaries** across the jbcom agentic ecosystem, as flagged in [agentic-control PR #7](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331).\n\n## Problem Statement\n\nThe current repository structure has **competing concerns** that create confusion:\n\n| Repository | Current State | Issue |\n|------------|---------------|-------|\n| `agentic-control` | Node.js + Python (CrewAI), Cursor API client, Claude SDK | Has vendor-specific code that belongs elsewhere |\n| `vendor-connectors` | AWS, GitHub, Google, Slack, Vault, Zoom connectors | **Missing** Cursor and Anthropic connectors |\n| `jbcom-control-center` | Orchestration layer | Needs to track this refactor |\n\n### Specific Problems Identified\n\n1. **`cursor-api.ts`** in `agentic-control` is a vendor-specific API client that belongs in `vendor-connectors`\n2. **`@anthropic-ai/claude-agent-sdk`** usage is vendor-specific - should be abstracted\n3. **CrewAI code** in `agentic-control/python/` is a specific orchestration framework - potentially separate concern\n4. **No clear protocol definition** for how agents register with and communicate through agentic-control\n5. **No separation** between \"what vendors provide\" vs \"what agentic-control orchestrates\"\n\n## Target Architecture\n\n```\n┌─────────────────────────────────────────────────────────────────┐\n│                    AGENTIC ECOSYSTEM                             │\n├─────────────────────────────────────────────────────────────────┤\n│                                                                  │\n│  ┌─────────────────────────────────────────────────────────┐   │\n│  │              vendor-connectors (Python)                  │   │\n│  │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐       │   │\n│  │  │ Cursor  │ │Anthropic│ │  AWS    │ │ GitHub  │ ...   │   │\n│  │  │Connector│ │Connector│ │Connector│ │Connector│       │   │\n│  │  └────┬────┘ └────┬────┘ └────┬────┘ └────┬────┘       │   │\n│  │       │           │           │           │             │   │\n│  └───────┼───────────┼───────────┼───────────┼─────────────┘   │\n│          │           │           │           │                  │\n│          └───────────┴───────────┴───────────┘                  │\n│                          │                                       │\n│                          ▼                                       │\n│  ┌─────────────────────────────────────────────────────────┐   │\n│  │           agentic-control (Node.js) - PROTOCOL LAYER     │   │\n│  │                                                          │   │\n│  │  • Fleet management protocols (vendor-agnostic)          │   │\n│  │  • Agent registration protocol                           │   │\n│  │  • Agent-to-agent communication protocol                 │   │\n│  │  • Triage and handoff protocols                          │   │\n│  │  • Provider interface (plugs in vendor-connectors)       │   │\n│  └───────────────────────────────┬─────────────────────────┘   │\n│                                  │                              │\n│                                  ▼                              │\n│  ┌─────────────────────────────────────────────────────────┐   │\n│  │            agentic-crew (Python) - CrewAI LAYER          │   │\n│  │                                                          │   │\n│  │  • CrewAI-specific flows and workflows                   │   │\n│  │  • Manager agent patterns                                │   │\n│  │  • Bridge to agentic-control protocol                    │   │\n│  └─────────────────────────────────────────────────────────┘   │\n│                                                                  │\n└─────────────────────────────────────────────────────────────────┘\n```\n\n## Ownership & Responsibilities\n\n### vendor-connectors\n**Purpose**: Vendor-specific API clients and SDK wrappers  \n**Owner**: jbcom-control-center (Python package management)\n\n| Connector | Status | Notes |\n|-----------|--------|-------|\n| Cursor | ❌ **NEEDED** | Port from `agentic-control/src/fleet/cursor-api.ts` |\n| Anthropic | ❌ **NEEDED** | Wrap Claude Agent SDK |\n| AWS | ✅ Exists | |\n| GitHub | ✅ Exists | |\n| Google | ✅ Exists | |\n| Slack | ✅ Exists | |\n| Vault | ✅ Exists | |\n| Zoom | ✅ Exists | |\n\n### agentic-control\n**Purpose**: Vendor-agnostic protocol layer for agent orchestration  \n**Owner**: jbcom-control-center (Node.js package management)\n\n| Module | Status | Notes |\n|--------|--------|-------|\n| `core/` | ✅ Keep | Core types and interfaces |\n| `fleet/` | 🔄 Refactor | Remove vendor-specific code, keep protocols |\n| `triage/` | ✅ Keep | Agent triage logic |\n| `handoff/` | ✅ Keep | Agent handoff logic |\n| `github/` | ✅ Keep | GitHub integration (uses gh CLI) |\n| `providers/` | ❌ **NEW** | Provider interface that uses vendor-connectors |\n\n### agentic-crew (NEW)\n**Purpose**: CrewAI-specific orchestration  \n**Owner**: jbcom-control-center (Python package management)\n\n| Module | Status | Notes |\n|--------|--------|-------|\n| CrewAI flows | ❌ **NEW** | Move from agentic-control/python/ |\n| Manager patterns | ❌ **NEW** | |\n| Protocol bridge | ❌ **NEW** | Bridge to agentic-control |\n\n## Related Issues\n\n- [ ] jbcom/vendor-connectors - Cursor + Anthropic connectors (created alongside)\n- [ ] jbcom/agentic-control - Scope clarification and refactor (created alongside)\n- [ ] jbcom/jbcom-control-center - Create agentic-crew repo (this epic)\n\n## Implementation Plan\n\n### Phase 1: Vendor Connectors (Week 1)\n1. Create Cursor connector in vendor-connectors (Python port of cursor-api.ts)\n2. Create Anthropic connector in vendor-connectors (wrap Claude SDK)\n3. Ensure CI/PyPI publishing works\n\n### Phase 2: Create agentic-crew (Week 1-2)\n1. Create agentic-crew repository via jbcom-control-center\n2. Move CrewAI code from agentic-control/python/\n3. Set up CI and PyPI publishing\n\n### Phase 3: Refactor agentic-control (Week 2-3)\n1. Define formal provider interface\n2. Remove vendor-specific code (cursor-api.ts, Claude SDK direct usage)\n3. Implement provider abstraction that uses vendor-connectors\n4. Define and document agent registration protocol\n5. Define and document agent-to-agent communication protocol\n\n### Phase 4: Integration & Documentation (Week 3-4)\n1. Update all READMEs\n2. Create integration guide\n3. Update jbcom-control-center sync configs\n\n## Success Criteria\n\n- [ ] `vendor-connectors` has Cursor and Anthropic connectors\n- [ ] `agentic-control` is vendor-agnostic with clear provider interface\n- [ ] `agentic-crew` exists with CrewAI-specific code\n- [ ] Clear documentation on which repo owns what\n- [ ] Default configurations work: Anthropic for local single-agent, Cursor for remote multi-agent\n\n## Labels\n\n`epic`, `architecture`, `cross-repo`",
+      "number": 340,
+      "repository": "jbcom/control-center",
+      "title": "🏗️ EPIC: Clarify Surface Scope and Ownership Across Agentic Ecosystem",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/340"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPGAg",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Todo",
+    "title": "🏗️ EPIC: Clarify Surface Scope and Ownership Across Agentic Ecosystem"
+  },
+  {
+    "content": {
+      "body": "## Context\n\nThis issue is part of the [Agentic Ecosystem Scope Clarification Epic](https://github.com/jbcom/jbcom-control-center/issues/340), which addresses muddled boundaries across repositories.\n\n## Background\n\nCurrently, `agentic-control` contains vendor-specific code that belongs in `vendor-connectors`:\n\n1. **Cursor API client** (`cursor-api.ts`) - ~300 lines of well-structured TypeScript code for the Cursor Background Agent API\n2. **Anthropic Claude Agent SDK** usage - direct dependency that should be abstracted\n\nThis issue tracks adding these as proper vendor connectors.\n\n## Requirements\n\n### 1. Cursor Connector\n\nPort the Cursor API client from `agentic-control/src/fleet/cursor-api.ts` to a Python implementation:\n\n**Features to implement:**\n- [ ] Agent management (list, get status, get conversation)\n- [ ] Agent launching with prompt/source/target/webhook options\n- [ ] Follow-up messages to agents\n- [ ] Repository listing\n- [ ] Model listing\n- [ ] Input validation (agent ID, prompt text, repository, webhook URL)\n- [ ] SSRF protection for webhook URLs\n- [ ] Error sanitization (prevent credential leakage)\n- [ ] Timeout handling\n\n**Reference implementation:**\n```typescript\n// From agentic-control/src/fleet/cursor-api.ts\nexport class CursorAPI {\n    async listAgents(): Promise<Result<Agent[]>>\n    async getAgentStatus(agentId: string): Promise<Result<Agent>>\n    async getAgentConversation(agentId: string): Promise<Result<Conversation>>\n    async launchAgent(options: LaunchOptions): Promise<Result<Agent>>\n    async addFollowup(agentId: string, prompt: { text: string }): Promise<Result<void>>\n    async listRepositories(): Promise<Result<Repository[]>>\n    async listModels(): Promise<Result<string[]>>\n}\n```\n\n**Python interface (proposed):**\n```python\nfrom vendor_connectors.cursor import CursorConnector\n\nconnector = CursorConnector(api_key=\"...\")\nagents = await connector.list_agents()\nagent = await connector.launch_agent(\n    prompt=\"Implement feature X\",\n    repository=\"org/repo\",\n    ref=\"main\"\n)\n```\n\n### 2. Anthropic Connector\n\nWrap the Anthropic Claude Agent SDK for consistent interface:\n\n**Features to implement:**\n- [ ] Claude Agent SDK wrapper\n- [ ] Sandbox execution mode (local single-agent)\n- [ ] Consistent error handling\n- [ ] Configuration management (API keys, model selection)\n\n**Python interface (proposed):**\n```python\nfrom vendor_connectors.anthropic import AnthropicConnector\n\nconnector = AnthropicConnector(api_key=\"...\")\nresult = await connector.execute_task(\n    task=\"Implement feature X\",\n    working_dir=\"/path/to/repo\"\n)\n```\n\n## File Structure\n\n```\nsrc/vendor_connectors/\n├── cursor/\n│   ├── __init__.py\n│   ├── client.py          # Main API client\n│   ├── models.py          # Pydantic models (Agent, Repository, etc.)\n│   └── validators.py      # Input validation\n├── anthropic/\n│   ├── __init__.py\n│   ├── client.py          # Claude SDK wrapper\n│   ├── sandbox.py         # Sandbox execution mode\n│   └── models.py          # Response models\n└── __init__.py            # Export all connectors\n```\n\n## Acceptance Criteria\n\n- [ ] Cursor connector implemented with full API coverage\n- [ ] Anthropic connector implemented with sandbox execution\n- [ ] Tests for both connectors\n- [ ] Documentation updated\n- [ ] CI passes\n- [ ] Published to PyPI\n\n## Related Issues\n\n- Epic: jbcom/jbcom-control-center#340\n- Upstream: jbcom/agentic-control (will consume these connectors)\n\n## Labels\n\n`enhancement`, `connector`, `cursor`, `anthropic`",
+      "number": 15,
+      "repository": "jbdevprimary/vendor-connectors",
+      "title": "feat: Add Cursor and Anthropic vendor connectors",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/vendor-connectors/issues/15"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPGAo",
+    "labels": [
+      "enhancement"
+    ],
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/vendor-connectors/pull/16"
+    ],
+    "repository": "https://github.com/jbdevprimary/vendor-connectors",
+    "status": "Done",
+    "title": "feat: Add Cursor and Anthropic vendor connectors"
+  },
+  {
+    "content": {
+      "body": "## Context\n\nThis issue is part of the [Agentic Ecosystem Scope Clarification Epic](https://github.com/jbcom/jbcom-control-center/issues/340), as flagged in [PR #7 comment](https://github.com/jbcom/agentic-control/pull/7#issuecomment-3621528331).\n\n## Problem Statement\n\n`agentic-control` currently has **muddled scope** with vendor-specific code mixed into what should be a vendor-agnostic protocol layer:\n\n| File | Issue |\n|------|-------|\n| `src/fleet/cursor-api.ts` | Vendor-specific Cursor API client |\n| `@anthropic-ai/claude-agent-sdk` dependency | Vendor-specific SDK |\n| `python/` directory | CrewAI-specific code (different orchestration concern) |\n\n## Target State\n\n`agentic-control` should be the **protocol layer** that:\n1. Defines HOW agents register and communicate\n2. Provides fleet management PROTOCOLS (not implementations)\n3. Uses `vendor-connectors` for vendor-specific API calls\n4. Is agnostic to whether you use Cursor, Anthropic, CrewAI, or others\n\n## Architecture After Refactor\n\n```\nagentic-control/\n├── src/\n│   ├── core/              # ✅ KEEP - Core types and interfaces\n│   │   ├── types.ts\n│   │   └── protocols.ts   # ← NEW: Define agent protocols\n│   ├── fleet/             # 🔄 REFACTOR\n│   │   ├── index.ts       # Fleet protocols (vendor-agnostic)\n│   │   ├── provider.ts    # Provider interface\n│   │   └── registry.ts    # Provider registry\n│   ├── providers/         # ← NEW: Provider implementations\n│   │   ├── cursor.ts      # Uses @jbcom/vendor-connectors-cursor\n│   │   └── anthropic.ts   # Uses @jbcom/vendor-connectors-anthropic\n│   ├── triage/            # ✅ KEEP\n│   ├── handoff/           # ✅ KEEP\n│   ├── github/            # ✅ KEEP\n│   └── cli.ts             # ✅ KEEP\n└── package.json           # Remove direct vendor SDK deps\n```\n\n## Tasks\n\n### Phase 1: Define Protocols\n- [ ] Create `src/core/protocols.ts` with formal agent protocols:\n  - Agent registration protocol\n  - Agent-to-agent communication protocol\n  - Fleet status protocol\n  - Task delegation protocol\n\n### Phase 2: Create Provider Interface\n- [ ] Define `IAgentProvider` interface in `src/fleet/provider.ts`\n- [ ] Define `IFleetProvider` interface for fleet operations\n- [ ] Create provider registry for multiple backends\n\n### Phase 3: Extract Vendor Code\n- [ ] Move `cursor-api.ts` logic to `vendor-connectors` (see jbcom/vendor-connectors#XX)\n- [ ] Create `src/providers/cursor.ts` that uses vendor-connectors\n- [ ] Create `src/providers/anthropic.ts` that uses vendor-connectors\n- [ ] Remove direct `@anthropic-ai/claude-agent-sdk` dependency\n\n### Phase 4: Extract CrewAI\n- [ ] Move `python/` directory to new `agentic-crew` repository\n- [ ] Create bridge documentation for CrewAI integration\n\n### Phase 5: Documentation\n- [ ] Update README with clear scope definition\n- [ ] Document provider interface for new implementations\n- [ ] Document agent registration protocol\n- [ ] Update ARCHITECTURE.md\n\n## Protocol Definitions (Draft)\n\n### Agent Registration Protocol\n```typescript\ninterface AgentRegistration {\n    agentId: string;\n    capabilities: string[];\n    provider: string;\n    endpoint: string;\n    authentication: AuthMethod;\n}\n\ninterface AgentRegistryProtocol {\n    register(registration: AgentRegistration): Promise<void>;\n    deregister(agentId: string): Promise<void>;\n    discover(capabilities: string[]): Promise<Agent[]>;\n}\n```\n\n### Agent Communication Protocol\n```typescript\ninterface AgentMessage {\n    from: string;\n    to: string;\n    type: 'task' | 'status' | 'handoff' | 'triage';\n    payload: unknown;\n    correlationId: string;\n}\n\ninterface AgentCommunicationProtocol {\n    send(message: AgentMessage): Promise<void>;\n    subscribe(agentId: string, handler: MessageHandler): void;\n}\n```\n\n## Success Criteria\n\n- [ ] No vendor-specific code in core modules\n- [ ] Clear provider interface documented\n- [ ] Protocol definitions formalized\n- [ ] Works with Cursor (remote multi-agent) as default\n- [ ] Works with Anthropic (local single-agent) as default\n- [ ] Extensible to other providers (CrewAI, custom)\n\n## Related Issues\n\n- Epic: jbcom/jbcom-control-center#340\n- Vendor Connectors: jbcom/vendor-connectors (Cursor + Anthropic connectors)\n- CrewAI: Will be moved to new `agentic-crew` repository\n\n## Labels\n\n`refactor`, `architecture`, `breaking-change`",
+      "number": 8,
+      "repository": "jbdevprimary/agentic-control",
+      "title": "refactor: Clarify scope and make vendor-agnostic",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/agentic-control/issues/8"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPGAw",
+    "repository": "https://github.com/jbdevprimary/agentic-control",
+    "status": "Done",
+    "title": "refactor: Clarify scope and make vendor-agnostic"
+  },
+  {
+    "content": {
+      "body": "## Overview\n\nCreate a unified AI sub-package that leverages LangChain/LangGraph for:\n1. **Multi-provider AI access** (Anthropic, OpenAI, Google, xAI, Ollama)\n2. **Tool abstraction** - expose existing vendor connectors as AI-callable tools\n3. **Tracing/observability** via LangSmith\n\nThis enables agentic workflows where AI can call AWS, GitHub, Slack, Vault, etc. as tools.\n\n## Proposed Architecture\n\n```\nvendor_connectors/\n├── ai/                          # NEW: AI sub-package\n│   ├── __init__.py\n│   ├── base.py                  # Base AI interface\n│   ├── providers/               # LangChain-based AI providers\n│   │   ├── __init__.py\n│   │   ├── base.py              # LangChain wrapper base\n│   │   ├── anthropic.py         # Claude via LangChain\n│   │   ├── openai.py            # GPT via LangChain\n│   │   ├── google.py            # Gemini via LangChain\n│   │   ├── xai.py               # Grok via LangChain\n│   │   └── ollama.py            # Local models via LangChain\n│   └── tools/                   # Vendor connectors as AI tools\n│       ├── __init__.py\n│       ├── base.py              # Tool registration/discovery\n│       ├── aws_tools.py         # S3, Secrets, Lambda as tools\n│       ├── github_tools.py      # PR, Issues, Files as tools\n│       ├── slack_tools.py       # Messages, Channels as tools\n│       ├── vault_tools.py       # Secrets management as tools\n│       ├── cursor_tools.py      # Agent management as tools\n│       └── google_tools.py      # GCP operations as tools\n├── anthropic/                   # Keep for backwards compat (wraps ai.providers)\n├── cursor/                      # Keep - unique API, not an AI provider\n└── [existing connectors...]\n```\n\n## Benefits\n\n### 1. Unified AI Interface\n```python\nfrom vendor_connectors.ai import AIConnector\n\n# Same interface, different providers\nai = AIConnector(provider=\"anthropic\")  # or \"openai\", \"google\", \"ollama\"\nresponse = ai.chat(\"Explain this code\")\n```\n\n### 2. Tools from Existing Connectors\n```python\nfrom vendor_connectors.ai.tools import get_all_tools\n\n# All vendor connectors become AI tools\ntools = get_all_tools()\n# Returns: [GitHubCreatePRTool, SlackSendMessageTool, S3UploadTool, ...]\n\n# Use with LangChain agent\nfrom langchain.agents import create_tool_calling_agent\nagent = create_tool_calling_agent(llm, tools, prompt)\n```\n\n### 3. LangGraph Workflows\n```python\nfrom vendor_connectors.ai import create_workflow\n\n# Declarative multi-step workflows\nworkflow = create_workflow([\n    (\"analyze\", \"Review this PR for security issues\"),\n    (\"report\", \"Post findings to Slack #security\"),\n    (\"create_issue\", \"Create GitHub issue if critical\"),\n])\n```\n\n### 4. Observability via LangSmith\n```python\nfrom vendor_connectors.ai import AIConnector\n\nai = AIConnector(\n    provider=\"anthropic\",\n    langsmith_api_key=\"...\",  # Optional tracing\n)\n```\n\n## Dependencies\n\n```toml\n[project.optional-dependencies]\nai = [\n    \"langchain>=0.3.0\",\n    \"langchain-anthropic>=0.3.0\",\n    \"langchain-openai>=0.3.0\",\n    \"langchain-google-genai>=2.0.0\",\n    \"langchain-ollama>=0.2.0\",\n    \"langgraph>=0.2.0\",\n]\nai-observability = [\n    \"langsmith>=0.2.0\",\n]\n```\n\n## Migration Path\n\n1. **Phase 1**: Create `ai/` sub-package structure\n2. **Phase 2**: Implement LangChain providers\n3. **Phase 3**: Create tools from existing connectors\n4. **Phase 4**: Add LangGraph workflow support\n5. **Phase 5**: Deprecate direct `anthropic/` module (keep for compat)\n\n## Relation to agentic-control\n\nOnce this is implemented:\n- `agentic-control` uses `vendor_connectors.ai` for all AI operations\n- `agentic-control` becomes purely a protocol/orchestration layer\n- Tools are provided by `vendor_connectors.ai.tools`\n\n## Related Issues\n\n- Epic: jbcom/jbcom-control-center#340\n- Current Anthropic PR: #16\n\n## Labels\n\n`enhancement`, `architecture`, `ai`, `langchain`",
+      "number": 17,
+      "repository": "jbdevprimary/vendor-connectors",
+      "title": "feat: Add AI sub-package with LangChain integration and tool abstraction",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/vendor-connectors/issues/17"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPHUQ",
+    "labels": [
+      "enhancement"
+    ],
+    "milestone": {
+      "description": "Restructure AI tooling so each connector owns its tools. Merge PR #34.",
+      "dueOn": "",
+      "title": "v0.3.0 - Tool Architecture Refactor"
+    },
+    "repository": "https://github.com/jbdevprimary/vendor-connectors",
+    "status": "Done",
+    "title": "feat: Add AI sub-package with LangChain integration and tool abstraction"
+  },
+  {
+    "assignees": [
+      "Copilot"
+    ],
+    "content": {
+      "body": "## Overview\n\nAdd a connector for [Meshy](https://meshy.ai) - AI-powered 3D asset generation.\n\n## Use Case: Otterfall\n\nThe `jbcom/otterfall` game project has a CrewAI `asset_pipeline` crew that needs to call Meshy's API:\n\n```yaml\n# From otterfall/.crewai/crews/asset_pipeline/agents.yaml\nprompt_engineer:\n  role: Meshy Prompt Engineer\n  goal: >\n    Craft prompts that produce high-quality, game-ready 3D models\n    from Meshy's text-to-3D API.\n```\n\nCurrently the crew defines prompts but has no tool to execute them.\n\n## Proposed API\n\n```python\nfrom vendor_connectors.meshy import MeshyConnector\n\nmeshy = MeshyConnector()  # Uses MESHY_API_KEY\n\n# Text to 3D\nresult = meshy.text_to_3d(\n    prompt=\"A realistic river otter, quadruped, detailed fur texture\",\n    art_style=\"realistic\",\n    topology_type=\"quad\",  # or \"tris\"\n    target_polycount=5000,\n)\n\n# Image to 3D\nresult = meshy.image_to_3d(\n    image_url=\"https://...\",\n    topology_type=\"quad\",\n)\n\n# Check status\nstatus = meshy.get_task(result.task_id)\n\n# Download result\nmodel = meshy.download_model(result.task_id, format=\"glb\")\n```\n\n## AI Tool Export\n\nOnce implemented, `vendor_connectors.ai.tools` will auto-generate:\n- `MeshyTextTo3DTool` - Generate 3D from text prompt\n- `MeshyImageTo3DTool` - Generate 3D from image\n- `MeshyGetTaskTool` - Check generation status\n- `MeshyDownloadTool` - Download generated model\n\n## Integration with Otterfall\n\n```python\n# In asset_pipeline crew\nfrom vendor_connectors.ai.tools import get_tools\n\ntools = get_tools([\"meshy.*\"])\n\nprompt_engineer = Agent(\n    role=\"Meshy Prompt Engineer\",\n    tools=[tools.meshy_text_to_3d, tools.meshy_get_task],\n    ...\n)\n```\n\n## Meshy API Reference\n\n- Docs: https://docs.meshy.ai\n- Endpoints:\n  - POST `/v2/text-to-3d` - Text-to-3D generation\n  - POST `/v2/image-to-3d` - Image-to-3D generation\n  - GET `/v2/text-to-3d/{id}` - Get task status\n  - GET `/v2/image-to-3d/{id}` - Get task status\n\n## Priority\n\n**High** - This is a concrete use case that validates the entire ecosystem architecture:\n1. vendor-connectors provides the API client\n2. vendor_connectors.ai.tools exports as AI tool\n3. agentic-crew (via otterfall's .crewai) uses the tool\n4. agentic-control orchestrates via Cursor fleet for CI/CD\n\n## Related\n\n- Epic: jbcom/jbcom-control-center#340\n- AI Sub-Package: #17\n- agentic-crew: jbcom/jbcom-control-center#342\n- Consumer: jbcom/otterfall",
+      "number": 18,
+      "repository": "jbdevprimary/vendor-connectors",
+      "title": "feat: Add Meshy connector for 3D asset generation",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/vendor-connectors/issues/18"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPHUY",
+    "labels": [
+      "enhancement"
+    ],
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/vendor-connectors/pull/19"
+    ],
+    "milestone": {
+      "description": "Restructure AI tooling so each connector owns its tools. Merge PR #34.",
+      "dueOn": "",
+      "title": "v0.3.0 - Tool Architecture Refactor"
+    },
+    "repository": "https://github.com/jbdevprimary/vendor-connectors",
+    "status": "Done",
+    "title": "feat: Add Meshy connector for 3D asset generation"
+  },
+  {
+    "content": {
+      "body": "## Overview\n\nCreate a new `jbcom/agentic-crew` repository for CrewAI-specific multi-agent workflows.\n\n## Rationale\n\n- CrewAI is Python-only\n- Should not be mixed with Node.js orchestration layer (agentic-control)\n- Can directly use `vendor_connectors.ai.tools` for tool access\n\n## Source\n\nMove from `jbcom/agentic-control/python/` directory.\n\n## Proposed Structure\n\n```\nagentic-crew/\n├── src/\n│   └── agentic_crew/\n│       ├── __init__.py\n│       ├── crews/              # Multi-agent crew definitions\n│       │   ├── __init__.py\n│       │   ├── triage_crew.py  # Agent triage crew\n│       │   ├── review_crew.py  # Code review crew\n│       │   └── ops_crew.py     # DevOps crew\n│       ├── tasks/              # Task templates\n│       │   ├── __init__.py\n│       │   └── templates.py\n│       ├── tools/              # Tool imports\n│       │   ├── __init__.py\n│       │   └── connector_tools.py  # from vendor_connectors.ai.tools\n│       └── config/             # Crew configurations\n├── tests/\n├── pyproject.toml\n└── README.md\n```\n\n## Dependencies\n\n```toml\n[project]\ndependencies = [\n    \"crewai>=0.80.0\",\n    \"vendor-connectors[ai]>=0.3.0\",  # For AI tools\n]\n```\n\n## Integration with vendor-connectors\n\n```python\nfrom vendor_connectors.ai.tools import get_all_tools\nfrom crewai import Agent, Crew, Task\n\n# Tools from vendor-connectors\ntools = get_all_tools()\n\n# CrewAI agents use vendor-connector tools\nresearcher = Agent(\n    role=\"Researcher\",\n    tools=[tools.github_search, tools.slack_search],\n)\n```\n\n## Implementation Order\n\n1. Wait for vendor-connectors AI sub-package (Issue #17)\n2. Create agentic-crew repository\n3. Move CrewAI code from agentic-control\n4. Wire up vendor_connectors.ai.tools\n\n## Related\n\n- Epic: #340\n- vendor-connectors AI: jbcom/vendor-connectors#17\n- agentic-control refactor: jbcom/agentic-control#8\n\n## Labels\n\n`enhancement`, `architecture`, `crewai`",
+      "number": 342,
+      "repository": "jbcom/control-center",
+      "title": "feat: Create agentic-crew repository for CrewAI workflows",
+      "type": "Issue",
+      "url": "https://github.com/jbcom/control-center/issues/342"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiPHUc",
+    "labels": [
+      "enhancement"
+    ],
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "feat: Create agentic-crew repository for CrewAI workflows"
+  },
+  {
+    "assignees": [
+      "Copilot"
+    ],
+    "content": {
+      "body": "## Overview\n\nImplement the core framework decomposition architecture that enables declaring crews once and running them on CrewAI, LangGraph, or AWS Strands.\n\n## Architecture\n\n```\nmanifest.yaml → Loader → Decomposer → Runner\n                              │\n              ┌───────────────┼───────────────┐\n              ▼               ▼               ▼\n          CrewAI          LangGraph        Strands\n```\n\n## Key Components\n\n### 1. Core Decomposer (`core/decomposer.py`) ✅\n- [x] Auto-detect installed frameworks\n- [x] Framework priority: CrewAI > LangGraph > Strands\n- [x] `detect_framework()` function\n- [x] `get_runner()` function\n- [ ] Comprehensive unit tests\n\n### 2. Base Runner (`runners/base.py`) ✅\n- [x] Abstract `BaseRunner` interface\n- [x] `build_crew()`, `run()`, `build_agent()`, `build_task()` methods\n- [ ] Documentation and examples\n\n### 3. CrewAI Runner (`runners/crewai_runner.py`) ✅\n- [x] Initial implementation\n- [ ] Knowledge source support\n- [ ] Tool registration\n- [ ] E2E tests\n\n### 4. LangGraph Runner (`runners/langgraph_runner.py`) ✅\n- [x] Initial scaffolding\n- [ ] Full graph-based agent support\n- [ ] State management\n- [ ] E2E tests\n\n### 5. Strands Runner (`runners/strands_runner.py`) ✅\n- [x] Initial implementation\n- [ ] AWS Bedrock integration\n- [ ] E2E tests\n\n## Related PRs\n\n- #1 - Initial framework decomposition\n\n## Labels\n\nepic, architecture, core",
+      "number": 2,
+      "repository": "jbdevprimary/agentic-crew",
+      "title": "🏗️ EPIC: Framework Decomposition Architecture",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/agentic-crew/issues/2"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQIOA",
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/agentic-crew/pull/17"
+    ],
+    "repository": "https://github.com/jbdevprimary/agentic-crew",
+    "status": "Done",
+    "title": "🏗️ EPIC: Framework Decomposition Architecture"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nCreate a `connector_builder` crew that can automatically generate HTTP connector code by scraping API documentation.\n\n## Use Case\n\nInstead of manually writing HTTP connectors for vendor-connectors:\n1. Point the crew at API documentation (e.g., `https://docs.meshy.ai/en`)\n2. Crew scrapes and analyzes API structure\n3. Crew generates typed Python HTTP client code\n4. Human reviews and integrates\n\n## Crew Architecture\n\n```\n┌─────────────────────────────────────────────────────────────────┐\n│                 connector_builder Crew                          │\n│                                                                  │\n│  ┌───────────────┐    ┌──────────────────┐    ┌──────────────┐ │\n│  │  Doc Scraper  │ → │  API Analyzer     │ → │ Code Generator│ │\n│  │   Agent       │    │   Agent          │    │   Agent       │ │\n│  └───────────────┘    └──────────────────┘    └──────────────┘ │\n│         │                      │                      │        │\n│         ▼                      ▼                      ▼        │\n│  ScrapeWebsiteTool      StructuredOutput       FileWriteTool  │\n│  CrawlWebsiteTool                                              │\n└─────────────────────────────────────────────────────────────────┘\n```\n\n## Implementation Tasks\n\n### 1. Create Crew Directory\n```\nsrc/agentic_crew/crews/connector_builder/\n├── config/\n│   ├── agents.yaml\n│   └── tasks.yaml\n└── connector_builder_crew.py\n```\n\n### 2. Define Agents\n\n**doc_scraper**\n- Role: API Documentation Scraper\n- Tools: ScrapeWebsiteTool, CrawlWebsiteTool\n- Goal: Extract endpoint information from docs\n\n**api_analyzer**\n- Role: API Structure Analyst\n- Goal: Create structured API representation\n\n**code_generator**\n- Role: Python HTTP Client Generator\n- Tools: FileWriteTool\n- Goal: Generate vendor-connectors compatible code\n\n### 3. Define Tasks\n\n1. `scrape_docs` - Crawl API documentation\n2. `analyze_api` - Extract endpoint structure\n3. `generate_code` - Write Python connector\n\n### 4. Add Scraping Tools\n- Integrate CrewAI's `ScrapeWebsiteTool`\n- Add custom `CrawlWebsiteTool` for multi-page docs\n\n## Output Structure\n\n```\n{output_dir}/\n├── models.py       # Pydantic models\n├── client.py       # HTTP client\n├── exceptions.py   # Custom exceptions\n└── __init__.py     # Public API\n```\n\n## Testing\n\n- Test with Meshy docs: `https://docs.meshy.ai/en`\n- Validate generated code with ruff/mypy\n- Compare to manually written connector\n\n## Acceptance Criteria\n\n- [ ] Crew defined in YAML\n- [ ] Scraping tools integrated\n- [ ] Generates valid Python code\n- [ ] Output follows vendor-connectors patterns\n- [ ] E2E test with real API docs\n\n## Related\n\n- Epic: jbcom/agentic-crew#2\n- vendor-connectors integration",
+      "number": 19,
+      "repository": "jbdevprimary/agentic-crew",
+      "title": "feat: Implement connector_builder crew for HTTP connector generation",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/agentic-crew/issues/19"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQIOI",
+    "milestone": {
+      "description": "Implement connector_builder crew that uses vendor-connectors tools to generate new HTTP connectors from API docs",
+      "dueOn": "",
+      "title": "v0.2.0 - Connector Builder Crew"
+    },
+    "repository": "https://github.com/jbdevprimary/agentic-crew",
+    "status": "Todo",
+    "title": "feat: Implement connector_builder crew for HTTP connector generation"
+  },
+  {
+    "assignees": [
+      "Copilot"
+    ],
+    "content": {
+      "body": "## Summary\n\nSet up the integration between agentic-crew and vendor-connectors to enable:\n1. Using connector_builder crew to generate HTTP connectors\n2. vendor-connectors using agentic-crew for AI agent tooling\n\n## Integration Points\n\n### 1. connector_builder → vendor-connectors\n\nThe `connector_builder` crew in agentic-crew generates HTTP connector code that can be integrated into vendor-connectors.\n\n**Workflow:**\n```\n1. Run: agentic-crew run agentic-crew connector_builder --input '{\"api_docs_url\": \"https://docs.meshy.ai/en\"}'\n2. Review generated code in /tmp/connector-output/\n3. Copy to vendor-connectors/src/vendor_connectors/{vendor}/\n4. Add tests and documentation\n5. PR to vendor-connectors\n```\n\n### 2. vendor-connectors → agentic-crew (Development)\n\nvendor-connectors can use agentic-crew for development workflows:\n\n**`.crewai/manifest.yaml` in vendor-connectors:**\n```yaml\nname: vendor-connectors\nversion: \"1.0\"\n\nllm:\n  provider: anthropic\n  model: claude-sonnet-4-20250514\n\ncrews:\n  connector_generator:\n    description: Generate new vendor connector from API docs\n    # References agentic-crew's connector_builder\n    extends: agentic-crew:connector_builder\n```\n\n### 3. Tool Sharing\n\nvendor-connectors provides HTTP tools that agentic-crew crews can use:\n- `meshy_text3d_generate` - Generate 3D models\n- `meshy_animate` - Apply animations\n- etc.\n\n**Registration:**\n```python\nfrom vendor_connectors.meshy.tools import get_tools\n\n# Get tools in framework-native format\ntools = get_tools(framework=\"crewai\")\n```\n\n## Tasks\n\n- [ ] Add `agentic-crew` as dev dependency in vendor-connectors\n- [ ] Create `.crewai/` directory in vendor-connectors\n- [ ] Document connector generation workflow\n- [ ] Test connector generation with Meshy docs\n- [ ] Add generated connector validation tests\n\n## Dependencies\n\n- jbcom/vendor-connectors#37 - connector_builder crew implementation\n\n## Related\n\n- vendor-connectors issues jbdevprimary/vendor-connectors#17, jbdevprimary/vendor-connectors#18, jbdevprimary/vendor-connectors#33",
+      "number": 8,
+      "repository": "jbdevprimary/agentic-crew",
+      "title": "feat: Integration with vendor-connectors repository",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/agentic-crew/issues/8"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQIOQ",
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/agentic-crew/pull/18"
+    ],
+    "repository": "https://github.com/jbdevprimary/agentic-crew",
+    "status": "Done",
+    "title": "feat: Integration with vendor-connectors repository"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nThis PR adds the core capability that makes agentic-crew truly framework-agnostic: **declare crews once, run them on CrewAI, LangGraph, or Strands**.\n\n### Key Changes\n\n- **Framework Decomposition** (`core/decomposer.py`)\n  - Auto-detect installed frameworks\n  - Select best available (priority: CrewAI > LangGraph > Strands)\n  - Runtime framework selection (no framework required at install time)\n\n- **Runner Architecture** (`runners/`)\n  - `base.py`: Abstract interface all runners implement\n  - `crewai_runner.py`: Full CrewAI integration\n  - `langgraph_runner.py`: LangGraph/LangChain integration\n  - `strands_runner.py`: AWS Strands integration\n\n- **Comprehensive Documentation**\n  - `AGENTS.md`: Complete agent bootstrap documentation\n  - `.github/agents/`: Specialized agent instructions\n    - `runner-developer.md`: Framework runner implementation\n    - `crew-builder.md`: Crew definition guidance\n    - `documentation.md`: Docs maintenance\n    - `test-runner.md`: Testing guidelines\n    - `connector-builder.md`: HTTP connector generation\n  - `.cursor/rules/`: Cursor-specific rules\n    - `00-fundamentals.mdc`: Core development workflow\n    - `01-architecture.mdc`: Framework decomposition\n    - `02-python.mdc`: Python coding standards\n    - `03-testing.mdc`: Test patterns and coverage\n    - `04-pr-workflow.mdc`: PR workflow\n    - `05-crews.mdc`: Crew definition guidelines\n  - `.github/copilot-instructions.md`: Copilot guidance\n  - `.github/copilot-space.yml`: Copilot context\n  - `CLAUDE.md`: Claude-specific guidance\n\n- **CI/CD & Infrastructure**\n  - `.github/workflows/ci.yml`: Build, test, lint, release\n  - `.github/workflows/codeql.yml`: Security analysis\n  - `.cursor/Dockerfile`: Development container\n  - `.cursor/environment.json`: Cursor environment\n\n- **Optional Dependencies**\n  - Core package has NO framework dependencies\n  - Install what you need: `pip install agentic-crew[crewai]`\n  - Or all: `pip install agentic-crew[ai]`\n\n### Architecture\n\n```\nmanifest.yaml → Loader → Decomposer → Runner\n                              │\n              ┌───────────────┼───────────────┐\n              ▼               ▼               ▼\n          CrewAI          LangGraph        Strands\n```\n\n### Usage\n\n```python\nfrom agentic_crew import run_crew\n\n# Auto-detects best framework\nresult = run_crew(\"my-package\", \"my_crew\", inputs={\"task\": \"...\"})\n```\n\n### Why This Matters\n\n1. **No vendor lock-in**: Switch frameworks without rewriting crews\n2. **Gradual adoption**: Start with one framework, add others later\n3. **CI flexibility**: Different frameworks for different environments\n4. **Future-proof**: New frameworks can be added as runners\n5. **Documentation-first**: AI agents can immediately understand and contribute\n\n## Test Plan\n\n- [ ] Unit tests for decomposer\n- [ ] Integration tests for each runner\n- [ ] E2E test with actual crew execution\n- [ ] Test framework fallback when one is missing\n\n## Next Steps (for follow-up PRs)\n\n1. Add `connector_builder` crew for vendor-connectors integration\n2. Add web scraping tools (ScrapeWebsiteTool)\n3. Comprehensive test suite\n4. CLI improvements\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Introduces auto-detected, framework-agnostic runner architecture with CrewAI/LangGraph/Strands implementations, plus documentation, CI, and packaging updates.\n> \n> - **Core**:\n>   - `core/decomposer.py`: Auto-detects available frameworks, selects runner, and provides build/run helpers.\n>   - `runners/`: Adds `base.py` interface and implementations `crewai_runner.py`, `langgraph_runner.py`, `strands_runner.py`, plus `__init__.py` export.\n> - **Packaging**:\n>   - `pyproject.toml`: Version bump to `0.2.0`; adds optional extras (`crewai`, `langgraph`, `strands`, `ai`, `scraping`, etc.), test/dev tooling, coverage, and semantic-release config; scripts wired.\n> - **Docs**:\n>   - Adds `AGENTS.md`, `CLAUDE.md`, `.github/agents/*`, `.cursor/rules/*`, Copilot instructions/space, README overhaul, and memory-bank context.\n> - **CI/CD & Dev Env**:\n>   - GitHub Actions: `ci.yml` (build/test/lint/release) and `codeql.yml`.\n>   - Dev container: `.cursor/Dockerfile` and `.cursor/environment.json` for local tooling (pnpm, playwright, process-compose).\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit 1619dc2f1dd8f9d26b006e1586160d6537d7c5a1. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 1,
+      "repository": "jbdevprimary/agentic-crew",
+      "title": "feat(core): Framework decomposition - declare once, run on CrewAI/LangGraph/Strands",
+      "type": "PullRequest",
+      "url": "https://github.com/jbdevprimary/agentic-crew/pull/1"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQIOk",
+    "repository": "https://github.com/jbdevprimary/agentic-crew",
+    "status": "Done",
+    "title": "feat(core): Framework decomposition - declare once, run on CrewAI/LangGraph/Strands"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nIntegrate vendor-connectors with [agentic-crew](https://github.com/jbcom/agentic-crew) for AI workflow orchestration.\n\n## Background\n\nPer the architectural decision, vendor-connectors focuses on **HTTP connectivity** while agentic-crew handles **AI crew orchestration**. This issue tracks the integration between the two.\n\n## Integration Points\n\n### 1. Tool Export Pattern\n\nEach connector can export framework-specific tools:\n\n```python\n# vendor_connectors/meshy/tools.py (IMPLEMENTED)\ndef get_tools(framework: str = \"auto\") -> list:\n    \"\"\"Get tools in native format for the detected framework.\"\"\"\n\ndef get_langchain_tools() -> list:\n    \"\"\"Get LangChain StructuredTools.\"\"\"\n\ndef get_crewai_tools() -> list:\n    \"\"\"Get CrewAI-native tools.\"\"\"\n\ndef get_strands_tools() -> list:\n    \"\"\"Get Strands-compatible functions.\"\"\"\n```\n\n### 2. .crewai/ Directory for Development Workflows\n\nAdd `.crewai/` directory to vendor-connectors for connector generation:\n\n```yaml\n# .crewai/manifest.yaml\nname: vendor-connectors\nversion: \"1.0\"\n\ncrews:\n  connector_generator:\n    description: Generate new HTTP connector from API docs\n    # Uses agentic-crew's connector_builder crew\n```\n\n### 3. Dev Dependency\n\n```toml\n# pyproject.toml\n[project.optional-dependencies]\ndev = [\n    \"agentic-crew[crewai,scraping]\",  # For connector generation\n]\n```\n\n## Tasks\n\n- [x] Implement tool export pattern in Meshy connector\n- [ ] Apply pattern to other connectors (AWS, GitHub, etc.)\n- [ ] Add `.crewai/` directory for development workflows\n- [ ] Document connector generation workflow\n- [ ] Add `agentic-crew` as dev dependency\n- [ ] Test end-to-end connector generation\n\n## Related\n\n- agentic-crew repo: https://github.com/jbcom/agentic-crew\n- agentic-crew PR #1: Framework decomposition\n- agentic-crew issue #5: connector_builder crew\n- agentic-crew issue #8: vendor-connectors integration\n- Issue #17: AI sub-package (superseded by this approach)\n- Issue #33: AI tooling restructure (partially addressed)",
+      "number": 36,
+      "repository": "jbdevprimary/vendor-connectors",
+      "title": "feat: Integration with agentic-crew for AI workflow orchestration",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/vendor-connectors/issues/36"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQIQY",
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/vendor-connectors/pull/38"
+    ],
+    "milestone": {
+      "description": "Restructure AI tooling so each connector owns its tools. Merge PR #34.",
+      "dueOn": "",
+      "title": "v0.3.0 - Tool Architecture Refactor"
+    },
+    "repository": "https://github.com/jbdevprimary/vendor-connectors",
+    "status": "Done",
+    "title": "feat: Integration with agentic-crew for AI workflow orchestration"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nFixes test generation being skipped when workflow inputs are unset (null).\n\n### Root Cause\nThe `generate` and other jobs were skipped because:\n- `inputs.dry_run == false` evaluates to `false` when `inputs.dry_run` is `null` (unset)\n- `inputs.auto_fix_tests == true` evaluates to `false` when null (but default is true)\n- `inputs.use_pyproject_coverage == false` evaluates to `false` when null\n\n### Fix\nChanged all boolean input comparisons to use negation patterns that correctly handle null:\n- `inputs.dry_run != true` (runs when null or false)\n- `inputs.auto_fix_tests != false` (runs when null or true)\n- `inputs.use_pyproject_coverage != true` (runs when null or false)\n\n### CI Validation\nAdded comprehensive CI workflow (`ci.yml`) that:\n- Lints all workflow files with actionlint\n- **Prevents this bug from recurring** by detecting dangerous `inputs.X == false/true` patterns\n- Validates sync.yml configuration\n- Validates repository-files structure\n- Dry-run tests the module discovery logic\n\n## Test Plan\n- [x] Verified expression logic with Node.js evaluation tests\n- [x] Validated no dangerous patterns remain in workflows\n- [x] All workflows pass actionlint\n- [x] CI workflow validates itself\n\n## Verification\n```javascript\n// OLD: null == false → false (BROKEN - job skipped)\n// NEW: null != true → true (CORRECT - job runs)\n```\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Fixes boolean input handling in `generate-tests.yml` and adds a new CI workflow that lints and validates workflows, sync config, repo files, and test discovery logic.\n> \n> - **Workflows**:\n>   - **`generate-tests.yml`**:\n>     - Replace brittle boolean checks with null-safe conditions:\n>       - `inputs.dry_run != true`\n>       - `inputs.auto_fix_tests != false`\n>       - `inputs.use_pyproject_coverage != true`\n>     - Applied to `generate`, `consolidate`, `auto-fix`, and `update-pyproject` job `if:` conditions.\n>   - **`ci.yml` (new)**:\n>     - Lints workflows with `actionlint`.\n>     - Scans for dangerous patterns (`inputs.X == false/true`) and verifies expression behavior.\n>     - Validates `.github/sync.yml` (YAML + referenced source paths exist).\n>     - Validates `repository-files` structure and non-empty cursor rules.\n>     - Dry-runs module discovery logic used by test generation.\n>     - Produces a summary and fails if any check fails.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit bbe8043f0d3d259d0a1c8f5632f386cede145a1d. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 345,
+      "repository": "jbcom/control-center",
+      "title": "Fix test generation bug",
+      "type": "PullRequest",
+      "url": "https://github.com/jbcom/control-center/pull/345"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXs4",
+    "repository": "https://github.com/jbcom/control-center",
+    "reviewers": [],
+    "status": "Done",
+    "title": "Fix test generation bug"
+  },
+  {
+    "content": {
+      "body": "Add a detailed design draft for the `agentic-crew` repository and update the active context to reflect its preparation status.\n\nThis draft outlines the planned repository structure, dual-mode operation, tool integration, and crew definitions, serving as a blueprint for the new `jbcom/agentic-crew` repository. Its creation and full implementation are currently blocked by `jbcom/vendor-connectors#17`.\n\n---\n<a href=\"https://cursor.com/background-agent?bcId=bc-1765aa65-be0b-404b-adf8-5564de69cd73\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/open-in-cursor-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/open-in-cursor-light.svg\"><img alt=\"Open in Cursor\" src=\"https://cursor.com/open-in-cursor.svg\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?id=bc-1765aa65-be0b-404b-adf8-5564de69cd73\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/open-in-web-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/open-in-web-light.svg\"><img alt=\"Open in Web\" src=\"https://cursor.com/open-in-web.svg\"></picture></a>\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Adds a comprehensive design draft for `agentic-crew` and updates active context to reflect preparation status and blockers.\n> \n> - **Docs**:\n>   - Add `docs/AGENTIC-CREW-DRAFT.md` detailing the planned `agentic-crew` repo: structure (`src/agentic_crew/...` with core, crews, tools, server, cli), dual-mode operation (`OperationMode` and `AgenticCrew` client), tool integration with `vendor_connectors.ai.tools`, Triage crew definition, FastAPI server endpoints (`/tasks`, `/health`, `/register`), dependencies (`pyproject.toml`), and phased implementation plan.\n> - **Operational Context**:\n>   - Update `memory-bank/activeContext.md` to status \"AGENTIC-CREW PREPARATION\", summarizing research sources, key design decisions, blocker (`jbcom/vendor-connectors#17`), next steps, and key files.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit 6d4fb230512df613521233c1b14786511ebe81d8. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 343,
+      "repository": "jbcom/control-center",
+      "title": "Setup agentic-crew repository",
+      "type": "PullRequest",
+      "url": "https://github.com/jbcom/control-center/pull/343"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXs8",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Setup agentic-crew repository"
+  },
+  {
+    "content": {
+      "body": "Adds Cursor and Anthropic connectors to `vendor-connectors` as the first phase of clarifying vendor-specific implementation scope.\n\nThe original `agentic-control/pull/7` highlighted that vendor-specific code (like Cursor API integration and Anthropic SDK usage) was muddled within `agentic-control`, which should ideally focus on vendor-agnostic protocols. This PR initiates the architectural refactor by migrating these vendor implementations to the dedicated `vendor-connectors` repository, improving modularity and clarity.\n\n---\n<a href=\"https://cursor.com/background-agent?bcId=bc-074c42f6-7497-4462-98f1-5aa87355eeca\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/open-in-cursor-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/open-in-cursor-light.svg\"><img alt=\"Open in Cursor\" src=\"https://cursor.com/open-in-cursor.svg\"></picture></a>&nbsp;<a href=\"https://cursor.com/agents?id=bc-074c42f6-7497-4462-98f1-5aa87355eeca\"><picture><source media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/open-in-web-dark.svg\"><source media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/open-in-web-light.svg\"><img alt=\"Open in Web\" src=\"https://cursor.com/open-in-web.svg\"></picture></a>\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Update memory-bank to track the surface-scope clarification epic with target architecture, phased plan, connectors work, and linked issues/PRs.\n> \n> - **Documentation (memory-bank)**\n>   - **`activeContext.md`**:\n>     - Set status to SURFACE SCOPE CLARIFICATION EPIC; add root issue summary and links.\n>     - Add Issues/PRs table and project tracking link.\n>     - Define target architecture for `vendor-connectors`, `agentic-control`, and new `agentic-crew` repo.\n>     - Outline implementation phases and next-agent tasks (Cursor, Anthropic connectors) with key file references.\n>   - **`progress.md`**:\n>     - Add new session log detailing context, created issues, project tracking, and plan posted to original PR.\n>     - Document phased implementation, PR created in `vendor-connectors` (#16), and key file paths/tests added.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit cd8d072799c3661525565cc38fff00a87cd07451. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 341,
+      "repository": "jbcom/control-center",
+      "title": "Clarify surface scope and ownership",
+      "type": "PullRequest",
+      "url": "https://github.com/jbcom/control-center/pull/341"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXtE",
+    "repository": "https://github.com/jbcom/control-center",
+    "status": "Done",
+    "title": "Clarify surface scope and ownership"
+  },
+  {
+    "assignees": [
+      "jbdevprimary",
+      "Copilot"
+    ],
+    "content": {
+      "body": "The `vendor_connectors.ai` package created unnecessary indirection by centralizing tools, provider wrappers, and workflows. Each connector should own its tools rather than route through a central package.\n\n## Changes\n\n**Moved Meshy tools to `meshy/` package**\n- `meshy/tools.py` - LangChain StructuredTools (8 tools: text3d_generate, image3d_generate, rig_model, etc.)\n- `meshy/mcp.py` - MCP server implementation\n- Updated entry point: `meshy-mcp` → `vendor_connectors.meshy.mcp:main`\n\n**Deleted AI package infrastructure** (~5,700 lines)\n- Removed `ai/connector.py` (AIConnector wrapper)\n- Removed `ai/providers/` (BaseLLMProvider, anthropic.py, openai.py, google.py, ollama.py, xai.py)\n- Removed `ai/tools/` (factory.py, registry.py, stub files)\n- Removed `ai/workflows/` (builder.py, nodes.py)\n- Removed `tests/ai/` (7 test files)\n\n**Simplified dependencies**\n- Made `langchain-core` required (not optional) - we provide tools, users choose LLM providers\n- Removed `meshy-langchain` extra (redundant)\n- Kept `meshy-crewai`, `meshy-mcp` for optional frameworks\n\n## Pattern: Three Interfaces Per Connector\n\n```python\n# 1. Direct Python API\nfrom vendor_connectors.meshy import text3d\nmodel = text3d.generate(\"a sword\")\n\n# 2. LangChain tools (works with LangChain, CrewAI, LangGraph, etc.)\nfrom vendor_connectors.meshy.tools import get_tools\ntools = get_tools()  # Standard StructuredTools\n\n# 3. MCP server\nmeshy-mcp  # Command line\n```\n\nAll interfaces automatically load secrets via `DirectedInputsClass` (env vars, config files, direct params).\n\n## Breaking Changes\n\n- `vendor_connectors.ai` package removed\n- Old: `from vendor_connectors.ai.tools.meshy_tools import get_meshy_tools`\n- New: `from vendor_connectors.meshy.tools import get_tools`\n- `langchain-core` now required dependency\n\n## Impact\n\n- Net: -4,343 lines (-76%)\n- Tests: 19 passing (was 17 passing, 2 skipped)\n\n<!-- START COPILOT ORIGINAL PROMPT -->\n\n\n\n<details>\n\n<summary>Original prompt</summary>\n\n\n----\n\n*This section details on the original issue you should resolve*\n\n<issue_title>refactor(ai): restructure AI tooling - each connector should own its tools</issue_title>\n<issue_description>## Summary\n\nThe current `vendor_connectors/ai/` subpackage is over-engineered and creates unnecessary indirection. Each vendor connector should own its own LangChain tools and MCP implementation rather than having a central AI package.\n\n## Current Architecture (Problems)\n\n```\nvendor_connectors/\n├── meshy/              # API client only\n├── aws/                # API client only\n├── github/             # API client only\n└── ai/                 # Central AI package\n    ├── base.py         # ToolCategory, ToolParameter, ToolDefinition, ToolResult\n    │                   # ALSO: AIProvider, AIMessage, AIResponse, ToolRegistry (bloated)\n    ├── connector.py    # AIConnector wrapping LangChain (unnecessary wrapper)\n    ├── providers/\n    │   ├── base.py           # BaseLLMProvider (wraps LangChain - why?)\n    │   ├── anthropic.py      # Wraps langchain-anthropic (unnecessary)\n    │   ├── openai.py         # Wraps langchain-openai (unnecessary)\n    │   ├── google.py         # etc.\n    │   ├── crewai/           # Framework adapter (OK but misplaced)\n    │   └── mcp/              # Framework adapter (OK but misplaced)\n    ├── tools/\n    │   ├── base.py           # Placeholder file\n    │   ├── registry.py       # DUPLICATE ToolRegistry (also in base.py!)\n    │   ├── factory.py        # Auto-generates tools from connectors\n    │   ├── meshy_tools.py    # Why not in meshy/ ?\n    │   ├── aws_tools.py      # Why not in aws/ ?\n    │   └── ...               # Stub files for each connector\n    └── workflows/\n        ├── builder.py        # LangGraph workflows (unnecessary abstraction)\n        └── nodes.py\n```\n\n### Problems:\n\n1. **Tools are separated from their connectors** - `meshy_tools.py` should be in `vendor_connectors/meshy/`, not a central location\n2. **Unnecessary LangChain wrappers** - Users can use LangChain directly; we don't need `AIConnector`, `BaseLLMProvider`, or provider wrappers\n3. **Duplicate code** - Two `ToolRegistry` classes (in `base.py` and `tools/registry.py`)\n4. **Confusing naming** - `connector.py` is an LLM connector, not a vendor connector\n5. **Over-abstraction** - Workflows, factory patterns add complexity without value\n6. **Mixed concerns** - LLM providers mixed with framework adapters in same `providers/` folder\n\n## Proposed Architecture\n\n```\nvendor_connectors/\n├── meshy/\n│   ├── __init__.py      # API client (existing)\n│   ├── tools.py         # LangChain StructuredTools for Meshy\n│   └── mcp.py           # MCP server for Meshy\n├── aws/\n│   ├── __init__.py      # API client (existing)\n│   ├── tools.py         # LangChain StructuredTools for AWS\n│   └── mcp.py           # MCP server for AWS\n├── github/\n│   ├── __init__.py      # API client (existing)\n│   ├── tools.py         # LangChain StructuredTools for GitHub\n│   └── mcp.py           # MCP server for GitHub\n├── [other connectors...]\n│\n└── _shared/             # Minimal shared utilities (optional)\n    └── tool_types.py    # ToolParameter, ToolResult if truly needed\n```\n\n### Benefits:\n\n1. **Self-contained connectors** - Each connector owns its API client, tools, and MCP server\n2. **No unnecessary wrappers** - Users use LangChain directly with our tools\n3. **Clear imports** - `from vendor_connectors.meshy.tools import Text3DGenerateTool`\n4. **Easier maintenance** - Changes to Meshy tools don't affect AWS\n5. **Optional AI deps per connector** - `pip install vendor-connectors[meshy-ai]`\n\n## Implementation Plan\n\n### Phase 1: Move tools to connectors\n- [ ] Move `ai/tools/meshy_tools.py` → `meshy/tools.py`\n- [ ] Move MCP provider logic → `meshy/mcp.py`\n- [ ] Update imports and entry points\n- [ ] Add tests alongside each connector\n\n### Phase 2: Remove unnecessary wrappers\n- [ ] Delete `ai/connector.py` (AIConnector)\n- [ ] Delete `ai/providers/base.py` (BaseLLMProvider)\n- [ ] Delete `ai/providers/anthropic.py`, `openai.py`, `google.py`, etc.\n- [ ] Delete `ai/workflows/`\n\n### Phase 3: Consolidate remaining shared code\n- [ ] Merge duplicate ToolRegistry classes\n- [ ] Move truly shared types to `_shared/` or delete if unused\n- [ ] Delete empty stub files (`aws_tools.py`, etc.)\n\n### Phase 4: Clean up\n- [ ] Update documentation\n- [ ] Update pyproject.toml extras\n- [ ] Remove ai/ package entirely or reduce to minimal shared types\n\n## Usage After Refactor\n\n```python\n# Meshy tools for LangChain\nfrom vendor_connectors.meshy.tools import get_tools, Text3DGenerateTool\n\n# Use with any LangChain agent - NO wrapper needed\nfrom langchain_anthropic import ChatAnthropic\nfrom langgraph.prebuilt import create_react_agent\n\nllm = ChatAnthropic(model=\"claude-3-5-sonnet-20241022\")\ntools = get_tools()\nagent = create_react_agent(llm, tools)\n\n# Meshy MCP server\nfrom vendor_connectors.meshy.mcp import create_server, run_server\nserver = create_server()\nrun_server(server)\n\n# CrewAI usage...\n\n</details>\n\n\n\n<!-- START COPILOT CODING AGENT SUFFIX -->\n\n- Fixes jbcom/vendor-connectors#33\n\n<!-- START COPILOT CODING AGENT TIPS -->\n---\n\n✨ Let Copilot coding agent [set things up for you](https://github.com/jbcom/vendor-connectors/issues/new?title=✨+Set+up+Copilot+instructions&body=Configure%20instructions%20for%20this%20repository%20as%20documented%20in%20%5BBest%20practices%20for%20Copilot%20coding%20agent%20in%20your%20repository%5D%28https://gh.io/copilot-coding-agent-tips%29%2E%0A%0A%3COnboard%20this%20repo%3E&assignees=copilot) — coding agent works faster and does higher quality work when set up for your repo.\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Adds Meshy E2E tests for LangChain, CrewAI, and Strands using shared runners, updates model/tool tests (ArtStyle now realistic/sculpture), and splits tox into unit vs E2E environments with required env vars.\n> \n> - **Tests (Meshy)**:\n>   - **E2E suite**: Add reusable runners (`tests/e2e/meshy/runners.py`) and framework-specific tests for LangChain, CrewAI, and Strands (incl. Bedrock variant), with VCR cassettes and `conftest.py` for fixtures and key filtering.\n>   - **Unit tests**: New comprehensive tests for `vendor_connectors.meshy.tools` (all 8 tools, framework adapters, and auto-detection).\n>   - **Models**: Update expectations for `ArtStyle` to only `\"realistic\"` and `\"sculpture\"`; adjust `Text3DRequest` tests (PBR disabled for sculpture).\n> - **Tooling**:\n>   - **tox**: Separate unit (`pytest tests --ignore=tests/e2e`) from E2E envs (`e2e-langchain`, `e2e-crewai`, `e2e-strands`, `e2e-all`), add extras deps and pass required env vars (Meshy/Anthropic, AWS for Bedrock).\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit adf614a7bc5443da79f32ead1917c16a106ed609. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 34,
+      "repository": "jbdevprimary/vendor-connectors",
+      "title": "refactor(ai): move tools to connectors, eliminate central AI package",
+      "type": "PullRequest",
+      "url": "https://github.com/jbdevprimary/vendor-connectors/pull/34"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXtY",
+    "repository": "https://github.com/jbdevprimary/vendor-connectors",
+    "reviewers": [
+      "jbdevprimary"
+    ],
+    "status": "Done",
+    "title": "refactor(ai): move tools to connectors, eliminate central AI package"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nEstablishes clean language separation between repositories:\n\n| Repository | Language | Purpose |\n|------------|----------|---------|\n| `agentic-crew` | Python only | Crew orchestration, framework decomposition |\n| `agentic-control` | TypeScript only | Fleet management, crew invocation via CLI |\n\n## Changes\n\n### Removed\n- `python/` directory (migrated to [agentic-crew](https://github.com/jbcom/agentic-crew))\n\n### Added\n- `src/crews/crew-tool.ts` - TypeScript interface to invoke agentic-crew CLI\n- `src/crews/types.ts` - Type definitions matching agentic-crew JSON output\n- `src/crews/index.ts` - Module exports\n\n## CrewTool Usage\n\n```typescript\nimport { CrewTool } from 'agentic-control';\n\nconst crewTool = new CrewTool();\n\n// List available crews\nconst crews = await crewTool.listCrews();\n\n// Run a crew\nconst result = await crewTool.invokeCrew({\n  package: 'otterfall',\n  crew: 'game_builder',\n  input: 'Create a QuestComponent',\n});\n```\n\n### As a Vercel AI Tool\n\n```typescript\nimport { tool } from 'ai';\nimport { z } from 'zod';\n\nconst crewTool = new CrewTool();\n\nexport const invokeCrewTool = tool({\n  description: 'Delegate a task to a specialized AI crew',\n  parameters: z.object({\n    package: z.string(),\n    crew: z.string(),\n    input: z.string(),\n  }),\n  execute: async ({ package: pkg, crew, input }) => {\n    const result = await crewTool.invokeCrew({ package: pkg, crew, input });\n    if (!result.success) throw new Error(result.error);\n    return result.output;\n  },\n});\n```\n\n## Architecture\n\n```\n┌─────────────────────────────────────────────────────────────────┐\n│                    agentic-control (TypeScript)                  │\n│                         Vercel AI SDK                            │\n├─────────────────────────────────────────────────────────────────┤\n│  Fleet Agent  │  Triage Agent  │  Coordinator Agent              │\n│       └──────────────┴──────────────────┘                        │\n│                       │                                          │\n│               ┌───────▼───────┐                                  │\n│               │   CrewTool    │  ← Subprocess invocation         │\n│               └───────┬───────┘                                  │\n└───────────────────────┼─────────────────────────────────────────┘\n                        │ agentic-crew CLI (JSON output)\n                        ▼\n┌─────────────────────────────────────────────────────────────────┐\n│                     agentic-crew (Python)                        │\n│                    Framework Decomposition                       │\n├─────────────────────────────────────────────────────────────────┤\n│  CrewAI Runner  │  LangGraph Runner  │  Strands Runner           │\n└─────────────────────────────────────────────────────────────────┘\n```\n\n## Supersedes\n\n- #3 (feat/crew-tool-integration) - Consolidated here without python/ dependency\n- #6 (feat/docker-sandbox) - Closed, Docker belongs in separate scope\n- #7 (copilot/docker-sandbox) - Consolidated Dockerfile changes can be re-added later\n\n## Closes\n\n- #8 (scope clarification) - This PR implements the clean separation\n\n## Related\n\n- agentic-crew#10 - External integration documentation\n- agentic-crew#11 - Single-agent sandbox runners (future)\n\n## Test Plan\n\n- [ ] TypeScript compiles successfully\n- [ ] CrewTool can invoke `agentic-crew list --json`\n- [ ] CrewTool can invoke `agentic-crew run ... --json`\n- [ ] Exports work correctly from package\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Introduces a TypeScript CrewTool to invoke the external agentic-crew CLI, adds Ollama as a supported AI provider, updates exports, and enhances sandbox execution and tests.\n> \n> - **Crews Integration**:\n>   - **`src/crews/crew-tool.ts`**: New `CrewTool` with `list`, `info`, and `invokeCrew` via safe subprocess (`spawn`) with timeouts and error handling (`CrewToolError`).\n>   - **`src/crews/types.ts`**: Zod-validated types/schemas for config and crew invocation; result/metadata types.\n>   - **`src/crews/index.ts`**: Exports `CrewTool` and related types.\n> - **Core**:\n>   - **Providers**: Add `ollama` support in `PROVIDER_CONFIG`, dynamic import, special baseURL/headers handling; extend `SupportedProvider`; `getDefaultApiKeyEnvVar('ollama')`.\n>   - **Exports**: Reorganize and expand `src/core/index.ts` (including validation, subprocess, errors); minor formatting/consistency updates.\n>   - **Security/Subprocess/Errors/Validation**: Safer logging and argument validation; typed error classes maintained; minor robustness improvements.\n> - **Sandbox**:\n>   - **Executor**: Parallel fleet execution (`executeFleet`) and structured output parsing.\n>   - **Container/Runtime**: Consistent args/env handling; small reliability tweaks.\n> - **Public API**:\n>   - **`src/index.ts`**: Re-export crews module; tidy other exports.\n> - **CLI**:\n>   - Minor UX/formatting tweaks and summary calculation in fleet run output.\n> - **Tests**:\n>   - Add comprehensive `tests/production-release.test.ts` covering build purity, typings, subprocess safety, config validation, and docs presence.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit 872ab343dfce4774f94d85063363c3262ecd5635. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 9,
+      "repository": "jbdevprimary/agentic-control",
+      "title": "refactor: Clean language separation - TypeScript only",
+      "type": "PullRequest",
+      "url": "https://github.com/jbdevprimary/agentic-control/pull/9"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXtc",
+    "repository": "https://github.com/jbdevprimary/agentic-control",
+    "reviewers": [],
+    "status": "Done",
+    "title": "refactor: Clean language separation - TypeScript only"
+  },
+  {
+    "content": {
+      "body": "## Summary\n\nPorts valuable Rivermarsh-specific game systems from the pre-kiro otterfall codebase (`archive/pre-kiro-migration` branch) to the working Kiro foundation.\n\n## Changes\n\n### Mobile Input System\n- **VirtualJoysticks**: nipplejs-based touch joystick for character movement\n- **MobileActionButtons**: Touch buttons for jump/interact/attack actions\n- **GyroscopeCamera**: Device orientation-based camera with pinch-to-zoom\n- **useControlsStore**: Zustand store managing all input state\n\n### Game State & UI\n- **useRivermarsh**: Complete game state store including:\n  - Player stats, skills (8 skill types), inventory, equipment\n  - Quest system with objectives tracking\n  - NPC management and dialogue system\n  - Faction reputation (5 factions)\n  - localStorage persistence\n\n- **GameUI**: Full UI overlay with:\n  - Health/stamina/XP progress bars\n  - Inventory panel (I key)\n  - Quest log (Q key)\n  - NPC dialogue boxes\n\n- **OtterNPC + NPCManager**: NPC system with:\n  - Multiple types: friendly, hostile, merchant, quest_giver, neutral\n  - AI behaviors: wandering, player tracking (hostile)\n  - Visual: health bars, name tags, interact prompts\n  - Initial NPC spawning (Elder Moss, Trader Pebble, raiders, etc.)\n\n## Test Plan\n\n- [ ] Verify mobile joystick input works on touch devices\n- [ ] Test gyroscope camera on mobile\n- [ ] Check inventory/quest UI toggles\n- [ ] Verify NPC spawning and dialogue\n- [ ] Test game state persistence across sessions\n\n## Related\n\n- Closes #3 (Audit pre-kiro otterfall code for missing features)\n- Blocked: #1 (agentic-crew integration)\n- Blocked: #2 (strata integration)\n\n<!-- CURSOR_SUMMARY -->\n---\n\n> [!NOTE]\n> Introduces a persisted Rivermarsh game state with quests/inventory/dialogue, a HUD/UI overlay, otter NPCs with simple AI and spawning, and mobile controls (virtual joysticks, action buttons, gyroscope camera).\n> \n> - **Game State (Zustand, persisted)**\n>   - Adds `useRivermarsh` store with player stats/skills, inventory/equipment, quests/objectives, dialogue flow, faction reputation, and NPC management (`spawnNPC`, `damageNPC`, `removeNPC`).\n> - **UI Overlay**\n>   - Adds `GameUI` with `StatsDisplay`, inventory (`I`), quest log (`Q`), and dialogue box (Enter/Space to advance, Esc to close).\n> - **NPC System**\n>   - Adds `OtterNPC` with basic AI (wandering; hostile pursuit/attack range), nameplates, health bars, and interact prompts.\n>   - Adds `NPCManager` to spawn initial NPCs (e.g., `Elder Moss`, `Trader Pebble`, raiders, friendlies).\n> - **Mobile Controls**\n>   - Adds `VirtualJoysticks` (nipplejs) for movement, `MobileActionButtons` (jump/interact/attack), and `GyroscopeCamera` with pinch-to-zoom.\n>   - Adds `useControlsStore` for movement/camera/actions with optional debug logging.\n> - **Exports**\n>   - Index exports for `components/game`, `components/mobile`, and `stores`.\n> \n> <sup>Written by [Cursor Bugbot](https://cursor.com/dashboard?tab=bugbot) for commit f6079b79a06c9e97cc82861fb30e9c9969015432. This will update automatically on new commits. Configure [here](https://cursor.com/dashboard?tab=bugbot).</sup>\n<!-- /CURSOR_SUMMARY -->",
+      "number": 4,
+      "repository": "jbdevprimary/rivermarsh",
+      "title": "feat: Rivermarsh Beta - Port pre-kiro game systems",
+      "type": "PullRequest",
+      "url": "https://github.com/jbdevprimary/rivermarsh/pull/4"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXuI",
+    "repository": "https://github.com/jbdevprimary/rivermarsh",
+    "status": "Todo",
+    "title": "feat: Rivermarsh Beta - Port pre-kiro game systems"
+  },
+  {
+    "content": {
+      "body": "## Overview\n\nIntegrate [agentic-crew](https://github.com/jbcom/agentic-crew) for framework-agnostic AI crew orchestration.\n\n## Current State\n\n- `.crewai/` directory exists with crew YAML configurations\n- Crews defined: game_builder, creature_design, ecs_implementation, gameplay_design, qa_validation, rendering, world_design\n- Knowledge base includes ECS patterns, game components, rendering patterns\n\n## Integration Tasks\n\n- [ ] Wait for agentic-crew first release\n- [ ] Add agentic-crew as dependency\n- [ ] Update `.crewai/manifest.yaml` to use agentic-crew format\n- [ ] Add Python crew implementations (`.py` files for each crew)\n- [ ] Add flows for game development workflows\n- [ ] Configure GitHub Actions for crew-orchestrated development\n- [ ] Add HITL (Human-in-the-Loop) review workflows\n\n## Related\n\n- jbcom/agentic-crew - The orchestration library\n- jbcom/agentic-control - TypeScript fleet management (can invoke crews)\n\n## Blocked By\n\nagentic-crew first release",
+      "number": 1,
+      "repository": "jbdevprimary/rivermarsh",
+      "title": "Integrate agentic-crew for AI-assisted development",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/rivermarsh/issues/1"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXuU",
+    "repository": "https://github.com/jbdevprimary/rivermarsh",
+    "status": "Todo",
+    "title": "Integrate agentic-crew for AI-assisted development"
+  },
+  {
+    "content": {
+      "body": "## Overview\n\nIntegrate [strata](https://github.com/jbcom/strata) for procedural visual effects and terrain generation.\n\n## Current State\n\nThe game has placeholder implementations in `src/` for:\n- `src/shaders/terrain.ts` - Terrain shaders\n- `src/shaders/water.ts` - Water effects\n- `src/shaders/volumetrics.ts` - Volumetric effects\n- `src/shaders/fur.ts` - Fur rendering\n- `src/utils/sdf.ts` - SDF utilities\n- `src/utils/marchingCubes.ts` - Marching cubes\n- `src/components/SDFTerrain.tsx` - SDF terrain component\n- `src/components/VolumetricEffects.tsx` - Volumetric effects\n- `src/components/Water.tsx` - Water component\n\n## Integration Tasks\n\n- [ ] Wait for strata first release\n- [ ] Add strata as dependency\n- [ ] Replace placeholder shaders with strata implementations\n- [ ] Replace SDF utilities with strata's procedural generators\n- [ ] Update terrain generation to use strata\n- [ ] Update water effects to use strata\n- [ ] Update volumetric effects to use strata\n- [ ] Add biome-specific procedural effects\n\n## Benefits\n\n- Reusable procedural generation library\n- Consistent visual style across jbcom games\n- Better maintained shader code\n- GPU-optimized implementations\n\n## Blocked By\n\nstrata first release",
+      "number": 2,
+      "repository": "jbdevprimary/rivermarsh",
+      "title": "Integrate strata for procedural generation",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/rivermarsh/issues/2"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXuY",
+    "repository": "https://github.com/jbdevprimary/rivermarsh",
+    "status": "Todo",
+    "title": "Integrate strata for procedural generation"
+  },
+  {
+    "content": {
+      "body": "## Overview\n\nThe pre-kiro otterfall codebase (archived at `jbcom/otterfall` branch `archive/pre-kiro-migration`) contains game development work that was never integrated into the current Kiro-based implementation.\n\n## Source\n\n- Repository: https://github.com/jbcom/otterfall\n- Branch: `archive/pre-kiro-migration`\n- Structure: `client/` based frontend\n\n## Known Content\n\nThe pre-kiro code has:\n- `client/src/` - React frontend with different component architecture\n- `python/` - Crew agents and mesh toolkit\n- `shared/` - Shared backend code\n- `server/` - Backend server\n\n### Components to Audit\n\nFrom `client/src/components/`:\n- `AdvancedWater.tsx`\n- `MarshlandTerrain.tsx`\n- `RivermarshGame.tsx`\n- `ProceduralDungeon.tsx`\n- `OtterNPC.tsx`\n- `HITLReviewControls.tsx`\n- Mobile input components (VirtualJoysticks, MobileActionButtons, GyroscopeCamera)\n- Full UI component library (shadcn-based)\n\n### ECS to Audit\n\nFrom `client/src/ecs/`:\n- Component-based architecture with separate files per component\n- Entity factories\n- Species loaders\n\n### Python to Audit\n\nFrom `python/`:\n- `crew_agents/` - CrewAI implementations\n- `mesh_toolkit/` - Meshy AI SDK integration\n\n## Tasks\n\n- [ ] Create `feat/rivermarsh-beta` branch\n- [ ] Review pre-kiro `client/src/components/` for valuable features\n- [ ] Review pre-kiro ECS architecture for improvements\n- [ ] Review pre-kiro Python code for crew implementations\n- [ ] Adapt and port valuable features to current architecture\n- [ ] Do NOT port: anything that conflicts with strata plans\n\n## Notes\n\n- The pre-kiro code never fully worked\n- Current Kiro-based code is the working foundation\n- Goal is to identify and adapt MISSING features, not wholesale replacement",
+      "number": 3,
+      "repository": "jbdevprimary/rivermarsh",
+      "title": "Audit pre-kiro otterfall code for missing features",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/rivermarsh/issues/3"
+    },
+    "id": "PVTI_lAHOAChyN84BJLOnzgiQXuk",
+    "linked pull requests": [
+      "https://github.com/jbdevprimary/rivermarsh/pull/4"
+    ],
+    "repository": "https://github.com/jbdevprimary/rivermarsh",
+    "status": "In Progress",
+    "title": "Audit pre-kiro otterfall code for missing features"
+  }
+]

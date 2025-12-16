@@ -1,0 +1,700 @@
+[
+  {
+    "content": {
+      "body": "## Summary\n\nA framework-agnostic `.crew/` directory has been added to strata for AI-powered 3D asset generation using Meshy API.\n\n## What's Been Added\n\n### Directory Structure\n\n```\n.crew/\n├── manifest.yaml\n├── crews/\n│   └── asset_generator/\n│       └── config/\n│           ├── agents.yaml\n│           └── tasks.yaml\n└── flows/\n    ├── __init__.py\n    └── meshy_asset_flow.py\n```\n\n### Asset Generator Crew\n\n**Agents:**\n- `asset_designer` - Designs 3D assets with detailed prompts\n- `animation_director` - Directs rigging and animation\n- `qa_reviewer` - Reviews assets for quality\n\n**Tasks:**\n- `design_asset` - Create generation prompts\n- `direct_animation` - Specify rigging/animation\n- `review_asset` - QA review\n\n### MeshyAssetFlow\n\nFull pipeline for generating game-ready 3D assets:\n1. **Text-to-3D** - Generate static model from prompt\n2. **Rigging** - Add skeleton to model\n3. **Animation** - Generate walk, attack animations\n4. **Retexturing** - Create color variants\n5. **HITL Review** - Human approval\n\n## Usage\n\n### Framework-Agnostic (Auto-detect)\n\n```bash\n# Install agentic-crew (pick your framework)\npip install agentic-crew[crewai]    # or [langgraph] or [strands]\n\n# Run the asset generator\nagentic-crew run strata asset_generator --input '{\"spec\": \"A fantasy sword with glowing runes\"}'\n```\n\n### Programmatically\n\n```python\nfrom agentic_crew import discover_packages, get_crew_config, run_crew_auto\n\npackages = discover_packages()\nconfig = get_crew_config(packages[\"strata\"], \"asset_generator\")\n\n# Works with CrewAI, LangGraph, or Strands - auto-detected!\nresult = run_crew_auto(config, inputs={\n    \"spec\": \"A cute otter character for a fantasy game\"\n})\n```\n\n## Why `.crew` instead of `.crewai`?\n\nThe `.crew` directory is **framework-agnostic**. It works with any AI framework that agentic-crew supports:\n- CrewAI\n- LangGraph  \n- AWS Strands\n\nThis means strata users can choose their preferred framework without being locked in.\n\n## Integration with vendor-connectors\n\nThe MeshyAssetFlow uses `vendor-connectors` for the Meshy API:\n\n```python\nfrom vendor_connectors.meshy.tools import get_tools\n\n# Get Meshy tools for your framework\ntools = get_tools()  # Auto-detects framework\n```\n\n## Tasks\n\n- [ ] Test MeshyAssetFlow end-to-end\n- [ ] Add more asset types (environments, props)\n- [ ] Integrate generated assets with strata rendering\n- [ ] Add batch generation support\n\n## Related\n\n- agentic-crew: https://github.com/jbcom/agentic-crew\n- vendor-connectors (Meshy): https://github.com/jbcom/vendor-connectors\n- otterfall (game using strata): https://github.com/jbcom/otterfall",
+      "number": 2,
+      "repository": "jbdevprimary/strata",
+      "title": "feat: Use agentic-crew for AI-powered 3D asset generation",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/2"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7m8",
+    "labels": [
+      "enhancement",
+      "systems"
+    ],
+    "milestone": {
+      "description": "Seasonal cycles, aging/decay systems, and AI-powered asset generation via Meshy. Adds time-based world evolution.",
+      "dueOn": "2026-09-01T00:00:00Z",
+      "title": "v1.4.0 - Temporal & AI Systems"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "feat: Use agentic-crew for AI-powered 3D asset generation"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a realistic skin/flesh material shader with subsurface scattering for believable character rendering.\n\n## Current State\nWe have fur rendering but no skin/flesh materials.\n\n## Requirements\n- Subsurface scattering for realistic skin translucency\n- Configurable skin tones (pale to dark)\n- Pore/detail normal mapping support\n- Sweat/moisture effects\n- Integration with existing character system\n\n## Acceptance Criteria\n- [ ] `SkinMesh` component with SSS\n- [ ] Configurable color, roughness, scattering\n- [ ] Works with existing lighting system\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 8,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add skin/flesh shader with subsurface scattering",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/8"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nA",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add skin/flesh shader with subsurface scattering"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd ice/frozen material shader for winter environments and frozen objects.\n\n## Current State\nNo ice-specific materials.\n\n## Requirements\n- Frozen surface (translucent, refractive)\n- Cracking patterns (animated)\n- Melting effects (wetness, dripping)\n- Frost accumulation on surfaces\n- Integration with temperature system\n\n## Acceptance Criteria\n- [ ] `IceMesh` component\n- [ ] Refraction/translucency\n- [ ] Animated cracking\n- [ ] Frost overlay effect\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 13,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add ice shader (frozen, cracking, melting)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/13"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nc",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add ice shader (frozen, cracking, melting)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a procedural scales material for reptiles, fish, dragons, and similar creatures.\n\n## Current State\nWe have fur but no scale-based surface materials.\n\n## Requirements\n- Procedural scale pattern generation\n- Iridescent color shifting (like fish scales)\n- Configurable scale size, shape, and density\n- Normal map generation for depth\n- Wet/dry variants\n\n## Acceptance Criteria\n- [ ] `ScalesMesh` component\n- [ ] Configurable scale parameters\n- [ ] Iridescence support\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 9,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add scales shader (reptile, fish, dragon)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/9"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nE",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add scales shader (reptile, fish, dragon)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd feather rendering for birds and feathered creatures.\n\n## Current State\nWe have fur (hair-like strands) but no feather rendering.\n\n## Requirements\n- Layered feather geometry (similar to fur shells but shaped)\n- Iridescent color (like peacock feathers)\n- Wind animation integration\n- Configurable feather size, density, colors\n- Barbule detail at close range\n\n## Acceptance Criteria\n- [ ] `FeatherMesh` component\n- [ ] Layered rendering approach\n- [ ] Wind animation\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 10,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add feathers shader (layered, iridescent)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/10"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nI",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add feathers shader (layered, iridescent)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd realistic metal material shaders for robots, armor, vehicles, and industrial objects.\n\n## Current State\nNo dedicated metal materials beyond basic PBR.\n\n## Requirements\n- Brushed metal (directional anisotropic highlights)\n- Chrome (high reflectivity, environment mapping)\n- Corroded/rusted metal (patina, oxidation)\n- Configurable roughness, metalness, tint\n- Scratches and wear patterns\n\n## Acceptance Criteria\n- [ ] `MetalMesh` component with variants\n- [ ] Anisotropic highlights for brushed\n- [ ] Corrosion/rust procedural patterns\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 11,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add metal shaders (brushed, corroded, chrome)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/11"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nU",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add metal shaders (brushed, corroded, chrome)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd fabric/textile material shaders for clothing, upholstery, and soft goods.\n\n## Current State\nNo fabric-specific materials.\n\n## Requirements\n- Cloth (woven texture, soft shading)\n- Leather (grain, slight sheen)\n- Silk (anisotropic highlights, sheen)\n- Velvet (rim lighting effect)\n- Configurable weave patterns\n\n## Acceptance Criteria\n- [ ] `FabricMesh` component with material types\n- [ ] Weave pattern generation\n- [ ] Sheen/anisotropic effects\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 12,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add fabric shader (cloth, leather, silk)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/12"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nY",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add fabric shader (cloth, leather, silk)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd slime/goo material for creatures, environmental hazards, and fantasy elements.\n\n## Requirements\n- Translucent with internal scattering\n- Dripping animation (vertex displacement)\n- Configurable viscosity appearance\n- Color variations (toxic green, blood red, etc.)\n- Bubble/particle inclusions\n\n## Acceptance Criteria\n- [ ] `SlimeMesh` component\n- [ ] Animated drip effect\n- [ ] Translucency/scattering\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nSurface Materials / Rendering Pipeline",
+      "number": 14,
+      "repository": "jbdevprimary/strata",
+      "title": "Surface Materials: Add slime/goo shader (translucent, dripping)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/14"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7ng",
+    "labels": [
+      "enhancement",
+      "rendering"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Surface Materials: Add slime/goo shader (translucent, dripping)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a complete desert biome preset with terrain, effects, and vegetation.\n\n## Requirements\n- **Terrain**: Procedural sand dunes with ripple patterns\n- **Effects**: Heat shimmer/distortion, sand particles, dust devils\n- **Vegetation**: Cacti, dead trees, tumbleweeds\n- **Sky**: Harsh sun, clear blue to orange gradient\n- **Audio**: Wind, sand movement (integration point)\n\n## Acceptance Criteria\n- [ ] `DesertBiome` preset component\n- [ ] Dune terrain generation\n- [ ] Heat shimmer post-effect\n- [ ] Sand particle system\n- [ ] Desert vegetation instances\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nWorld Building / Biomes",
+      "number": 15,
+      "repository": "jbdevprimary/strata",
+      "title": "Biome Preset: Desert (dunes, heat shimmer, sand particles)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/15"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nk",
+    "labels": [
+      "enhancement",
+      "world"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Biome Preset: Desert (dunes, heat shimmer, sand particles)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a complete arctic/tundra biome preset.\n\n## Requirements\n- **Terrain**: Snow-covered ground, ice formations, frozen lakes\n- **Effects**: Snowfall, blizzard, breath vapor, aurora borealis\n- **Vegetation**: Pine trees with snow, frozen bushes\n- **Materials**: Ice shader, snow accumulation\n- **Audio**: Wind howl, ice cracking (integration point)\n\n## Acceptance Criteria\n- [ ] `ArcticBiome` preset component\n- [ ] Snow terrain with accumulation\n- [ ] Frozen water/ice lakes\n- [ ] Aurora borealis sky effect\n- [ ] Blizzard weather preset\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nWorld Building / Biomes",
+      "number": 16,
+      "repository": "jbdevprimary/strata",
+      "title": "Biome Preset: Arctic (snow, ice, aurora)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/16"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7ns",
+    "labels": [
+      "enhancement",
+      "world"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Biome Preset: Arctic (snow, ice, aurora)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a volcanic/hellscape biome preset.\n\n## Requirements\n- **Terrain**: Basalt rock, lava flows, volcanic vents\n- **Effects**: Ash particles, ember sparks, smoke plumes, heat distortion\n- **Lighting**: Orange/red ambient, lava glow\n- **Hazards**: Lava pools, steam vents\n- **Audio**: Rumbling, lava bubbling (integration point)\n\n## Acceptance Criteria\n- [ ] `VolcanicBiome` preset component\n- [ ] Lava flow material with animation\n- [ ] Ash/ember particle systems\n- [ ] Volcanic terrain generation\n- [ ] Heat distortion effect\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nWorld Building / Biomes",
+      "number": 17,
+      "repository": "jbdevprimary/strata",
+      "title": "Biome Preset: Volcanic (lava, ash, ember glow)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/17"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7nw",
+    "labels": [
+      "enhancement",
+      "world"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Biome Preset: Volcanic (lava, ash, ember glow)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd a swamp/wetland biome preset.\n\n## Requirements\n- **Terrain**: Muddy ground, shallow water, islands\n- **Water**: Murky, green-tinted, lily pads\n- **Effects**: Thick fog, insects, bubbles rising\n- **Vegetation**: Cypress trees, hanging moss, reeds\n- **Lighting**: Dim, filtered, green-tinted\n- **Audio**: Frogs, insects, water drips (integration point)\n\n## Acceptance Criteria\n- [ ] `SwampBiome` preset component\n- [ ] Murky water material\n- [ ] Ground fog effect\n- [ ] Swamp vegetation instances\n- [ ] Insect particle system\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nWorld Building / Biomes",
+      "number": 18,
+      "repository": "jbdevprimary/strata",
+      "title": "Biome Preset: Swamp (murky water, fog, hanging moss)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/18"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7n0",
+    "labels": [
+      "enhancement",
+      "world"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Biome Preset: Swamp (murky water, fog, hanging moss)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd an underwater ocean biome preset.\n\n## Requirements\n- **Environment**: Underwater caustics, god rays, blue tint\n- **Vegetation**: Kelp forests, coral formations, seagrass\n- **Effects**: Bubbles, particulates, current flow\n- **Fauna integration**: Fish schools (see creature archetypes)\n- **Audio**: Muffled sounds, whale calls, bubbles (integration point)\n\n## Acceptance Criteria\n- [ ] `OceanBiome` preset component\n- [ ] Enhanced underwater overlay\n- [ ] Kelp/coral vegetation\n- [ ] Current particle flow\n- [ ] Bubble effects\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nWorld Building / Biomes",
+      "number": 19,
+      "repository": "jbdevprimary/strata",
+      "title": "Biome Preset: Ocean (coral, kelp, underwater caustics)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/19"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7n4",
+    "labels": [
+      "enhancement",
+      "world"
+    ],
+    "milestone": {
+      "description": "Surface material shaders (skin, scales, feathers, metal, fabric, ice, slime) and biome presets (desert, arctic, volcanic, swamp, ocean). Expands the rendering pipeline with new visual primitives.",
+      "dueOn": "2026-03-01T00:00:00Z",
+      "title": "v1.1.0 - Surface Materials & Biomes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Biome Preset: Ocean (coral, kelp, underwater caustics)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd procedural quadruped locomotion and animation system.\n\n## Current State\nWe have bipedal humanoid characters with procedural gait.\n\n## Requirements\n- Four-legged skeleton structure\n- Procedural walk/run/trot cycles\n- IK for foot placement on terrain\n- Configurable body proportions (dog vs horse vs wolf)\n- Integration with existing physics/ragdoll\n\n## Acceptance Criteria\n- [ ] `QuadrupedController` component\n- [ ] Procedural gait for 4 legs\n- [ ] Terrain-adaptive foot IK\n- [ ] Walk/run/idle animations\n- [ ] Ragdoll support\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 20,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Quadruped rig (dogs, horses, wolves)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/20"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7n8",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Quadruped rig (dogs, horses, wolves)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd flying creature animation and locomotion system.\n\n## Requirements\n- Wing-based flight animation\n- Flapping, gliding, soaring states\n- Banking/turning in flight\n- Takeoff/landing transitions\n- Insect-style hover (different from bird flight)\n- Dragon-style large wing physics\n\n## Acceptance Criteria\n- [ ] `FlyingController` component\n- [ ] Wing animation system\n- [ ] Flap/glide/soar states\n- [ ] Flight physics integration\n- [ ] Landing/takeoff transitions\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 21,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Flying rig (birds, dragons, insects)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/21"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oA",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Flying rig (birds, dragons, insects)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd swimming creature animation and locomotion system.\n\n## Requirements\n- Fish-style tail propulsion\n- Whale-style undulation\n- Jellyfish-style pulsing\n- Schooling behavior integration (with AI)\n- Buoyancy physics integration\n\n## Acceptance Criteria\n- [ ] `SwimmingController` component\n- [ ] Tail/fin animation\n- [ ] Undulation for larger creatures\n- [ ] Pulsing for jellyfish-type\n- [ ] School/flock behavior hooks\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 22,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Swimming rig (fish, whales, jellyfish)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/22"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oE",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Swimming rig (fish, whales, jellyfish)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd multi-legged arthropod locomotion system.\n\n## Requirements\n- 6-8 leg configurations\n- Procedural gait with proper leg phasing\n- Wall/ceiling walking\n- Crab-style sideways movement\n- Spider-style movement patterns\n\n## Acceptance Criteria\n- [ ] `ArthropodController` component\n- [ ] Configurable leg count (6, 8, more)\n- [ ] Procedural leg animation\n- [ ] Surface climbing support\n- [ ] Lateral movement option\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 23,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Arthropod rig (spiders, crabs, insects)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/23"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oI",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Arthropod rig (spiders, crabs, insects)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd serpentine/worm locomotion system for legless creatures.\n\n## Requirements\n- Slithering movement (sine wave)\n- Constriction poses\n- Tentacle physics (for octopus etc.)\n- Configurable segment count\n- Surface-following movement\n\n## Acceptance Criteria\n- [ ] `SerpentineController` component\n- [ ] Procedural slither animation\n- [ ] Spline-based body\n- [ ] Tentacle variant\n- [ ] Physics integration\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 24,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Serpentine rig (snakes, worms, tentacles)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/24"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oM",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Serpentine rig (snakes, worms, tentacles)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd swarm/crowd simulation for large groups of entities.\n\n## Requirements\n- Boids algorithm (separation, alignment, cohesion)\n- Instanced rendering for performance\n- Predator/prey behaviors\n- Obstacle avoidance for groups\n- Leader following\n\n## Current State\nWe have individual AI steering behaviors but no group behaviors.\n\n## Acceptance Criteria\n- [ ] `Swarm` component\n- [ ] Boids implementation\n- [ ] GPU-instanced rendering\n- [ ] Configurable group size\n- [ ] Predator response\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nEntities & Simulation / Creatures",
+      "number": 25,
+      "repository": "jbdevprimary/strata",
+      "title": "Creature Archetype: Swarm/Crowd system (boids, flocking)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/25"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oQ",
+    "labels": [
+      "enhancement",
+      "entities",
+      "area: animation"
+    ],
+    "milestone": {
+      "description": "Creature locomotion systems: quadrupeds, flying rigs, swimming rigs, arthropods, serpentines, and swarm/crowd simulation. Enables non-humanoid entity animations.",
+      "dueOn": "2026-05-01T00:00:00Z",
+      "title": "v1.2.0 - Creature Archetypes"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Creature Archetype: Swarm/Crowd system (boids, flocking)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd climbing mechanics for vertical traversal.\n\n## Requirements\n- Ladder climbing (fixed path)\n- Wall climbing (free-form with stamina)\n- Ledge grabbing and mantling\n- Climbable surface detection\n- Animation integration\n\n## Acceptance Criteria\n- [ ] `ClimbController` component\n- [ ] Ladder detection and movement\n- [ ] Wall climbing with grip points\n- [ ] Ledge grab/mantle animations\n- [ ] Stamina system hook\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Traversal",
+      "number": 26,
+      "repository": "jbdevprimary/strata",
+      "title": "Traversal: Climbing system (ladders, walls, ledges)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/26"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oU",
+    "labels": [
+      "enhancement",
+      "experience"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Traversal: Climbing system (ladders, walls, ledges)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd player swimming mechanics.\n\n## Requirements\n- Surface swimming (treading water)\n- Underwater diving with breath meter\n- Buoyancy physics integration\n- Underwater camera effects\n- Swimming animation states\n\n## Acceptance Criteria\n- [ ] `SwimController` component\n- [ ] Water surface detection\n- [ ] Breath/oxygen system\n- [ ] Camera underwater effects\n- [ ] Dive/surface transitions\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Traversal",
+      "number": 27,
+      "repository": "jbdevprimary/strata",
+      "title": "Traversal: Swimming system (surface, underwater)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/27"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oY",
+    "labels": [
+      "enhancement",
+      "experience"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Traversal: Swimming system (surface, underwater)"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd player flight mechanics (gliding, jetpack, wings).\n\n## Requirements\n- Gliding (paraglider-style)\n- Powered flight (jetpack, wings)\n- Altitude and speed management\n- Landing transitions\n- Camera adjustments for flight\n\n## Acceptance Criteria\n- [ ] `FlightController` component\n- [ ] Glide mechanics with lift/drag\n- [ ] Powered flight option\n- [ ] Flight camera mode\n- [ ] Smooth landing\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Traversal",
+      "number": 28,
+      "repository": "jbdevprimary/strata",
+      "title": "Traversal: Flying/gliding system for players",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/28"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oc",
+    "labels": [
+      "enhancement",
+      "experience"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Traversal: Flying/gliding system for players"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd seasonal transitions (spring, summer, autumn, winter).\n\n## Current State\nWe have day/night cycle but no longer timescales.\n\n## Requirements\n- Season state machine\n- Vegetation color changes (green → autumn colors → bare)\n- Weather pattern adjustments per season\n- Snow accumulation in winter\n- Configurable season duration\n\n## Acceptance Criteria\n- [ ] `SeasonCycle` component\n- [ ] Season state machine\n- [ ] Vegetation color transitions\n- [ ] Weather pattern presets per season\n- [ ] Snow/ice appearance in winter\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nGame Systems / Temporal",
+      "number": 29,
+      "repository": "jbdevprimary/strata",
+      "title": "Temporal: Seasonal cycle system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/29"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7og",
+    "labels": [
+      "enhancement",
+      "experience",
+      "systems"
+    ],
+    "milestone": {
+      "description": "Seasonal cycles, aging/decay systems, and AI-powered asset generation via Meshy. Adds time-based world evolution.",
+      "dueOn": "2026-09-01T00:00:00Z",
+      "title": "v1.4.0 - Temporal & AI Systems"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Temporal: Seasonal cycle system"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd time-based visual changes to objects and environments.\n\n## Requirements\n- Rust/corrosion on metal over time\n- Plant overgrowth on structures\n- Weathering/erosion on stone\n- Decay states for abandoned areas\n- Growth states for nature reclaiming\n\n## Acceptance Criteria\n- [ ] `AgingSystem` component/hook\n- [ ] Material state transitions\n- [ ] Configurable decay rates\n- [ ] Overgrowth shader effects\n- [ ] Time-skip support\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nGame Systems / Temporal",
+      "number": 30,
+      "repository": "jbdevprimary/strata",
+      "title": "Temporal: Aging and decay system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/30"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7oo",
+    "labels": [
+      "enhancement",
+      "systems"
+    ],
+    "milestone": {
+      "description": "Seasonal cycles, aging/decay systems, and AI-powered asset generation via Meshy. Adds time-based world evolution.",
+      "dueOn": "2026-09-01T00:00:00Z",
+      "title": "v1.4.0 - Temporal & AI Systems"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Temporal: Aging and decay system"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd ambient audio presets for different biomes/environments.\n\n## Current State\nWe have spatial audio but no curated ambient soundscapes.\n\n## Requirements\n- Forest ambience (birds, wind, rustling)\n- Ocean ambience (waves, seagulls, water)\n- Desert ambience (wind, silence, distant sounds)\n- Urban ambience (traffic, voices, machinery)\n- Cave ambience (drips, echoes, rumbles)\n- Crossfade between biomes\n\n## Acceptance Criteria\n- [ ] `BiomeAmbience` component\n- [ ] Preset sound collections per biome\n- [ ] Zone-based crossfading\n- [ ] Time-of-day variations\n- [ ] Weather integration\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Audio",
+      "number": 31,
+      "repository": "jbdevprimary/strata",
+      "title": "Audio: Biome ambience system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/31"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7ow",
+    "labels": [
+      "enhancement",
+      "experience",
+      "area: audio"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Audio: Biome ambience system"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd dynamic music that responds to game state.\n\n## Requirements\n- Combat/exploration/tension music layers\n- Smooth crossfades between states\n- Intensity scaling based on threat level\n- Stinger support (one-shots for events)\n- Integration with game state system\n\n## Acceptance Criteria\n- [ ] `AdaptiveMusic` component\n- [ ] State-based layer mixing\n- [ ] Intensity parameter\n- [ ] Stinger triggers\n- [ ] Game state hooks\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Audio",
+      "number": 32,
+      "repository": "jbdevprimary/strata",
+      "title": "Audio: Adaptive music system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/32"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7o0",
+    "labels": [
+      "enhancement",
+      "experience",
+      "area: audio"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Audio: Adaptive music system"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd voice/dialog playback with subtitle support.\n\n## Requirements\n- Voice line playback with priorities\n- Subtitle rendering synchronized to audio\n- Lip sync data support (basic)\n- Voice ducking (lower other audio during dialog)\n- Queue management for conversations\n\n## Acceptance Criteria\n- [ ] `VoiceManager` component\n- [ ] Subtitle display component\n- [ ] Audio ducking implementation\n- [ ] Conversation queue\n- [ ] Lip sync hooks\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Audio",
+      "number": 33,
+      "repository": "jbdevprimary/strata",
+      "title": "Audio: Voice and dialog system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/33"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7o4",
+    "labels": [
+      "enhancement",
+      "experience",
+      "area: audio"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Audio: Voice and dialog system"
+  },
+  {
+    "content": {
+      "body": "## Overview\nAdd environment-based reverb/acoustic zones.\n\n## Requirements\n- Defined reverb zones (cave, cathedral, outdoor, room)\n- Smooth transitions between zones\n- Occlusion effects (muffled sounds through walls)\n- Integration with existing spatial audio\n\n## Acceptance Criteria\n- [ ] `ReverbZone` component\n- [ ] Preset reverb configurations\n- [ ] Zone blending on transitions\n- [ ] Occlusion system\n- [ ] Unit tests\n- [ ] TypeDoc documentation\n\n## Category\nPlayer Experience / Audio",
+      "number": 34,
+      "repository": "jbdevprimary/strata",
+      "title": "Audio: Reverb zone system",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/34"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7o8",
+    "labels": [
+      "enhancement",
+      "experience",
+      "area: audio"
+    ],
+    "milestone": {
+      "description": "Player traversal systems (climbing, swimming, flying/gliding) and audio systems (biome ambience, adaptive music, voice/dialog, reverb zones). Enhances player immersion.",
+      "dueOn": "2026-07-01T00:00:00Z",
+      "title": "v1.3.0 - Player Experience"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Todo",
+    "title": "Audio: Reverb zone system"
+  },
+  {
+    "content": {
+      "body": "# EPIC: Strata v1.x Feature Roadmap\n\n## Overview\n\nThis EPIC tracks all planned features for Strata v1.x releases, organizing work into themed milestones that progressively expand the library's capabilities.\n\n## Current State (v1.0.0)\n\nStrata v1.0.0 was released on 2025-12-08 with:\n\n### ✅ Production-Ready Features\n- **Terrain**: SDF-based generation, marching cubes, biomes\n- **Water**: Advanced rendering with caustics, foam, waves\n- **Sky**: Procedural day/night cycle, weather\n- **Vegetation**: GPU-instanced grass, trees, rocks\n- **Characters**: Articulated system with procedural animation, fur\n- **Particles**: GPU-accelerated emitters\n- **Volumetrics**: Fog, underwater effects, god rays\n- **Post-Processing**: Bloom, SSAO, color grading, DOF, motion blur\n- **Shadows**: Cascaded shadow maps, contact shadows\n- **Decals & Billboards**: Projected decals, always-face-camera sprites\n\n### Architecture\n- `src/core/` - Pure TypeScript (framework-agnostic)\n- `src/components/` - React Three Fiber components\n- `src/shaders/` - GLSL shaders\n- `src/presets/` - Ready-to-use configurations\n\n### Packages\n- `@jbcom/strata` - Main npm package\n- `packages/capacitor-plugin` - Capacitor mobile plugin\n- `packages/react-native` - React Native bindings\n- `packages/docs` - TypeDoc API documentation\n- `packages/examples` - Showcase demos\n\n---\n\n## Milestone Roadmap\n\n### v1.1.0 - Surface Materials & Biomes (Q1 2026)\nExpand rendering pipeline with specialized surface shaders and complete biome presets.\n\n**Surface Materials (7 issues)**\n- #8 Skin/flesh shader with SSS\n- #9 Scales shader (reptile, fish, dragon)\n- #10 Feathers shader (layered, iridescent)\n- #11 Metal shaders (brushed, corroded, chrome)\n- #12 Fabric shader (cloth, leather, silk)\n- #13 Ice shader (frozen, cracking, melting)\n- #14 Slime/goo shader (translucent, dripping)\n\n**Biome Presets (5 issues)**\n- #15 Desert biome (dunes, heat shimmer, sand particles)\n- #16 Arctic biome (snow, ice, aurora)\n- #17 Volcanic biome (lava, ash, ember glow)\n- #18 Swamp biome (murky water, fog, hanging moss)\n- #19 Ocean biome (coral, kelp, underwater caustics)\n\n---\n\n### v1.2.0 - Creature Archetypes (Q2 2026)\nEnable non-humanoid entity animations with specialized locomotion systems.\n\n**Creature Rigs (6 issues)**\n- #20 Quadruped rig (dogs, horses, wolves)\n- #21 Flying rig (birds, dragons, insects)\n- #22 Swimming rig (fish, whales, jellyfish)\n- #23 Arthropod rig (spiders, crabs, insects)\n- #24 Serpentine rig (snakes, worms, tentacles)\n- #25 Swarm/Crowd system (boids, flocking)\n\n---\n\n### v1.3.0 - Player Experience (Q3 2026)\nEnhance player immersion with traversal mechanics and audio systems.\n\n**Traversal Systems (3 issues)**\n- #26 Climbing system (ladders, walls, ledges)\n- #27 Swimming system (surface, underwater)\n- #28 Flying/gliding system\n\n**Audio Systems (4 issues)**\n- #31 Biome ambience system\n- #32 Adaptive music system\n- #33 Voice and dialog system\n- #34 Reverb zone system\n\n---\n\n### v1.4.0 - Temporal & AI Systems (Q4 2026)\nAdd time-based world evolution and AI-powered asset generation.\n\n**Temporal Systems (2 issues)**\n- #29 Seasonal cycle system\n- #30 Aging and decay system\n\n**AI Integration (1 issue)**\n- #2 AI-powered 3D asset generation with Meshy\n\n---\n\n## Cross-Cutting Concerns\n\n### Gap Analysis (from GAP-ANALYSIS-SUMMARY.md)\n| System | Current | Target |\n|--------|---------|--------|\n| Steering Behaviors | 95% | 100% |\n| Graph/Pathfinding | 0% | 50% |\n| Physics | 60% | 85% |\n| Postprocessing | 29% | 60% |\n| Animation (Clip-based) | 0% | 80% |\n| Audio | 70% | 90% |\n\n### Known Issues\n- Ragdoll system needs joint connections (Physics)\n- GPU wind/LOD props not implemented (Instancing)\n- No animation clip controller (Animation)\n- No audio buses/mixer (Audio)\n\n---\n\n## Dependencies\n\nEach milestone builds on previous work:\n- v1.1 Surface Materials enable v1.2 Creature textures\n- v1.2 Creature Archetypes enable diverse NPCs\n- v1.3 Audio integrates with v1.1 Biomes\n- v1.4 Temporal affects all visual systems\n\n## Success Criteria\n\n- All features have unit tests\n- All features have TypeDoc documentation\n- All features follow PUBLIC_API.md contract\n- CI passes on all PRs\n- No regression in existing features\n\n---\n\n## Related Documents\n- [PUBLIC_API.md](PUBLIC_API.md) - API contract\n- [GAP-ANALYSIS-SUMMARY.md](GAP-ANALYSIS-SUMMARY.md) - Coverage gaps\n- [IMPLEMENTATION_STATUS.md](IMPLEMENTATION_STATUS.md) - Current status\n- [STRUCTURE.md](STRUCTURE.md) - Architecture",
+      "number": 35,
+      "repository": "jbdevprimary/strata",
+      "title": "EPIC: Strata v1.x Feature Roadmap",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/35"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7pA",
+    "labels": [
+      "enhancement",
+      "epic"
+    ],
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Done",
+    "title": "EPIC: Strata v1.x Feature Roadmap"
+  },
+  {
+    "content": {
+      "body": "# EPIC: Capacitor Plugin Quality & Completeness\n\n## Overview\nThis EPIC tracks all quality improvements identified during PR #36 review for the Capacitor mobile plugin. These issues represent valid feedback from AI reviewers (Claude, Gemini, Amazon Q, Cursor).\n\n## Sub-Issues\n\n### 🔴 Critical (Blocking)\n- #38 - [iOS] Fix DispatchQueue.main.sync deadlock in getSafeAreaInsets\n- #39 - [React] Fix async listener cleanup race condition in useDevice/useInput hooks\n\n### 🟠 High Priority\n- #40 - [Android] Implement actual gamepad input reading in getInputSnapshot\n- #41 - [Web] Fix gamepad button state may be undefined instead of boolean\n\n### 🟡 Medium Priority  \n- #42 - [Android] Add exception logging to empty catch blocks\n- #43 - [Android] Refactor input mapping code to use loop\n- #44 - [All Platforms] Consolidate 3 haptics methods into unified API\n- #45 - [iOS] Support multiple game controllers\n- #46 - [Web] Fix TouchEvent access after setTimeout completes\n- #47 - [CI] Add graceful fallback for @strata/showcase build\n\n### 🟢 Nice to Have\n- #48 - [Testing] Add comprehensive test coverage for Capacitor plugin\n\n## ✅ Already Fixed in PR #36\n- Removed duplicate hook files (useHaptics.tsx, useControlHints.tsx)\n- Added GamepadHapticActuator TypeScript interface (replaced `as any`)\n- Fixed hasInputChanged() to detect touch events\n\n## ❌ Dismissed (Not Applicable)\n| Feedback | Reason |\n|----------|--------|\n| Hardcoded Nix paths | Intentional with fallbacks to /usr/bin/chromium and dynamic `which` |\n| Command injection in execSync | Hardcoded string, no user input |\n| Deployment path mismatch | .replit and CI are different systems |\n| Duplicate favicon.svg | Source vs built assets, intentional |\n\n## Related\n- PR #36 (Integration branch - to be split into feature branches)\n\n## Acceptance Criteria\n- [ ] All critical issues resolved (#38, #39)\n- [ ] All high priority issues resolved (#40, #41)\n- [ ] CI passing\n- [ ] Test coverage > 80% for plugin code\n",
+      "number": 37,
+      "repository": "jbdevprimary/strata",
+      "title": "EPIC: Capacitor Plugin Quality & Completeness (PR #36 Review Feedback)",
+      "type": "Issue",
+      "url": "https://github.com/jbdevprimary/strata/issues/37"
+    },
+    "id": "PVTI_lAHOAChyN84BKeDXzgig7pI",
+    "labels": [
+      "enhancement",
+      "epic",
+      "priority: medium",
+      "capacitor"
+    ],
+    "milestone": {
+      "description": "Infrastructure improvements, CI/CD fixes, dependency maintenance, and technical debt. Ongoing work that supports all major releases.",
+      "dueOn": "2025-12-30T00:00:00Z",
+      "title": "v1.0.x - Maintenance & CI"
+    },
+    "repository": "https://github.com/jbdevprimary/strata",
+    "status": "Done",
+    "title": "EPIC: Capacitor Plugin Quality & Completeness (PR #36 Review Feedback)"
+  }
+]

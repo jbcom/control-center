@@ -1,0 +1,178 @@
+#!/usr/bin/env bash
+#
+# manage-dependency-prs - Batch manage Dependabot/Renovate PRs across jbcom repos
+#
+set -euo pipefail
+
+TARGET_ORG="jbcom"
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info() { echo -e "${BLUE}ℹ${NC} $*"; }
+log_success() { echo -e "${GREEN}✓${NC} $*"; }
+log_warn() { echo -e "${YELLOW}⚠${NC} $*"; }
+log_error() { echo -e "${RED}✗${NC} $*" >&2; }
+
+# Classify PR risk level
+classify_pr() {
+  local title="$1"
+  
+  # High risk - major versions, security
+  if [[ "$title" =~ (major|breaking|security|CVE) ]]; then
+    echo "high"
+  # Medium risk - minor versions
+  elif [[ "$title" =~ (minor|from [0-9]+\.[0-9]+ to [0-9]+\.[0-9]+) ]]; then
+    echo "medium"
+  # Low risk - patch, dev deps, actions
+  elif [[ "$title" =~ (patch|devDep|@types|actions/|chore\(deps-dev\)) ]]; then
+    echo "low"
+  else
+    echo "medium"
+  fi
+}
+
+cmd_list() {
+  echo "=============================================="
+  echo "  Dependency PRs Across jbcom"
+  echo "=============================================="
+  echo ""
+  
+  local total=0 low=0 medium=0 high=0
+  
+  for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
+    local prs
+    prs=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
+      --jq '.[] | select(.title | test("^chore|^Bump|deps";"i"))' 2>/dev/null) || continue
+    
+    [[ -z "$prs" ]] && continue
+    
+    echo "━━━ ${repo} ━━━"
+    echo "$prs" | jq -r '"#\(.number): \(.title)"' | while read -r line; do
+      local title="${line#*: }"
+      local risk=$(classify_pr "$title")
+      case "$risk" in
+        low) echo -e "  ${GREEN}[LOW]${NC} $line" ;;
+        medium) echo -e "  ${YELLOW}[MED]${NC} $line" ;;
+        high) echo -e "  ${RED}[HIGH]${NC} $line" ;;
+      esac
+    done
+    echo ""
+  done
+}
+
+cmd_merge_low() {
+  local dry_run="${1:-}"
+  [[ "$dry_run" == "--dry-run" ]] && log_info "DRY RUN" && echo ""
+  
+  echo "Merging LOW-risk dependency PRs..."
+  echo ""
+  
+  local merged=0 skipped=0 failed=0
+  
+  for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
+    local prs
+    prs=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
+      --jq '.[] | select(.title | test("^chore|^Bump|deps";"i"))' 2>/dev/null) || continue
+    
+    [[ -z "$prs" ]] && continue
+    
+    echo "$prs" | jq -c '.' | while read -r pr; do
+      local num=$(echo "$pr" | jq -r '.number')
+      local title=$(echo "$pr" | jq -r '.title')
+      local risk=$(classify_pr "$title")
+      
+      if [[ "$risk" != "low" ]]; then
+        continue
+      fi
+      
+      echo -n "  ${repo}#${num}: ${title:0:50}... "
+      
+      if [[ "$dry_run" == "--dry-run" ]]; then
+        echo -e "${BLUE}would merge${NC}"
+        continue
+      fi
+      
+      # Check if PR is mergeable
+      local mergeable
+      mergeable=$(gh pr view "$num" --repo "${TARGET_ORG}/${repo}" --json mergeable -q '.mergeable' 2>/dev/null)
+      
+      if [[ "$mergeable" != "MERGEABLE" ]]; then
+        echo -e "${YELLOW}not mergeable${NC}"
+        continue
+      fi
+      
+      # Enable auto-merge
+      if gh pr merge "$num" --repo "${TARGET_ORG}/${repo}" --squash --auto 2>/dev/null; then
+        echo -e "${GREEN}auto-merge enabled${NC}"
+      else
+        echo -e "${RED}failed${NC}"
+      fi
+    done
+  done
+}
+
+cmd_summary() {
+  echo "=============================================="
+  echo "  Dependency PR Summary"
+  echo "=============================================="
+  echo ""
+  
+  local total=0
+  declare -A counts
+  
+  for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
+    local count
+    count=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
+      --jq '[.[] | select(.title | test("^chore|^Bump|deps";"i"))] | length' 2>/dev/null) || continue
+    
+    if [[ "$count" -gt 0 ]]; then
+      printf "  %-35s %3d\n" "$repo" "$count"
+      total=$((total + count))
+    fi
+  done
+  
+  echo ""
+  echo "  ─────────────────────────────────────────"
+  printf "  %-35s %3d\n" "TOTAL" "$total"
+  echo ""
+}
+
+show_help() {
+  cat << 'EOF'
+Usage: manage-dependency-prs <command> [options]
+
+Commands:
+  list                List all dependency PRs with risk classification
+  summary             Show PR counts per repo
+  merge-low [--dry-run]  Auto-merge low-risk PRs
+
+Risk Levels:
+  LOW    - Patch versions, dev deps, GitHub Actions
+  MEDIUM - Minor versions, unclear scope
+  HIGH   - Major versions, security fixes
+
+Examples:
+  manage-dependency-prs list
+  manage-dependency-prs merge-low --dry-run
+  manage-dependency-prs merge-low
+EOF
+}
+
+main() {
+  local cmd="${1:-}"
+  shift || true
+  
+  case "$cmd" in
+    list) cmd_list ;;
+    summary) cmd_summary ;;
+    merge-low) cmd_merge_low "$@" ;;
+    -h|--help|help|"") show_help ;;
+    *) log_error "Unknown: $cmd"; show_help; exit 1 ;;
+  esac
+}
+
+main "$@"
