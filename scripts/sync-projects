@@ -1,0 +1,256 @@
+#!/usr/bin/env bash
+# =============================================================================
+# sync-projects - Sync all open issues to GitHub Projects
+# =============================================================================
+# Adds all open issues from managed repos to Integration and Roadmap projects
+#
+# Usage:
+#   ./scripts/sync-projects [options]
+#   ./scripts/sync-projects --repo strata
+#   ./scripts/sync-projects --dry-run
+# =============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${SCRIPT_DIR}/../repo-config.json"
+GITHUB_ORG="${GITHUB_ORG:-jbdevprimary}"
+
+# Project IDs (from GraphQL query)
+INTEGRATION_PROJECT_ID="PVT_kwHOAChyN84BJLOn"
+ROADMAP_PROJECT_ID="PVT_kwHOAChyN84BKeDX"
+
+# Options
+DRY_RUN=false
+TARGET_REPO=""
+VERBOSE=false
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+
+show_help() {
+  cat << EOF
+Usage: $(basename "$0") [options]
+
+Sync all open issues from managed repos to GitHub Projects.
+
+Options:
+  --repo REPO     Only sync specific repo
+  --dry-run       Show what would be done
+  --verbose       Show detailed output
+  --help          Show this help
+
+Projects:
+  - Ecosystem Integration (#2): Cross-cutting integration issues
+  - Ecosystem Roadmap (#8): Feature roadmap and epics
+EOF
+}
+
+get_all_repos() {
+  jq -r '.ecosystems | to_entries[] | .value.repos[]' "$CONFIG_FILE"
+}
+
+get_issue_node_id() {
+  local repo="$1"
+  local issue_num="$2"
+  
+  gh api graphql -f query="
+    query {
+      repository(owner: \"$GITHUB_ORG\", name: \"$repo\") {
+        issue(number: $issue_num) {
+          id
+        }
+      }
+    }
+  " --jq '.data.repository.issue.id' 2>/dev/null || echo ""
+}
+
+is_in_project() {
+  local project_id="$1"
+  local issue_id="$2"
+  
+  # Check if issue is already in project
+  result=$(gh api graphql -f query="
+    query {
+      node(id: \"$issue_id\") {
+        ... on Issue {
+          projectItems(first: 10) {
+            nodes {
+              project { id }
+            }
+          }
+        }
+      }
+    }
+  " --jq ".data.node.projectItems.nodes[] | select(.project.id == \"$project_id\") | .project.id" 2>/dev/null || echo "")
+  
+  [[ -n "$result" ]]
+}
+
+add_to_project() {
+  local project_id="$1"
+  local issue_id="$2"
+  local project_name="$3"
+  
+  if [[ "$DRY_RUN" == "true" ]]; then
+    log_info "[DRY RUN] Would add to $project_name"
+    return 0
+  fi
+  
+  result=$(gh api graphql -f query="
+    mutation {
+      addProjectV2ItemById(input: {projectId: \"$project_id\", contentId: \"$issue_id\"}) {
+        item { id }
+      }
+    }
+  " 2>&1)
+  
+  if echo "$result" | grep -q '"item"'; then
+    log_ok "Added to $project_name"
+    return 0
+  else
+    log_warn "Failed to add to $project_name: $result"
+    return 1
+  fi
+}
+
+sync_issue() {
+  local repo="$1"
+  local issue_num="$2"
+  local title="$3"
+  local labels="$4"
+  
+  log_info "Processing $repo#$issue_num: $title"
+  
+  # Get issue node ID
+  issue_id=$(get_issue_node_id "$repo" "$issue_num")
+  if [[ -z "$issue_id" ]]; then
+    log_warn "Could not get issue ID for $repo#$issue_num"
+    return 1
+  fi
+  
+  # Determine which project(s) to add to based on labels/title
+  local add_to_integration=false
+  local add_to_roadmap=false
+  
+  # EPICs and roadmap items go to Roadmap
+  if [[ "$title" == *"EPIC"* ]] || [[ "$labels" == *"epic"* ]] || [[ "$labels" == *"roadmap"* ]]; then
+    add_to_roadmap=true
+  fi
+  
+  # Integration-related issues
+  if [[ "$title" == *"integration"* ]] || [[ "$title" == *"Integration"* ]] || \
+     [[ "$labels" == *"integration"* ]] || [[ "$labels" == *"ecosystem"* ]]; then
+    add_to_integration=true
+  fi
+  
+  # Feature requests go to both
+  if [[ "$labels" == *"enhancement"* ]] || [[ "$title" == "feat:"* ]] || [[ "$title" == "feat("* ]]; then
+    add_to_roadmap=true
+  fi
+  
+  # Bugs and fixes go to Integration for tracking
+  if [[ "$labels" == *"bug"* ]] || [[ "$title" == "fix:"* ]] || [[ "$title" == "fix("* ]]; then
+    add_to_integration=true
+  fi
+  
+  # CI/infra issues go to Integration
+  if [[ "$labels" == *"ci"* ]] || [[ "$labels" == *"infrastructure"* ]]; then
+    add_to_integration=true
+  fi
+  
+  # Default: add to Integration if no specific category
+  if [[ "$add_to_integration" == "false" ]] && [[ "$add_to_roadmap" == "false" ]]; then
+    add_to_integration=true
+  fi
+  
+  # Add to projects
+  if [[ "$add_to_integration" == "true" ]]; then
+    if ! is_in_project "$INTEGRATION_PROJECT_ID" "$issue_id"; then
+      add_to_project "$INTEGRATION_PROJECT_ID" "$issue_id" "Integration"
+    else
+      [[ "$VERBOSE" == "true" ]] && log_info "Already in Integration project"
+    fi
+  fi
+  
+  if [[ "$add_to_roadmap" == "true" ]]; then
+    if ! is_in_project "$ROADMAP_PROJECT_ID" "$issue_id"; then
+      add_to_project "$ROADMAP_PROJECT_ID" "$issue_id" "Roadmap"
+    else
+      [[ "$VERBOSE" == "true" ]] && log_info "Already in Roadmap project"
+    fi
+  fi
+}
+
+sync_repo() {
+  local repo="$1"
+  
+  log_info "=== Syncing $repo ==="
+  
+  # Get all open issues
+  issues=$(gh issue list --repo "$GITHUB_ORG/$repo" --state open --json number,title,labels --jq '.[] | "\(.number)|\(.title)|\(.labels | map(.name) | join(","))"' 2>/dev/null || echo "")
+  
+  if [[ -z "$issues" ]]; then
+    log_info "No open issues in $repo"
+    return 0
+  fi
+  
+  echo "$issues" | while IFS='|' read -r num title labels; do
+    sync_issue "$repo" "$num" "$title" "$labels"
+  done
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --repo)
+      TARGET_REPO="$2"
+      shift 2
+      ;;
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --verbose)
+      VERBOSE=true
+      shift
+      ;;
+    --help)
+      show_help
+      exit 0
+      ;;
+    *)
+      log_error "Unknown option: $1"
+      show_help
+      exit 1
+      ;;
+  esac
+done
+
+log_info "Syncing issues to GitHub Projects"
+log_info "Integration Project: $INTEGRATION_PROJECT_ID"
+log_info "Roadmap Project: $ROADMAP_PROJECT_ID"
+[[ "$DRY_RUN" == "true" ]] && log_warn "DRY RUN MODE - no changes will be made"
+echo ""
+
+if [[ -n "$TARGET_REPO" ]]; then
+  sync_repo "$TARGET_REPO"
+else
+  get_all_repos | while read -r repo; do
+    sync_repo "$repo"
+  done
+fi
+
+log_ok "Project sync complete!"

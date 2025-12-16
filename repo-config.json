@@ -3,6 +3,23 @@
   "version": "1.0.0",
   "description": "Comprehensive repository configuration - extracted from strata as template",
   
+  "projects": {
+    "integration": {
+      "id": "PVT_kwHOAChyN84BJLOn",
+      "number": 2,
+      "name": "Ecosystem Integration",
+      "url": "https://github.com/users/jbdevprimary/projects/2",
+      "purpose": "Cross-cutting integration issues, bugs, CI/infra"
+    },
+    "roadmap": {
+      "id": "PVT_kwHOAChyN84BKeDX",
+      "number": 8,
+      "name": "Ecosystem Roadmap",
+      "url": "https://github.com/users/jbdevprimary/projects/8",
+      "purpose": "Feature roadmap, EPICs, enhancements"
+    }
+  },
+  
   "_protected_fields": [
     "visibility",
     "name", 

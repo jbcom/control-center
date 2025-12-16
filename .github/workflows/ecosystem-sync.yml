@@ -143,6 +143,24 @@ jobs:
           echo "✅ Pushed to ${{ matrix.repo.name }}"
 
   # =============================================================================
+  # Sync issues to GitHub Projects
+  # =============================================================================
+  sync-projects:
+    name: Sync Issues to Projects
+    needs: [sync-repo, update-submodules]
+    runs-on: ubuntu-latest
+    if: always() && github.event.inputs.dry_run != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Sync all issues to projects
+        run: |
+          ./scripts/sync-projects --verbose
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+
+  # =============================================================================
   # Update submodules in control center
   # =============================================================================
   update-submodules:
