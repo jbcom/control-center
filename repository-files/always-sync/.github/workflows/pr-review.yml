@@ -50,7 +50,7 @@ jobs:
           fetch-depth: 0
 
       - name: DiffGuard AI Review
-        uses: jonit-dev/diffguard@v1
+        uses: jonit-dev/diffguard@v1.0.0
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           open_router_key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -116,6 +116,9 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          
+          # Allow bot-triggered workflows (e.g., Cursor agent PRs)
+          allowed_bots: '*'
           
           # Enable progress tracking for visibility
           track_progress: true
@@ -191,6 +194,10 @@ jobs:
           model: "o3"
           effort: "high"
           
+          # Allow bot-triggered workflows (e.g., Cursor agent PRs)
+          allow-bots: "true"
+          allow-users: "*"
+          
           prompt: |
             You are reviewing PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
 
@@ -264,6 +271,7 @@ jobs:
         uses: anthropics/claude-code-action@v1
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_bots: '*'
           track_progress: true
           use_sticky_comment: true
           trigger_phrase: "@claude"
