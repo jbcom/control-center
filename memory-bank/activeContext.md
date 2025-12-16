@@ -60,8 +60,19 @@ Successfully migrated all repositories from `jbdevprimary` to `jbcom` organizati
    - hamachi-vpn
    - openapi-31-to-30-converter
 
-### Open PRs
-- PR #397: feat(scripts): add idempotent jbcom migration script
+### Closed PRs
+- PR #397: feat(scripts): add idempotent jbcom migration script ✅ (merged)
+- PR #399: feat(workflows): starter workflows ❌ (closed - had critical issues)
+
+### Lessons Learned (PR #399)
+Attempted to add starter workflows from GitHub's starter-workflows repo, but self-review found:
+- CodeQL only scanned 'actions' language (broken)
+- Python CI had silent failures (`|| true` patterns)
+- Terraform CI broke on push events
+- Security tools used `soft_fail: true`
+- All workflows named "CI" caused conflicts
+
+**Future approach:** Workflows should be opt-in, not forced via always-sync.
 
 ### For Next Agent
 
