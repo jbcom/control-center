@@ -186,7 +186,8 @@
     "ai_agents": [
       { "name": "Amazon Q development agent", "color": "008dff", "description": "Generate new features or iterate code based on issue descriptions and comments." },
       { "name": "Amazon Q transform agent", "color": "7f33ff", "description": "Upgrade codebase to latest language version." },
-      { "name": "codex", "color": "ededed", "description": "Codex AI agent" }
+      { "name": "codex", "color": "ededed", "description": "Codex AI agent" },
+      { "name": "copilot-assigned", "color": "6f42c1", "description": "Assigned to GitHub Copilot Coding Agent" }
     ]
   },
   
