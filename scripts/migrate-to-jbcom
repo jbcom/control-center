@@ -265,8 +265,16 @@ cmd_migrate() {
     local tmp_dir
     tmp_dir=$(mktemp -d)
     
+    # Use token in URL for authentication
+    local token="${GITHUB_TOKEN:-${GH_TOKEN:-}}"
+    if [[ -z "$token" ]]; then
+      log_error "No GITHUB_TOKEN or GH_TOKEN set"
+      fail_count=$((fail_count + 1))
+      continue
+    fi
+    
     log_info "Mirror cloning: ${SOURCE_ORG}/${source}"
-    if ! git clone --mirror "https://github.com/${SOURCE_ORG}/${source}.git" "${tmp_dir}/${source}.git" 2>/dev/null; then
+    if ! git clone --mirror "https://${token}@github.com/${SOURCE_ORG}/${source}.git" "${tmp_dir}/${source}.git" 2>/dev/null; then
       log_error "Failed to clone: ${SOURCE_ORG}/${source}"
       rm -rf "$tmp_dir"
       fail_count=$((fail_count + 1))
@@ -275,7 +283,7 @@ cmd_migrate() {
     
     log_info "Pushing to: ${TARGET_ORG}/${target}"
     cd "${tmp_dir}/${source}.git"
-    if ! git push --mirror "https://github.com/${TARGET_ORG}/${target}.git" 2>/dev/null; then
+    if ! git push --mirror "https://${token}@github.com/${TARGET_ORG}/${target}.git" 2>/dev/null; then
       log_error "Failed to push to: ${TARGET_ORG}/${target}"
       cd - >/dev/null
       rm -rf "$tmp_dir"
