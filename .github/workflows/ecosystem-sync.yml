@@ -176,6 +176,6 @@ jobs:
           fi
           
           git add -A
-          git commit -m "chore: update submodules to latest"
+          git commit -m "deps: update submodules to latest"
           git push origin main
           echo "✅ Submodules updated"
