@@ -69,6 +69,10 @@ declare -a MIGRATION_MAP=(
   # Terraform modules (already have terraform- prefix)
   "terraform-github-markdown:terraform-github-markdown"
   "terraform-repository-automation:terraform-repository-automation"
+  
+  # Meta/documentation projects
+  "ecosystem:ecosystem"
+  "roadmap:roadmap"
 )
 
 # ==============================================================================
