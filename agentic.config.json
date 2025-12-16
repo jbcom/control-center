@@ -4,60 +4,110 @@
     "organizations": {
       "jbcom": {
         "name": "jbcom",
-        "tokenEnvVar": "GITHUB_JBCOM_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": false
       },
       "FlipsideCrypto": {
         "name": "FlipsideCrypto",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       },
       "fsc-platform": {
         "name": "fsc-platform",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       },
       "fsc-internal-tooling-administration": {
         "name": "fsc-internal-tooling-administration",
-        "tokenEnvVar": "GITHUB_FSC_TOKEN",
+        "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",
-    "prReviewTokenEnvVar": "GITHUB_JBCOM_TOKEN"
+    "prReviewTokenEnvVar": "GITHUB_TOKEN"
   },
   "defaultModel": "claude-sonnet-4-5-20250929",
   "defaultRepository": "jbcom/jbcom-control-center",
   "logLevel": "info",
+  "crewDirectory": ".crew",
   "agents": {
-    "terraform-repository-manager": {
-      "name": "Terraform Repository Manager",
-      "description": "Manages GitHub repository configurations using Terraform Cloud and MCP server",
-      "instructionsFile": ".github/agents/terraform-repository-manager.md",
-      "requiredTools": [
-        "terraform-list_workspaces",
-        "terraform-get_workspace_details", 
-        "terraform-create_run",
-        "terraform-list_runs",
-        "terraform-get_run_details",
-        "terraform-list_workspace_variables",
-        "terraform-create_workspace_variable",
-        "terraform-search_providers",
-        "terraform-get_latest_provider_version"
-      ],
-      "requiredSecrets": [
-        "TF_API_TOKEN",
-        "CI_GITHUB_TOKEN"
-      ],
-      "workspace": "jbcom/jbcom-control-center",
-      "autoTriggers": [
-        "drift-detection",
-        "repository-config-change"
-      ]
+    "triage": {
+      "description": "Issue and PR triage across the ecosystem",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "assess_new_issue",
+      "tools": ["github_issues", "github_prs", "mcp_filesystem"]
+    },
+    "ecosystem": {
+      "description": "Cross-repo dependency and sync coordination",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "check_dependency_graph",
+      "tools": ["github_repos", "github_releases", "github_actions", "mcp_filesystem"]
+    },
+    "planning": {
+      "description": "Sprint and roadmap management",
+      "configPath": ".crew/config/agents.yaml",
+      "tasksPath": ".crew/config/tasks.yaml",
+      "defaultTask": "generate_weekly_sprint",
+      "tools": ["github_issues", "github_projects", "github_milestones"]
+    }
+  },
+  "ecosystem": {
+    "managedRepos": [
+      "jbcom/agentic-control",
+      "jbcom/agentic-crew",
+      "jbcom/agentic-triage",
+      "jbcom/vendor-connectors",
+      "jbcom/extended-data-types",
+      "jbcom/directed-inputs-class",
+      "jbcom/lifecyclelogging",
+      "jbcom/python-terraform-bridge",
+      "jbcom/strata",
+      "jbcom/pixels-pygame-palace",
+      "jbcom/otter-river-rush",
+      "jbcom/otterfall",
+      "jbcom/rivermarsh",
+      "jbcom/rivers-of-reckoning",
+      "jbcom/ai_game_dev",
+      "jbcom/port-api",
+      "jbcom/secretsync",
+      "jbcom/terraform-github-markdown",
+      "jbcom/terraform-repository-automation"
+    ],
+    "dependencyGraph": {
+      "agentic-control": {
+        "consumes": ["agentic-triage"],
+        "consumers": []
+      },
+      "agentic-triage": {
+        "consumes": [],
+        "consumers": ["agentic-control"]
+      },
+      "agentic-crew": {
+        "consumes": ["vendor-connectors", "extended-data-types", "directed-inputs-class"],
+        "consumers": ["agentic-control"]
+      },
+      "vendor-connectors": {
+        "consumes": ["extended-data-types"],
+        "consumers": ["agentic-crew"]
+      },
+      "extended-data-types": {
+        "consumes": [],
+        "consumers": ["vendor-connectors", "agentic-crew"]
+      },
+      "directed-inputs-class": {
+        "consumes": [],
+        "consumers": ["agentic-crew"]
+      }
+    },
+    "projects": {
+      "integration": "PVT_kwHOAChyN84BJLOn",
+      "roadmap": "PVT_kwHOAChyN84BKeDX"
     }
   }
 }

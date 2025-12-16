@@ -1,46 +1,173 @@
 name: Ecosystem Sync
 
+# ONE nightly job that:
+# 1. Syncs repository-files directly to each repo (pushes to main)
+# 2. Updates submodules to latest
+
 on:
   workflow_dispatch:
     inputs:
-      update_submodules:
-        description: 'Update all submodules to latest'
+      target_repo:
+        description: 'Target repo (empty for all)'
         required: false
-        default: true
-        type: boolean
-      sync_missing:
-        description: 'Add missing submodules'
-        required: false
-        default: true
-        type: boolean
+        default: ''
       dry_run:
         description: 'Dry run (no changes)'
         required: false
         default: false
         type: boolean
   schedule:
-    # Daily sync at 6:00 UTC
-    - cron: '0 6 * * *'
+    # Nightly at 3:00 UTC
+    - cron: '0 3 * * *'
   push:
+    branches: [main]
     paths:
-      - 'terragrunt-stacks/**/terragrunt.hcl'
-      - 'triage-hub.json'
+      - 'repository-files/**'
+      - 'repo-config.json'
 
 permissions:
   contents: write
-  pull-requests: write
 
 env:
-  GITHUB_ORG: jbdevprimary
   GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
 
 jobs:
   # =============================================================================
-  # Discover and sync ecosystem repositories
+  # Build matrix of repos to sync
   # =============================================================================
-  sync:
-    name: Sync Ecosystem Submodules
+  matrix:
+    name: Build Repo Matrix
     runs-on: ubuntu-latest
+    outputs:
+      repos: ${{ steps.repos.outputs.repos }}
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Get repos from config
+        id: repos
+        run: |
+          TARGET="${{ github.event.inputs.target_repo }}"
+          
+          if [[ -n "$TARGET" ]]; then
+            REPOS=$(jq -c "[{name: \"$TARGET\", language: .repositories[\"$TARGET\"].language}]" repo-config.json)
+          else
+            REPOS=$(jq -c '[.repositories | to_entries[] | {name: .key, language: .value.language}]' repo-config.json)
+          fi
+          
+          echo "repos=$REPOS" >> $GITHUB_OUTPUT
+          echo "Will sync $(echo "$REPOS" | jq length) repos"
+
+  # =============================================================================
+  # Sync files directly to each repository
+  # =============================================================================
+  sync-repo:
+    name: Sync ${{ matrix.repo.name }}
+    needs: matrix
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 5
+      matrix:
+        repo: ${{ fromJson(needs.matrix.outputs.repos) }}
+    
+    steps:
+      - name: Checkout control center
+        uses: actions/checkout@v4
+        with:
+          path: control-center
+      
+      - name: Clone target repo
+        run: |
+          gh repo clone "jbdevprimary/${{ matrix.repo.name }}" target-repo
+          cd target-repo
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Sync always-sync files
+        run: |
+          echo "Syncing always-sync files..."
+          if [[ -d "control-center/repository-files/always-sync" ]]; then
+            rsync -av --exclude='.git' \
+              control-center/repository-files/always-sync/ \
+              target-repo/
+          fi
+      
+      - name: Sync language-specific files
+        run: |
+          LANG="${{ matrix.repo.language }}"
+          case "$LANG" in
+            python) DIR="python" ;;
+            typescript|javascript) DIR="nodejs" ;;
+            go) DIR="go" ;;
+            terraform|hcl) DIR="terraform" ;;
+            *) DIR="" ;;
+          esac
+          
+          if [[ -n "$DIR" && -d "control-center/repository-files/$DIR" ]]; then
+            echo "Syncing $DIR files..."
+            rsync -av --exclude='.git' \
+              "control-center/repository-files/$DIR/" \
+              target-repo/
+          fi
+      
+      - name: Sync initial-only files
+        run: |
+          if [[ -d "control-center/repository-files/initial-only" ]]; then
+            cd control-center/repository-files/initial-only
+            find . -type f | while read -r file; do
+              dest="../../../target-repo/$file"
+              if [[ ! -f "$dest" ]]; then
+                mkdir -p "$(dirname "$dest")"
+                cp "$file" "$dest"
+                echo "Added: $file"
+              fi
+            done
+          fi
+      
+      - name: Push changes
+        if: github.event.inputs.dry_run != 'true'
+        working-directory: target-repo
+        run: |
+          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
+            echo "No changes for ${{ matrix.repo.name }}"
+            exit 0
+          fi
+          
+          git add -A
+          git commit -m "chore: sync from control center
+
+          Automated sync of shared configurations.
+          Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          
+          git push origin main
+          echo "✅ Pushed to ${{ matrix.repo.name }}"
+
+  # =============================================================================
+  # Sync issues to GitHub Projects
+  # =============================================================================
+  sync-projects:
+    name: Sync Issues to Projects
+    needs: [sync-repo, update-submodules]
+    runs-on: ubuntu-latest
+    if: always() && github.event.inputs.dry_run != 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      
+      - name: Sync all issues to projects
+        run: |
+          ./scripts/sync-projects --verbose
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+
+  # =============================================================================
+  # Update submodules in control center
+  # =============================================================================
+  update-submodules:
+    name: Update Submodules
+    needs: sync-repo
+    runs-on: ubuntu-latest
+    if: always()
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -54,157 +181,19 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
       
-      - name: Discover organization repos
-        id: discover
+      - name: Update submodules
         run: |
-          echo "Discovering repos in $GITHUB_ORG..."
-          
-          # Get all non-archived repos
-          REPOS=$(gh repo list "$GITHUB_ORG" \
-            --json name,primaryLanguage,isArchived \
-            --limit 200 \
-            --jq '.[] | select(.isArchived == false) | .name')
-          
-          echo "Found $(echo "$REPOS" | wc -l) active repos"
-          echo "$REPOS"
-          
-          # Save for later steps
-          echo "repos<<EOF" >> $GITHUB_OUTPUT
-          echo "$REPOS" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-      
-      - name: Check for missing submodules
-        id: missing
-        run: |
-          source ./scripts/lib/ecosystem.sh
-          
-          echo "Checking for missing submodules..."
-          MISSING=$(list_missing_submodules || echo "")
-          
-          if [[ -n "$MISSING" ]]; then
-            echo "Missing submodules:"
-            echo "$MISSING"
-            echo "has_missing=true" >> $GITHUB_OUTPUT
-            echo "missing<<EOF" >> $GITHUB_OUTPUT
-            echo "$MISSING" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "All managed repos have submodules"
-            echo "has_missing=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Add missing submodules
-        if: steps.missing.outputs.has_missing == 'true' && github.event.inputs.sync_missing != 'false' && github.event.inputs.dry_run != 'true'
-        run: |
-          source ./scripts/lib/ecosystem.sh
-          
-          echo "${{ steps.missing.outputs.missing }}" | while read -r repo; do
-            if [[ -n "$repo" ]]; then
-              echo "Adding submodule: $repo"
-              submodule_add "$repo" || echo "Failed to add $repo"
-            fi
-          done
-      
-      - name: Update submodules to latest
-        if: github.event.inputs.update_submodules != 'false' && github.event.inputs.dry_run != 'true'
-        run: |
-          echo "Updating all submodules to latest..."
           git submodule update --remote --recursive || true
-          
-          # Show what changed
-          git status --short ecosystems/oss/
       
-      - name: Create PR for changes
+      - name: Push submodule updates
         if: github.event.inputs.dry_run != 'true'
         run: |
-          # Check if there are changes
-          if git diff --quiet && git diff --staged --quiet; then
-            echo "No changes to commit"
+          if git diff --quiet; then
+            echo "No submodule changes"
             exit 0
           fi
           
-          # Create branch
-          BRANCH="ecosystem-sync/$(date +%Y%m%d-%H%M%S)"
-          git checkout -b "$BRANCH"
-          
-          # Add and commit
-          git add .gitmodules ecosystems/oss/
-          
-          # Build commit message
-          CHANGES=$(git diff --staged --stat | tail -5)
-          
-          git commit -m "chore(ecosystem): sync submodules
-
-          Automated ecosystem synchronization:
-          - Updated submodules to latest commits
-          - Added missing submodules for managed repos
-
-          Changes:
-          $CHANGES"
-          
-          # Push and create PR
-          git push -u origin "$BRANCH"
-          
-          gh pr create \
-            --title "chore(ecosystem): sync submodules" \
-            --body "## Ecosystem Sync
-
-          Automated synchronization of ecosystem submodules.
-
-          ### Changes
-          \`\`\`
-          $CHANGES
-          \`\`\`
-
-          ### Triggered by
-          - Event: ${{ github.event_name }}
-          - Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          " \
-            --base main
-
-  # =============================================================================
-  # Validate ecosystem configuration
-  # =============================================================================
-  validate:
-    name: Validate Ecosystem Config
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      
-      - name: Validate triage-hub.json
-        run: |
-          if [[ ! -f "triage-hub.json" ]]; then
-            echo "ERROR: triage-hub.json not found"
-            exit 1
-          fi
-          
-          # Validate JSON syntax
-          jq empty triage-hub.json || {
-            echo "ERROR: Invalid JSON in triage-hub.json"
-            exit 1
-          }
-          
-          echo "✅ triage-hub.json is valid JSON"
-      
-      - name: Check ecosystem consistency
-        run: |
-          source ./scripts/lib/ecosystem.sh
-          
-          echo "Checking ecosystem consistency..."
-          
-          # Get packages from triage-hub.json
-          CONFIGURED=$(jq -r '.ecosystems | to_entries[] | .value.packages | keys[]' triage-hub.json | sort)
-          
-          # Get packages from terragrunt stacks
-          MANAGED=$(list_managed_repos | awk -F'/' '{print $2}' | sort)
-          
-          # Compare
-          echo ""
-          echo "Packages in triage-hub.json but not in terragrunt:"
-          comm -23 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /'
-          
-          echo ""
-          echo "Packages in terragrunt but not in triage-hub.json:"
-          comm -13 <(echo "$CONFIGURED") <(echo "$MANAGED") | sed 's/^/  - /'
+          git add -A
+          git commit -m "deps: update submodules to latest"
+          git push origin main
+          echo "✅ Submodules updated"
