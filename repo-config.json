@@ -248,7 +248,8 @@
         "nodejs-otter-river-rush",
         "nodejs-otterfall",
         "nodejs-rivermarsh",
-        "nodejs-pixels-pygame-palace"
+        "nodejs-pixels-pygame-palace",
+        "jbcom.github.io"
       ]
     },
     "go": {
@@ -310,9 +311,10 @@
         "initial": []
       },
       "repos": [
-        "control-center"
+        "control-center",
+        ".github"
       ],
-      "_comment": "Control center - no file sync, just project tracking"
+      "_comment": "Control center and org config - no file sync, just project tracking"
     }
   }
 }
