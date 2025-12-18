@@ -5,11 +5,14 @@ This guide will help you get started with PACKAGE_NAME.
 ## Basic Usage
 
 ```python
-# TODO: Add basic usage example
-from PACKAGE_NAME import example
+from PACKAGE_NAME import Processor
 
-result = example.do_something()
-print(result)
+# Initialize the processor
+processor = Processor()
+
+# Process data
+result = processor.process("example_data")
+print(f"Result: {result}")
 ```
 
 ## Next Steps
