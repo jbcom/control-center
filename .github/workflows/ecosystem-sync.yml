@@ -1,10 +1,12 @@
 name: Ecosystem Sync
 
-# Sync repository-files to all managed repositories using repo-file-sync-action
+# Sync repository-files to all managed repositories
 # 
-# Two separate sync configs for safety:
-# - sync-always.yml: Files that ALWAYS overwrite (workflows, cursor rules)
-# - sync-initial.yml: Files created ONLY if missing (templates, customizable configs)
+# Two-phase sync for safety and clean logging:
+# PHASE 1: Initial Sync - Creates missing files only (safe for customized repos)  
+# PHASE 2: Always Sync - Overwrites with latest shared configs
+#
+# Each phase runs as a separate job with detailed per-repo logging
 
 on:
   workflow_dispatch:
@@ -20,7 +22,7 @@ on:
         default: false
         type: boolean
       sync_type:
-        description: 'Which files to sync'
+        description: 'Which sync to run'
         required: false
         default: 'both'
         type: choice
@@ -29,7 +31,7 @@ on:
           - always-only
           - initial-only
   schedule:
-    # Nightly at 3:00 UTC
+    # Nightly at 3:00 UTC - direct push mode
     - cron: '0 3 * * *'
   push:
     branches: [main]
@@ -44,46 +46,96 @@ permissions:
 
 jobs:
   # =============================================================================
-  # Validate sync configuration
+  # Validate configuration before any sync
   # =============================================================================
   validate:
-    name: Validate Configuration
+    name: 🔍 Validate Configuration
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v6.0.1 (pinned for security)
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: Validate repo-config.json
-        run: ./scripts/validate-config
-
-      - name: Check for symlinks in repository-files
-        run: ./scripts/check-symlinks
-
-      - name: Validate sync configs
+      - name: Validate all configs
         run: |
-          pip install -q pyyaml 2>/dev/null || true
-          for config in .github/sync-always.yml .github/sync-initial.yml; do
-            python3 -c "import yaml; yaml.safe_load(open('$config'))" 2>/dev/null || \
-              (echo "⚠️ YAML validation skipped for $config" && continue)
-            echo "✅ $config is valid YAML"
-          done
+          echo "Validating repo-config.json..."
+          ./scripts/validate-config
+          
+          echo "Checking for symlinks..."
+          ./scripts/check-symlinks
+          
+          echo "✅ All validations passed"
 
   # =============================================================================
-  # Sync ALWAYS files (overwrite existing)
+  # PHASE 1: Initial Sync
+  # Creates files ONLY if they don't exist - safe for repos with customizations
   # =============================================================================
-  sync-always:
-    name: Sync Always Files
+  phase-1-initial:
+    name: 📦 Phase 1 - Initial Sync
     needs: validate
     runs-on: ubuntu-latest
-    if: |
-      github.event.inputs.sync_type != 'initial-only'
+    if: github.event.inputs.sync_type != 'always-only'
+    outputs:
+      pr_urls: ${{ steps.sync.outputs.pull_request_urls }}
     steps:
-      # actions/checkout v6.0.1 (pinned for security)
-      - name: Checkout Repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      # BetaHuhn/repo-file-sync-action v1.21.1 (pinned for security)
-      - name: Sync Always Files
+      - name: Initial file sync (create missing only)
+        id: sync
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        with:
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          CONFIG_PATH: .github/sync-initial.yml
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
+          SKIP_PR: ${{ github.event.inputs.skip_pr == 'true' || github.event_name == 'schedule' }}
+          PR_LABELS: |
+            sync
+            initial-setup
+          COMMIT_PREFIX: 'chore(init):'
+          COMMIT_BODY: |
+            Initial file setup - only creates files that don't exist.
+            Repos can customize these files after creation.
+            
+            Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH_PREFIX: control-center-init
+          GIT_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_USERNAME: github-actions[bot]
+          OVERWRITE_EXISTING_PR: true
+
+      - name: Phase 1 Summary
+        run: |
+          echo "### 📦 Phase 1: Initial Sync" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Config:** \`.github/sync-initial.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Behavior:** Only creates files if they don't exist" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Files synced:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`CLAUDE.md\`, \`AGENTS.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/dependabot.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/SECURITY.md\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/ISSUE_TEMPLATE/\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.cursor/Dockerfile\`, \`.cursor/environment.json\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`docs/\` scaffold" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # PHASE 2: Always Sync  
+  # Overwrites files with latest from control center - keeps shared configs in sync
+  # =============================================================================
+  phase-2-always:
+    name: 🔄 Phase 2 - Always Sync
+    needs: [validate, phase-1-initial]
+    runs-on: ubuntu-latest
+    # Run even if phase-1 was skipped (when sync_type is always-only)
+    if: |
+      always() && 
+      needs.validate.result == 'success' &&
+      github.event.inputs.sync_type != 'initial-only' &&
+      (needs.phase-1-initial.result == 'success' || needs.phase-1-initial.result == 'skipped')
+    outputs:
+      pr_urls: ${{ steps.sync.outputs.pull_request_urls }}
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Always file sync (overwrite)
+        id: sync
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -95,7 +147,8 @@ jobs:
             automated
           COMMIT_PREFIX: 'chore(sync):'
           COMMIT_BODY: |
-            Automated sync of shared configurations.
+            Sync shared configurations from control center.
+            These files are managed centrally and should not be modified locally.
             
             Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           BRANCH_PREFIX: control-center-sync
@@ -103,147 +156,117 @@ jobs:
           GIT_USERNAME: github-actions[bot]
           OVERWRITE_EXISTING_PR: true
 
-  # =============================================================================
-  # Sync INITIAL files (only if missing - safe for customized repos)
-  # =============================================================================
-  sync-initial:
-    name: Sync Initial Files
-    needs: validate
-    runs-on: ubuntu-latest
-    if: |
-      github.event.inputs.sync_type != 'always-only'
-    steps:
-      # actions/checkout v6.0.1 (pinned for security)
-      - name: Checkout Repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-
-      # BetaHuhn/repo-file-sync-action v1.21.1 (pinned for security)
-      - name: Sync Initial Files
-        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
-        with:
-          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
-          CONFIG_PATH: .github/sync-initial.yml
-          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
-          SKIP_PR: ${{ github.event.inputs.skip_pr == 'true' || github.event_name == 'schedule' }}
-          PR_LABELS: |
-            sync
-            automated
-            initial-setup
-          COMMIT_PREFIX: 'chore(init):'
-          COMMIT_BODY: |
-            Initial file setup (only creates missing files).
-            
-            Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          BRANCH_PREFIX: control-center-init
-          GIT_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_USERNAME: github-actions[bot]
-          OVERWRITE_EXISTING_PR: true
+      - name: Phase 2 Summary
+        run: |
+          echo "### 🔄 Phase 2: Always Sync" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Config:** \`.github/sync-always.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Behavior:** Overwrites files with latest from control center" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Files synced:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.cursor/rules/\` (Cursor AI rules)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/workflows/\` (shared workflows)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/agents/\` (AI agent configs)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/settings.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`.github/CODEOWNERS\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Language-specific rules (python/nodejs/go/terraform)" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Summary
+  # Final Summary
   # =============================================================================
   summary:
-    name: Sync Summary
-    needs: [sync-always, sync-initial]
+    name: 📊 Summary
+    needs: [phase-1-initial, phase-2-always]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Generate Summary
+      - name: Generate final summary
+        env:
+          PHASE1_RESULT: ${{ needs.phase-1-initial.result }}
+          PHASE2_RESULT: ${{ needs.phase-2-always.result }}
+          PHASE1_PRS: ${{ needs.phase-1-initial.outputs.pr_urls }}
+          PHASE2_PRS: ${{ needs.phase-2-always.outputs.pr_urls }}
         run: |
-          echo "## Ecosystem Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## 🔄 Ecosystem Sync Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Mode
+          # Mode info
           if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            echo "🔍 **Mode:** Dry run (no changes made)" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** 🔍 Dry run (no changes made)" >> $GITHUB_STEP_SUMMARY
           elif [[ "${{ github.event.inputs.skip_pr }}" == "true" || "${{ github.event_name }}" == "schedule" ]]; then
-            echo "⚡ **Mode:** Direct push to main" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** ⚡ Direct push to main" >> $GITHUB_STEP_SUMMARY
           else
-            echo "📝 **Mode:** Pull requests created" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** 📝 Pull requests" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          # Sync type
-          SYNC_TYPE="${{ github.event.inputs.sync_type || 'both' }}"
-          echo "### Sync Type: \`$SYNC_TYPE\`" >> $GITHUB_STEP_SUMMARY
+          # Results
+          echo "### Phase Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
           
-          # Always sync
-          if [[ "$SYNC_TYPE" != "initial-only" ]]; then
-            echo "#### Always-Sync Files (overwrite)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.cursor/\` rules" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.github/workflows/\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.github/agents/\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.github/settings.yml\`" >> $GITHUB_STEP_SUMMARY
-            echo "- Language-specific configs" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
+          case "$PHASE1_RESULT" in
+            success) echo "| 📦 Initial Sync | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
+            skipped) echo "| 📦 Initial Sync | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
+            failure) echo "| 📦 Initial Sync | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
+            *) echo "| 📦 Initial Sync | ⚠️ $PHASE1_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
           
-          # Initial sync
-          if [[ "$SYNC_TYPE" != "always-only" ]]; then
-            echo "#### Initial-Only Files (if missing)" >> $GITHUB_STEP_SUMMARY
-            echo "- \`CLAUDE.md\`, \`AGENTS.md\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.github/dependabot.yml\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`.github/ISSUE_TEMPLATE/\`" >> $GITHUB_STEP_SUMMARY
-            echo "- \`docs/\` scaffold" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-          fi
+          case "$PHASE2_RESULT" in
+            success) echo "| 🔄 Always Sync | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
+            skipped) echo "| 🔄 Always Sync | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
+            failure) echo "| 🔄 Always Sync | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
+            *) echo "| 🔄 Always Sync | ⚠️ $PHASE2_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
           
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "---" >> $GITHUB_STEP_SUMMARY
-          echo "*Config files: \`.github/sync-always.yml\`, \`.github/sync-initial.yml\`*" >> $GITHUB_STEP_SUMMARY
+          echo "*Configs: \`.github/sync-initial.yml\`, \`.github/sync-always.yml\`*" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Update submodules in control center
+  # Update submodules (after sync completes)
   # =============================================================================
   update-submodules:
-    name: Update Submodules
-    needs: [sync-always, sync-initial]
+    name: 📚 Update Submodules
+    needs: phase-2-always
     runs-on: ubuntu-latest
-    if: always() && github.event.inputs.dry_run != 'true'
+    if: always() && github.event.inputs.dry_run != 'true' && needs.phase-2-always.result != 'failure'
     steps:
-      # actions/checkout v6.0.1 (pinned for security)
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - name: Configure git
+      - name: Update submodules
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-      - name: Update submodules
-        run: |
+          
           git submodule update --remote --recursive || true
-
-      - name: Push submodule updates
-        run: |
+          
           if git diff --quiet; then
             echo "No submodule changes"
             exit 0
           fi
-
+          
           git add -A
           git commit -m "deps: update submodules to latest"
           git push origin main
           echo "✅ Submodules updated"
 
   # =============================================================================
-  # Sync issues to GitHub Projects
+  # Sync GitHub Projects
   # =============================================================================
   sync-projects:
-    name: Sync Issues to Projects
-    needs: [sync-always, sync-initial, update-submodules]
+    name: 📋 Sync Projects
+    needs: [phase-2-always, update-submodules]
     runs-on: ubuntu-latest
     if: always() && github.event.inputs.dry_run != 'true'
     steps:
-      # actions/checkout v6.0.1 (pinned for security)
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: Sync all issues to projects
-        run: |
-          ./scripts/sync-projects --verbose
+      - name: Sync issues to projects
+        run: ./scripts/sync-projects --verbose
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}

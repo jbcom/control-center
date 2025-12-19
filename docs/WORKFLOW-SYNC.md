@@ -36,35 +36,50 @@ control-center/
 
 ## Sync Configuration
 
-The sync behavior is defined in `.github/sync.yml` using the repo-file-sync-action format.
+Two separate config files for safety:
 
-### Key Concepts
+| Config File | Purpose | Behavior |
+|-------------|---------|----------|
+| `.github/sync-always.yml` | Shared configs that must stay in sync | **Overwrites** existing files |
+| `.github/sync-initial.yml` | Templates repos can customize | Only creates if **missing** |
+
+### Key Config Options
 
 | Feature | Description |
 |---------|-------------|
 | `source` | Path to file/directory in this repo |
 | `dest` | Destination path in target repo |
-| `replace: false` | Only sync if file doesn't exist (initial-only behavior) |
+| `replace: false` | Only sync if file doesn't exist |
 | `deleteOrphaned: true` | Remove files deleted from source |
 | `exclude` | Glob patterns to exclude from directory sync |
 
-### Example Configuration
+### Example: Always-Sync Config
 
 ```yaml
+# .github/sync-always.yml - these files OVERWRITE existing
 group:
-  # Sync always-sync files to all repos
   - files:
       - source: repository-files/always-sync/.cursor/
         dest: .cursor/
         deleteOrphaned: true
+      - source: repository-files/always-sync/.github/workflows/
+        dest: .github/workflows/
     repos: |
       jbcom/python-agentic-crew
       jbcom/nodejs-strata
+```
 
-  # Sync initial-only files (only if not exists)
+### Example: Initial-Only Config
+
+```yaml
+# .github/sync-initial.yml - these files only created if MISSING
+group:
   - files:
       - source: repository-files/initial-only/CLAUDE.md
         dest: CLAUDE.md
+        replace: false  # <-- Key setting!
+      - source: repository-files/initial-only/.github/dependabot.yml
+        dest: .github/dependabot.yml
         replace: false
     repos: |
       jbcom/python-agentic-crew
@@ -106,6 +121,22 @@ The sync uses `CI_GITHUB_TOKEN` secret which is a GitHub PAT with:
 
 The token is passed to repo-file-sync-action via the `GH_PAT` input.
 
+## Two-Phase Sync Process
+
+The workflow runs in two sequential phases for safety:
+
+### Phase 1: Initial Sync 📦
+- **Config:** `.github/sync-initial.yml`
+- **Behavior:** Only creates files that don't exist
+- **Use for:** Templates, configs that repos can customize
+- **Safe:** Never overwrites existing customizations
+
+### Phase 2: Always Sync 🔄
+- **Config:** `.github/sync-always.yml`  
+- **Behavior:** Overwrites existing files with latest
+- **Use for:** Shared workflows, cursor rules, settings
+- **Note:** Runs only after Phase 1 succeeds
+
 ## Workflow Modes
 
 ### 1. PR Mode (Default for manual runs)
@@ -128,6 +159,13 @@ Previews changes without making any modifications:
 - Enable with `dry_run: true`
 - Useful for testing configuration changes
 
+### 4. Selective Sync
+
+Run only one phase via `sync_type` input:
+- `both` (default) - Run both phases
+- `always-only` - Skip initial sync, only run always sync
+- `initial-only` - Only run initial sync for new repos
+
 ## Workflow Process
 
 ### 1. Automatic Sync (Nightly)
@@ -144,6 +182,7 @@ Trigger via GitHub UI:
 1. Go to Actions → Ecosystem Sync
 2. Click "Run workflow"
 3. Choose options:
+   - `sync_type` - Which phases to run (both/always-only/initial-only)
    - `dry_run: true` - Preview changes
    - `skip_pr: true` - Push directly instead of PRs
 4. Click "Run"
@@ -158,7 +197,8 @@ on:
     paths:
       - 'repository-files/**'
       - 'repo-config.json'
-      - '.github/sync.yml'
+      - '.github/sync-always.yml'
+      - '.github/sync-initial.yml'
 ```
 
 ## Validation
@@ -182,8 +222,9 @@ Run locally before committing:
 # Check for symlinks
 ./scripts/check-symlinks
 
-# Validate sync.yml
-python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))"
+# Validate sync configs
+python3 -c "import yaml; yaml.safe_load(open('.github/sync-always.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('.github/sync-initial.yml'))"
 ```
 
 ## Adding a New Repository
@@ -202,9 +243,18 @@ python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))"
 }
 ```
 
-2. Add the repository to `.github/sync.yml` in the appropriate groups:
+2. Add the repository to BOTH sync configs:
 
 ```yaml
+# .github/sync-always.yml - add to relevant groups
+group:
+  - files:
+      # ... existing files ...
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-my-new-repo  # Add here
+
+# .github/sync-initial.yml - add to initial-only group
 group:
   - files:
       # ... existing files ...
@@ -216,12 +266,14 @@ group:
 3. Commit and push:
 
 ```bash
-git add repo-config.json .github/sync.yml
+git add repo-config.json .github/sync-always.yml .github/sync-initial.yml
 git commit -m "feat: add python-my-new-repo to ecosystem"
 git push
 ```
 
-4. The next sync will include the new repository.
+4. The next sync will:
+   - Phase 1: Create initial files (CLAUDE.md, dependabot.yml, etc.)
+   - Phase 2: Sync shared configs (workflows, cursor rules, etc.)
 
 ## Adding/Updating Workflows
 
