@@ -1,0 +1,45 @@
+name: Lint Configuration
+
+# Validates repo-config.json for correctness
+# Runs on every PR and push to catch JSON errors early
+
+on:
+  pull_request:
+    paths:
+      - 'repo-config.json'
+      - '.github/workflows/lint-config.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'repo-config.json'
+      - '.github/workflows/lint-config.yml'
+
+jobs:
+  validate-json:
+    name: Validate repo-config.json
+    runs-on: ubuntu-latest
+    
+    steps:
+      # actions/checkout v6.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      
+      - name: Check for symlinks
+        run: |
+          ./scripts/check-symlinks
+      
+      - name: Validate JSON configuration
+        run: |
+          # Use shared validation script
+          ./scripts/validate-config --verbose
+      
+      - name: Display configuration summary
+        run: |
+          echo "Configuration Summary:"
+          echo "====================="
+          echo "Version: $(jq -r '.version' repo-config.json)"
+          echo ""
+          echo "Ecosystems:"
+          jq -r '.ecosystems | to_entries[] | "  \(.key): \(.value.repos | length) repos"' repo-config.json
+          echo ""
+          echo "Total repositories: $(jq '[.ecosystems[].repos[]] | length' repo-config.json)"

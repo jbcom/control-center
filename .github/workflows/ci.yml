@@ -11,8 +11,8 @@ jobs:
     name: Lint Workflows
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Install actionlint
         run: |
@@ -38,8 +38,8 @@ jobs:
     name: Validate Workflow Expressions
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check for dangerous input comparison patterns
         run: |
@@ -140,8 +140,8 @@ jobs:
     name: Validate Repo Configuration
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repo-config.json is valid JSON
         run: |
@@ -223,8 +223,8 @@ jobs:
     name: Validate Repository Files
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repository-files structure
         run: |
@@ -266,12 +266,12 @@ jobs:
     name: Dry Run - Generate Tests Workflow
     runs-on: ubuntu-latest
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      # actions/setup-python v5.6.0
+      # actions/setup-python v6.1.0
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
           python-version: "3.12"
 
