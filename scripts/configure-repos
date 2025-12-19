@@ -23,6 +23,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 CONFIG_FILE="${REPO_ROOT}/repo-config.json"
+RULESETS_DIR="${REPO_ROOT}/branch-rulesets"
 GITHUB_ORG="${GITHUB_ORG:-jbcom}"
 
 # Options
@@ -314,22 +315,49 @@ configure_pages() {
 # Rulesets
 # =============================================================================
 
+# Get ruleset key from filename (e.g., "Main.json" -> "main", "PRs.json" -> "prs")
+get_ruleset_key_from_file() {
+  local file="$1"
+  local basename
+  basename=$(basename "$file" .json)
+  echo "$basename" | tr '[:upper:]' '[:lower:]'
+}
+
 sync_ruleset() {
   local repo="$1"
-  local ruleset_key="$2"
+  local ruleset_file="$2"
   local ecosystem="$3"
   local full_repo="${GITHUB_ORG}/${repo}"
   
-  # Get ruleset config - check for ecosystem override first
+  # Skip non-JSON files (like .gitkeep)
+  if [[ ! "$ruleset_file" =~ \.json$ ]]; then
+    return 0
+  fi
+  
+  # Get ruleset key for ecosystem override lookup
+  local ruleset_key
+  ruleset_key=$(get_ruleset_key_from_file "$ruleset_file")
+  
+  # Read base ruleset from file
+  local base_config
+  base_config=$(jq -c '.' "$ruleset_file" 2>/dev/null)
+  
+  if [[ -z "$base_config" ]] || [[ "$base_config" == "null" ]]; then
+    log_warn "      Failed to read ruleset from: $ruleset_file"
+    return 1
+  fi
+  
+  # Check for ecosystem-specific overrides in repo-config.json
   local ruleset_config
   local override
-  override=$(jq -c ".ecosystems.${ecosystem}.ruleset_overrides.${ruleset_key} // empty" "$CONFIG_FILE")
+  override=$(jq -c ".ecosystems.${ecosystem}.ruleset_overrides.${ruleset_key} // empty" "$CONFIG_FILE" 2>/dev/null)
   
   if [[ -n "$override" ]] && [[ "$override" != "null" ]]; then
-    # Merge override with base config
-    ruleset_config=$(jq -c ".rulesets.${ruleset_key} * .ecosystems.${ecosystem}.ruleset_overrides.${ruleset_key}" "$CONFIG_FILE")
+    # Merge override with base config from file
+    ruleset_config=$(echo "$base_config" | jq -c --argjson override "$override" '. * $override')
+    log_verbose "      Applied ecosystem override for: $ruleset_key"
   else
-    ruleset_config=$(jq -c ".rulesets.${ruleset_key}" "$CONFIG_FILE")
+    ruleset_config="$base_config"
   fi
   
   local ruleset_name
@@ -379,9 +407,26 @@ sync_rulesets() {
   
   log_info "    Rulesets:"
   
-  for ruleset_key in $(jq -r '.rulesets | keys[]' "$CONFIG_FILE"); do
-    sync_ruleset "$repo" "$ruleset_key" "$ecosystem"
+  # Check if rulesets directory exists
+  if [[ ! -d "$RULESETS_DIR" ]]; then
+    log_warn "      Rulesets directory not found: $RULESETS_DIR"
+    return 0
+  fi
+  
+  # Iterate over JSON files in the rulesets directory
+  local found_rulesets=false
+  for ruleset_file in "$RULESETS_DIR"/*.json; do
+    # Check if glob matched any files
+    if [[ ! -f "$ruleset_file" ]]; then
+      continue
+    fi
+    found_rulesets=true
+    sync_ruleset "$repo" "$ruleset_file" "$ecosystem"
   done
+  
+  if [[ "$found_rulesets" == "false" ]]; then
+    log_warn "      No ruleset files found in: $RULESETS_DIR"
+  fi
 }
 
 # =============================================================================
