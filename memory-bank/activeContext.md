@@ -494,3 +494,45 @@ Terraform Cloud workspaces becoming locked causing terraform-sync workflow to fa
 - Can be tested manually or via workflow dispatch once merged
 - Monitor terraform-sync workflow to ensure automatic unlock works as expected
 
+
+---
+
+## Session: 2025-12-19 (Ecosystem Sync Fixes)
+
+### Completed
+- [x] Fixed Ecosystem Sync workflow job failures
+- [x] Added Git LFS installation to both sync phases
+- [x] Verified BRANCH_PREFIX configuration
+- [x] Added troubleshooting documentation
+- [x] Removed obsolete update-submodules job
+
+### Changes to `.github/workflows/ecosystem-sync.yml`
+
+**Git LFS Support:**
+- Added LFS installation step before repo-file-sync-action in Phase 1 (lines 89-93)
+- Added LFS installation step before repo-file-sync-action in Phase 2 (lines 151-156)
+
+**Troubleshooting Documentation:**
+- Added comprehensive troubleshooting section in workflow header (lines 11-17)
+- Documents repository access verification
+- Explains branch prefix behavior
+
+**Branch Configuration:**
+- Verified BRANCH_PREFIX values are correct:
+  - Phase 1: `control-center-init`
+  - Phase 2: `control-center-sync`
+- Both are unique prefixes for safe PR creation
+
+**Cleanup:**
+- Removed obsolete `update-submodules` job (no longer needed with repo file sync)
+- Simplified `sync-projects` job dependencies
+
+### Impact
+- Workflow now supports repositories using Git LFS
+- Better troubleshooting documentation for maintenance
+- Cleaner workflow (removed 31 lines, added 21 lines, net -11 lines)
+- No breaking changes to workflow structure
+
+### For Next Agent
+No follow-up tasks needed. All requirements from the issue have been addressed.
+
