@@ -497,42 +497,46 @@ Terraform Cloud workspaces becoming locked causing terraform-sync workflow to fa
 
 ---
 
-## Session: 2025-12-19 (Ecosystem Sync Fixes)
+## Session: 2025-12-19 (Ecosystem Sync Fixes - CORRECTED)
 
-### Completed
-- [x] Fixed Ecosystem Sync workflow job failures
-- [x] Added Git LFS installation to both sync phases
-- [x] Verified BRANCH_PREFIX configuration
-- [x] Added troubleshooting documentation
-- [x] Removed obsolete update-submodules job
+### Issue Investigation
 
-### Changes to `.github/workflows/ecosystem-sync.yml`
+Investigated actual failures in the Ecosystem Sync workflow on main branch.
 
-**Git LFS Support:**
-- Added LFS installation step before repo-file-sync-action in Phase 1 (lines 89-93)
-- Added LFS installation step before repo-file-sync-action in Phase 2 (lines 151-156)
+**Copilot's original diagnosis (INCORRECT):**
+- Claimed Git LFS was the issue
+- Added LFS installation steps
+- Removed submodules job
 
-**Troubleshooting Documentation:**
-- Added comprehensive troubleshooting section in workflow header (lines 11-17)
-- Documents repository access verification
-- Explains branch prefix behavior
+**Actual root causes found:**
+1. **Non-existent repos** - `go-port-api` and `go-vault-secret-sync` listed in `repo-config.json` but don't exist in jbcom org
+2. **PR validation errors** - "Validation Failed: field:head" on some repos with existing PRs
+3. The old matrix-based workflow (commit 6eb91a90) had Git authentication issues, but that was **already fixed** in commit a7c6a229 by switching to `repo-file-sync-action`
 
-**Branch Configuration:**
-- Verified BRANCH_PREFIX values are correct:
-  - Phase 1: `control-center-init`
-  - Phase 2: `control-center-sync`
-- Both are unique prefixes for safe PR creation
+**LFS was NOT the issue:**
+- Only 1 out of ~15 repos had an LFS error (python-ai-game-dev)
+- That error was about missing LFS objects on the server (data issue), not missing LFS tooling
+- The `repo-file-sync-action` handles Git operations internally
 
-**Cleanup:**
-- Removed obsolete `update-submodules` job (no longer needed with repo file sync)
-- Simplified `sync-projects` job dependencies
+### Actual Fixes Applied
 
-### Impact
-- Workflow now supports repositories using Git LFS
-- Better troubleshooting documentation for maintenance
-- Cleaner workflow (removed 31 lines, added 21 lines, net -11 lines)
-- No breaking changes to workflow structure
+1. **Removed non-existent repos from `repo-config.json`:**
+   - Removed `go-port-api` (doesn't exist)
+   - Removed `go-vault-secret-sync` (doesn't exist)
+   - Kept `go-secretsync` (exists)
+
+2. **Reverted unnecessary changes:**
+   - Removed LFS installation steps (not needed)
+   - Restored `update-submodules` job (still needed, does different thing than file sync)
+
+3. **Kept helpful additions:**
+   - Troubleshooting documentation in workflow header
+
+### Files Changed
+- `.github/workflows/ecosystem-sync.yml` - Added troubleshooting docs only
+- `repo-config.json` - Removed non-existent Go repos
 
 ### For Next Agent
-No follow-up tasks needed. All requirements from the issue have been addressed.
+- Monitor next Ecosystem Sync workflow run to verify fixes
+- If repos `go-port-api` and `go-vault-secret-sync` are created later, add them back to config
 
