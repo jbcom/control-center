@@ -57,10 +57,10 @@ The migration is performed using `scripts/migrate-to-jbcom`:
 - `rivermarsh` → `nodejs-rivermarsh`
 - `pixels-pygame-palace` → `nodejs-pixels-pygame-palace`
 
-**Go (3):**
-- `port-api` → `go-port-api`
+**Go (1):**
 - `secretsync` → `go-secretsync`
-- `vault-secret-sync` → `go-vault-secret-sync`
+
+*Note: `go-port-api` and `go-vault-secret-sync` were planned but not created.*
 
 **Terraform (2):**
 - `terraform-github-markdown` → `terraform-github-markdown`
@@ -96,7 +96,7 @@ After migration:
 
 3. **Update triage-hub.json** with new repository names
 4. **Update repo-config.json** with new repository names
-5. **Update submodules** in `ecosystems/oss/`
+5. **Update sync configs** in `.github/sync-initial.yml` and `.github/sync-always.yml`
 
 ## Full Historical Migration
 

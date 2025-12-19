@@ -48,8 +48,6 @@ group:
       jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
       jbcom/jbcom.github.io
-      jbcom/go-port-api
-      jbcom/go-vault-secret-sync
       jbcom/go-secretsync
       jbcom/terraform-github-markdown
       jbcom/terraform-repository-automation
@@ -102,8 +100,6 @@ group:
       - source: repository-files/go/.github/copilot-instructions.md
         dest: .github/copilot-instructions.md
     repos: &go_repos |
-      jbcom/go-port-api
-      jbcom/go-vault-secret-sync
       jbcom/go-secretsync
 
   # ============================================================================

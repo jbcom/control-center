@@ -63,8 +63,6 @@ group:
       jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
       jbcom/jbcom.github.io
-      jbcom/go-port-api
-      jbcom/go-vault-secret-sync
       jbcom/go-secretsync
       jbcom/terraform-github-markdown
       jbcom/terraform-repository-automation
@@ -87,8 +85,6 @@ group:
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
-      jbcom/go-port-api
-      jbcom/go-vault-secret-sync
       jbcom/go-secretsync
       jbcom/terraform-github-markdown
       jbcom/terraform-repository-automation
