@@ -72,7 +72,7 @@ jobs:
             ]' repo-config.json)
           fi
           
-          if [[ -z "$REPOS" || "$REPOS" == "null" ]]; then
+          if [[ -z "$REPOS" || "$REPOS" == "null" || "$REPOS" == "[]" ]]; then
             echo "ERROR: No repositories found in config"
             exit 1
           fi
