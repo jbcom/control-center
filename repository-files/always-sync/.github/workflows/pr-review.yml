@@ -44,13 +44,15 @@ jobs:
       github.actor != 'dependabot[bot]'
 
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
 
+      # jonit-dev/diffguard v1.0.0
       - name: DiffGuard AI Review
-        uses: jonit-dev/diffguard@88f63615c769f8db6031973503c2c40a9a3f4feb # v1.0.0
+        uses: jonit-dev/diffguard@88f63615c769f8db6031973503c2c40a9a3f4feb
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           open_router_key: ${{ secrets.OPENROUTER_API_KEY }}
@@ -103,13 +105,15 @@ jobs:
        contains(github.event.comment.body, '@claude'))
 
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 1
 
+      # anthropics/claude-code-action v1
       - name: Claude Code Review
-        uses: anthropics/claude-code-action@f0c8eb29807907de7f5412d04afceb5e24817127 # v1
+        uses: anthropics/claude-code-action@928c84b37e02abd33f08826a2200058c68633a85
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           
@@ -180,13 +184,15 @@ jobs:
       github.actor != 'dependabot[bot]'
 
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
 
+      # openai/codex-action v1.4
       - name: Codex Code Review
-        uses: openai/codex-action@086169432f1d2ab2f4057540b1754d550f6a1189 # v1.4
+        uses: openai/codex-action@086169432f1d2ab2f4057540b1754d550f6a1189
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           sandbox: "read-only"
@@ -248,8 +254,9 @@ jobs:
        contains(github.event.comment.body, '/review'))
 
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 1
 
@@ -309,8 +316,9 @@ jobs:
     if: always() && github.event_name == 'pull_request'
 
     steps:
+      # actions/github-script v8
       - name: Post Summary
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             const openrouter = '${{ needs.openrouter-review.result }}';

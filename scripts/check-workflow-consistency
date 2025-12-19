@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Check that workflow files in .github/workflows match those in repository-files
+# This ensures we're syncing what we use
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "Checking workflow consistency..."
+echo "================================"
+echo ""
+
+EXIT_CODE=0
+
+# Control-center specific workflows that should NOT be synced
+# NOTE: Update this list when adding new control-center-only workflows
+# These workflows are only used in control-center and should not be synced to managed repos
+CONTROL_CENTER_WORKFLOWS=(
+    "ecosystem-sync.yml"    # Orchestrates file syncing
+    "lint-config.yml"       # Validates repo-config.json
+    "agentic-triage.yml"    # Triage automation
+    "ci.yml"                # Control center CI
+    "generate-tests.yml"    # Test generation
+    "sync-ruler.yml"        # Ruler sync
+    "triage.yml"            # Triage workflow
+)
+
+# Function to check if workflow is control-center specific
+is_control_center_workflow() {
+    local workflow="$1"
+    for cc_workflow in "${CONTROL_CENTER_WORKFLOWS[@]}"; do
+        if [[ "$workflow" == "$cc_workflow" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Check if workflows in .github/workflows exist in repository-files/always-sync
+if [[ -d ".github/workflows" ]]; then
+    for workflow in .github/workflows/*.yml; do
+        filename=$(basename "$workflow")
+        
+        # Skip workflows that are control-center specific
+        if is_control_center_workflow "$filename"; then
+            continue
+        fi
+        
+        sync_file="repository-files/always-sync/.github/workflows/$filename"
+        
+        if [[ ! -f "$sync_file" ]]; then
+            echo "⚠️  WARNING: $workflow exists but not in sync directory"
+            echo "    Expected: $sync_file"
+            EXIT_CODE=1
+        else
+            # Check if files are identical
+            if ! diff -q "$workflow" "$sync_file" > /dev/null 2>&1; then
+                echo "⚠️  WARNING: $workflow differs from sync version"
+                echo "    Local:  $workflow"
+                echo "    Sync:   $sync_file"
+                EXIT_CODE=1
+            fi
+        fi
+    done
+fi
+
+# Check if synced workflows are actually used
+if [[ -d "repository-files/always-sync/.github/workflows" ]]; then
+    for sync_workflow in repository-files/always-sync/.github/workflows/*.yml; do
+        filename=$(basename "$sync_workflow")
+        local_file=".github/workflows/$filename"
+        
+        if [[ ! -f "$local_file" ]]; then
+            echo "ℹ️  INFO: $sync_workflow will be synced but not used locally"
+        fi
+    done
+fi
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    echo "✅ All workflows are consistent"
+else
+    echo ""
+    echo "To fix inconsistencies:"
+    echo "  1. Copy updated workflows to repository-files/always-sync/.github/workflows/"
+    echo "  2. Ensure local .github/workflows/ matches what you want to sync"
+    echo "  3. Never use symlinks - always use actual file copies"
+fi
+
+exit $EXIT_CODE
