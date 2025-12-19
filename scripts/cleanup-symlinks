@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+# Clean up any symlinks by replacing them with actual file copies
+# This script safely removes symlinks and replaces them with dereferenced copies
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "Cleaning up symlinks in repository..."
+echo "====================================="
+echo ""
+
+# Find all symlinks, excluding .git directory
+SYMLINKS=$(find . -type l -not -path './.git/*' 2>/dev/null || true)
+
+if [[ -z "$SYMLINKS" ]]; then
+    echo "✅ No symlinks found - nothing to clean"
+    exit 0
+fi
+
+echo "Found symlinks to clean:"
+echo "$SYMLINKS"
+echo ""
+
+# Process each symlink
+while IFS= read -r symlink; do
+    if [[ -z "$symlink" ]]; then
+        continue
+    fi
+    
+    target=$(readlink "$symlink" || echo "")
+    
+    if [[ -z "$target" ]]; then
+        echo "⚠️  Removing broken symlink: $symlink"
+        rm "$symlink"
+        continue
+    fi
+    
+    # Check if target exists (relative or absolute)
+    symlink_dir=$(dirname "$symlink")
+    if [[ -f "$symlink_dir/$target" ]] || [[ -f "$target" ]]; then
+        echo "🔄 Replacing $symlink with copy of target"
+        
+        # Copy the dereferenced file
+        cp -L "$symlink" "${symlink}.tmp"
+        
+        # Remove the symlink
+        rm "$symlink"
+        
+        # Move the copy to the symlink's location
+        mv "${symlink}.tmp" "$symlink"
+        
+        echo "   ✅ Replaced: $symlink"
+    else
+        echo "⚠️  Removing symlink to missing target: $symlink -> $target"
+        rm "$symlink"
+    fi
+done <<< "$SYMLINKS"
+
+echo ""
+echo "✅ Symlink cleanup complete"
+echo ""
+echo "Next steps:"
+echo "  1. Review the changes: git status"
+echo "  2. Commit the changes: git add . && git commit -m 'fix: replace symlinks with actual files'"
+echo "  3. Push to remote: git push"

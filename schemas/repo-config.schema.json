@@ -1,0 +1,35 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/jbcom/control-center/schemas/repo-config.schema.json",
+  "title": "Repository Configuration Schema",
+  "description": "Schema for control-center repository configuration",
+  "type": "object",
+  "required": ["version", "ecosystems", "defaults"],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "ecosystems": {
+      "type": "object",
+      "patternProperties": {
+        "^[a-z_]+$": {
+          "type": "object",
+          "required": ["repos"],
+          "properties": {
+            "repos": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          }
+        }
+      }
+    },
+    "defaults": {
+      "type": "object"
+    }
+  }
+}
