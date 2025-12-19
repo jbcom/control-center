@@ -32,21 +32,14 @@ log() {
 }
 
 # Validate JSON syntax
+# Note: jq empty validates all JSON syntax including trailing commas,
+# so no additional trailing comma check is needed
 log "Validating JSON syntax..."
 if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
     echo "❌ ERROR: repo-config.json is not valid JSON"
     exit 1
 fi
 log "✅ JSON syntax is valid"
-
-# Check for trailing commas
-log "Checking for trailing commas..."
-if grep -qE ',\s*[}\]]' "$CONFIG_FILE"; then
-    echo "❌ ERROR: Found trailing commas in repo-config.json"
-    echo "Trailing commas are not valid JSON"
-    exit 1
-fi
-log "✅ No trailing commas found"
 
 # Check required keys
 log "Checking required keys..."
