@@ -81,6 +81,9 @@ jobs:
       - name: Initial file sync (create missing only)
         id: sync
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        env:
+          # Skip LFS to avoid issues with repos that have broken LFS objects
+          GIT_LFS_SKIP_SMUDGE: "1"
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync-initial.yml
@@ -128,6 +131,9 @@ jobs:
       - name: Always file sync (overwrite)
         id: sync
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        env:
+          # Skip LFS to avoid issues with repos that have broken LFS objects
+          GIT_LFS_SKIP_SMUDGE: "1"
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync-always.yml
