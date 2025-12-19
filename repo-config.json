@@ -258,10 +258,9 @@
         "initial": ["initial-only"]
       },
       "repos": [
-        "go-port-api",
-        "go-vault-secret-sync",
         "go-secretsync"
       ],
+      "_comment_removed_repos": "go-port-api and go-vault-secret-sync removed - repos don't exist yet",
       "ruleset_overrides": {
         "prs": {
           "rules": [
