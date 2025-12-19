@@ -7,6 +7,14 @@ name: Ecosystem Sync
 # PHASE 2: Always Sync - Overwrites with latest shared configs
 #
 # Each phase runs as a separate job with detailed per-repo logging
+#
+# TROUBLESHOOTING:
+# - If you see 'Validation Failed' or 'repository not found' errors:
+#   1. Verify the repository exists in the sync config files
+#   2. Ensure CI_GITHUB_TOKEN has access to the repository (read/write permissions)
+#   3. Check that the repository is not archived or disabled
+# - Branch prefixes (control-center-init, control-center-sync) create unique branches
+#   and PRs are created against the 'main' branch of target repositories
 
 on:
   workflow_dispatch:
@@ -79,6 +87,12 @@ jobs:
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install git-lfs
+          git lfs install
+
       - name: Initial file sync (create missing only)
         id: sync
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
@@ -134,6 +148,12 @@ jobs:
       pr_urls: ${{ steps.sync.outputs.pull_request_urls }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install git-lfs
+          git lfs install
 
       - name: Always file sync (overwrite)
         id: sync
@@ -226,42 +246,11 @@ jobs:
           echo "*Configs: \`.github/sync-initial.yml\`, \`.github/sync-always.yml\`*" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Update submodules (after sync completes)
-  # =============================================================================
-  update-submodules:
-    name: 📚 Update Submodules
-    needs: phase-2-always
-    runs-on: ubuntu-latest
-    if: always() && github.event.inputs.dry_run != 'true' && needs.phase-2-always.result != 'failure'
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Update submodules
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git submodule update --remote --recursive || true
-          
-          if git diff --quiet; then
-            echo "No submodule changes"
-            exit 0
-          fi
-          
-          git add -A
-          git commit -m "deps: update submodules to latest"
-          git push origin main
-          echo "✅ Submodules updated"
-
-  # =============================================================================
   # Sync GitHub Projects
   # =============================================================================
   sync-projects:
     name: 📋 Sync Projects
-    needs: [phase-2-always, update-submodules]
+    needs: phase-2-always
     runs-on: ubuntu-latest
     if: always() && github.event.inputs.dry_run != 'true'
     steps:
