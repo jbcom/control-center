@@ -41,7 +41,8 @@ jobs:
     outputs:
       repos: ${{ steps.repos.outputs.repos }}
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       
       - name: Get repos from config
         id: repos
@@ -94,8 +95,9 @@ jobs:
         repo: ${{ fromJson(needs.matrix.outputs.repos) }}
     
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout control center
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           path: control-center
       
@@ -192,8 +194,9 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event.inputs.dry_run != 'true'
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
       
       - name: Sync all issues to projects
         run: |
@@ -210,8 +213,9 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           # submodules disabled until migration complete
           fetch-depth: 0

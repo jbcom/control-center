@@ -54,7 +54,7 @@ env:
   GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
   OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
-  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'llama3.1:70b' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 jobs:
   # =============================================================================
@@ -66,7 +66,8 @@ jobs:
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         # Note: submodules disabled - using matrix fallback instead
         # Enable after submodule migration is complete
       
@@ -124,12 +125,14 @@ jobs:
       matrix: ${{ fromJson(needs.generate-matrix.outputs.matrix) }}
     
     steps:
+      # actions/checkout v6.0.1
       - name: Checkout control center
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         # Note: submodules disabled until migration complete
       
+      # actions/setup-node v6.1.0
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
           node-version: '22'
       
@@ -181,9 +184,10 @@ jobs:
           echo "$SUMMARY" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
       
+      # actions/github-script v8
       - name: Update Roadmap Project
         if: github.event.inputs.update_project != 'false' && env.ROADMAP_PROJECT_ID != ''
-        uses: actions/github-script@v7
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
         env:
           PROJECT_ID: ${{ env.ROADMAP_PROJECT_ID }}
           TARGET_REPO: ${{ matrix.repo }}
@@ -245,11 +249,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'issues'
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         # Note: submodules disabled until migration complete
       
+      # actions/setup-node v6.1.0
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
           node-version: '22'
       
@@ -267,11 +273,13 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request_target'
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         # Note: submodules disabled until migration complete
       
+      # actions/setup-node v6.1.0
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f
         with:
           node-version: '22'
       
@@ -289,7 +297,8 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.command == 'health'
     steps:
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         # Note: submodules disabled until migration complete
       
       - name: Run health check
