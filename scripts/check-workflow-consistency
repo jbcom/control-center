@@ -13,13 +13,35 @@ echo ""
 
 EXIT_CODE=0
 
+# Control-center specific workflows that should NOT be synced
+CONTROL_CENTER_WORKFLOWS=(
+    "ecosystem-sync.yml"
+    "lint-config.yml"
+    "agentic-triage.yml"
+    "ci.yml"
+    "generate-tests.yml"
+    "sync-ruler.yml"
+    "triage.yml"
+)
+
+# Function to check if workflow is control-center specific
+is_control_center_workflow() {
+    local workflow="$1"
+    for cc_workflow in "${CONTROL_CENTER_WORKFLOWS[@]}"; do
+        if [[ "$workflow" == "$cc_workflow" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
 # Check if workflows in .github/workflows exist in repository-files/always-sync
 if [[ -d ".github/workflows" ]]; then
     for workflow in .github/workflows/*.yml; do
         filename=$(basename "$workflow")
         
         # Skip workflows that are control-center specific
-        if [[ "$filename" == "ecosystem-sync.yml" || "$filename" == "lint-config.yml" ]]; then
+        if is_control_center_workflow "$filename"; then
             continue
         fi
         

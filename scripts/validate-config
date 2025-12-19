@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Validate repo-config.json
+# This script validates the JSON structure and content
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+CONFIG_FILE="${REPO_ROOT}/repo-config.json"
+
+# Options
+VERBOSE=false
+
+# Parse arguments
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -v|--verbose)
+            VERBOSE=true
+            shift
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Usage: $0 [-v|--verbose]"
+            exit 1
+            ;;
+    esac
+done
+
+log() {
+    if $VERBOSE; then
+        echo "$@"
+    fi
+}
+
+# Validate JSON syntax
+log "Validating JSON syntax..."
+if ! jq empty "$CONFIG_FILE" 2>/dev/null; then
+    echo "❌ ERROR: repo-config.json is not valid JSON"
+    exit 1
+fi
+log "✅ JSON syntax is valid"
+
+# Check for trailing commas
+log "Checking for trailing commas..."
+if grep -E ',\s*[}\]]' "$CONFIG_FILE" > /dev/null; then
+    echo "❌ ERROR: Found trailing commas in repo-config.json"
+    echo "Trailing commas are not valid JSON"
+    exit 1
+fi
+log "✅ No trailing commas found"
+
+# Check required keys
+log "Checking required keys..."
+REQUIRED_KEYS=("version" "ecosystems" "defaults")
+for key in "${REQUIRED_KEYS[@]}"; do
+    if ! jq -e ".$key" "$CONFIG_FILE" > /dev/null 2>&1; then
+        echo "❌ ERROR: Missing required key: $key"
+        exit 1
+    fi
+done
+log "✅ All required keys present"
+
+# Validate ecosystems structure
+log "Validating ecosystem structure..."
+if ! jq -e '.ecosystems | type == "object"' "$CONFIG_FILE" > /dev/null 2>&1; then
+    echo "❌ ERROR: ecosystems must be an object"
+    exit 1
+fi
+
+# Check that each ecosystem has repos array
+INVALID_ECOSYSTEMS=$(jq -r '
+    .ecosystems | to_entries[] | 
+    select(.value.repos == null or (.value.repos | type) != "array") |
+    .key
+' "$CONFIG_FILE")
+
+if [[ -n "$INVALID_ECOSYSTEMS" ]]; then
+    echo "❌ ERROR: The following ecosystems are missing repos array:"
+    echo "$INVALID_ECOSYSTEMS"
+    exit 1
+fi
+log "✅ Ecosystem structure is valid"
+
+# Display summary if verbose
+if $VERBOSE; then
+    echo ""
+    echo "Configuration Summary:"
+    echo "  Version: $(jq -r '.version' "$CONFIG_FILE")"
+    echo "  Ecosystems: $(jq -r '.ecosystems | keys | join(", ")' "$CONFIG_FILE")"
+    echo "  Total Repositories: $(jq '[.ecosystems[].repos[]] | length' "$CONFIG_FILE")"
+fi
+
+exit 0

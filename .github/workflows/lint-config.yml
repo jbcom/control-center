@@ -27,59 +27,10 @@ jobs:
         run: |
           ./scripts/check-symlinks
       
-      - name: Validate JSON syntax
+      - name: Validate JSON configuration
         run: |
-          echo "Validating JSON syntax..."
-          if ! jq empty repo-config.json; then
-            echo "❌ ERROR: repo-config.json contains invalid JSON"
-            exit 1
-          fi
-          echo "✅ JSON syntax is valid"
-      
-      - name: Check for trailing commas
-        run: |
-          echo "Checking for trailing commas..."
-          # Look for patterns like ",}" or ",]" which indicate trailing commas
-          if grep -E ',\s*[}\]]' repo-config.json; then
-            echo "❌ ERROR: Found trailing commas in repo-config.json"
-            echo "Trailing commas are not valid JSON and will cause parsing errors"
-            exit 1
-          fi
-          echo "✅ No trailing commas found"
-      
-      - name: Validate structure
-        run: |
-          echo "Validating required fields..."
-          
-          # Check for required top-level keys
-          REQUIRED_KEYS=("version" "ecosystems" "defaults")
-          for key in "${REQUIRED_KEYS[@]}"; do
-            if ! jq -e ".$key" repo-config.json > /dev/null; then
-              echo "❌ ERROR: Missing required key: $key"
-              exit 1
-            fi
-          done
-          
-          # Validate ecosystems structure
-          if ! jq -e '.ecosystems | type == "object"' repo-config.json > /dev/null; then
-            echo "❌ ERROR: ecosystems must be an object"
-            exit 1
-          fi
-          
-          # Check that each ecosystem has repos array
-          INVALID_ECOSYSTEMS=$(jq -r '
-            .ecosystems | to_entries[] | 
-            select(.value.repos == null or (.value.repos | type) != "array") |
-            .key
-          ' repo-config.json)
-          
-          if [[ -n "$INVALID_ECOSYSTEMS" ]]; then
-            echo "❌ ERROR: The following ecosystems are missing repos array:"
-            echo "$INVALID_ECOSYSTEMS"
-            exit 1
-          fi
-          
-          echo "✅ Structure validation passed"
+          # Use shared validation script
+          ./scripts/validate-config --verbose
       
       - name: Display configuration summary
         run: |
