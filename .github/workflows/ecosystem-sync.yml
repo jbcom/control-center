@@ -133,21 +133,28 @@ jobs:
         run: |
           ECOSYSTEM="${{ matrix.repo.ecosystem }}"
           
+          # Skip control ecosystem (these repos don't sync ecosystem files)
+          if [[ "$ECOSYSTEM" == "control" ]]; then
+            echo "Skipping ecosystem sync for control center repo"
+            exit 0
+          fi
+          
           # Map ecosystem to directory (use ecosystem name directly for most cases)
           case "$ECOSYSTEM" in
             nodejs) DIR="nodejs" ;;
             python) DIR="python" ;;
             go) DIR="go" ;;
             terraform) DIR="terraform" ;;
-            control) DIR="" ;; # Control center repos don't sync files
             *) DIR="$ECOSYSTEM" ;; # Default: use ecosystem name as-is
           esac
           
-          if [[ -n "$DIR" && -d "control-center/repository-files/$DIR" ]]; then
+          if [[ -d "control-center/repository-files/$DIR" ]]; then
             echo "Syncing $ECOSYSTEM files from $DIR/..."
             rsync -av --copy-links --exclude='.git' \
               "control-center/repository-files/$DIR/" \
               target-repo/
+          else
+            echo "⚠️  WARNING: No ecosystem directory found for $ECOSYSTEM at repository-files/$DIR/"
           fi
       
       - name: Sync initial-only files

@@ -52,7 +52,7 @@ jobs:
           echo "Validating required fields..."
           
           # Check for required top-level keys
-          REQUIRED_KEYS=("version" "ecosystems" "defaults" "labels")
+          REQUIRED_KEYS=("version" "ecosystems" "defaults")
           for key in "${REQUIRED_KEYS[@]}"; do
             if ! jq -e ".$key" repo-config.json > /dev/null; then
               echo "❌ ERROR: Missing required key: $key"

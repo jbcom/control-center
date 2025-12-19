@@ -37,23 +37,25 @@ while IFS= read -r symlink; do
         continue
     fi
     
-    # Check if target exists (relative or absolute)
-    symlink_dir=$(dirname "$symlink")
-    if [[ -f "$symlink_dir/$target" ]] || [[ -f "$target" ]]; then
+    # Check if we can dereference the symlink
+    if [[ -e "$symlink" ]]; then
         echo "🔄 Replacing $symlink with copy of target"
         
-        # Copy the dereferenced file
-        cp -L "$symlink" "${symlink}.tmp"
-        
-        # Remove the symlink
-        rm "$symlink"
-        
-        # Move the copy to the symlink's location
-        mv "${symlink}.tmp" "$symlink"
-        
-        echo "   ✅ Replaced: $symlink"
+        # Try to copy the dereferenced file
+        if cp -L "$symlink" "${symlink}.tmp" 2>/dev/null; then
+            # Remove the symlink
+            rm "$symlink"
+            
+            # Move the copy to the symlink's location
+            mv "${symlink}.tmp" "$symlink"
+            
+            echo "   ✅ Replaced: $symlink"
+        else
+            echo "⚠️  Failed to copy target, removing symlink: $symlink"
+            rm "$symlink"
+        fi
     else
-        echo "⚠️  Removing symlink to missing target: $symlink -> $target"
+        echo "⚠️  Removing symlink to missing/inaccessible target: $symlink -> $target"
         rm "$symlink"
     fi
 done <<< "$SYMLINKS"

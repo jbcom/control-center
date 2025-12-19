@@ -16,7 +16,7 @@
     "ecosystems": {
       "type": "object",
       "patternProperties": {
-        "^[a-z_]+$": {
+        "^[a-z][a-z0-9_-]*$": {
           "type": "object",
           "required": ["repos"],
           "properties": {
