@@ -1,0 +1,185 @@
+# Sync Configuration for repo-file-sync-action
+# This file defines what files to sync to which repositories
+#
+# Documentation: https://github.com/BetaHuhn/repo-file-sync-action
+#
+# Key behaviors:
+# - replace: false - Only sync if file doesn't exist (initial-only)
+# - deleteOrphaned: true - Remove files deleted from source
+# - Directories end with / to sync all contents
+
+group:
+  # ============================================================================
+  # Always-sync files - synced to ALL repositories (overwrite on each run)
+  # ============================================================================
+  - files:
+      # Cursor rules
+      - source: repository-files/always-sync/.cursor/
+        dest: .cursor/
+        deleteOrphaned: true
+        exclude: |
+          .gitkeep
+      # GitHub workflows
+      - source: repository-files/always-sync/.github/workflows/
+        dest: .github/workflows/
+        deleteOrphaned: false
+        exclude: |
+          ci.yml
+          test.yml
+          release.yml
+          build.yml
+      # GitHub agents
+      - source: repository-files/always-sync/.github/agents/
+        dest: .github/agents/
+        deleteOrphaned: true
+      # GitHub config files
+      - source: repository-files/always-sync/.github/CODEOWNERS
+        dest: .github/CODEOWNERS
+      - source: repository-files/always-sync/.github/PULL_REQUEST_TEMPLATE.md
+        dest: .github/PULL_REQUEST_TEMPLATE.md
+      - source: repository-files/always-sync/.github/copilot-instructions.md
+        dest: .github/copilot-instructions.md
+      - source: repository-files/always-sync/.github/settings.yml
+        dest: .github/settings.yml
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-vendor-connectors
+      jbcom/python-extended-data-types
+      jbcom/python-directed-inputs-class
+      jbcom/python-lifecyclelogging
+      jbcom/python-terraform-bridge
+      jbcom/python-rivers-of-reckoning
+      jbcom/python-ai-game-dev
+      jbcom/nodejs-agentic-control
+      jbcom/nodejs-agentic-triage
+      jbcom/nodejs-strata
+      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-otterfall
+      jbcom/nodejs-rivermarsh
+      jbcom/nodejs-pixels-pygame-palace
+      jbcom/jbcom.github.io
+      jbcom/go-port-api
+      jbcom/go-vault-secret-sync
+      jbcom/go-secretsync
+      jbcom/terraform-github-markdown
+      jbcom/terraform-repository-automation
+
+  # ============================================================================
+  # Python ecosystem - language-specific rules
+  # ============================================================================
+  - files:
+      - source: repository-files/python/.cursor/
+        dest: .cursor/
+        deleteOrphaned: false
+      - source: repository-files/python/.github/copilot-instructions.md
+        dest: .github/copilot-instructions.md
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-vendor-connectors
+      jbcom/python-extended-data-types
+      jbcom/python-directed-inputs-class
+      jbcom/python-lifecyclelogging
+      jbcom/python-terraform-bridge
+      jbcom/python-rivers-of-reckoning
+      jbcom/python-ai-game-dev
+
+  # ============================================================================
+  # Node.js ecosystem - language-specific rules
+  # ============================================================================
+  - files:
+      - source: repository-files/nodejs/.cursor/
+        dest: .cursor/
+        deleteOrphaned: false
+      - source: repository-files/nodejs/.github/copilot-instructions.md
+        dest: .github/copilot-instructions.md
+    repos: |
+      jbcom/nodejs-agentic-control
+      jbcom/nodejs-agentic-triage
+      jbcom/nodejs-strata
+      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-otterfall
+      jbcom/nodejs-rivermarsh
+      jbcom/nodejs-pixels-pygame-palace
+      jbcom/jbcom.github.io
+
+  # ============================================================================
+  # Go ecosystem - language-specific rules
+  # ============================================================================
+  - files:
+      - source: repository-files/go/.cursor/
+        dest: .cursor/
+        deleteOrphaned: false
+      - source: repository-files/go/.github/copilot-instructions.md
+        dest: .github/copilot-instructions.md
+    repos: |
+      jbcom/go-port-api
+      jbcom/go-vault-secret-sync
+      jbcom/go-secretsync
+
+  # ============================================================================
+  # Terraform ecosystem - language-specific rules
+  # ============================================================================
+  - files:
+      - source: repository-files/terraform/.cursor/
+        dest: .cursor/
+        deleteOrphaned: false
+      - source: repository-files/terraform/.github/copilot-instructions.md
+        dest: .github/copilot-instructions.md
+    repos: |
+      jbcom/terraform-github-markdown
+      jbcom/terraform-repository-automation
+
+  # ============================================================================
+  # Initial-only files - only sync if file doesn't exist
+  # ============================================================================
+  - files:
+      # Cursor environment
+      - source: repository-files/initial-only/.cursor/
+        dest: .cursor/
+        replace: false
+      # GitHub templates
+      - source: repository-files/initial-only/.github/dependabot.yml
+        dest: .github/dependabot.yml
+        replace: false
+      - source: repository-files/initial-only/.github/SECURITY.md
+        dest: .github/SECURITY.md
+        replace: false
+      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/
+        dest: .github/ISSUE_TEMPLATE/
+        replace: false
+      - source: repository-files/initial-only/.github/workflows/docs.yml
+        dest: .github/workflows/docs.yml
+        replace: false
+      # Root files
+      - source: repository-files/initial-only/AGENTS.md
+        dest: AGENTS.md
+        replace: false
+      - source: repository-files/initial-only/CLAUDE.md
+        dest: CLAUDE.md
+        replace: false
+      # Documentation scaffold
+      - source: repository-files/initial-only/docs/
+        dest: docs/
+        replace: false
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-vendor-connectors
+      jbcom/python-extended-data-types
+      jbcom/python-directed-inputs-class
+      jbcom/python-lifecyclelogging
+      jbcom/python-terraform-bridge
+      jbcom/python-rivers-of-reckoning
+      jbcom/python-ai-game-dev
+      jbcom/nodejs-agentic-control
+      jbcom/nodejs-agentic-triage
+      jbcom/nodejs-strata
+      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-otterfall
+      jbcom/nodejs-rivermarsh
+      jbcom/nodejs-pixels-pygame-palace
+      jbcom/jbcom.github.io
+      jbcom/go-port-api
+      jbcom/go-vault-secret-sync
+      jbcom/go-secretsync
+      jbcom/terraform-github-markdown
+      jbcom/terraform-repository-automation

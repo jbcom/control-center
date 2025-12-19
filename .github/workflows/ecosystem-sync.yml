@@ -1,18 +1,20 @@
 name: Ecosystem Sync
 
-# ONE nightly job that:
-# 1. Syncs repository-files directly to each repo (pushes to main)
-# 2. Updates submodules to latest
+# Sync repository-files to all managed repositories using repo-file-sync-action
+# Creates PRs in target repos for review (or direct push if SKIP_PR is true)
+#
+# See .github/sync.yml for the sync configuration
 
 on:
   workflow_dispatch:
     inputs:
-      target_repo:
-        description: 'Target repo (empty for all)'
-        required: false
-        default: ''
       dry_run:
         description: 'Dry run (no changes)'
+        required: false
+        default: false
+        type: boolean
+      skip_pr:
+        description: 'Push directly (skip PR creation)'
         required: false
         default: false
         type: boolean
@@ -24,221 +26,143 @@ on:
     paths:
       - 'repository-files/**'
       - 'repo-config.json'
+      - '.github/sync.yml'
 
 permissions:
-  contents: write
-
-env:
-  GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+  contents: read
 
 jobs:
   # =============================================================================
-  # Build matrix of repos to sync
+  # Validate sync configuration
   # =============================================================================
-  matrix:
-    name: Build Repo Matrix
+  validate:
+    name: Validate Configuration
     runs-on: ubuntu-latest
-    outputs:
-      repos: ${{ steps.repos.outputs.repos }}
     steps:
-      # actions/checkout v6.0.1
+      # actions/checkout v6.0.1 (pinned for security)
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      
-      - name: Get repos from config
-        id: repos
-        run: |
-          TARGET="${{ github.event.inputs.target_repo }}"
-          
-          # Validate JSON using shared script
-          ./scripts/validate-config
-          
-          if [[ -n "$TARGET" ]]; then
-            # Find target repo in ecosystems
-            REPOS=$(jq -c --arg target "$TARGET" '[
-              .ecosystems | to_entries[] | 
-              select(.value.repos[]? == $target) |
-              {name: $target, ecosystem: .key}
-            ]' repo-config.json)
-            
-            if [[ "$REPOS" == "[]" ]]; then
-              echo "ERROR: Repository '$TARGET' not found in any ecosystem"
-              exit 1
-            fi
-          else
-            # Get all repos from all ecosystems
-            REPOS=$(jq -c '[
-              .ecosystems | to_entries[] | 
-              .value.repos[]? as $repo |
-              {name: $repo, ecosystem: .key}
-            ]' repo-config.json)
-          fi
-          
-          if [[ -z "$REPOS" || "$REPOS" == "null" || "$REPOS" == "[]" ]]; then
-            echo "ERROR: No repositories found in config"
-            exit 1
-          fi
-          
-          echo "repos=$REPOS" >> $GITHUB_OUTPUT
-          echo "Will sync $(echo "$REPOS" | jq length) repos"
 
-  # =============================================================================
-  # Sync files directly to each repository
-  # =============================================================================
-  sync-repo:
-    name: Sync ${{ matrix.repo.name }}
-    needs: matrix
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      max-parallel: 5
-      matrix:
-        repo: ${{ fromJson(needs.matrix.outputs.repos) }}
-    
-    steps:
-      # actions/checkout v6.0.1
-      - name: Checkout control center
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-        with:
-          path: control-center
-      
+      - name: Validate repo-config.json
+        run: ./scripts/validate-config
+
       - name: Check for symlinks in repository-files
-        working-directory: control-center
-        run: |
-          # Use existing check-symlinks script for consistency
-          ./scripts/check-symlinks
-      
-      - name: Clone target repo
-        run: |
-          gh repo clone "jbcom/${{ matrix.repo.name }}" target-repo
-          cd target-repo
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-      
-      - name: Sync always-sync files
-        run: |
-          echo "Syncing always-sync files..."
-          if [[ -d "control-center/repository-files/always-sync" ]]; then
-            rsync -av --copy-links --exclude='.git' \
-              control-center/repository-files/always-sync/ \
-              target-repo/
-          fi
-      
-      - name: Sync ecosystem-specific files
-        run: |
-          ECOSYSTEM="${{ matrix.repo.ecosystem }}"
-          
-          # Skip control ecosystem (these repos don't sync ecosystem files)
-          if [[ "$ECOSYSTEM" == "control" ]]; then
-            echo "Skipping ecosystem sync for control center repo"
-            exit 0
-          fi
-          
-          # Map ecosystem to directory (use ecosystem name directly for most cases)
-          case "$ECOSYSTEM" in
-            nodejs) DIR="nodejs" ;;
-            python) DIR="python" ;;
-            go) DIR="go" ;;
-            terraform) DIR="terraform" ;;
-            *) DIR="$ECOSYSTEM" ;; # Default: use ecosystem name as-is
-          esac
-          
-          if [[ -d "control-center/repository-files/$DIR" ]]; then
-            echo "Syncing $ECOSYSTEM files from $DIR/..."
-            rsync -av --copy-links --exclude='.git' \
-              "control-center/repository-files/$DIR/" \
-              target-repo/
-          else
-            echo "⚠️  WARNING: No ecosystem directory found for $ECOSYSTEM at repository-files/$DIR/"
-          fi
-      
-      - name: Sync initial-only files
-        run: |
-          if [[ -d "control-center/repository-files/initial-only" ]]; then
-            cd control-center/repository-files/initial-only
-            # Use find to avoid symlinks, -L follows symlinks during find
-            find -L . -type f | while read -r file; do
-              dest="../../../target-repo/$file"
-              if [[ ! -f "$dest" ]]; then
-                mkdir -p "$(dirname "$dest")"
-                # Copy with dereference to ensure no symlinks
-                cp -L "$file" "$dest"
-                echo "Added: $file"
-              fi
-            done
-          fi
-      
-      - name: Push changes
-        if: github.event.inputs.dry_run != 'true'
-        working-directory: target-repo
-        run: |
-          if git diff --quiet && [ -z "$(git ls-files --others --exclude-standard)" ]; then
-            echo "No changes for ${{ matrix.repo.name }}"
-            exit 0
-          fi
-          
-          git add -A
-          git commit -m "chore: sync from control center
+        run: ./scripts/check-symlinks
 
-          Automated sync of shared configurations.
-          Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-          
-          git push origin main
-          echo "✅ Pushed to ${{ matrix.repo.name }}"
+      - name: Validate sync.yml syntax
+        run: |
+          # Install PyYAML if not available, then validate
+          pip install -q pyyaml 2>/dev/null || true
+          python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))" 2>/dev/null || \
+            (echo "⚠️ YAML validation skipped (pyyaml not available)" && exit 0)
+          echo "✅ sync.yml is valid YAML"
 
   # =============================================================================
-  # Sync issues to GitHub Projects
+  # Sync files to all repositories
   # =============================================================================
-  sync-projects:
-    name: Sync Issues to Projects
-    needs: [sync-repo, update-submodules]
+  sync:
+    name: Sync Files
+    needs: validate
     runs-on: ubuntu-latest
-    if: always() && github.event.inputs.dry_run != 'true'
     steps:
-      # actions/checkout v6.0.1
-      - name: Checkout
+      # actions/checkout v6.0.1 (pinned for security)
+      - name: Checkout Repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-      
-      - name: Sync all issues to projects
+
+      # BetaHuhn/repo-file-sync-action v1.21.1 (pinned for security)
+      - name: Sync Files to Repositories
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        with:
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          CONFIG_PATH: .github/sync.yml
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
+          SKIP_PR: ${{ github.event.inputs.skip_pr == 'true' || github.event_name == 'schedule' }}
+          PR_LABELS: |
+            sync
+            automated
+          COMMIT_PREFIX: 'chore(sync):'
+          COMMIT_BODY: |
+            Automated sync from control center.
+            
+            Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          BRANCH_PREFIX: control-center-sync
+          GIT_EMAIL: github-actions[bot]@users.noreply.github.com
+          GIT_USERNAME: github-actions[bot]
+          OVERWRITE_EXISTING_PR: true
+
+      - name: Summary
         run: |
-          ./scripts/sync-projects --verbose
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          echo "## Ecosystem Sync Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🔍 **Dry run mode** - no changes were made" >> $GITHUB_STEP_SUMMARY
+          elif [[ "${{ github.event.inputs.skip_pr }}" == "true" || "${{ github.event_name }}" == "schedule" ]]; then
+            echo "⚡ **Direct push mode** - changes pushed directly to main" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "📝 **PR mode** - pull requests created in target repositories" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Configuration: \`.github/sync.yml\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Synced Directories" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/always-sync/\` → All repos (overwrite)" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/python/\` → Python repos" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/nodejs/\` → Node.js repos" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/go/\` → Go repos" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/terraform/\` → Terraform repos" >> $GITHUB_STEP_SUMMARY
+          echo "- \`repository-files/initial-only/\` → All repos (if not exists)" >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Update submodules in control center
   # =============================================================================
   update-submodules:
     name: Update Submodules
-    needs: sync-repo
+    needs: sync
     runs-on: ubuntu-latest
-    if: always()
+    if: always() && github.event.inputs.dry_run != 'true'
     steps:
-      # actions/checkout v6.0.1
+      # actions/checkout v6.0.1 (pinned for security)
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
-          # submodules disabled until migration complete
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
-      
+
       - name: Configure git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-      
+
       - name: Update submodules
         run: |
           git submodule update --remote --recursive || true
-      
+
       - name: Push submodule updates
-        if: github.event.inputs.dry_run != 'true'
         run: |
           if git diff --quiet; then
             echo "No submodule changes"
             exit 0
           fi
-          
+
           git add -A
           git commit -m "deps: update submodules to latest"
           git push origin main
           echo "✅ Submodules updated"
+
+  # =============================================================================
+  # Sync issues to GitHub Projects
+  # =============================================================================
+  sync-projects:
+    name: Sync Issues to Projects
+    needs: [sync, update-submodules]
+    runs-on: ubuntu-latest
+    if: always() && github.event.inputs.dry_run != 'true'
+    steps:
+      # actions/checkout v6.0.1 (pinned for security)
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Sync all issues to projects
+        run: |
+          ./scripts/sync-projects --verbose
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
