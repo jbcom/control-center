@@ -41,7 +41,7 @@ log "✅ JSON syntax is valid"
 
 # Check for trailing commas
 log "Checking for trailing commas..."
-if grep -E ',\s*[}\]]' "$CONFIG_FILE" > /dev/null; then
+if grep -qE ',\s*[}\]]' "$CONFIG_FILE"; then
     echo "❌ ERROR: Found trailing commas in repo-config.json"
     echo "Trailing commas are not valid JSON"
     exit 1

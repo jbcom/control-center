@@ -14,14 +14,16 @@ echo ""
 EXIT_CODE=0
 
 # Control-center specific workflows that should NOT be synced
+# NOTE: Update this list when adding new control-center-only workflows
+# These workflows are only used in control-center and should not be synced to managed repos
 CONTROL_CENTER_WORKFLOWS=(
-    "ecosystem-sync.yml"
-    "lint-config.yml"
-    "agentic-triage.yml"
-    "ci.yml"
-    "generate-tests.yml"
-    "sync-ruler.yml"
-    "triage.yml"
+    "ecosystem-sync.yml"    # Orchestrates file syncing
+    "lint-config.yml"       # Validates repo-config.json
+    "agentic-triage.yml"    # Triage automation
+    "ci.yml"                # Control center CI
+    "generate-tests.yml"    # Test generation
+    "sync-ruler.yml"        # Ruler sync
+    "triage.yml"            # Triage workflow
 )
 
 # Function to check if workflow is control-center specific

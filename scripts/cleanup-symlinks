@@ -42,8 +42,7 @@ while IFS= read -r symlink; do
         echo "🔄 Replacing $symlink with copy of target"
         
         # Try to copy the dereferenced file
-        cp_error=$(cp -L "$symlink" "${symlink}.tmp" 2>&1)
-        if [[ $? -eq 0 ]]; then
+        if cp -L "$symlink" "${symlink}.tmp" 2>/tmp/cp_error.txt; then
             # Remove the symlink
             rm "$symlink"
             
@@ -52,9 +51,10 @@ while IFS= read -r symlink; do
             
             echo "   ✅ Replaced: $symlink"
         else
-            echo "⚠️  Failed to copy target: $cp_error"
+            echo "⚠️  Failed to copy target: $(cat /tmp/cp_error.txt)"
             echo "   Removing symlink: $symlink"
             rm "$symlink"
+            rm -f /tmp/cp_error.txt
         fi
     else
         echo "⚠️  Removing symlink to missing/inaccessible target: $symlink -> $target"
