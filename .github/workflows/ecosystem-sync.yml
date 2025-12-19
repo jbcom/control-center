@@ -38,6 +38,7 @@ on:
     paths:
       - 'repository-files/**'
       - 'repo-config.json'
+      - 'branch-rulesets/**'
       - '.github/sync-always.yml'
       - '.github/sync-initial.yml'
 
