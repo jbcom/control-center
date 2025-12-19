@@ -9,7 +9,6 @@
 #
 # Commands:
 #   discover     - Discover all repos in the organization
-#   sync         - Sync submodules with discovered repos
 #   health       - Check ecosystem health
 #   matrix       - Generate GitHub Actions matrix JSON
 #   deps         - Show package dependencies
@@ -54,61 +53,26 @@ cmd_discover() {
       if [[ -n "$lang_repos" ]]; then
         echo "  [$lang]"
         echo "$lang_repos" | while read -r repo; do
-          local has_submodule=" "
-          [[ -d "${ECOSYSTEM_ROOT}/${repo}" ]] && has_submodule="✓"
           local has_terragrunt=" "
           [[ -d "${TERRAGRUNT_ROOT}/python/${repo}" ]] || \
           [[ -d "${TERRAGRUNT_ROOT}/nodejs/${repo}" ]] || \
           [[ -d "${TERRAGRUNT_ROOT}/go/${repo}" ]] || \
           [[ -d "${TERRAGRUNT_ROOT}/terraform/${repo}" ]] && has_terragrunt="✓"
-          echo "    [$has_submodule] [$has_terragrunt] $repo"
+          echo "    [$has_terragrunt] $repo"
         done
         echo ""
       fi
     done
     
-    echo "  Legend: [submodule] [terragrunt] repo-name"
+    echo "  Legend: [managed] repo-name"
     echo ""
   fi
 }
 
 cmd_sync() {
-  local dry_run="${1:-}"
-  
-  log_info "Syncing ecosystem submodules..."
-  
-  # Get all non-archived repos
-  local repos
-  repos=$(gh repo list "$GITHUB_ORG" \
-    --json name,primaryLanguage,isArchived \
-    --limit 200 \
-    --jq '.[] | select(.isArchived == false) | .name')
-  
-  # Define which repos should be submodules (those with terragrunt configs)
-  local managed_repos
-  managed_repos=$(list_managed_repos | awk -F'/' '{print $2}' | sort -u)
-  
-  # Add missing submodules
-  echo "$managed_repos" | while read -r repo; do
-    if [[ -n "$repo" ]] && [[ ! -d "${ECOSYSTEM_ROOT}/${repo}" ]]; then
-      if echo "$repos" | grep -q "^${repo}$"; then
-        if [[ "$dry_run" == "--dry-run" ]]; then
-          log_info "[DRY RUN] Would add submodule: $repo"
-        else
-          submodule_add "$repo"
-        fi
-      else
-        log_warn "Managed repo not found in GitHub: $repo"
-      fi
-    fi
-  done
-  
-  # Initialize all submodules
-  if [[ "$dry_run" != "--dry-run" ]]; then
-    submodule_init_all
-  fi
-  
-  log_info "Sync complete"
+  log_info "Submodules have been removed from this repository."
+  log_info "Use the ecosystem-sync workflow to sync files to managed repos."
+  log_info "Run './scripts/ecosystem discover' to see managed repositories."
 }
 
 cmd_health() {
@@ -126,38 +90,23 @@ cmd_health() {
     echo "✗ FAILED"
   fi
   
-  # Check submodule status
+  # Check managed repos
   local total_managed
-  local total_submodules
-  local missing
-  local orphans
-  
   total_managed=$(list_managed_repos | wc -l)
-  total_submodules=$(list_ecosystem_submodules | wc -l)
-  missing=$(list_missing_submodules | wc -l)
-  orphans=$(list_orphan_submodules | wc -l)
   
   echo ""
   echo "  Terragrunt-managed repos:  $total_managed"
-  echo "  Submodules in oss/:        $total_submodules"
-  echo "  Missing submodules:        $missing"
-  echo "  Orphan submodules:         $orphans"
   
-  if [[ "$missing" -gt 0 ]]; then
-    echo ""
-    echo "  Missing submodules:"
-    list_missing_submodules | while read -r repo; do
-      echo "    - $repo"
-    done
-  fi
-  
-  if [[ "$orphans" -gt 0 ]]; then
-    echo ""
-    echo "  Orphan submodules (not in terragrunt):"
-    list_orphan_submodules | while read -r repo; do
-      echo "    - $repo"
-    done
-  fi
+  # List managed repos by ecosystem
+  echo ""
+  echo "  Managed repositories:"
+  for eco in python nodejs go terraform; do
+    local count
+    count=$(list_managed_repos "$eco" | wc -l)
+    if [[ "$count" -gt 0 ]]; then
+      echo "    $eco: $count repos"
+    fi
+  done
   
   echo ""
   ecosystem_health
@@ -174,9 +123,7 @@ cmd_matrix() {
     matrix_items+=("$(jq -n \
       --arg ecosystem "python" \
       --arg repo "${GITHUB_ORG}/${repo_name}" \
-      --arg downstream "terragrunt-stacks/python/${repo_name}" \
-      --arg submodule "ecosystems/oss/${repo_name}" \
-      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+      '{ecosystem: $ecosystem, repo: $repo}')")
   done
   
   # Node.js repos
@@ -186,9 +133,7 @@ cmd_matrix() {
     matrix_items+=("$(jq -n \
       --arg ecosystem "typescript" \
       --arg repo "${GITHUB_ORG}/${repo_name}" \
-      --arg downstream "terragrunt-stacks/nodejs/${repo_name}" \
-      --arg submodule "ecosystems/oss/${repo_name}" \
-      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+      '{ecosystem: $ecosystem, repo: $repo}')")
   done
   
   # Go repos
@@ -198,9 +143,7 @@ cmd_matrix() {
     matrix_items+=("$(jq -n \
       --arg ecosystem "go" \
       --arg repo "${GITHUB_ORG}/${repo_name}" \
-      --arg downstream "terragrunt-stacks/go/${repo_name}" \
-      --arg submodule "ecosystems/oss/${repo_name}" \
-      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+      '{ecosystem: $ecosystem, repo: $repo}')")
   done
   
   # Terraform repos
@@ -210,9 +153,7 @@ cmd_matrix() {
     matrix_items+=("$(jq -n \
       --arg ecosystem "terraform" \
       --arg repo "${GITHUB_ORG}/${repo_name}" \
-      --arg downstream "terragrunt-stacks/terraform/${repo_name}" \
-      --arg submodule "ecosystems/oss/${repo_name}" \
-      '{ecosystem: $ecosystem, repo: $repo, downstream_package: $downstream, submodule_path: $submodule}')")
+      '{ecosystem: $ecosystem, repo: $repo}')")
   done
   
   # Combine all items into a JSON array with jq
@@ -327,79 +268,37 @@ cmd_deps() {
   if [[ -z "$repo" ]]; then
     echo "Usage: ecosystem deps <repo-name>"
     echo ""
-    echo "Shows dependencies for a package and its downstream consumers."
+    echo "Shows dependency information from triage-hub.json"
     return 1
   fi
-  
-  local repo_path="${ECOSYSTEM_ROOT}/${repo}"
-  
-  if [[ ! -d "$repo_path" ]]; then
-    log_error "Repository not found: $repo"
-    log_info "Run 'ecosystem sync' to add missing submodules"
-    return 1
-  fi
-  
-  local ecosystem
-  ecosystem=$(detect_repo_ecosystem "$repo_path")
   
   echo ""
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo "  DEPENDENCY ANALYSIS: $repo"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
-  echo "  Ecosystem: $ecosystem"
-  echo ""
   
-  case "$ecosystem" in
-    python)
-      echo "  Dependencies (from pyproject.toml/requirements.txt):"
-      if [[ -f "$repo_path/pyproject.toml" ]]; then
-        grep -A50 '^\[project\]' "$repo_path/pyproject.toml" | \
-          grep -A20 'dependencies' | \
-          grep -E '^\s+"' | \
-          sed 's/^/    /'
-      elif [[ -f "$repo_path/requirements.txt" ]]; then
-        head -20 "$repo_path/requirements.txt" | sed 's/^/    /'
+  # Check triage-hub.json for dependency info
+  if [[ -f "${REPO_ROOT}/triage-hub.json" ]]; then
+    for eco in python typescript go terraform; do
+      local pkg_info
+      pkg_info=$(jq -r ".ecosystems.${eco}.packages[\"${repo}\"] // empty" "${REPO_ROOT}/triage-hub.json" 2>/dev/null)
+      if [[ -n "$pkg_info" ]]; then
+        echo "  Ecosystem: $eco"
+        echo ""
+        echo "  Dependencies:"
+        echo "$pkg_info" | jq -r '.dependencies // [] | .[]' 2>/dev/null | sed 's/^/    → /' || echo "    (none)"
+        echo ""
+        echo "  Consumers:"
+        echo "$pkg_info" | jq -r '.consumers // [] | .[]' 2>/dev/null | sed 's/^/    ← /' || echo "    (none)"
+        echo ""
+        return 0
       fi
-      ;;
-    nodejs)
-      echo "  Dependencies (from package.json):"
-      if [[ -f "$repo_path/package.json" ]]; then
-        jq -r '.dependencies // {} | to_entries[] | "    \(.key): \(.value)"' "$repo_path/package.json" 2>/dev/null || true
-      fi
-      ;;
-    go)
-      echo "  Dependencies (from go.mod):"
-      if [[ -f "$repo_path/go.mod" ]]; then
-        grep -E '^\s+' "$repo_path/go.mod" | head -20 | sed 's/^/    /'
-      fi
-      ;;
-  esac
-  
-  echo ""
-  echo "  Internal ecosystem dependencies:"
-  
-  # Find ecosystem packages this depends on
-  local internal_deps=""
-  list_ecosystem_submodules | while read -r sub; do
-    if [[ "$sub" != "$repo" ]]; then
-      case "$ecosystem" in
-        python)
-          if grep -q "$sub" "$repo_path/pyproject.toml" 2>/dev/null || \
-             grep -q "$sub" "$repo_path/requirements.txt" 2>/dev/null; then
-            echo "    → $sub"
-          fi
-          ;;
-        nodejs)
-          if grep -q "\"$sub\"" "$repo_path/package.json" 2>/dev/null; then
-            echo "    → $sub"
-          fi
-          ;;
-      esac
-    fi
-  done
-  
-  echo ""
+    done
+    log_warn "Repository not found in triage-hub.json: $repo"
+  else
+    log_error "triage-hub.json not found"
+  fi
 }
 
 cmd_release() {
@@ -431,9 +330,8 @@ cmd_help() {
   echo ""
   echo "  Usage: ecosystem <command> [options]"
   echo ""
-  echo "  Discovery & Sync:"
+  echo "  Discovery:"
   echo "    discover [--json]     List all repos in the organization"
-  echo "    sync [--dry-run]      Sync submodules with managed repos"
   echo "    health                Check ecosystem health"
   echo ""
   echo "  Workflows:"

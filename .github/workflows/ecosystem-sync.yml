@@ -197,42 +197,11 @@ jobs:
           esac
 
   # =============================================================================
-  # Update submodules (after sync completes)
-  # =============================================================================
-  update-submodules:
-    name: 📚 Update Submodules
-    needs: phase-2-always
-    runs-on: ubuntu-latest
-    if: always() && github.event.inputs.dry_run != 'true' && needs.phase-2-always.result != 'failure'
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Update submodules
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git submodule update --remote --recursive || true
-          
-          if git diff --quiet; then
-            echo "No submodule changes"
-            exit 0
-          fi
-          
-          git add -A
-          git commit -m "deps: update submodules to latest"
-          git push origin main
-          echo "✅ Submodules updated"
-
-  # =============================================================================
   # Sync GitHub Projects
   # =============================================================================
   sync-projects:
     name: 📋 Sync Projects
-    needs: [phase-2-always, update-submodules]
+    needs: phase-2-always
     runs-on: ubuntu-latest
     if: always() && github.event.inputs.dry_run != 'true'
     steps:
