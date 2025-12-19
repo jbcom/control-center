@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# Check that workflow files in .github/workflows match those in repository-files
+# This ensures we're syncing what we use
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "Checking workflow consistency..."
+echo "================================"
+echo ""
+
+EXIT_CODE=0
+
+# Check if workflows in .github/workflows exist in repository-files/always-sync
+if [[ -d ".github/workflows" ]]; then
+    for workflow in .github/workflows/*.yml; do
+        filename=$(basename "$workflow")
+        
+        # Skip workflows that are control-center specific
+        if [[ "$filename" == "ecosystem-sync.yml" || "$filename" == "lint-config.yml" ]]; then
+            continue
+        fi
+        
+        sync_file="repository-files/always-sync/.github/workflows/$filename"
+        
+        if [[ ! -f "$sync_file" ]]; then
+            echo "⚠️  WARNING: $workflow exists but not in sync directory"
+            echo "    Expected: $sync_file"
+            EXIT_CODE=1
+        else
+            # Check if files are identical
+            if ! diff -q "$workflow" "$sync_file" > /dev/null 2>&1; then
+                echo "⚠️  WARNING: $workflow differs from sync version"
+                echo "    Local:  $workflow"
+                echo "    Sync:   $sync_file"
+                EXIT_CODE=1
+            fi
+        fi
+    done
+fi
+
+# Check if synced workflows are actually used
+if [[ -d "repository-files/always-sync/.github/workflows" ]]; then
+    for sync_workflow in repository-files/always-sync/.github/workflows/*.yml; do
+        filename=$(basename "$sync_workflow")
+        local_file=".github/workflows/$filename"
+        
+        if [[ ! -f "$local_file" ]]; then
+            echo "ℹ️  INFO: $sync_workflow will be synced but not used locally"
+        fi
+    done
+fi
+
+if [[ $EXIT_CODE -eq 0 ]]; then
+    echo "✅ All workflows are consistent"
+else
+    echo ""
+    echo "To fix inconsistencies:"
+    echo "  1. Copy updated workflows to repository-files/always-sync/.github/workflows/"
+    echo "  2. Ensure local .github/workflows/ matches what you want to sync"
+    echo "  3. Never use symlinks - always use actual file copies"
+fi
+
+exit $EXIT_CODE

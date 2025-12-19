@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Check for symlinks in the repository
+# This script detects and reports any symlinks to prevent sync issues
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+echo "Checking for symlinks in repository..."
+echo "======================================"
+echo ""
+
+# Find all symlinks, excluding .git directory
+SYMLINKS=$(find . -type l -not -path './.git/*' 2>/dev/null || true)
+
+if [[ -z "$SYMLINKS" ]]; then
+    echo "✅ No symlinks found"
+    exit 0
+fi
+
+echo "❌ ERROR: Found symlinks in repository:"
+echo ""
+echo "$SYMLINKS"
+echo ""
+echo "Symlinks must not be used in this repository because:"
+echo "  1. GitHub Actions may not preserve symlinks during checkout"
+echo "  2. rsync behavior with symlinks can be unpredictable"
+echo "  3. Target repositories would receive broken symlinks"
+echo ""
+echo "Solution: Replace symlinks with actual file copies"
+echo ""
+
+# Provide detailed information about each symlink
+while IFS= read -r symlink; do
+    if [[ -n "$symlink" ]]; then
+        target=$(readlink "$symlink" || echo "broken")
+        echo "  $symlink -> $target"
+    fi
+done <<< "$SYMLINKS"
+
+exit 1

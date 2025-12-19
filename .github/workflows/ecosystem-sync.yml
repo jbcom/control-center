@@ -48,10 +48,36 @@ jobs:
         run: |
           TARGET="${{ github.event.inputs.target_repo }}"
           
+          # Validate JSON first
+          if ! jq empty repo-config.json 2>/dev/null; then
+            echo "ERROR: repo-config.json is not valid JSON"
+            exit 1
+          fi
+          
           if [[ -n "$TARGET" ]]; then
-            REPOS=$(jq -c "[{name: \"$TARGET\", language: .repositories[\"$TARGET\"].language}]" repo-config.json)
+            # Find target repo in ecosystems
+            REPOS=$(jq -c --arg target "$TARGET" '[
+              .ecosystems | to_entries[] | 
+              select(.value.repos[]? == $target) |
+              {name: $target, ecosystem: .key}
+            ]' repo-config.json)
+            
+            if [[ "$REPOS" == "[]" ]]; then
+              echo "ERROR: Repository '$TARGET' not found in any ecosystem"
+              exit 1
+            fi
           else
-            REPOS=$(jq -c '[.repositories | to_entries[] | {name: .key, language: .value.language}]' repo-config.json)
+            # Get all repos from all ecosystems
+            REPOS=$(jq -c '[
+              .ecosystems | to_entries[] | 
+              .value.repos[]? as $repo |
+              {name: $repo, ecosystem: .key}
+            ]' repo-config.json)
+          fi
+          
+          if [[ -z "$REPOS" || "$REPOS" == "null" ]]; then
+            echo "ERROR: No repositories found in config"
+            exit 1
           fi
           
           echo "repos=$REPOS" >> $GITHUB_OUTPUT
@@ -76,6 +102,17 @@ jobs:
         with:
           path: control-center
       
+      - name: Check for symlinks in repository-files
+        run: |
+          echo "Verifying no symlinks in repository-files..."
+          if find control-center/repository-files -type l 2>/dev/null | grep -q .; then
+            echo "❌ ERROR: Symlinks detected in repository-files"
+            echo "Symlinks must not be used. Use actual file copies."
+            find control-center/repository-files -type l -ls
+            exit 1
+          fi
+          echo "✅ No symlinks found in repository-files"
+      
       - name: Clone target repo
         run: |
           gh repo clone "jbcom/${{ matrix.repo.name }}" target-repo
@@ -87,25 +124,28 @@ jobs:
         run: |
           echo "Syncing always-sync files..."
           if [[ -d "control-center/repository-files/always-sync" ]]; then
-            rsync -av --exclude='.git' \
+            rsync -av --copy-links --exclude='.git' \
               control-center/repository-files/always-sync/ \
               target-repo/
           fi
       
-      - name: Sync language-specific files
+      - name: Sync ecosystem-specific files
         run: |
-          LANG="${{ matrix.repo.language }}"
-          case "$LANG" in
+          ECOSYSTEM="${{ matrix.repo.ecosystem }}"
+          
+          # Map ecosystem to directory (use ecosystem name directly for most cases)
+          case "$ECOSYSTEM" in
+            nodejs) DIR="nodejs" ;;
             python) DIR="python" ;;
-            typescript|javascript) DIR="nodejs" ;;
             go) DIR="go" ;;
-            terraform|hcl) DIR="terraform" ;;
-            *) DIR="" ;;
+            terraform) DIR="terraform" ;;
+            control) DIR="" ;; # Control center repos don't sync files
+            *) DIR="$ECOSYSTEM" ;; # Default: use ecosystem name as-is
           esac
           
           if [[ -n "$DIR" && -d "control-center/repository-files/$DIR" ]]; then
-            echo "Syncing $DIR files..."
-            rsync -av --exclude='.git' \
+            echo "Syncing $ECOSYSTEM files from $DIR/..."
+            rsync -av --copy-links --exclude='.git' \
               "control-center/repository-files/$DIR/" \
               target-repo/
           fi
@@ -114,11 +154,13 @@ jobs:
         run: |
           if [[ -d "control-center/repository-files/initial-only" ]]; then
             cd control-center/repository-files/initial-only
-            find . -type f | while read -r file; do
+            # Use find to avoid symlinks, -L follows symlinks during find
+            find -L . -type f | while read -r file; do
               dest="../../../target-repo/$file"
               if [[ ! -f "$dest" ]]; then
                 mkdir -p "$(dirname "$dest")"
-                cp "$file" "$dest"
+                # Copy with dereference to ensure no symlinks
+                cp -L "$file" "$dest"
                 echo "Added: $file"
               fi
             done
