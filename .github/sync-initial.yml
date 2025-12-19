@@ -1,0 +1,94 @@
+# Initial-Only Sync Configuration
+# These files are synced ONLY IF THEY DON'T EXIST in the target repository
+# Use for templates that repos can customize after initial setup
+#
+# Documentation: https://github.com/BetaHuhn/repo-file-sync-action
+# Key setting: replace: false - prevents overwriting existing files
+
+group:
+  # ============================================================================
+  # Initial-only files - only create if missing
+  # ============================================================================
+  - files:
+      # Cursor environment config
+      - source: repository-files/initial-only/.cursor/Dockerfile
+        dest: .cursor/Dockerfile
+        replace: false
+      - source: repository-files/initial-only/.cursor/environment.json
+        dest: .cursor/environment.json
+        replace: false
+      # Dependabot config (repos can customize)
+      - source: repository-files/initial-only/.github/dependabot.yml
+        dest: .github/dependabot.yml
+        replace: false
+      # Security policy
+      - source: repository-files/initial-only/.github/SECURITY.md
+        dest: .github/SECURITY.md
+        replace: false
+      # Issue templates
+      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/bug.yml
+        dest: .github/ISSUE_TEMPLATE/bug.yml
+        replace: false
+      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/feature.yml
+        dest: .github/ISSUE_TEMPLATE/feature.yml
+        replace: false
+      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/config.yml
+        dest: .github/ISSUE_TEMPLATE/config.yml
+        replace: false
+      # Documentation workflow
+      - source: repository-files/initial-only/.github/workflows/docs.yml
+        dest: .github/workflows/docs.yml
+        replace: false
+      # AI agent instructions (repos can customize)
+      - source: repository-files/initial-only/AGENTS.md
+        dest: AGENTS.md
+        replace: false
+      - source: repository-files/initial-only/CLAUDE.md
+        dest: CLAUDE.md
+        replace: false
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-vendor-connectors
+      jbcom/python-extended-data-types
+      jbcom/python-directed-inputs-class
+      jbcom/python-lifecyclelogging
+      jbcom/python-terraform-bridge
+      jbcom/python-rivers-of-reckoning
+      jbcom/python-ai-game-dev
+      jbcom/nodejs-agentic-control
+      jbcom/nodejs-agentic-triage
+      jbcom/nodejs-strata
+      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-otterfall
+      jbcom/nodejs-rivermarsh
+      jbcom/nodejs-pixels-pygame-palace
+      jbcom/jbcom.github.io
+      jbcom/go-port-api
+      jbcom/go-vault-secret-sync
+      jbcom/go-secretsync
+      jbcom/terraform-github-markdown
+      jbcom/terraform-repository-automation
+
+  # ============================================================================
+  # Documentation scaffold - only for repos that need docs
+  # These are more complex and should only be created if the docs/ dir is empty
+  # ============================================================================
+  - files:
+      - source: repository-files/initial-only/docs/
+        dest: docs/
+        replace: false
+    repos: |
+      jbcom/python-agentic-crew
+      jbcom/python-vendor-connectors
+      jbcom/python-extended-data-types
+      jbcom/python-directed-inputs-class
+      jbcom/python-lifecyclelogging
+      jbcom/python-terraform-bridge
+      jbcom/nodejs-agentic-control
+      jbcom/nodejs-agentic-triage
+      jbcom/nodejs-strata
+      jbcom/go-port-api
+      jbcom/go-vault-secret-sync
+      jbcom/go-secretsync
+      jbcom/terraform-github-markdown
+      jbcom/terraform-repository-automation
