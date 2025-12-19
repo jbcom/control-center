@@ -10,7 +10,6 @@
 #
 # Environment Variables:
 #   GITHUB_ORG          - GitHub organization (default: jbcom)
-#   ECOSYSTEM_ROOT      - Path to ecosystems/oss (auto-detected)
 #   TERRAGRUNT_ROOT     - Path to terragrunt-stacks (auto-detected)
 #   GH_TOKEN            - GitHub token for API access
 #   ECOSYSTEM_CACHE_TTL - Cache TTL in seconds (default: 300)
@@ -24,7 +23,6 @@ set -euo pipefail
 
 export GITHUB_ORG="${GITHUB_ORG:-jbcom}"
 export REPO_ROOT="${REPO_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || echo "/workspace")}"
-export ECOSYSTEM_ROOT="${ECOSYSTEM_ROOT:-${REPO_ROOT}/ecosystems/oss}"
 export TERRAGRUNT_ROOT="${TERRAGRUNT_ROOT:-${REPO_ROOT}/terragrunt-stacks}"
 export ECOSYSTEM_CACHE_DIR="${REPO_ROOT}/.cache/ecosystem"
 export ECOSYSTEM_CACHE_TTL="${ECOSYSTEM_CACHE_TTL:-300}"
@@ -176,83 +174,6 @@ list_managed_repos() {
   fi
 }
 
-# List all submodules in ecosystems/oss
-list_ecosystem_submodules() {
-  git config --file "$REPO_ROOT/.gitmodules" --get-regexp 'submodule\.ecosystems/oss/.*.path' 2>/dev/null | \
-    awk '{print $2}' | \
-    xargs -I{} basename {} | \
-    sort -u
-}
-
-# Get repos that are managed but not submodules
-list_missing_submodules() {
-  local managed
-  local submodules
-  
-  managed=$(list_managed_repos | awk -F'/' '{print $2}' | sort -u)
-  submodules=$(list_ecosystem_submodules)
-  
-  comm -23 <(echo "$managed") <(echo "$submodules")
-}
-
-# Get repos that are submodules but not managed
-list_orphan_submodules() {
-  local managed
-  local submodules
-  
-  managed=$(list_managed_repos | awk -F'/' '{print $2}' | sort -u)
-  submodules=$(list_ecosystem_submodules)
-  
-  comm -13 <(echo "$managed") <(echo "$submodules")
-}
-
-# =============================================================================
-# Submodule Management Functions
-# =============================================================================
-
-# Add a repository as a submodule
-submodule_add() {
-  local repo_name="$1"
-  local target_path="${ECOSYSTEM_ROOT}/${repo_name}"
-  local repo_url="https://github.com/${GITHUB_ORG}/${repo_name}.git"
-  
-  if [[ -d "$target_path" ]]; then
-    log_warn "Submodule already exists: $repo_name"
-    return 0
-  fi
-  
-  log_info "Adding submodule: $repo_name"
-  git -C "$REPO_ROOT" submodule add "$repo_url" "ecosystems/oss/${repo_name}"
-}
-
-# Update a submodule to latest
-submodule_update() {
-  local repo_name="$1"
-  local target_path="${ECOSYSTEM_ROOT}/${repo_name}"
-  
-  if [[ ! -d "$target_path" ]]; then
-    log_error "Submodule not found: $repo_name"
-    return 1
-  fi
-  
-  log_info "Updating submodule: $repo_name"
-  git -C "$target_path" fetch origin
-  git -C "$target_path" checkout origin/main 2>/dev/null || \
-    git -C "$target_path" checkout origin/master 2>/dev/null || \
-    log_warn "Could not checkout main/master for $repo_name"
-}
-
-# Initialize all submodules
-submodule_init_all() {
-  log_info "Initializing all submodules..."
-  git -C "$REPO_ROOT" submodule update --init --recursive
-}
-
-# Update all submodules to latest
-submodule_update_all() {
-  log_info "Updating all submodules to latest..."
-  git -C "$REPO_ROOT" submodule update --remote --recursive
-}
 
 # =============================================================================
 # Repository Classification
@@ -264,53 +185,6 @@ get_repos_by_ecosystem() {
   list_managed_repos "$ecosystem"
 }
 
-# =============================================================================
-# Downstream/Upstream Sync
-# =============================================================================
-
-# Sync files from control center to a downstream repo
-sync_to_downstream() {
-  local repo_name="$1"
-  local files_dir="${2:-$REPO_ROOT/repository-files}"
-  local target_path="${ECOSYSTEM_ROOT}/${repo_name}"
-  local ecosystem
-  
-  if [[ ! -d "$target_path" ]]; then
-    log_error "Target repo not found: $target_path"
-    return 1
-  fi
-  
-  ecosystem=$(detect_repo_ecosystem "$target_path")
-  
-  log_info "Syncing files to $repo_name (ecosystem: $ecosystem)"
-  
-  # Always sync files
-  if [[ -d "$files_dir/always-sync" ]]; then
-    cp -r "$files_dir/always-sync/." "$target_path/"
-  fi
-  
-  # Ecosystem-specific files
-  if [[ -d "$files_dir/$ecosystem" ]]; then
-    cp -r "$files_dir/$ecosystem/." "$target_path/"
-  fi
-}
-
-# Pull updates from upstream (the actual repo)
-pull_from_upstream() {
-  local repo_name="$1"
-  local target_path="${ECOSYSTEM_ROOT}/${repo_name}"
-  
-  if [[ ! -d "$target_path" ]]; then
-    log_error "Submodule not found: $target_path"
-    return 1
-  fi
-  
-  log_info "Pulling updates from upstream: $repo_name"
-  git -C "$target_path" fetch origin
-  git -C "$target_path" pull origin main 2>/dev/null || \
-    git -C "$target_path" pull origin master 2>/dev/null || \
-    log_warn "Could not pull from main/master for $repo_name"
-}
 
 # =============================================================================
 # Health Checks
@@ -334,20 +208,6 @@ ecosystem_health() {
     errors=$((errors + 1))
   fi
   
-  # Check for missing submodules
-  local missing
-  missing=$(list_missing_submodules | wc -l)
-  if [[ "$missing" -gt 0 ]]; then
-    log_warn "Missing submodules: $missing"
-  fi
-  
-  # Check for orphan submodules
-  local orphans
-  orphans=$(list_orphan_submodules | wc -l)
-  if [[ "$orphans" -gt 0 ]]; then
-    log_warn "Orphan submodules (not in terragrunt): $orphans"
-  fi
-  
   if [[ $errors -eq 0 ]]; then
     log_info "Ecosystem health: OK"
     return 0
@@ -364,9 +224,6 @@ ecosystem_health() {
 export -f log_info log_warn log_error log_debug
 export -f cache_get cache_set cache_clear
 export -f gh_list_org_repos gh_repo_info gh_repo_exists
-export -f detect_repo_ecosystem list_managed_repos list_ecosystem_submodules
-export -f list_missing_submodules list_orphan_submodules
-export -f submodule_add submodule_update submodule_init_all submodule_update_all
+export -f detect_repo_ecosystem list_managed_repos
 export -f get_repos_by_ecosystem
-export -f sync_to_downstream pull_from_upstream
 export -f ecosystem_health

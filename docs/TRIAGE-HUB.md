@@ -24,11 +24,6 @@ Instead of running AI agents and managing PRs directly in public OSS repositorie
 ./scripts/ecosystem discover
 ```
 
-### Sync submodules with managed repos
-```bash
-./scripts/ecosystem sync
-```
-
 ### Triage all repos (roadmap update)
 ```bash
 ./scripts/ecosystem triage roadmap
@@ -43,25 +38,25 @@ Instead of running AI agents and managing PRs directly in public OSS repositorie
 
 ```
 jbcom-control-center/
-├── ecosystems/oss/           # All managed repos as submodules
-│   ├── agentic-control/      # TypeScript: Core AI agent framework
-│   ├── agentic-triage/       # TypeScript: Triage CLI (powers this hub)
-│   ├── agentic-crew/         # Python: Multi-agent orchestration
-│   ├── vendor-connectors/    # Python: API connectors
-│   ├── strata/               # TypeScript: 3D graphics library
-│   └── ...                   # All other managed repos
 ├── terragrunt-stacks/        # Repository configuration as code
 │   ├── python/               # Python repo configs
 │   ├── nodejs/               # Node.js/TypeScript repo configs
 │   ├── go/                   # Go repo configs
 │   └── terraform/            # Terraform module configs
+├── repository-files/         # Files synced to managed repos
+│   ├── always-sync/          # Always overwrite
+│   ├── initial-only/         # Create if missing
+│   ├── python/               # Python-specific
+│   ├── nodejs/               # Node.js-specific
+│   ├── go/                   # Go-specific
+│   └── terraform/            # Terraform-specific
 ├── scripts/
 │   ├── ecosystem             # Main CLI
 │   └── lib/ecosystem.sh      # Core library
 ├── triage-hub.json           # Ecosystem configuration
 └── .github/workflows/
     ├── agentic-triage.yml    # Centralized triage workflow
-    └── ecosystem-sync.yml    # Submodule sync workflow
+    └── ecosystem-sync.yml    # File sync workflow
 ```
 
 ## Configuration
@@ -111,13 +106,13 @@ Runs triage operations across all managed repos:
 
 ### Ecosystem Sync (`ecosystem-sync.yml`)
 
-Keeps submodules and configuration in sync:
+Syncs repository files to all managed repos:
 
 | Trigger | Action |
 |---------|--------|
-| Daily schedule | Update submodules to latest |
-| Push to terragrunt | Sync new repos |
-| Manual dispatch | Full sync with PR |
+| Daily schedule | Sync shared configs |
+| Push to repository-files | Sync updated files |
+| Manual dispatch | Full sync with options |
 
 ## Commands
 
@@ -210,10 +205,6 @@ When a PR is opened in a public repo, the triage hub can:
 ### Example: Reviewing a PR
 
 ```bash
-# Instead of reviewing in the public repo:
-cd ecosystems/oss/vendor-connectors
-# ... review there ...
-
 # Review from control center:
 ./scripts/ecosystem triage prs review vendor-connectors 42
 ```
@@ -270,12 +261,9 @@ Two projects track the ecosystem:
    }
    ```
 
-4. **Sync submodules**:
-   ```bash
-   ./scripts/ecosystem sync
-   ```
+4. **Add to sync configs** (`.github/sync-initial.yml` and `.github/sync-always.yml`)
 
-5. **Commit and push** - The ecosystem-sync workflow will create a PR
+5. **Commit and push** - The ecosystem-sync workflow will sync files
 
 ## Migration to jbcom
 
@@ -290,11 +278,6 @@ The repos have been migrated from `jbdevprimary` to `jbcom`:
 When migration is complete, update `GITHUB_ORG` everywhere.
 
 ## Troubleshooting
-
-### Submodule not found
-```bash
-./scripts/ecosystem sync
-```
 
 ### agentic-triage not working
 ```bash

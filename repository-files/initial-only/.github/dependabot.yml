@@ -63,11 +63,3 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
-
-  # Git submodules
-  - package-ecosystem: "gitsubmodule"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    commit-message:
-      prefix: "deps"
