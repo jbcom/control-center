@@ -1,5 +1,5 @@
 # AI PR Review Workflow - Ollama Cloud (GLM-4.6)
-# Uses structured JSON output with auto-fix capabilities
+# Uses direct Ollama Cloud API with structured JSON output
 #
 # Synced from jbcom-control-center (always-sync)
 # DO NOT EDIT - changes will be overwritten
@@ -41,110 +41,40 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install Ollama CLI
-        run: curl -fsSL https://ollama.com/install.sh | sh
-
-      - name: Configure Ollama for Cloud
-        run: |
-          echo "OLLAMA_HOST=https://ollama.com" >> $GITHUB_ENV
-          echo "OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }}" >> $GITHUB_ENV
-
-      - name: Register cloud model
-        run: ollama pull glm-4.6:cloud
-
       - name: Get current diff against base branch
         id: diff
         run: |
           BASE_REF="${{ github.base_ref || github.event.pull_request.base.ref }}"
-          DIFF=$(git diff origin/${BASE_REF}...HEAD --unified=5 --color=never | head -c 50000)
-          DIFF_ESCAPED=$(printf '%s' "$DIFF" | jq -Rs .)
-          echo "diff=$DIFF_ESCAPED" >> $GITHUB_OUTPUT
-
-      - name: Define JSON Schema
-        id: schema
-        run: |
-          cat > /tmp/schema.json << 'SCHEMAEOF'
-          {
-            "type": "object",
-            "properties": {
-              "summary": { "type": "string" },
-              "issues": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "file": { "type": "string" },
-                    "line": { "type": "integer", "minimum": 1 },
-                    "severity": { "type": "string", "enum": ["low", "medium", "high"] },
-                    "description": { "type": "string" },
-                    "suggestion": { "type": "string" }
-                  },
-                  "required": ["file", "severity", "description"]
-                }
-              },
-              "suggested_fixes": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "file": { "type": "string" },
-                    "patch": { "type": "string" },
-                    "description": { "type": "string" }
-                  },
-                  "required": ["file", "patch", "description"]
-                }
-              },
-              "overall_score": { "type": "integer", "minimum": 1, "maximum": 10 },
-              "should_auto_apply": { "type": "boolean" }
-            },
-            "required": ["summary", "issues", "suggested_fixes", "overall_score", "should_auto_apply"]
-          }
-          SCHEMAEOF
-          SCHEMA_ESCAPED=$(cat /tmp/schema.json | jq -c .)
-          echo "schema=$SCHEMA_ESCAPED" >> $GITHUB_OUTPUT
+          git diff origin/${BASE_REF}...HEAD --unified=5 --color=never | head -c 50000 > /tmp/diff.txt
 
       - name: Generate structured review
         id: review
         run: |
-          DIFF=${{ steps.diff.outputs.diff }}
-          SCHEMA=${{ steps.schema.outputs.schema }}
+          DIFF_CONTENT=$(cat /tmp/diff.txt | jq -Rs .)
           
-          RESPONSE=$(curl -s https://ollama.com/api/chat \
+          SCHEMA='{"type":"object","properties":{"summary":{"type":"string"},"issues":{"type":"array","items":{"type":"object","properties":{"file":{"type":"string"},"severity":{"type":"string","enum":["low","medium","high"]},"description":{"type":"string"},"suggestion":{"type":"string"}},"required":["file","severity","description"]}},"overall_score":{"type":"integer","minimum":1,"maximum":10},"should_auto_apply":{"type":"boolean"}},"required":["summary","issues","overall_score","should_auto_apply"]}'
+          
+          PROMPT="You are an expert code reviewer. Analyze this diff and provide a structured review.
+
+          Diff:
+          $(cat /tmp/diff.txt | head -c 30000)
+
+          Respond with JSON matching this schema: $SCHEMA"
+
+          RESPONSE=$(curl -s https://ollama.com/api/generate \
             -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{
-              \"model\": \"glm-4.6:cloud\",
-              \"messages\": [
-                {
-                  \"role\": \"system\",
-                  \"content\": \"You are an expert code reviewer. Analyze the diff carefully. Identify issues and provide precise, safe fixes. Set should_auto_apply to true only for low-risk improvements. Respond with valid JSON matching the schema.\"
-                },
-                {
-                  \"role\": \"user\",
-                  \"content\": \"Schema: $SCHEMA\n\nDiff to review:\n$DIFF\"
-                }
-              ],
-              \"format\": $SCHEMA,
-              \"options\": {
-                \"temperature\": 0.1,
-                \"top_p\": 0.95,
-                \"num_ctx\": 32768,
-                \"num_predict\": 4096
-              },
-              \"stream\": false
-            }")
+            -d "$(jq -n \
+              --arg model "glm-4.6:cloud" \
+              --arg prompt "$PROMPT" \
+              '{model: $model, prompt: $prompt, stream: false, options: {temperature: 0.1, num_ctx: 32768}}')")
 
-          echo "Raw response: ${RESPONSE:0:500}"
+          echo "Response preview: ${RESPONSE:0:500}"
           
-          REVIEW_JSON=$(echo "$RESPONSE" | jq -r '.message.content // empty')
-
-          if [ -z "$REVIEW_JSON" ] || [ "$REVIEW_JSON" = "null" ]; then
-            ERROR=$(echo "$RESPONSE" | jq -r '.error // "Unknown error"')
-            echo "Error from API: $ERROR"
-            REVIEW_JSON='{"summary":"API Error: '"$ERROR"'","issues":[],"suggested_fixes":[],"overall_score":5,"should_auto_apply":false}'
-          fi
-
-          REVIEW_FORMATTED=$(echo "$REVIEW_JSON" | jq '.' 2>/dev/null || echo "$REVIEW_JSON")
+          REVIEW=$(echo "$RESPONSE" | jq -r '.response // .error // "No response"')
+          
+          # Try to extract JSON from the response
+          REVIEW_JSON=$(echo "$REVIEW" | grep -o '{.*}' | head -1 || echo "$REVIEW")
 
           {
             echo "json<<EOF"
@@ -153,87 +83,52 @@ jobs:
           } >> $GITHUB_OUTPUT
 
           {
-            echo "formatted<<EOF"
-            echo "$REVIEW_FORMATTED"
+            echo "raw<<EOF"
+            echo "$REVIEW"
             echo "EOF"
           } >> $GITHUB_OUTPUT
-
-      - name: Validate JSON output
-        id: validate
-        run: |
-          REVIEW_JSON='${{ steps.review.outputs.json }}'
-          
-          if echo "$REVIEW_JSON" | jq empty 2>/dev/null; then
-            echo "valid=true" >> $GITHUB_OUTPUT
-            echo "JSON is valid"
-          else
-            echo "valid=false" >> $GITHUB_OUTPUT
-            echo "Invalid JSON - skipping auto-apply"
-          fi
-
-      - name: Apply suggested patches (if approved)
-        if: steps.validate.outputs.valid == 'true' && fromJSON(steps.review.outputs.json).should_auto_apply == true
-        run: |
-          REVIEW_JSON='${{ steps.review.outputs.json }}'
-
-          echo "$REVIEW_JSON" | jq -r '.suggested_fixes[] | select(.patch != null and .patch != "") | @base64' | while read -r encoded_patch; do
-            PATCH_JSON=$(echo "$encoded_patch" | base64 -d)
-            FILE=$(echo "$PATCH_JSON" | jq -r '.file')
-            PATCH=$(echo "$PATCH_JSON" | jq -r '.patch')
-            DESC=$(echo "$PATCH_JSON" | jq -r '.description')
-
-            echo "Applying patch to $FILE: $DESC"
-            echo "$PATCH" | git apply --whitespace=nowarn --verbose || echo "Warning: Patch failed for $FILE (skipping)"
-          done
-
-      - name: Commit and push auto-applied fixes
-        if: steps.validate.outputs.valid == 'true' && fromJSON(steps.review.outputs.json).should_auto_apply == true
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "fix: Apply AI-suggested improvements (GLM-4.6 review)"
-          branch: ${{ github.head_ref || github.event.pull_request.head.ref }}
-          commit_user_name: "GLM-4.6 Bot"
-          commit_user_email: "glm-bot@users.noreply.github.com"
-          commit_author: "GLM-4.6 Bot <glm-bot@users.noreply.github.com>"
-          file_pattern: .
-          skip_dirty_check: false
 
       - name: Post review comment
         uses: actions/github-script@v7
         with:
           script: |
-            const reviewJson = `${{ steps.review.outputs.json }}`;
+            const rawReview = `${{ steps.review.outputs.raw }}`;
+            const jsonReview = `${{ steps.review.outputs.json }}`;
             const prNumber = context.payload.pull_request?.number || context.payload.issue?.number;
             
-            let summary = "Error parsing review";
+            let summary = "See details below";
             let score = "N/A";
-            let autoApplied = "❌ Review parsing failed";
-            let formatted = reviewJson;
+            let issues = [];
+            let formattedJson = rawReview;
             
             try {
-              const review = JSON.parse(reviewJson);
+              const review = JSON.parse(jsonReview);
               summary = review.summary || "No summary";
               score = review.overall_score || "N/A";
-              autoApplied = review.should_auto_apply 
-                ? "✅ Fixes automatically applied and pushed!" 
-                : "⚠️ Fixes suggested – review and apply manually";
-              formatted = JSON.stringify(review, null, 2);
+              issues = review.issues || [];
+              formattedJson = JSON.stringify(review, null, 2);
             } catch (e) {
-              console.log("Failed to parse JSON:", e);
+              console.log("Failed to parse as JSON, using raw response");
+            }
+            
+            let issuesList = "";
+            if (issues.length > 0) {
+              issuesList = "\n\n### Issues Found\n" + issues.map(i => 
+                `- **${i.severity?.toUpperCase() || 'INFO'}** (${i.file || 'general'}): ${i.description}`
+              ).join("\n");
             }
             
             const body = `## 🤖 GLM-4.6 AI Code Review
 
             **Summary**: ${summary}
             **Overall Score**: ${score} / 10
-
-            ${autoApplied}
+            ${issuesList}
 
             <details>
-            <summary>Full Review Details</summary>
+            <summary>Full Review</summary>
 
-            \`\`\`json
-            ${formatted}
+            \`\`\`
+            ${formattedJson.substring(0, 5000)}
             \`\`\`
 
             </details>
