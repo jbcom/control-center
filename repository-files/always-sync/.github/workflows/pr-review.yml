@@ -17,16 +17,11 @@ permissions:
   pull-requests: write
   issues: write
 
-# Prevent multiple reviews on rapid commits
 concurrency:
   group: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
 jobs:
-  # ==========================================================================
-  # Ollama AI Review - Local Model (FREE!)
-  # Uses qwen2.5-coder:1.5b for quick code reviews
-  # ==========================================================================
   ollama-review:
     name: AI Review
     runs-on: ubuntu-latest
@@ -42,32 +37,51 @@ jobs:
           fetch-depth: 0
 
       - name: Get PR Diff
+        id: diff
         run: |
           gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
-          # Limit to ~1000 lines for speed
-          head -1000 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          head -800 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          
+          # Save diff to output (escape for multiline)
+          {
+            echo "content<<DIFF_EOF"
+            cat /tmp/pr_diff_truncated.txt
+            echo "DIFF_EOF"
+          } >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Ollama
+        uses: ai-action/setup-ollama@v1
+
       - name: AI Review
-        uses: ai-action/ollama-action@v1
         id: review
-        with:
-          model: qwen2.5-coder:1.5b
-          prompt: |
-            Review this PR diff. Be concise.
-            
-            PR: ${{ github.event.pull_request.title }}
-            Author: ${{ github.event.pull_request.user.login }}
-            
-            Diff (first 1000 lines):
-            $(cat /tmp/pr_diff_truncated.txt)
-            
-            Provide:
-            1. Summary (1-2 sentences)
-            2. Score (0-100)
-            3. Issues (if any, list with severity)
-            4. Recommendations
+        run: |
+          # Create prompt with actual diff content
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+          Review this PR diff. Be concise and specific.
+          
+          PR: ${{ github.event.pull_request.title }}
+          Author: ${{ github.event.pull_request.user.login }}
+          
+          Changes:
+          ${{ steps.diff.outputs.content }}
+          
+          Provide:
+          1. Summary (1-2 sentences about what changed)
+          2. Score (0-100)
+          3. Issues found (list with severity if any)
+          4. Recommendations (specific suggestions)
+          PROMPT_EOF
+          
+          # Run ollama
+          RESPONSE=$(ollama run qwen2.5-coder:1.5b "$(cat /tmp/prompt.txt)" 2>&1)
+          
+          {
+            echo "response<<RESPONSE_EOF"
+            echo "$RESPONSE"
+            echo "RESPONSE_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -111,9 +125,6 @@ jobs:
         env:
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
 
-  # ==========================================================================
-  # Mention-triggered reviews (/review)
-  # ==========================================================================
   mention-review:
     name: Mention-triggered Review
     runs-on: ubuntu-latest
@@ -129,24 +140,40 @@ jobs:
           fetch-depth: 0
 
       - name: Get PR Diff
+        id: diff
         run: |
           gh pr diff ${{ github.event.issue.number }} > /tmp/pr_diff.txt
-          head -1000 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          head -800 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          {
+            echo "content<<DIFF_EOF"
+            cat /tmp/pr_diff_truncated.txt
+            echo "DIFF_EOF"
+          } >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Ollama
+        uses: ai-action/setup-ollama@v1
+
       - name: AI Review
-        uses: ai-action/ollama-action@v1
         id: review
-        with:
-          model: qwen2.5-coder:1.5b
-          prompt: |
-            User request: "${{ github.event.comment.body }}"
-            
-            PR Diff:
-            $(cat /tmp/pr_diff_truncated.txt)
-            
-            Provide a focused code review. Be concise.
+        run: |
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+          User request: "${{ github.event.comment.body }}"
+          
+          PR Diff:
+          ${{ steps.diff.outputs.content }}
+          
+          Provide a focused code review. Be concise and specific about the changes.
+          PROMPT_EOF
+          
+          RESPONSE=$(ollama run qwen2.5-coder:1.5b "$(cat /tmp/prompt.txt)" 2>&1)
+          
+          {
+            echo "response<<RESPONSE_EOF"
+            echo "$RESPONSE"
+            echo "RESPONSE_EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Post Review Comment
         uses: actions/github-script@v7
