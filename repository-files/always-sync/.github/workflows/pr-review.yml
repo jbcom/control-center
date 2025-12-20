@@ -22,7 +22,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MODEL: qwen2.5-coder:1.5b
+  MODEL: qwen2.5-coder:3b
 
 jobs:
   ollama-review:
