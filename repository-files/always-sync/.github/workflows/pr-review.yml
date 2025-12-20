@@ -1,4 +1,4 @@
-# AI PR Review Workflow - Ollama Powered
+# AI PR Review Workflow - Ollama Cloud Powered
 # Uses GLM-4.6 Cloud model via Ollama for cost-effective AI reviews
 #
 # Synced from jbcom-control-center (always-sync)
@@ -22,6 +22,11 @@ concurrency:
   group: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
+env:
+  # Ollama Cloud configuration
+  OLLAMA_HOST: https://api.ollama.com
+  OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+
 jobs:
   # ==========================================================================
   # Ollama AI Review - GLM-4.6 Cloud Model
@@ -41,58 +46,70 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
-        with:
-          model: glm-4.6:cloud
-
       - name: Get PR Diff
         id: diff
         run: |
           gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
-          echo "diff_file=/tmp/pr_diff.txt" >> $GITHUB_OUTPUT
+          # Truncate to reasonable size
+          head -1500 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Ollama
+        uses: ai-action/setup-ollama@v1
+
       - name: AI Review
-        uses: ai-action/ollama-action@v1
         id: review
-        with:
-          model: glm-4.6:cloud
-          prompt: |
-            You are a senior code reviewer. Analyze this pull request diff and provide a comprehensive review.
+        run: |
+          # Read the diff
+          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
+          
+          # Create the prompt
+          PROMPT="You are a senior code reviewer. Analyze this pull request diff and provide a comprehensive review.
 
-            **PR Title:** ${{ github.event.pull_request.title }}
-            **Author:** ${{ github.event.pull_request.user.login }}
-            **Repository:** ${{ github.repository }}
+          **PR Title:** ${{ github.event.pull_request.title }}
+          **Author:** ${{ github.event.pull_request.user.login }}
+          **Repository:** ${{ github.repository }}
 
-            **Diff:**
-            $(cat /tmp/pr_diff.txt | head -2000)
+          **Diff:**
+          ${DIFF_CONTENT}
 
-            **Review Instructions:**
-            1. **Security** - Look for vulnerabilities, exposed secrets, injection risks
-            2. **Performance** - Identify bottlenecks, memory leaks, expensive operations
-            3. **Code Quality** - Check readability, DRY violations, complexity
-            4. **Testing** - Note missing test coverage or edge cases
-            5. **Best Practices** - Verify error handling, documentation, patterns
+          **Review Instructions:**
+          1. Security - Look for vulnerabilities, exposed secrets, injection risks
+          2. Performance - Identify bottlenecks, memory leaks, expensive operations
+          3. Code Quality - Check readability, DRY violations, complexity
+          4. Best Practices - Verify error handling, documentation, patterns
 
-            **Output Format:**
-            ## Summary
-            [1-2 sentence overall assessment]
+          **Output Format:**
+          ## Summary
+          [1-2 sentence overall assessment]
 
-            ## Score: [0-100]
+          ## Score: [0-100]
 
-            ## Issues Found
-            | Severity | File | Issue |
-            |----------|------|-------|
-            | HIGH/MED/LOW | path | description |
+          ## Issues Found
+          | Severity | File | Issue |
+          |----------|------|-------|
+          | HIGH/MED/LOW | path | description |
 
-            ## Recommendations
-            - [Actionable suggestions]
+          ## Recommendations
+          - [Actionable suggestions]
 
-            If the PR looks good, say so briefly and give a high score.
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          If the PR looks good, say so briefly and give a high score."
+
+          # Call Ollama cloud API directly
+          RESPONSE=$(curl -s -X POST "https://api.ollama.com/api/generate" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"model\": \"glm-4.6:cloud\",
+              \"prompt\": $(echo "$PROMPT" | jq -Rs .),
+              \"stream\": false
+            }" | jq -r '.response // .error // "Error generating review"')
+          
+          # Save response
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -152,38 +169,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
-        with:
-          model: glm-4.6:cloud
-
       - name: Get PR Diff
-        id: diff
         run: |
           gh pr diff ${{ github.event.issue.number }} > /tmp/pr_diff.txt
+          head -1500 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: AI Review
-        uses: ai-action/ollama-action@v1
         id: review
-        with:
-          model: glm-4.6:cloud
-          prompt: |
-            A user requested a review with: "${{ github.event.comment.body }}"
+        run: |
+          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
+          
+          PROMPT="A user requested a review with: \"${{ github.event.comment.body }}\"
 
-            **PR Diff:**
-            $(cat /tmp/pr_diff.txt | head -2000)
+          **PR Diff:**
+          ${DIFF_CONTENT}
 
-            Provide a focused code review addressing any specific requests.
-            If no specific request, give a comprehensive review.
+          Provide a focused code review addressing any specific requests.
+          If no specific request, give a comprehensive review.
 
-            Format your response with:
-            - Summary
-            - Key findings (if any issues)
-            - Recommendations
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          Format your response with:
+          - Summary
+          - Key findings (if any issues)
+          - Recommendations"
+
+          RESPONSE=$(curl -s -X POST "https://api.ollama.com/api/generate" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"model\": \"glm-4.6:cloud\",
+              \"prompt\": $(echo "$PROMPT" | jq -Rs .),
+              \"stream\": false
+            }" | jq -r '.response // .error // "Error generating review"')
+          
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Post Review Comment
         uses: actions/github-script@v7
