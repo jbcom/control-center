@@ -63,7 +63,7 @@ jobs:
       - name: Define JSON Schema
         id: schema
         run: |
-          SCHEMA=$(cat <<'EOF'
+          cat > /tmp/schema.json << 'SCHEMAEOF'
           {
             "type": "object",
             "properties": {
@@ -79,8 +79,7 @@ jobs:
                     "description": { "type": "string" },
                     "suggestion": { "type": "string" }
                   },
-                  "required": ["file", "severity", "description"],
-                  "additionalProperties": false
+                  "required": ["file", "severity", "description"]
                 }
               },
               "suggested_fixes": {
@@ -89,22 +88,19 @@ jobs:
                   "type": "object",
                   "properties": {
                     "file": { "type": "string" },
-                    "patch": { "type": "string", "description": "Unified diff patch compatible with git apply" },
+                    "patch": { "type": "string" },
                     "description": { "type": "string" }
                   },
-                  "required": ["file", "patch", "description"],
-                  "additionalProperties": false
+                  "required": ["file", "patch", "description"]
                 }
               },
               "overall_score": { "type": "integer", "minimum": 1, "maximum": 10 },
               "should_auto_apply": { "type": "boolean" }
             },
-            "required": ["summary", "issues", "suggested_fixes", "overall_score", "should_auto_apply"],
-            "additionalProperties": false
+            "required": ["summary", "issues", "suggested_fixes", "overall_score", "should_auto_apply"]
           }
-          EOF
-          )
-          SCHEMA_ESCAPED=$(echo "$SCHEMA" | jq -c .)
+          SCHEMAEOF
+          SCHEMA_ESCAPED=$(cat /tmp/schema.json | jq -c .)
           echo "schema=$SCHEMA_ESCAPED" >> $GITHUB_OUTPUT
 
       - name: Generate structured review
@@ -121,11 +117,11 @@ jobs:
               \"messages\": [
                 {
                   \"role\": \"system\",
-                  \"content\": \"You are an expert code reviewer. Analyze the diff carefully. Identify issues and provide precise, safe fixes as unified diff patches. Set should_auto_apply to true only if all fixes are low-risk and improve the code without changing behaviour. Respond EXCLUSIVELY with valid JSON matching the schema.\"
+                  \"content\": \"You are an expert code reviewer. Analyze the diff carefully. Identify issues and provide precise, safe fixes. Set should_auto_apply to true only for low-risk improvements. Respond with valid JSON matching the schema.\"
                 },
                 {
                   \"role\": \"user\",
-                  \"content\": \"Schema (respond exactly this format): $SCHEMA\n\nDiff to review:\n$DIFF\"
+                  \"content\": \"Schema: $SCHEMA\n\nDiff to review:\n$DIFF\"
                 }
               ],
               \"format\": $SCHEMA,
@@ -143,7 +139,6 @@ jobs:
           REVIEW_JSON=$(echo "$RESPONSE" | jq -r '.message.content // empty')
 
           if [ -z "$REVIEW_JSON" ] || [ "$REVIEW_JSON" = "null" ]; then
-            # Fallback: try to get error message
             ERROR=$(echo "$RESPONSE" | jq -r '.error // "Unknown error"')
             echo "Error from API: $ERROR"
             REVIEW_JSON='{"summary":"API Error: '"$ERROR"'","issues":[],"suggested_fixes":[],"overall_score":5,"should_auto_apply":false}'
@@ -151,13 +146,17 @@ jobs:
 
           REVIEW_FORMATTED=$(echo "$REVIEW_JSON" | jq '.' 2>/dev/null || echo "$REVIEW_JSON")
 
-          echo "json<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_JSON" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "json<<EOF"
+            echo "$REVIEW_JSON"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
-          echo "formatted<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_FORMATTED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          {
+            echo "formatted<<EOF"
+            echo "$REVIEW_FORMATTED"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Validate JSON output
         id: validate
@@ -200,41 +199,51 @@ jobs:
           skip_dirty_check: false
 
       - name: Post review comment
-        run: |
-          REVIEW_JSON='${{ steps.review.outputs.json }}'
-          PR_NUMBER="${{ github.event.pull_request.number || github.event.issue.number }}"
-          
-          if echo "$REVIEW_JSON" | jq empty 2>/dev/null; then
-            AUTO_APPLIED=$(echo "$REVIEW_JSON" | jq -r 'if .should_auto_apply then "✅ Fixes automatically applied and pushed!" else "⚠️ Fixes suggested – review and apply manually" end')
-            SUMMARY=$(echo "$REVIEW_JSON" | jq -r '.summary // "No summary"')
-            SCORE=$(echo "$REVIEW_JSON" | jq -r '.overall_score // "N/A"')
-            FORMATTED='${{ steps.review.outputs.formatted }}'
-          else
-            AUTO_APPLIED="❌ Review failed - invalid response"
-            SUMMARY="Error parsing review response"
-            SCORE="N/A"
-            FORMATTED="$REVIEW_JSON"
-          fi
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const reviewJson = `${{ steps.review.outputs.json }}`;
+            const prNumber = context.payload.pull_request?.number || context.payload.issue?.number;
+            
+            let summary = "Error parsing review";
+            let score = "N/A";
+            let autoApplied = "❌ Review parsing failed";
+            let formatted = reviewJson;
+            
+            try {
+              const review = JSON.parse(reviewJson);
+              summary = review.summary || "No summary";
+              score = review.overall_score || "N/A";
+              autoApplied = review.should_auto_apply 
+                ? "✅ Fixes automatically applied and pushed!" 
+                : "⚠️ Fixes suggested – review and apply manually";
+              formatted = JSON.stringify(review, null, 2);
+            } catch (e) {
+              console.log("Failed to parse JSON:", e);
+            }
+            
+            const body = `## 🤖 GLM-4.6 AI Code Review
 
-          BODY="## 🤖 GLM-4.6 AI Code Review
+            **Summary**: ${summary}
+            **Overall Score**: ${score} / 10
 
-**Summary**: $SUMMARY  
-**Overall Score**: $SCORE / 10
+            ${autoApplied}
 
-$AUTO_APPLIED
+            <details>
+            <summary>Full Review Details</summary>
 
-<details>
-<summary>Full Review Details</summary>
+            \`\`\`json
+            ${formatted}
+            \`\`\`
 
-\`\`\`json
-$FORMATTED
-\`\`\`
+            </details>
 
-</details>
+            ---
+            <sub>Powered by glm-4.6:cloud on Ollama Cloud</sub>`;
 
----
-<sub>Powered by **glm-4.6:cloud** on Ollama Cloud</sub>"
-
-          gh pr comment "$PR_NUMBER" --body "$BODY"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
+              body: body
+            });
