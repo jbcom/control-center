@@ -1,5 +1,5 @@
-# AI PR Review Workflow - Ollama Powered
-# Uses local Ollama API for clean output without ANSI codes
+# AI PR Review Workflow - Ollama Cloud
+# Uses Ollama's cloud API - no local installation needed
 #
 # Synced from jbcom-control-center (always-sync)
 # DO NOT EDIT - changes will be overwritten
@@ -23,6 +23,7 @@ concurrency:
 
 env:
   MODEL: qwen2.5-coder:3b
+  OLLAMA_API_URL: https://api.ollama.com/api/generate
 
 jobs:
   ollama-review:
@@ -47,33 +48,18 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama
-        run: |
-          # Retry logic for ollama install
-          for i in 1 2 3; do
-            curl -fsSL https://ollama.com/install.sh | bash && break
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
-          done
-          ollama serve &
-          sleep 5
-          # Pull model with retry
-          for i in 1 2 3; do
-            ollama pull $MODEL > /dev/null 2>&1 && break
-            echo "Model pull attempt $i failed, retrying..."
-            sleep 5
-          done
-
-      - name: AI Review via API
+      - name: AI Review via Ollama Cloud
         id: review
         run: |
+          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
+          
           PROMPT="Review this PR diff. Be concise and specific.
 
           PR: ${{ github.event.pull_request.title }}
           Author: ${{ github.event.pull_request.user.login }}
 
           Changes:
-          $(cat /tmp/pr_diff_truncated.txt)
+          ${DIFF_CONTENT}
 
           Provide:
           1. Summary (1-2 sentences)
@@ -81,15 +67,19 @@ jobs:
           3. Issues (list with severity)
           4. Recommendations"
 
-          RESPONSE=$(curl -s http://localhost:11434/api/generate \
+          RESPONSE=$(curl -s "${OLLAMA_API_URL}" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
+            -H "Content-Type: application/json" \
             -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')" \
-            | jq -r '.response // "Error generating review"')
+            | jq -r '.response // .error // "Error generating review"')
 
           {
             echo "response<<RESPONSE_EOF"
             echo "$RESPONSE"
             echo "RESPONSE_EOF"
           } >> $GITHUB_OUTPUT
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -102,7 +92,7 @@ jobs:
             ${review}
 
             ---
-            <sub>Powered by Ollama ${process.env.MODEL} • [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
+            <sub>Powered by Ollama Cloud ${process.env.MODEL} • [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -156,40 +146,31 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama
-        run: |
-          for i in 1 2 3; do
-            curl -fsSL https://ollama.com/install.sh | bash && break
-            echo "Attempt $i failed, retrying in 10s..."
-            sleep 10
-          done
-          ollama serve &
-          sleep 5
-          for i in 1 2 3; do
-            ollama pull $MODEL > /dev/null 2>&1 && break
-            echo "Model pull attempt $i failed, retrying..."
-            sleep 5
-          done
-
-      - name: AI Review via API
+      - name: AI Review via Ollama Cloud
         id: review
         run: |
+          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
+          
           PROMPT="User request: ${{ github.event.comment.body }}
 
           PR Diff:
-          $(cat /tmp/pr_diff_truncated.txt)
+          ${DIFF_CONTENT}
 
           Provide a focused code review. Be concise and specific about the changes."
 
-          RESPONSE=$(curl -s http://localhost:11434/api/generate \
+          RESPONSE=$(curl -s "${OLLAMA_API_URL}" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
+            -H "Content-Type: application/json" \
             -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')" \
-            | jq -r '.response // "Error generating review"')
+            | jq -r '.response // .error // "Error generating review"')
 
           {
             echo "response<<RESPONSE_EOF"
             echo "$RESPONSE"
             echo "RESPONSE_EOF"
           } >> $GITHUB_OUTPUT
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -206,7 +187,7 @@ jobs:
             ${review}
 
             ---
-            <sub>Powered by Ollama ${process.env.MODEL}</sub>`
+            <sub>Powered by Ollama Cloud ${process.env.MODEL}</sub>`
             });
         env:
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
