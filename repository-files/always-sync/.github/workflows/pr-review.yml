@@ -1,5 +1,5 @@
 # AI PR Review Workflow - Ollama Powered
-# Uses qwen2.5-coder:1.5b for fast, cost-free code reviews
+# Uses local Ollama API for clean output without ANSI codes
 #
 # Synced from jbcom-control-center (always-sync)
 # DO NOT EDIT - changes will be overwritten
@@ -21,6 +21,9 @@ concurrency:
   group: pr-review-${{ github.event.pull_request.number || github.event.issue.number }}
   cancel-in-progress: true
 
+env:
+  MODEL: qwen2.5-coder:1.5b
+
 jobs:
   ollama-review:
     name: AI Review
@@ -40,43 +43,45 @@ jobs:
         id: diff
         run: |
           gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
+          # Truncate to ~800 lines for model context
           head -800 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
-          
-          # Save diff to output (escape for multiline)
-          {
-            echo "content<<DIFF_EOF"
-            cat /tmp/pr_diff_truncated.txt
-            echo "DIFF_EOF"
-          } >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
+        run: |
+          curl -fsSL https://ollama.com/install.sh | bash
+          # Start server in background
+          ollama serve &
+          sleep 5
+          # Pull model silently
+          ollama pull $MODEL > /dev/null 2>&1
 
-      - name: AI Review
+      - name: AI Review via API
         id: review
         run: |
-          # Create prompt with actual diff content
-          cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          Review this PR diff. Be concise and specific.
-          
+          # Build prompt
+          DIFF=$(cat /tmp/pr_diff_truncated.txt | jq -Rs .)
+          PROMPT="Review this PR diff. Be concise and specific.
+
           PR: ${{ github.event.pull_request.title }}
           Author: ${{ github.event.pull_request.user.login }}
-          
+
           Changes:
-          ${{ steps.diff.outputs.content }}
-          
+          $(cat /tmp/pr_diff_truncated.txt)
+
           Provide:
-          1. Summary (1-2 sentences about what changed)
+          1. Summary (1-2 sentences)
           2. Score (0-100)
-          3. Issues found (list with severity if any)
-          4. Recommendations (specific suggestions)
-          PROMPT_EOF
-          
-          # Run ollama
-          RESPONSE=$(ollama run qwen2.5-coder:1.5b "$(cat /tmp/prompt.txt)" 2>&1)
-          
+          3. Issues (list with severity)
+          4. Recommendations"
+
+          # Call API with stream:false for clean JSON response
+          RESPONSE=$(curl -s http://localhost:11434/api/generate \
+            -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')" \
+            | jq -r '.response // "Error generating review"')
+
+          # Save to output
           {
             echo "response<<RESPONSE_EOF"
             echo "$RESPONSE"
@@ -94,7 +99,7 @@ jobs:
             ${review}
 
             ---
-            <sub>Powered by Ollama qwen2.5-coder • [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
+            <sub>Powered by Ollama ${process.env.MODEL} • [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -124,6 +129,7 @@ jobs:
             }
         env:
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
+          MODEL: ${{ env.MODEL }}
 
   mention-review:
     name: Mention-triggered Review
@@ -144,31 +150,30 @@ jobs:
         run: |
           gh pr diff ${{ github.event.issue.number }} > /tmp/pr_diff.txt
           head -800 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
-          {
-            echo "content<<DIFF_EOF"
-            cat /tmp/pr_diff_truncated.txt
-            echo "DIFF_EOF"
-          } >> $GITHUB_OUTPUT
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
+        run: |
+          curl -fsSL https://ollama.com/install.sh | bash
+          ollama serve &
+          sleep 5
+          ollama pull $MODEL > /dev/null 2>&1
 
-      - name: AI Review
+      - name: AI Review via API
         id: review
         run: |
-          cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          User request: "${{ github.event.comment.body }}"
-          
+          PROMPT="User request: ${{ github.event.comment.body }}
+
           PR Diff:
-          ${{ steps.diff.outputs.content }}
-          
-          Provide a focused code review. Be concise and specific about the changes.
-          PROMPT_EOF
-          
-          RESPONSE=$(ollama run qwen2.5-coder:1.5b "$(cat /tmp/prompt.txt)" 2>&1)
-          
+          $(cat /tmp/pr_diff_truncated.txt)
+
+          Provide a focused code review. Be concise and specific about the changes."
+
+          RESPONSE=$(curl -s http://localhost:11434/api/generate \
+            -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')" \
+            | jq -r '.response // "Error generating review"')
+
           {
             echo "response<<RESPONSE_EOF"
             echo "$RESPONSE"
@@ -190,7 +195,8 @@ jobs:
             ${review}
 
             ---
-            <sub>Powered by Ollama qwen2.5-coder</sub>`
+            <sub>Powered by Ollama ${process.env.MODEL}</sub>`
             });
         env:
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
+          MODEL: ${{ env.MODEL }}
