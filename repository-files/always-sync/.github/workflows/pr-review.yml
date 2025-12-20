@@ -1,5 +1,5 @@
-# AI PR Review Workflow - Ollama Cloud Powered
-# Uses GLM-4.6 Cloud model via Ollama for cost-effective AI reviews
+# AI PR Review Workflow - Ollama Powered
+# Uses qwen2.5-coder:1.5b for fast, cost-free code reviews
 #
 # Synced from jbcom-control-center (always-sync)
 # DO NOT EDIT - changes will be overwritten
@@ -24,11 +24,11 @@ concurrency:
 
 jobs:
   # ==========================================================================
-  # Ollama AI Review - GLM-4.6 Cloud Model
-  # Cost-effective, high-quality code reviews
+  # Ollama AI Review - Local Model (FREE!)
+  # Uses qwen2.5-coder:1.5b for quick code reviews
   # ==========================================================================
   ollama-review:
-    name: AI Review (GLM-4.6)
+    name: AI Review
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'pull_request' &&
@@ -42,68 +42,32 @@ jobs:
           fetch-depth: 0
 
       - name: Get PR Diff
-        id: diff
         run: |
           gh pr diff ${{ github.event.pull_request.number }} > /tmp/pr_diff.txt
-          head -1500 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          # Limit to ~1000 lines for speed
+          head -1000 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
-
       - name: AI Review
+        uses: ai-action/ollama-action@v1
         id: review
-        env:
-          OLLAMA_HOST: https://ollama.com
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-        run: |
-          # Read the diff
-          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
-          
-          # Create the prompt file
-          cat > /tmp/prompt.txt << PROMPT_EOF
-          You are a senior code reviewer. Analyze this pull request diff and provide a comprehensive review.
-
-          **PR Title:** ${{ github.event.pull_request.title }}
-          **Author:** ${{ github.event.pull_request.user.login }}
-          **Repository:** ${{ github.repository }}
-
-          **Diff:**
-          ${DIFF_CONTENT}
-
-          **Review Instructions:**
-          1. Security - Look for vulnerabilities, exposed secrets, injection risks
-          2. Performance - Identify bottlenecks, memory leaks, expensive operations
-          3. Code Quality - Check readability, DRY violations, complexity
-          4. Best Practices - Verify error handling, documentation, patterns
-
-          **Output Format:**
-          ## Summary
-          [1-2 sentence overall assessment]
-
-          ## Score: [0-100]
-
-          ## Issues Found
-          | Severity | File | Issue |
-          |----------|------|-------|
-          | HIGH/MED/LOW | path | description |
-
-          ## Recommendations
-          - [Actionable suggestions]
-
-          If the PR looks good, say so briefly and give a high score.
-          PROMPT_EOF
-
-          # Run ollama with the cloud model
-          RESPONSE=$(ollama run glm-4.6:cloud "$(cat /tmp/prompt.txt)" 2>&1 || echo "Error running model")
-          
-          # Save response
-          {
-            echo "response<<RESPONSE_EOF"
-            echo "$RESPONSE"
-            echo "RESPONSE_EOF"
-          } >> $GITHUB_OUTPUT
+        with:
+          model: qwen2.5-coder:1.5b
+          prompt: |
+            Review this PR diff. Be concise.
+            
+            PR: ${{ github.event.pull_request.title }}
+            Author: ${{ github.event.pull_request.user.login }}
+            
+            Diff (first 1000 lines):
+            $(cat /tmp/pr_diff_truncated.txt)
+            
+            Provide:
+            1. Summary (1-2 sentences)
+            2. Score (0-100)
+            3. Issues (if any, list with severity)
+            4. Recommendations
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -111,14 +75,13 @@ jobs:
           script: |
             const review = process.env.REVIEW_RESPONSE || 'No review generated';
             
-            const body = `## 🤖 AI Code Review (GLM-4.6)
+            const body = `## 🤖 AI Code Review
 
             ${review}
 
             ---
-            <sub>Powered by Ollama GLM-4.6 Cloud • [View workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
+            <sub>Powered by Ollama qwen2.5-coder • [View run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})</sub>`;
 
-            // Check for existing review comment
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -168,43 +131,22 @@ jobs:
       - name: Get PR Diff
         run: |
           gh pr diff ${{ github.event.issue.number }} > /tmp/pr_diff.txt
-          head -1500 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
+          head -1000 /tmp/pr_diff.txt > /tmp/pr_diff_truncated.txt
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama
-        uses: ai-action/setup-ollama@v1
-
       - name: AI Review
+        uses: ai-action/ollama-action@v1
         id: review
-        env:
-          OLLAMA_HOST: https://ollama.com
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-        run: |
-          DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
-          
-          cat > /tmp/prompt.txt << PROMPT_EOF
-          A user requested a review with: "${{ github.event.comment.body }}"
-
-          **PR Diff:**
-          ${DIFF_CONTENT}
-
-          Provide a focused code review addressing any specific requests.
-          If no specific request, give a comprehensive review.
-
-          Format your response with:
-          - Summary
-          - Key findings (if any issues)
-          - Recommendations
-          PROMPT_EOF
-
-          RESPONSE=$(ollama run glm-4.6:cloud "$(cat /tmp/prompt.txt)" 2>&1 || echo "Error running model")
-          
-          {
-            echo "response<<RESPONSE_EOF"
-            echo "$RESPONSE"
-            echo "RESPONSE_EOF"
-          } >> $GITHUB_OUTPUT
+        with:
+          model: qwen2.5-coder:1.5b
+          prompt: |
+            User request: "${{ github.event.comment.body }}"
+            
+            PR Diff:
+            $(cat /tmp/pr_diff_truncated.txt)
+            
+            Provide a focused code review. Be concise.
 
       - name: Post Review Comment
         uses: actions/github-script@v7
@@ -216,12 +158,12 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.issue.number,
-              body: `## 🤖 AI Review Response
+              body: `## 🤖 AI Review
 
             ${review}
 
             ---
-            <sub>Powered by Ollama GLM-4.6 Cloud</sub>`
+            <sub>Powered by Ollama qwen2.5-coder</sub>`
             });
         env:
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
