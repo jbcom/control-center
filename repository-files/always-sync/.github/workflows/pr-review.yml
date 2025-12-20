@@ -1,5 +1,5 @@
-# AI PR Review Workflow - Ollama Cloud Model
-# Uses local Ollama with cloud model proxy
+# AI PR Review Workflow - Ollama Cloud API
+# Uses direct Ollama Cloud API - no local installation needed
 #
 # Synced from jbcom-control-center (always-sync)
 # DO NOT EDIT - changes will be overwritten
@@ -23,6 +23,7 @@ concurrency:
 
 env:
   MODEL: devstral-small-2:24b-cloud
+  OLLAMA_API_URL: https://ollama.com/api/generate
 
 jobs:
   ollama-review:
@@ -47,30 +48,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama with Cloud
-        run: |
-          # Install ollama
-          for i in 1 2 3; do
-            curl -fsSL https://ollama.com/install.sh | bash && break
-            echo "Attempt $i failed, retrying..."
-            sleep 10
-          done
-          
-          # Start server with API key for cloud models
-          export OLLAMA_API_KEY="${OLLAMA_API_KEY}"
-          ollama serve &
-          sleep 5
-          
-          # Pull cloud model
-          for i in 1 2 3; do
-            ollama pull $MODEL && break
-            echo "Pull attempt $i failed, retrying..."
-            sleep 5
-          done
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-
-      - name: AI Review via API
+      - name: AI Review via Ollama Cloud
         id: review
         run: |
           DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
@@ -89,7 +67,10 @@ jobs:
           3. Issues (list with severity)
           4. Recommendations"
 
-          RAW_RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:11434/api/generate \
+          echo "Calling Ollama Cloud API at ${OLLAMA_API_URL}..."
+          
+          RAW_RESPONSE=$(curl -s -w "\n%{http_code}" "${OLLAMA_API_URL}" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')")
           
@@ -97,11 +78,12 @@ jobs:
           BODY=$(echo "$RAW_RESPONSE" | sed '$d')
           
           echo "HTTP Status: $HTTP_CODE"
+          echo "Response preview: ${BODY:0:300}"
           
           if [ "$HTTP_CODE" != "200" ]; then
             RESPONSE="API Error (HTTP $HTTP_CODE): ${BODY:0:500}"
           else
-            RESPONSE=$(echo "$BODY" | jq -r '.response // .error // "No response field in JSON"')
+            RESPONSE=$(echo "$BODY" | jq -r '.response // .error // "No response field"')
           fi
 
           {
@@ -177,27 +159,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Setup Ollama with Cloud
-        run: |
-          for i in 1 2 3; do
-            curl -fsSL https://ollama.com/install.sh | bash && break
-            echo "Attempt $i failed, retrying..."
-            sleep 10
-          done
-          
-          export OLLAMA_API_KEY="${OLLAMA_API_KEY}"
-          ollama serve &
-          sleep 5
-          
-          for i in 1 2 3; do
-            ollama pull $MODEL && break
-            echo "Pull attempt $i failed, retrying..."
-            sleep 5
-          done
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-
-      - name: AI Review via API
+      - name: AI Review via Ollama Cloud
         id: review
         run: |
           DIFF_CONTENT=$(cat /tmp/pr_diff_truncated.txt)
@@ -209,7 +171,10 @@ jobs:
 
           Provide a focused code review. Be concise and specific about the changes."
 
-          RAW_RESPONSE=$(curl -s -w "\n%{http_code}" http://localhost:11434/api/generate \
+          echo "Calling Ollama Cloud API at ${OLLAMA_API_URL}..."
+          
+          RAW_RESPONSE=$(curl -s -w "\n%{http_code}" "${OLLAMA_API_URL}" \
+            -H "Authorization: Bearer ${OLLAMA_API_KEY}" \
             -H "Content-Type: application/json" \
             -d "$(jq -n --arg model "$MODEL" --arg prompt "$PROMPT" '{model: $model, prompt: $prompt, stream: false}')")
           
@@ -217,11 +182,12 @@ jobs:
           BODY=$(echo "$RAW_RESPONSE" | sed '$d')
           
           echo "HTTP Status: $HTTP_CODE"
+          echo "Response preview: ${BODY:0:300}"
           
           if [ "$HTTP_CODE" != "200" ]; then
             RESPONSE="API Error (HTTP $HTTP_CODE): ${BODY:0:500}"
           else
-            RESPONSE=$(echo "$BODY" | jq -r '.response // .error // "No response field in JSON"')
+            RESPONSE=$(echo "$BODY" | jq -r '.response // .error // "No response field"')
           fi
 
           {
