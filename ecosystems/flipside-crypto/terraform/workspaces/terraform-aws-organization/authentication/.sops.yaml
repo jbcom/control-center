@@ -1,3 +1,0 @@
-"creation_rules":
-- "kms": "arn:aws:kms:us-east-1:862006574860:alias/global"
-  "path_regex": "secrets/.*"

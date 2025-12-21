@@ -1,2 +1,0 @@
-# Terraform Projects Workspace
-

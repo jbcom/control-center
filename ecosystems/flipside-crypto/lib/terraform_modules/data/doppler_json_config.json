@@ -1,7 +1,0 @@
-{
-  "config": "ops",
-  "project": "it",
-  "required_environment_variables": [
-    "doppler_token"
-  ]
-}

@@ -7,7 +7,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 jbcom Control Center is a unified hub that:
 1. **Manages all repository configuration** via shell scripts + gh CLI
 2. **Syncs files** to all managed repos (Cursor rules, workflows, etc.)
-3. **Holds FSC infrastructure** (Terraform modules, SAM Lambda apps, Python utilities)
 
 ## Structure
 
@@ -27,10 +26,6 @@ jbcom Control Center is a unified hub that:
 │   └── sync-secrets         # Sync secrets to repos
 ├── .github/workflows/
 │   └── repo-sync.yml        # Orchestrates all syncing
-├── ecosystems/flipside-crypto/  # FSC infrastructure
-│   ├── terraform/           # Modules + workspaces
-│   ├── sam/                 # Lambda applications
-│   └── lib/                 # Python utilities
 ├── docs/                    # Documentation
 ├── memory-bank/             # Agent session context
 └── packages/                # Local packages
@@ -48,7 +43,6 @@ A unified GitHub token is used for all operations:
 ```bash
 # All repos use the same token - gh CLI auto-uses GITHUB_TOKEN
 gh pr list --repo jbcom/jbcom-control-center
-gh pr list --repo FlipsideCrypto/terraform-modules
 ```
 
 ## Repository Management
@@ -123,22 +117,6 @@ Defined in `repo-config.json`:
 
 **Terraform:** terraform-github-markdown, terraform-repository-automation
 
-## FSC Infrastructure (ecosystems/flipside-crypto/)
-
-### Terraform
-- Modules in `terraform/modules/`
-- Workspaces in `terraform/workspaces/`
-- Standard workflow: `terraform init`, `plan`, `apply`
-
-### SAM Lambda Apps
-Located in `sam/`:
-- `secrets-config/` - Configuration handler
-- `secrets-merging/` - Merge secrets
-- `secrets-syncing/` - Sync secrets
-
-### Python Utilities
-`lib/terraform_modules/` - Utilities for Terraform data sources
-
 ## Workflow Triggers
 
 | Event | Actions |
@@ -162,5 +140,4 @@ Located in `sam/`:
 ## Documentation
 
 - Token management: `docs/TOKEN-MANAGEMENT.md`
-- FSC infrastructure: `docs/FSC-INFRASTRUCTURE.md`
 - Environment variables: `docs/ENVIRONMENT_VARIABLES.md`

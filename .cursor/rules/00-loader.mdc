@@ -10,8 +10,7 @@ globs: ["**/*"]
 
 This is **jbcom-control-center**, the unified control center for:
 - **jbcom packages**: Python/TypeScript/Go packages in `packages/`
-- **FSC infrastructure**: Terraform/SAM in `ecosystems/flipside-crypto/`
-- **Centralized configs**: Cursor rules synced to public repos
+- **Repository management**: Cursor rules and workflows synced to 20+ repos
 
 ### First Steps
 
@@ -33,7 +32,7 @@ cat memory-bank/progress.md
 ```bash
 # All repos - gh CLI auto-uses GITHUB_TOKEN
 gh pr list --repo jbcom/jbcom-control-center
-gh pr list --repo FlipsideCrypto/<repo>
+gh issue create --repo jbcom/agentic-control
 ```
 
 ## 📁 Key Locations
@@ -41,7 +40,6 @@ gh pr list --repo FlipsideCrypto/<repo>
 | Path | Purpose |
 |------|---------|
 | `packages/` | All jbcom packages |
-| `ecosystems/flipside-crypto/` | FSC infrastructure |
 | `repository-files/` | Files synced to public repos |
 | `memory-bank/` | Session context |
 | `.github/workflows/` | CI/CD |

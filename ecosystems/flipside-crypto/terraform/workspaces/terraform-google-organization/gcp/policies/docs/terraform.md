@@ -1,2 +1,0 @@
-# Terraform Policies Workspace
-

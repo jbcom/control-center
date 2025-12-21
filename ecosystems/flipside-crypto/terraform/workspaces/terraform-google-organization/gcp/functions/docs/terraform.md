@@ -1,2 +1,0 @@
-# Terraform Functions Workspace
-

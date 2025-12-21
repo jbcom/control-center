@@ -1,4 +1,0 @@
-{
-  "service_account": "github@flipsidecrypto.iam.gserviceaccount.com",
-  "workload_identity_pool_provider": "projects/443587723359/locations/global/workloadIdentityPools/github-pool/providers/github"
-}

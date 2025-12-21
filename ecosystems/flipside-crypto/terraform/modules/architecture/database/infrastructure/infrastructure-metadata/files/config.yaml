@@ -1,4 +1,0 @@
-"databases": true
-"dynamodb_tables": true
-"elasticache_redis": true
-"opensearch": true

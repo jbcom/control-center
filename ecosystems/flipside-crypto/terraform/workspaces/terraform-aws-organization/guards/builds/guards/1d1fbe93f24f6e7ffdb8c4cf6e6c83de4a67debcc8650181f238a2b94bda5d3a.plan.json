@@ -1,1 +1,0 @@
-{"filename": "builds/guards/1d1fbe93f24f6e7ffdb8c4cf6e6c83de4a67debcc8650181f238a2b94bda5d3a.zip", "runtime": "provided.al2023", "artifacts_dir": "builds/guards", "build_plan": [[["set:filter", ["!.*", "bootstrap"]], ["set:workdir", "../../src/guards/iam-user-cleanup"], ["sh", "GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o bootstrap main.go"], ["zip:embedded"]]]}

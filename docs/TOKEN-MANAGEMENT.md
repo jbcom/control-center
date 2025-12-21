@@ -32,10 +32,6 @@ The config maps all organizations to use the unified token:
       "jbcom": {
         "name": "jbcom",
         "tokenEnvVar": "GITHUB_TOKEN"
-      },
-      "FlipsideCrypto": {
-        "name": "FlipsideCrypto", 
-        "tokenEnvVar": "GITHUB_TOKEN"
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN"
@@ -52,7 +48,6 @@ The `gh` CLI automatically uses `GITHUB_TOKEN` from environment:
 ```bash
 # All repos work without explicit token
 gh pr list --repo jbcom/jbcom-control-center
-gh pr list --repo FlipsideCrypto/terraform-modules
 gh issue create --repo jbcom/agentic-control
 ```
 
@@ -110,12 +105,6 @@ Token is invalid or expired. Generate a new one at:
 ### "Resource not accessible"
 
 Token lacks required scopes. Check permissions and regenerate if needed.
-
-### "Organization access denied"
-
-For FlipsideCrypto or enterprise orgs, ensure:
-1. Token has org access enabled
-2. SSO authorization completed (if required)
 
 ## Related
 
