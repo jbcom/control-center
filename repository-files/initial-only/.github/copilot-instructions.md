@@ -42,15 +42,6 @@ Types: feat, fix, docs, style, refactor, test, chore
 - Update README if adding features
 - Add JSDoc/docstrings to public APIs
 - Include usage examples
-- **Follow jbcom Design System** for all docs (see `docs/DESIGN-SYSTEM.md`)
-
-### Documentation Branding (jbcom Design System)
-
-All documentation MUST follow the jbcom unified brand:
-- **Primary color**: Cyan `#06b6d4`
-- **Background**: Dark `#0a0f1a`
-- **Fonts**: Space Grotesk (headings), Inter (body), JetBrains Mono (code)
-- See `docs/DESIGN-SYSTEM.md` for complete specifications
 
 ## Issue Resolution Workflow
 

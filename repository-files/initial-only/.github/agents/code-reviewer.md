@@ -42,14 +42,6 @@ Reviews code for quality, security, and best practices.
 - [ ] Complex logic explained
 - [ ] README updated if needed
 
-#### Documentation Branding (jbcom Design System)
-- [ ] Uses jbcom color palette (Primary: `#06b6d4`, Background: `#0a0f1a`)
-- [ ] Uses correct fonts (Space Grotesk, Inter, JetBrains Mono)
-- [ ] Links are cyan (`#06b6d4`)
-- [ ] Dark theme is default
-- [ ] Meets WCAG AA accessibility contrast requirements
-- [ ] See `docs/DESIGN-SYSTEM.md` for full specifications
-
 ### Common Issues to Check
 
 #### Division by Zero

@@ -21,21 +21,20 @@ Cloned `jbcom/jbcom.github.io` and analyzed:
 
 ### Files Created/Updated
 
-#### New Files (always-sync)
+#### New Files (always-sync) - Brand Guidelines (synced to ALL repos)
 | File | Purpose |
 |------|---------|
 | `docs/DESIGN-SYSTEM.md` | Complete jbcom brand guide synced to all repos |
 | `docs/_static/jbcom-sphinx.css` | Sphinx theme styling for Python docs |
 | `.cursor/rules/03-docs-branding.mdc` | Cursor rule for docs branding compliance |
 
-#### Updated Files (always-sync)
-| File | Changes |
-|------|---------|
-| `.github/copilot-instructions.md` | Added documentation branding section |
-| `.github/agents/README.md` | Added branding requirements and checklist |
-| `.github/agents/code-reviewer.md` | Added docs branding review checklist |
+#### Moved Files (always-sync → initial-only) - Primary Instructions
+| File | Reason |
+|------|--------|
+| `.github/copilot-instructions.md` | Primary repo instruction - repos should customize |
+| `.github/agents/*` | Primary repo instructions - repos should customize |
 
-#### Updated Files (initial-only)
+#### Updated Files (initial-only) - Scaffold for new repos
 | File | Changes |
 |------|---------|
 | `docs/_static/custom.css` | Full jbcom Design System CSS variables |
@@ -43,6 +42,12 @@ Cloned `jbcom/jbcom.github.io` and analyzed:
 | `docs/DESIGN-SYSTEM.md` | Copy of brand guide for new repos |
 | `AGENTS.md` | Added documentation branding section |
 | `CLAUDE.md` | Added documentation branding quick reference |
+| `.github/copilot-instructions.md` | Moved from always-sync (primary instruction) |
+| `.github/agents/*` | Moved from always-sync (primary instructions) |
+
+### Sync Philosophy
+- **always-sync**: Secondary guidelines (brand, CSS, workflows) - consistent across ALL repos
+- **initial-only**: Primary instructions (AGENTS.md, copilot-instructions.md) - repos customize after initial sync
 
 ### jbcom Design System Summary
 
