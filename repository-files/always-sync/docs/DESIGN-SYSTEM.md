@@ -193,14 +193,22 @@ Usage:
 1. Copy scaffold to your `docs/` directory
 2. Run `npx typedoc`
 
-### godoc (Go)
+### doc2go (Go)
 
 **Scaffold location**: `repository-files/go/docs/`
 
-Go uses inline documentation with godoc conventions:
-1. Write package-level comments in `doc.go`
-2. Document all exported functions/types
-3. View at `pkg.go.dev` or run `godoc -http=:6060`
+| File | Purpose |
+|------|---------|
+| `README.md` | Documentation guide |
+| `jbcom-doc2go.css` | jbcom-branded theme CSS |
+
+Usage:
+1. Install: `go install go.abhg.dev/doc2go@latest`
+2. Generate: `doc2go -out docs/api ./...`
+3. Apply branding: Copy `jbcom-doc2go.css` and inject into HTML
+
+Note: godoc is deprecated. Use [doc2go](https://go.abhg.dev/doc2go/) for modern, 
+module-aware static documentation with pkg.go.dev-like styling.
 
 ### terraform-docs (Terraform)
 

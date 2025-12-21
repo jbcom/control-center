@@ -79,12 +79,20 @@ Scaffold: `repository-files/rust/docs/`
 RUSTDOCFLAGS="--extend-css docs/jbcom-rustdoc.css" cargo doc --no-deps
 ```
 
-## 🐹 Go (godoc)
+## 🐹 Go (doc2go)
 
 Scaffold: `repository-files/go/docs/`
 
-Follow godoc conventions - documentation is inline in source code.
-See `docs/README.md` for documentation patterns.
+```bash
+# Install doc2go (godoc is deprecated)
+go install go.abhg.dev/doc2go@latest
+
+# Generate with jbcom branding
+doc2go -out docs/api ./...
+cp docs/jbcom-doc2go.css docs/api/custom.css
+```
+
+See `docs/README.md` for full workflow including GitHub Pages deployment.
 
 ## 🏗️ Terraform (terraform-docs)
 
