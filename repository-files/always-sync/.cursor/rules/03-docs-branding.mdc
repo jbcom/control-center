@@ -35,68 +35,52 @@ See `docs/DESIGN-SYSTEM.md` for complete brand specifications.
 | Body | Inter | 400-500 |
 | Code | JetBrains Mono | 400 |
 
-## 📄 Sphinx Configuration (Python)
+## 📁 Language-Specific Scaffolds
 
-### Required Theme Setup
+Use the appropriate scaffold from `repository-files/` for your language:
+
+| Language | Location | Tool | Files |
+|----------|----------|------|-------|
+| **Python** | `python/docs/` | Sphinx | `conf.py`, `jbcom-sphinx.css` |
+| **TypeScript** | `nodejs/docs/` | TypeDoc | `typedoc.json`, `jbcom-typedoc.css` |
+| **Go** | `go/docs/` | godoc | `README.md` (conventions) |
+| **Terraform** | `terraform/docs/` | terraform-docs | `README.md`, config examples |
+
+## 📄 Python (Sphinx)
+
+Scaffold: `repository-files/python/docs/`
 
 ```python
-# conf.py
-
-# Preferred themes (in order)
-html_theme = "furo"  # or "sphinx-book-theme" or "sphinx_rtd_theme"
-
-# Include jbcom branding CSS
+# conf.py - key settings
+html_theme = "sphinx_rtd_theme"  # or "furo"
 html_static_path = ['_static']
 html_css_files = ['jbcom-sphinx.css']
+```
 
-# Force dark mode for brand consistency
-html_theme_options = {
-    "light_css_variables": {},  # Empty for dark-only
-    "dark_css_variables": {
-        "color-brand-primary": "#06b6d4",
-        "color-brand-content": "#06b6d4",
-    },
+## 📘 TypeScript/Node.js (TypeDoc)
+
+Scaffold: `repository-files/nodejs/docs/`
+
+```json
+// typedoc.json - key settings
+{
+  "customCss": "jbcom-typedoc.css",
+  "darkHighlightTheme": "github-dark"
 }
 ```
 
-### CSS File
+## 🐹 Go (godoc)
 
-Copy `jbcom-sphinx.css` to `docs/_static/` directory.
+Scaffold: `repository-files/go/docs/`
 
-## 📘 TypeDoc Configuration (TypeScript)
+Follow godoc conventions - documentation is inline in source code.
+See `docs/README.md` for documentation patterns.
 
-### Custom CSS
+## 🏗️ Terraform (terraform-docs)
 
-```css
-/* typedoc-custom.css */
-:root {
-  --color-background: #0a0f1a;
-  --color-background-secondary: #111827;
-  --color-text: #f1f5f9;
-  --color-text-aside: #94a3b8;
-  --color-link: #06b6d4;
-}
-```
+Scaffold: `repository-files/terraform/docs/`
 
-## 📗 MkDocs Configuration
-
-### Material Theme
-
-```yaml
-# mkdocs.yml
-theme:
-  name: material
-  palette:
-    scheme: slate
-    primary: cyan
-    accent: cyan
-  font:
-    text: Inter
-    code: JetBrains Mono
-
-extra_css:
-  - stylesheets/jbcom.css
-```
+Use `.terraform-docs.yml` for auto-generated module documentation.
 
 ## ✅ Documentation Checklist
 
@@ -123,7 +107,8 @@ Before pushing documentation changes:
 ## ✅ Do
 
 - ✅ Use dark theme consistently
-- ✅ Apply jbcom-sphinx.css for Sphinx docs
+- ✅ Use language-appropriate scaffold (Sphinx, TypeDoc, godoc, terraform-docs)
+- ✅ Apply the provided jbcom CSS for your doc tool
 - ✅ Follow the type scale specification
 - ✅ Ensure sufficient color contrast
 - ✅ Test with reduced motion preference

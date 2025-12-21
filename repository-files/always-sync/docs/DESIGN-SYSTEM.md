@@ -164,29 +164,56 @@ Include these fonts in all documentation pages:
 
 ## Documentation Site Requirements
 
+Each language ecosystem uses its best-fit documentation tooling with jbcom branding applied.
+
 ### Sphinx (Python)
 
-For Python projects using Sphinx:
+**Scaffold location**: `repository-files/python/docs/`
 
-1. **Theme**: Use `furo` or `sphinx-book-theme` with custom CSS
-2. **Custom CSS**: Include `jbcom-sphinx.css` in `docs/_static/`
-3. **Colors**: Override theme colors with jbcom palette
+| File | Purpose |
+|------|---------|
+| `conf.py` | Sphinx configuration |
+| `_static/jbcom-sphinx.css` | jbcom-branded theme CSS |
+| `index.rst` | Documentation root |
 
-### TypeDoc (TypeScript)
+Usage:
+1. Copy scaffold to your `docs/` directory
+2. Run `sphinx-build -b html docs docs/_build`
 
-For TypeScript projects using TypeDoc:
+### TypeDoc (TypeScript/Node.js)
 
-1. **Theme**: Use default with custom CSS
-2. **Custom CSS**: Include `jbcom-typedoc.css`
-3. **Colors**: Override with jbcom palette
+**Scaffold location**: `repository-files/nodejs/docs/`
 
-### MkDocs
+| File | Purpose |
+|------|---------|
+| `typedoc.json` | TypeDoc configuration |
+| `jbcom-typedoc.css` | jbcom-branded theme CSS |
 
-For projects using MkDocs:
+Usage:
+1. Copy scaffold to your `docs/` directory
+2. Run `npx typedoc`
 
-1. **Theme**: Use `material` theme with jbcom colors
-2. **Palette**: Configure dark mode with jbcom colors
-3. **Custom CSS**: Include `jbcom-mkdocs.css`
+### godoc (Go)
+
+**Scaffold location**: `repository-files/go/docs/`
+
+Go uses inline documentation with godoc conventions:
+1. Write package-level comments in `doc.go`
+2. Document all exported functions/types
+3. View at `pkg.go.dev` or run `godoc -http=:6060`
+
+### terraform-docs (Terraform)
+
+**Scaffold location**: `repository-files/terraform/docs/`
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Documentation guide |
+| `.terraform-docs.yml` | terraform-docs config |
+
+Usage:
+1. Add `.terraform-docs.yml` to module root
+2. Run `terraform-docs markdown table .`
 
 ### General Requirements
 

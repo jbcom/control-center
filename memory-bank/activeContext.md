@@ -21,33 +21,39 @@ Cloned `jbcom/jbcom.github.io` and analyzed:
 
 ### Files Created/Updated
 
-#### New Files (always-sync) - Brand Guidelines (synced to ALL repos)
+#### Language-Specific Documentation Scaffolds
+| Directory | Tool | Files |
+|-----------|------|-------|
+| `python/docs/` | Sphinx | `conf.py`, `jbcom-sphinx.css`, `index.rst`, `Makefile` |
+| `nodejs/docs/` | TypeDoc | `typedoc.json`, `jbcom-typedoc.css` |
+| `go/docs/` | godoc | `README.md` (conventions guide) |
+| `terraform/docs/` | terraform-docs | `README.md` (config examples) |
+
+#### Always-sync (Brand Guidelines - synced to ALL repos)
 | File | Purpose |
 |------|---------|
-| `docs/DESIGN-SYSTEM.md` | Complete jbcom brand guide synced to all repos |
-| `docs/_static/jbcom-sphinx.css` | Sphinx theme styling for Python docs |
-| `.cursor/rules/03-docs-branding.mdc` | Cursor rule for docs branding compliance |
+| `docs/DESIGN-SYSTEM.md` | Complete jbcom brand guide |
+| `docs/_static/jbcom-sphinx.css` | Sphinx theme CSS (reference) |
+| `.cursor/rules/03-docs-branding.mdc` | Cursor rule for brand compliance |
+
+#### Initial-only (Generic scaffold for new repos)
+| File | Purpose |
+|------|---------|
+| `docs/README.md` | Generic docs guide pointing to language scaffolds |
+| `docs/DESIGN-SYSTEM.md` | Copy of brand guide |
+| `docs/getting-started/*` | User onboarding docs |
+| `docs/development/*` | Contributor docs |
 
 #### Moved Files (always-sync → initial-only) - Primary Instructions
 | File | Reason |
 |------|--------|
-| `.github/copilot-instructions.md` | Primary repo instruction - repos should customize |
-| `.github/agents/*` | Primary repo instructions - repos should customize |
+| `.github/copilot-instructions.md` | Primary repo instruction - repos customize |
+| `.github/agents/*` | Primary repo instructions - repos customize |
 
-#### Updated Files (initial-only) - Scaffold for new repos
-| File | Changes |
-|------|---------|
-| `docs/_static/custom.css` | Full jbcom Design System CSS variables |
-| `docs/conf.py` | Added branding comments and CSS reference |
-| `docs/DESIGN-SYSTEM.md` | Copy of brand guide for new repos |
-| `AGENTS.md` | Added documentation branding section |
-| `CLAUDE.md` | Added documentation branding quick reference |
-| `.github/copilot-instructions.md` | Moved from always-sync (primary instruction) |
-| `.github/agents/*` | Moved from always-sync (primary instructions) |
-
-### Sync Philosophy
-- **always-sync**: Secondary guidelines (brand, CSS, workflows) - consistent across ALL repos
-- **initial-only**: Primary instructions (AGENTS.md, copilot-instructions.md) - repos customize after initial sync
+### Architecture
+- **always-sync**: Brand guidelines only (DESIGN-SYSTEM.md, Cursor rule)
+- **initial-only**: Generic scaffold, primary instructions (repos customize)
+- **python/nodejs/go/terraform**: Language-specific docs with appropriate tooling
 
 ### jbcom Design System Summary
 
