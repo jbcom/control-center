@@ -215,6 +215,22 @@ Usage:
 1. Add `.terraform-docs.yml` to module root
 2. Run `terraform-docs markdown table .`
 
+### rustdoc (Rust)
+
+**Scaffold location**: `repository-files/rust/docs/`
+
+| File | Purpose |
+|------|---------|
+| `README.md` | Documentation conventions guide |
+| `jbcom-rustdoc.css` | jbcom-branded rustdoc CSS |
+
+Usage:
+1. Write doc comments in source code (`///` and `//!`)
+2. Generate with custom CSS:
+```bash
+RUSTDOCFLAGS="--extend-css docs/jbcom-rustdoc.css" cargo doc --no-deps
+```
+
 ### General Requirements
 
 All documentation sites MUST:

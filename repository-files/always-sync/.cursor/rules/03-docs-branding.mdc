@@ -43,6 +43,7 @@ Use the appropriate scaffold from `repository-files/` for your language:
 |----------|----------|------|-------|
 | **Python** | `python/docs/` | Sphinx | `conf.py`, `jbcom-sphinx.css` |
 | **TypeScript** | `nodejs/docs/` | TypeDoc | `typedoc.json`, `jbcom-typedoc.css` |
+| **Rust** | `rust/docs/` | rustdoc | `README.md`, `jbcom-rustdoc.css` |
 | **Go** | `go/docs/` | godoc | `README.md` (conventions) |
 | **Terraform** | `terraform/docs/` | terraform-docs | `README.md`, config examples |
 
@@ -67,6 +68,15 @@ Scaffold: `repository-files/nodejs/docs/`
   "customCss": "jbcom-typedoc.css",
   "darkHighlightTheme": "github-dark"
 }
+```
+
+## 🦀 Rust (rustdoc)
+
+Scaffold: `repository-files/rust/docs/`
+
+```bash
+# Generate docs with jbcom branding
+RUSTDOCFLAGS="--extend-css docs/jbcom-rustdoc.css" cargo doc --no-deps
 ```
 
 ## 🐹 Go (godoc)
