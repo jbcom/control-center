@@ -1,0 +1,129 @@
+---
+description: Documentation branding and styling standards for jbcom ecosystem
+globs: ["docs/**/*", "**/docs/**/*", "**/*.rst", "**/*.md"]
+---
+
+# Documentation Branding Standards
+
+## 🎨 jbcom Brand Requirements
+
+ALL documentation in jbcom repositories MUST follow the unified design system.
+
+### Reference Document
+
+See `docs/DESIGN-SYSTEM.md` for complete brand specifications.
+
+### Color Palette (Dark Theme)
+
+| Purpose | Hex |
+|---------|-----|
+| Background | `#0a0f1a` |
+| Surface/Cards | `#111827` |
+| Primary (Cyan) | `#06b6d4` |
+| Secondary (Blue) | `#3b82f6` |
+| Text Primary | `#f1f5f9` |
+| Text Secondary | `#94a3b8` |
+| Success | `#10b981` |
+| Warning | `#f59e0b` |
+| Error | `#ef4444` |
+
+### Typography
+
+| Element | Font | Weight |
+|---------|------|--------|
+| Headings | Space Grotesk | 600-700 |
+| Body | Inter | 400-500 |
+| Code | JetBrains Mono | 400 |
+
+## 📄 Sphinx Configuration (Python)
+
+### Required Theme Setup
+
+```python
+# conf.py
+
+# Preferred themes (in order)
+html_theme = "furo"  # or "sphinx-book-theme" or "sphinx_rtd_theme"
+
+# Include jbcom branding CSS
+html_static_path = ['_static']
+html_css_files = ['jbcom-sphinx.css']
+
+# Force dark mode for brand consistency
+html_theme_options = {
+    "light_css_variables": {},  # Empty for dark-only
+    "dark_css_variables": {
+        "color-brand-primary": "#06b6d4",
+        "color-brand-content": "#06b6d4",
+    },
+}
+```
+
+### CSS File
+
+Copy `jbcom-sphinx.css` to `docs/_static/` directory.
+
+## 📘 TypeDoc Configuration (TypeScript)
+
+### Custom CSS
+
+```css
+/* typedoc-custom.css */
+:root {
+  --color-background: #0a0f1a;
+  --color-background-secondary: #111827;
+  --color-text: #f1f5f9;
+  --color-text-aside: #94a3b8;
+  --color-link: #06b6d4;
+}
+```
+
+## 📗 MkDocs Configuration
+
+### Material Theme
+
+```yaml
+# mkdocs.yml
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: cyan
+    accent: cyan
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+extra_css:
+  - stylesheets/jbcom.css
+```
+
+## ✅ Documentation Checklist
+
+Before pushing documentation changes:
+
+- [ ] Uses jbcom color palette (dark theme)
+- [ ] Headings use Space Grotesk font
+- [ ] Body text uses Inter font
+- [ ] Code blocks use JetBrains Mono
+- [ ] Links are cyan (`#06b6d4`)
+- [ ] Code blocks have proper contrast
+- [ ] Admonitions follow semantic colors
+- [ ] Focus states are visible (accessibility)
+- [ ] Meets WCAG AA contrast requirements
+
+## 🚫 Do NOT
+
+- ❌ Use light theme as default
+- ❌ Use different primary colors
+- ❌ Use non-standard fonts without approval
+- ❌ Create custom color schemes per-repo
+- ❌ Ignore accessibility requirements
+
+## ✅ Do
+
+- ✅ Use dark theme consistently
+- ✅ Apply jbcom-sphinx.css for Sphinx docs
+- ✅ Follow the type scale specification
+- ✅ Ensure sufficient color contrast
+- ✅ Test with reduced motion preference

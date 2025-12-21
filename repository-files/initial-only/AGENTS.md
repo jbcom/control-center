@@ -141,6 +141,42 @@ EOF
 - ❌ Don't push directly to main (use PRs)
 - ❌ Don't add dependencies without justification
 
+## Documentation Branding
+
+All jbcom repositories follow a unified design system for documentation.
+
+### Brand Requirements
+
+| Element | Specification |
+|---------|--------------|
+| Primary Color | Cyan `#06b6d4` |
+| Background | Dark `#0a0f1a` |
+| Heading Font | Space Grotesk |
+| Body Font | Inter |
+| Code Font | JetBrains Mono |
+
+### Reference Documents
+
+- `docs/DESIGN-SYSTEM.md` - Complete brand specifications
+- `docs/_static/custom.css` - jbcom-branded CSS
+- `.cursor/rules/03-docs-branding.mdc` - Cursor rule for docs
+
+### Documentation Checklist
+
+Before pushing docs changes:
+- [ ] Uses jbcom color palette (dark theme)
+- [ ] Correct typography (Space Grotesk, Inter, JetBrains Mono)
+- [ ] Links are cyan (`#06b6d4`)
+- [ ] Code blocks have proper styling
+- [ ] Meets accessibility requirements
+
+### Do NOT
+
+- ❌ Use light theme as default
+- ❌ Use different primary colors
+- ❌ Create custom color schemes per-repo
+- ❌ Ignore accessibility requirements
+
 ## Repository-Specific Instructions
 
 <!-- Add repository-specific agent instructions below -->

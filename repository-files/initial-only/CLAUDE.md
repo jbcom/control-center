@@ -72,6 +72,28 @@ Before considering work complete:
 3. Check `docs/` for architecture decisions
 4. Look at test files for usage examples
 
+## Documentation Branding
+
+This repository follows the **jbcom Design System** for all documentation.
+
+### Quick Reference
+
+| Element | Value |
+|---------|-------|
+| Primary Color | `#06b6d4` (Cyan) |
+| Background | `#0a0f1a` (Dark) |
+| Headings | Space Grotesk |
+| Body Text | Inter |
+| Code | JetBrains Mono |
+
+### Key Files
+
+- `docs/DESIGN-SYSTEM.md` - Complete brand guide
+- `docs/_static/custom.css` - Branded CSS
+- `.cursor/rules/03-docs-branding.mdc` - Cursor AI rule
+
+See `docs/DESIGN-SYSTEM.md` for full specifications.
+
 ## Repository-Specific Notes
 
 <!-- Add repository-specific context below -->
