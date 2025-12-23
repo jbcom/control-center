@@ -15,6 +15,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "ci"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # Docker
   - package-ecosystem: "docker"
@@ -23,6 +30,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "build"
+    groups:
+      docker:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # NPM/Node.js
   - package-ecosystem: "npm"
@@ -31,6 +45,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    groups:
+      npm:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # Python/pip
   - package-ecosystem: "pip"
@@ -39,6 +60,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    groups:
+      pip:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # Go modules
   - package-ecosystem: "gomod"
@@ -47,6 +75,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    groups:
+      gomod:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # Rust/Cargo
   - package-ecosystem: "cargo"
@@ -55,6 +90,13 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    groups:
+      cargo:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
 
   # Terraform
   - package-ecosystem: "terraform"
@@ -63,3 +105,10 @@ updates:
       interval: "weekly"
     commit-message:
       prefix: "deps"
+    groups:
+      terraform:
+        patterns:
+          - "*"
+        update-types:
+          - "major"
+          - "minor"
