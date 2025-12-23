@@ -403,18 +403,21 @@ jobs:
           
           gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
           
-          # If all resolved, dismiss our own review
+          # If all resolved, dismiss ALL our blocking reviews
           if [[ "${{ steps.resolve.outputs.resolved }}" == "true" ]]; then
-            echo "✅ All issues resolved - dismissing blocking review"
-            # Find our blocking review and dismiss it
-            REVIEW_ID=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
-              --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | last | .id')
-            if [[ -n "$REVIEW_ID" && "$REVIEW_ID" != "null" ]]; then
-              echo "Dismissing review ID: $REVIEW_ID"
-              gh api -X PUT repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
-                -f message="All issues have been resolved or acknowledged as intentional changes." || echo "⚠️ Could not dismiss review (may require admin access)"
+            echo "✅ All issues resolved - dismissing all blocking reviews"
+            # Find ALL our blocking reviews and dismiss them
+            REVIEW_IDS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+              --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | .[].id')
+            
+            if [[ -n "$REVIEW_IDS" ]]; then
+              for REVIEW_ID in $REVIEW_IDS; do
+                echo "Dismissing review ID: $REVIEW_ID"
+                gh api -X PUT repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
+                  -f message="All issues have been resolved or acknowledged as intentional changes." || echo "⚠️ Could not dismiss review $REVIEW_ID"
+              done
             else
-              echo "No blocking review found to dismiss"
+              echo "No blocking reviews found to dismiss"
             fi
           fi
 
