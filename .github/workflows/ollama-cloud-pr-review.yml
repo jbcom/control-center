@@ -46,6 +46,15 @@ jobs:
       recommendation: ${{ steps.review.outputs.recommendation }}
     
     steps:
+      - name: Check required secrets
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "::error::OLLAMA_API_KEY secret is not configured"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -228,6 +237,15 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Check required secrets
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "::error::OLLAMA_API_KEY secret is not configured"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
