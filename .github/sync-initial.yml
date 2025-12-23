@@ -52,20 +52,20 @@ group:
       jbcom/python-extended-data-types
       jbcom/python-directed-inputs-class
       jbcom/python-lifecyclelogging
-      jbcom/python-terraform-bridge
-      jbcom/python-rivers-of-reckoning
-      jbcom/python-ai-game-dev
+      jbcom/python-agentic-game-development
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
-      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
       jbcom/nodejs-otterfall
       jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
       jbcom/jbcom.github.io
       jbcom/go-secretsync
-      jbcom/terraform-github-markdown
-      jbcom/terraform-repository-automation
+      jbcom/rust-cosmic-cults
+      jbcom/rust-agentic-game-generator
 
   # ============================================================================
   # Documentation scaffold - only for repos that need docs
@@ -81,10 +81,12 @@ group:
       jbcom/python-extended-data-types
       jbcom/python-directed-inputs-class
       jbcom/python-lifecyclelogging
-      jbcom/python-terraform-bridge
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
       jbcom/go-secretsync
-      jbcom/terraform-github-markdown
-      jbcom/terraform-repository-automation
+      jbcom/rust-cosmic-cults
+      jbcom/rust-agentic-game-generator
