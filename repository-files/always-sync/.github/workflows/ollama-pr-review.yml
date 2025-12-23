@@ -247,7 +247,9 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Checkout PR branch
-        run: git checkout ${{ github.head_ref }}
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+        run: git checkout "$HEAD_REF"
 
       - name: Download review artifact
         uses: actions/download-artifact@v4
@@ -259,6 +261,7 @@ jobs:
         id: resolve
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Read our own review
           ISSUES=$(jq '.issues' /tmp/review.json)
@@ -344,8 +347,6 @@ jobs:
           echo "fix_count=$FIX_COUNT" >> $GITHUB_OUTPUT
           echo "ack_count=$ACK_COUNT" >> $GITHUB_OUTPUT
           echo "resolved=$ALL_RESOLVED" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Apply fixes
         if: steps.resolve.outputs.fix_count != '0'
@@ -502,9 +503,7 @@ jobs:
           # Combine all feedback (handle empty arrays properly)
           jq -s 'map(select(. != null)) | add // []' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
           
-          # Additional loop prevention: Check if we've already processed this exact feedback
-          # by looking for a resolution comment referencing the same feedback IDs
-          FEEDBACK_IDS=$(jq -r '[.[].id] | sort | join(",")' /tmp/all_feedback.json)
+          # Additional loop prevention: Check if we've already posted too many resolution comments
           ALREADY_PROCESSED=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
             --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"AI Feedback Resolution\"))) | .body] | length")
           
