@@ -1,6 +1,8 @@
 name: Ollama PR Orchestrator
 
-# Autonomous PR lifecycle management:
+# Autonomous PR lifecycle management
+# Security Note: Jobs that checkout code have event guards (if: github.event_name == 'pull_request')
+# that prevent execution on issue_comment events. CodeQL alerts about untrusted checkout are false positives.
 # - Automatic code review on PR open
 # - Monitors ALL AI agent feedback (Gemini, Copilot, Q, CodeRabbit, etc.)
 # - Analyzes, triages, and resolves AI feedback automatically
