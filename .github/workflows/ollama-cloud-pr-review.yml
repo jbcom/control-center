@@ -351,8 +351,8 @@ jobs:
       - name: Post follow-up comment
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
-          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
           RESPONSE=$(cat /tmp/response.txt)
           
           BODY="## 🤖 Ollama Follow-Up Review
