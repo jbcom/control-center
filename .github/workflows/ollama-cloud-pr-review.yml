@@ -53,11 +53,9 @@ jobs:
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         run: |
-          # Read the diff
-          DIFF=$(cat /tmp/pr_diff.txt)
-          
           # Define the JSON schema
-          SCHEMA='{
+          cat > /tmp/schema.json << 'SCHEMA_EOF'
+          {
             "type": "object",
             "properties": {
               "summary": { "type": "string" },
@@ -92,10 +90,12 @@ jobs:
               "should_auto_apply": { "type": "boolean" }
             },
             "required": ["summary", "issues", "suggested_fixes", "overall_score", "approval_recommendation", "should_auto_apply"]
-          }'
+          }
+          SCHEMA_EOF
           
-          # Build prompt
-          PROMPT="You are an expert code reviewer. Analyze the following diff carefully.
+          # Build prompt - write to file to avoid argument length limits
+          cat > /tmp/prompt.txt << 'PROMPT_EOF'
+          You are an expert code reviewer. Analyze the following diff carefully.
 
           Identify issues and provide precise, safe fixes as unified diff patches.
           
@@ -109,21 +109,24 @@ jobs:
           Respond EXCLUSIVELY with valid JSON matching the schema.
 
           Diff to review:
-          $DIFF"
+          PROMPT_EOF
           
-          # Build JSON payload safely using jq
-          JSON_PAYLOAD=$(jq -n \
+          # Append diff to prompt (truncate if too large to avoid token limits)
+          head -c 100000 /tmp/pr_diff.txt >> /tmp/prompt.txt
+          
+          # Build JSON payload using files instead of args to avoid "Argument list too long"
+          jq -n \
             --arg model "${{ env.OLLAMA_MODEL }}" \
             --arg system_msg "You are an expert code reviewer. Respond only with valid JSON." \
-            --arg user_msg "$PROMPT" \
-            --argjson schema "$SCHEMA" \
+            --rawfile user_msg /tmp/prompt.txt \
+            --slurpfile schema /tmp/schema.json \
             '{
               model: $model,
               messages: [
                 { role: "system", content: $system_msg },
                 { role: "user", content: $user_msg }
               ],
-              format: $schema,
+              format: $schema[0],
               options: {
                 temperature: 0.1,
                 mirostat: 2,
@@ -135,20 +138,18 @@ jobs:
                 num_predict: 4096
               },
               stream: false
-            }')
+            }' > /tmp/payload.json
           
-          # Call Ollama API
-          RESPONSE=$(curl -s --fail-with-body --max-time 300 \
+          # Call Ollama API - check exit code directly (SC2181)
+          if ! curl -s --fail-with-body --max-time 300 \
             -H "Authorization: Bearer $OLLAMA_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            "${{ env.OLLAMA_HOST }}/api/chat")
-          
-          if [ $? -ne 0 ]; then
+            -d @/tmp/payload.json \
+            "${{ env.OLLAMA_HOST }}/api/chat" > /tmp/response.json; then
             echo "Error: Failed to connect to Ollama API"
             echo '{"summary":"Review failed - API error","issues":[],"suggested_fixes":[],"overall_score":5,"approval_recommendation":"comment","should_auto_apply":false}' > /tmp/review.json
           else
-            echo "$RESPONSE" | jq -r '.message.content // empty' > /tmp/review.json
+            jq -r '.message.content // empty' /tmp/response.json > /tmp/review.json
           fi
           
           # Validate JSON
@@ -228,7 +229,7 @@ jobs:
           <summary>📋 Full Review JSON</summary>
 
           \`\`\`json
-          $(cat /tmp/review.json | jq '.')
+          $(jq '.' /tmp/review.json)
           \`\`\`
 
           </details>
