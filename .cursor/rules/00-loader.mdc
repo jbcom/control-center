@@ -10,7 +10,7 @@ globs: ["**/*"]
 
 This is **jbcom-control-center**, the unified control center for:
 - **jbcom packages**: Python/TypeScript/Go packages in `packages/`
-- **Centralized configs**: Cursor rules synced to public repos
+- **Repository management**: Cursor rules and workflows synced to 20+ repos
 
 ### First Steps
 
@@ -32,6 +32,7 @@ cat memory-bank/progress.md
 ```bash
 # All repos - gh CLI auto-uses GITHUB_TOKEN
 gh pr list --repo jbcom/jbcom-control-center
+gh issue create --repo jbcom/agentic-control
 ```
 
 ## 📁 Key Locations
@@ -59,4 +60,5 @@ gh pr list --repo jbcom/jbcom-control-center
 
 - Packages: `docs/JBCOM-ECOSYSTEM-INTEGRATION.md`
 - Releases: `docs/RELEASE-PROCESS.md`
+- FSC infra: `docs/FSC-INFRASTRUCTURE.md`
 - Tokens: `docs/TOKEN-MANAGEMENT.md`

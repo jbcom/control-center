@@ -22,21 +22,34 @@
       "configPath": ".crew/config/agents.yaml",
       "tasksPath": ".crew/config/tasks.yaml",
       "defaultTask": "assess_new_issue",
-      "tools": ["github_issues", "github_prs", "mcp_filesystem"]
+      "tools": [
+        "github_issues",
+        "github_prs",
+        "mcp_filesystem"
+      ]
     },
     "ecosystem": {
       "description": "Cross-repo dependency and sync coordination",
       "configPath": ".crew/config/agents.yaml",
       "tasksPath": ".crew/config/tasks.yaml",
       "defaultTask": "check_dependency_graph",
-      "tools": ["github_repos", "github_releases", "github_actions", "mcp_filesystem"]
+      "tools": [
+        "github_repos",
+        "github_releases",
+        "github_actions",
+        "mcp_filesystem"
+      ]
     },
     "planning": {
       "description": "Sprint and roadmap management",
       "configPath": ".crew/config/agents.yaml",
       "tasksPath": ".crew/config/tasks.yaml",
       "defaultTask": "generate_weekly_sprint",
-      "tools": ["github_issues", "github_projects", "github_milestones"]
+      "tools": [
+        "github_issues",
+        "github_projects",
+        "github_milestones"
+      ]
     }
   },
   "ecosystem": {
@@ -65,35 +78,62 @@
     "dependencyGraph": {
       "nodejs-agentic-control": {
         "consumes": [],
-        "consumers": ["nodejs-agentic-triage"]
+        "consumers": [
+          "nodejs-agentic-triage"
+        ]
       },
       "nodejs-agentic-triage": {
-        "consumes": ["nodejs-agentic-control"],
+        "consumes": [
+          "nodejs-agentic-control"
+        ],
         "consumers": []
       },
       "python-agentic-crew": {
-        "consumes": ["python-vendor-connectors", "python-extended-data-types", "python-directed-inputs-class"],
+        "consumes": [
+          "python-vendor-connectors",
+          "python-extended-data-types",
+          "python-directed-inputs-class"
+        ],
         "consumers": []
       },
       "python-vendor-connectors": {
-        "consumes": ["python-lifecyclelogging"],
-        "consumers": ["python-agentic-crew"]
+        "consumes": [
+          "python-lifecyclelogging"
+        ],
+        "consumers": [
+          "python-agentic-crew"
+        ]
       },
       "python-extended-data-types": {
         "consumes": [],
-        "consumers": ["python-vendor-connectors", "python-agentic-crew", "python-directed-inputs-class"]
+        "consumers": [
+          "python-vendor-connectors",
+          "python-agentic-crew",
+          "python-directed-inputs-class"
+        ]
       },
       "python-directed-inputs-class": {
-        "consumes": ["python-extended-data-types"],
-        "consumers": ["python-agentic-crew"]
+        "consumes": [
+          "python-extended-data-types"
+        ],
+        "consumers": [
+          "python-agentic-crew"
+        ]
       },
       "python-lifecyclelogging": {
         "consumes": [],
-        "consumers": ["python-vendor-connectors", "python-agentic-crew", "python-terraform-bridge"]
+        "consumers": [
+          "python-vendor-connectors",
+          "python-agentic-crew",
+          "python-terraform-bridge"
+        ]
       },
       "nodejs-strata": {
         "consumes": [],
-        "consumers": ["nodejs-rivermarsh", "nodejs-otter-river-rush"]
+        "consumers": [
+          "nodejs-rivermarsh",
+          "nodejs-otter-river-rush"
+        ]
       }
     },
     "projects": {

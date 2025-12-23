@@ -69,7 +69,7 @@ The unified token requires these scopes:
 - `repo` - Full repository access
 - `workflow` - GitHub Actions
 - `write:packages` - Package publishing (npm, PyPI)
-- `admin:org` - Organization management
+- `admin:org` - Organization management (for enterprise repos)
 
 ## CI/CD Workflows
 
@@ -105,12 +105,6 @@ Token is invalid or expired. Generate a new one at:
 ### "Resource not accessible"
 
 Token lacks required scopes. Check permissions and regenerate if needed.
-
-### "Organization access denied"
-
-Ensure:
-1. Token has org access enabled
-2. SSO authorization completed (if required)
 
 ## Related
 
