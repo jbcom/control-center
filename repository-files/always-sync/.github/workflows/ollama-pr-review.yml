@@ -30,8 +30,8 @@ permissions:
 env:
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-  # Known AI agent bot names
-  AI_AGENTS: "gemini-code-assist[bot],copilot[bot],amazon-q-developer[bot],coderabbitai[bot],cursor[bot],github-advanced-security[bot],dependabot[bot]"
+  # Known AI agent bot names - includes github-actions[bot] for self-feedback loop
+  AI_AGENTS: "github-actions[bot],gemini-code-assist[bot],copilot[bot],amazon-q-developer[bot],coderabbitai[bot],cursor[bot],github-advanced-security[bot],dependabot[bot]"
 
 jobs:
   # ============================================
@@ -226,14 +226,16 @@ jobs:
   # ============================================
   monitor-ai-feedback:
     name: Monitor & Resolve AI Feedback
+    # Triggers on any AI bot feedback INCLUDING our own (github-actions[bot])
+    # Loop prevention is handled in the "Collect all AI feedback" step by filtering out resolution summaries
     if: |
       (github.event_name == 'pull_request_review' && 
-       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.actor)) ||
+       contains(fromJSON('["github-actions[bot]","gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.actor)) ||
       (github.event_name == 'pull_request_review_comment' &&
-       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login)) ||
+       contains(fromJSON('["github-actions[bot]","gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login)) ||
       (github.event_name == 'issue_comment' && 
        github.event.issue.pull_request &&
-       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login))
+       contains(fromJSON('["github-actions[bot]","gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login))
     runs-on: ubuntu-latest
     
     steps:
@@ -284,23 +286,48 @@ jobs:
         run: |
           PR_NUM=${{ steps.pr.outputs.number }}
           
+          # Loop prevention: Filter out our own resolution summaries and previous Ollama reviews
+          # We only want to process NEW feedback that hasn't been addressed yet
+          
           # Get all unresolved review comments from AI agents
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/comments \
             --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line}]' > /tmp/review_comments.json || echo '[]' > /tmp/review_comments.json
           
-          # Get all issue comments from AI agents
+          # Get all issue comments from AI agents, excluding our resolution summaries
           gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
-            --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json || echo '[]' > /tmp/issue_comments.json
+            --jq '[.[] | select(
+              (.user.login | endswith("[bot]")) and
+              (.body | contains("## 🔄 AI Feedback Resolution") | not) and
+              (.body | contains("## ✅ All Checks Passed") | not)
+            ) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json || echo '[]' > /tmp/issue_comments.json
           
-          # Get reviews from AI agents (non-approved)
+          # Get reviews from AI agents (non-approved, with actual issues to address)
+          # For Ollama reviews: only process if they have actionable issues (not just summaries)
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
-            --jq '[.[] | select((.user.login | endswith("[bot]")) and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json || echo '[]' > /tmp/reviews.json
+            --jq '[.[] | select(
+              (.user.login | endswith("[bot]")) and 
+              .state != "APPROVED" and
+              (.body | contains("\"issues\":[]") | not)
+            ) | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json || echo '[]' > /tmp/reviews.json
           
           # Combine all feedback (handle empty arrays properly)
           jq -s 'map(select(. != null)) | add // []' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
           
+          # Additional loop prevention: Check if we've already processed this exact feedback
+          # by looking for a resolution comment referencing the same feedback IDs
+          FEEDBACK_IDS=$(jq -r '[.[].id] | sort | join(",")' /tmp/all_feedback.json)
+          ALREADY_PROCESSED=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
+            --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"AI Feedback Resolution\"))) | .body] | length")
+          
+          if [[ "$ALREADY_PROCESSED" -gt 3 ]]; then
+            echo "⚠️ Detected potential loop - too many resolution comments. Stopping."
+            echo "count=0" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
           FEEDBACK_COUNT=$(jq 'length' /tmp/all_feedback.json)
           echo "count=$FEEDBACK_COUNT" >> $GITHUB_OUTPUT
+          echo "📊 Found $FEEDBACK_COUNT feedback items to process"
 
       - name: Analyze and generate fixes
         if: steps.feedback.outputs.count != '0'
