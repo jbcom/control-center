@@ -343,33 +343,35 @@ jobs:
           ## Output
           Create the files directly. After creating them, run \`ruler apply\` and verify the output."
 
+          # Build JSON payload safely using jq to handle special characters
+          JSON_PAYLOAD=$(jq -n \
+            --arg model "${{ inputs.model }}" \
+            --arg system_msg "You are an expert AI coding assistant configuration specialist." \
+            --arg user_msg "$PROMPT" \
+            '{
+              model: $model,
+              messages: [
+                { role: "system", content: $system_msg },
+                { role: "user", content: $user_msg }
+              ],
+              options: {
+                temperature: 0.1,
+                mirostat: 2,
+                mirostat_tau: 5.0,
+                mirostat_eta: 0.1,
+                top_p: 0.95,
+                repeat_penalty: 1.15,
+                num_ctx: 196608,
+                num_predict: 4096
+              },
+              stream: false
+            }')
+
           # Send to Ollama API
           RESPONSE=$(curl -s https://ollama.com/api/chat \
             -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
-            -d "{
-              \"model\": \"${{ inputs.model }}\",
-              \"messages\": [
-                {
-                  \"role\": \"system\",
-                  \"content\": \"You are an expert AI coding assistant configuration specialist.\"
-                },
-                {
-                  \"role\": \"user\",
-                  \"content\": \"$PROMPT\"
-                }
-              ],
-              \"options\": {
-                \"temperature\": 0.1,
-                \"mirostat\": 2,
-                \"mirostat_tau\": 5.0,
-                \"mirostat_eta\": 0.1,
-                \"top_p\": 0.95,
-                \"repeat_penalty\": 1.15,
-                \"num_ctx\": 196608,
-                \"num_predict\": 4096
-              },
-              \"stream\": false
-            }")
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
 
           # Extract the response content
           CONFIG_CODE=$(echo "$RESPONSE" | jq -r '.message.content // empty')
