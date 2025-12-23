@@ -185,9 +185,19 @@ jobs:
             PATCH=$(echo "$PATCH_JSON" | jq -r '.patch')
             DESC=$(echo "$PATCH_JSON" | jq -r '.description')
 
+            # Validate file path to prevent directory traversal
+            if [[ "$FILE" =~ \.\./|^/ ]]; then
+              echo "Warning: Skipping unsafe file path: $FILE"
+              continue
+            fi
+
             echo "Applying patch to $FILE: $DESC"
 
-            echo "$PATCH" | git apply --whitespace=nowarn --verbose || echo "Warning: Patch failed for $FILE (skipping)"
+            # Write patch to temporary file to avoid shell injection
+            PATCH_FILE=$(mktemp)
+            echo "$PATCH" > "$PATCH_FILE"
+            git apply --whitespace=nowarn --verbose "$PATCH_FILE" || echo "Warning: Patch failed for $FILE (skipping)"
+            rm -f "$PATCH_FILE"
           done
 
       # Commit and push auto-applied fixes
