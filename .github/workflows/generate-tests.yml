@@ -523,7 +523,7 @@ jobs:
           Fix any failing tests before committing."
 
           # Send to Ollama API
-          RESPONSE=$(curl -s https://ollama.com/api/chat \
+          RESPONSE=$(curl -s --fail-with-body --max-time 300  \
             -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
             -d "{
               \"model\": \"${{ inputs.model }}\",
@@ -549,6 +549,11 @@ jobs:
               },
               \"stream\": false
             }")
+
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to connect to Ollama API"
+            exit 1
+          fi
 
           # Extract the response content
           TEST_CODE=$(echo "$RESPONSE" | jq -r '.message.content // empty')
