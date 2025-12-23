@@ -293,13 +293,11 @@
       },
       "repos": [
         "python-agentic-crew",
-        "python-vendor-connectors",
-        "python-extended-data-types",
+        "python-agentic-game-development",
         "python-directed-inputs-class",
+        "python-extended-data-types",
         "python-lifecyclelogging",
-        "python-terraform-bridge",
-        "python-rivers-of-reckoning",
-        "python-ai-game-dev"
+        "python-vendor-connectors"
       ],
       "ruleset_overrides": {
         "prs": {
@@ -353,7 +351,6 @@
         "nodejs-strata-examples",
         "nodejs-strata-presets",
         "nodejs-strata-shaders",
-        "nodejs-otter-river-rush",
         "nodejs-otterfall",
         "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
@@ -373,7 +370,6 @@
       "repos": [
         "go-secretsync"
       ],
-      "_comment_removed_repos": "go-port-api and go-vault-secret-sync removed - repos don't exist yet",
       "ruleset_overrides": {
         "prs": {
           "rules": [
@@ -405,25 +401,6 @@
             }
           ]
         }
-      }
-    },
-    "terraform": {
-      "files": {
-        "always": [
-          "always-sync",
-          "terraform"
-        ],
-        "initial": [
-          "initial-only"
-        ]
-      },
-      "repos": [
-        "terraform-github-markdown",
-        "terraform-repository-automation"
-      ],
-      "feature_overrides": {
-        "has_pages": false,
-        "has_discussions": false
       }
     },
     "rust": {
