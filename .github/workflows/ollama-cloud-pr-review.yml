@@ -32,7 +32,7 @@ env:
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
   # Known AI agent bot names - includes github-actions[bot] for self-feedback loop
-  AI_AGENTS: "github-actions[bot],gemini-code-assist[bot],copilot[bot],amazon-q-developer[bot],coderabbitai[bot],cursor[bot],github-advanced-security[bot],dependabot[bot]"
+  AI_AGENTS: "gemini-code-assist[bot],copilot[bot],amazon-q-developer[bot],coderabbitai[bot],cursor[bot],github-advanced-security[bot],dependabot[bot]"
 
 jobs:
   # ============================================
