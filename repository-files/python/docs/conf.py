@@ -1,5 +1,9 @@
 # Configuration file for the Sphinx documentation builder.
 # Synced from jbcom-control-center - customize as needed
+#
+# BRANDING: This project follows the jbcom Design System.
+# See docs/DESIGN-SYSTEM.md for complete brand specifications.
+# CSS: _static/jbcom-sphinx.css provides jbcom-branded styling.
 
 import os
 import sys
@@ -71,9 +75,18 @@ source_suffix = {
 }
 
 # -- Options for HTML output -------------------------------------------------
+# 
+# jbcom Brand Colors (reference):
+#   Primary (Cyan): #06b6d4
+#   Secondary (Blue): #3b82f6
+#   Background: #0a0f1a
+#   Surface: #111827
+#   Text Primary: #f1f5f9
+#   Text Secondary: #94a3b8
 
 html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
+html_css_files = ["jbcom-sphinx.css"]  # jbcom branded styles
 html_title = f"{project} Documentation"
 
 html_theme_options = {

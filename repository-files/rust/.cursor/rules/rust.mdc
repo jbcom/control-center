@@ -1,0 +1,155 @@
+---
+description: Rust development standards and best practices
+globs: ["**/*.rs", "**/Cargo.toml", "**/Cargo.lock"]
+---
+
+# Rust Standards
+
+## 🦀 Development Environment
+
+### Toolchain
+```bash
+# Check Rust version
+rustc --version
+cargo --version
+
+# Update toolchain
+rustup update
+
+# Add components
+rustup component add clippy rustfmt
+```
+
+### Project Structure
+```
+.
+├── Cargo.toml          # Package manifest
+├── Cargo.lock          # Dependency lock file
+├── src/
+│   ├── lib.rs          # Library crate root
+│   ├── main.rs         # Binary crate root (optional)
+│   └── bin/            # Additional binaries
+├── tests/              # Integration tests
+├── benches/            # Benchmarks
+├── examples/           # Example programs
+└── docs/               # Additional documentation
+```
+
+## 🔧 Common Commands
+
+### Building
+```bash
+cargo build              # Debug build
+cargo build --release    # Release build
+cargo check              # Check without building
+```
+
+### Testing
+```bash
+cargo test               # Run all tests
+cargo test --lib         # Library tests only
+cargo test --doc         # Doc tests only
+cargo test -- --nocapture # Show println! output
+```
+
+### Linting & Formatting
+```bash
+cargo fmt                # Format code
+cargo fmt -- --check     # Check formatting
+cargo clippy             # Run linter
+cargo clippy -- -D warnings  # Fail on warnings
+```
+
+### Documentation
+```bash
+cargo doc --no-deps --open  # Generate and open docs
+```
+
+## 📝 Code Style
+
+### Error Handling
+```rust
+// Use Result for recoverable errors
+fn process(input: &str) -> Result<Output, ProcessError> {
+    if input.is_empty() {
+        return Err(ProcessError::EmptyInput);
+    }
+    Ok(Output::new(input))
+}
+
+// Use ? for error propagation
+fn pipeline(input: &str) -> Result<String, Error> {
+    let step1 = parse(input)?;
+    let step2 = transform(step1)?;
+    Ok(format(step2))
+}
+```
+
+### Derive Traits
+```rust
+// Derive common traits for public types
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Config {
+    pub name: String,
+    pub timeout: Duration,
+}
+
+// Use serde for serialization
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ApiResponse {
+    pub data: Vec<Item>,
+    pub count: usize,
+}
+```
+
+### Documentation
+```rust
+/// Brief description of the function.
+///
+/// More detailed explanation if needed.
+///
+/// # Arguments
+///
+/// * `input` - Description of the input parameter
+///
+/// # Returns
+///
+/// Description of return value.
+///
+/// # Errors
+///
+/// Describes when errors are returned.
+///
+/// # Examples
+///
+/// ```rust
+/// let result = my_function("input")?;
+/// assert_eq!(result, expected);
+/// ```
+pub fn my_function(input: &str) -> Result<String, Error> {
+    // ...
+}
+```
+
+## ✅ Checklist
+
+Before committing:
+- [ ] `cargo fmt` - Code is formatted
+- [ ] `cargo clippy` - No linter warnings
+- [ ] `cargo test` - All tests pass
+- [ ] `cargo doc` - Documentation builds
+- [ ] Doc comments on public items
+
+## 🚫 Do NOT
+
+- ❌ Use `unwrap()` in library code (use `?` or `expect()`)
+- ❌ Ignore clippy warnings without justification
+- ❌ Skip documentation on public API
+- ❌ Use `unsafe` without safety comments
+
+## ✅ Do
+
+- ✅ Use `Result<T, E>` for fallible operations
+- ✅ Write doc tests for examples
+- ✅ Use `#[must_use]` for important return values
+- ✅ Prefer borrowing over cloning

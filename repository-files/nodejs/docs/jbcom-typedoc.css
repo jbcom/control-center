@@ -1,0 +1,286 @@
+/* =============================================================================
+   jbcom Design System - TypeDoc Theme Customization
+   =============================================================================
+   
+   This CSS customizes TypeDoc documentation to match the jbcom brand identity.
+   Reference: docs/DESIGN-SYSTEM.md for complete brand specifications.
+   
+   Usage in typedoc.json:
+   {
+     "customCss": "jbcom-typedoc.css"
+   }
+   
+   ============================================================================= */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* =============================================================================
+   CSS Custom Properties (Design Tokens)
+   ============================================================================= */
+
+:root {
+  /* Backgrounds */
+  --jb-bg-default: #0a0f1a;
+  --jb-bg-paper: #111827;
+  --jb-bg-elevated: #1e293b;
+  
+  /* Primary - Cyan */
+  --jb-primary: #06b6d4;
+  --jb-primary-light: #22d3ee;
+  --jb-primary-dark: #0891b2;
+  
+  /* Secondary - Blue */
+  --jb-secondary: #3b82f6;
+  --jb-secondary-light: #60a5fa;
+  --jb-secondary-dark: #2563eb;
+  
+  /* Text */
+  --jb-text-primary: #f1f5f9;
+  --jb-text-secondary: #94a3b8;
+  --jb-text-disabled: #475569;
+  
+  /* Borders */
+  --jb-border: #1e293b;
+  
+  /* Semantic */
+  --jb-success: #10b981;
+  --jb-warning: #f59e0b;
+  --jb-error: #ef4444;
+  --jb-info: #06b6d4;
+  
+  /* Typography */
+  --jb-font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --jb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --jb-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  
+  /* Radius */
+  --jb-radius-sm: 4px;
+  --jb-radius-md: 8px;
+  --jb-radius-lg: 12px;
+}
+
+/* =============================================================================
+   TypeDoc Dark Theme Overrides
+   ============================================================================= */
+
+/* Force dark mode colors */
+:root,
+:root[data-theme="dark"] {
+  --color-background: var(--jb-bg-default);
+  --color-background-secondary: var(--jb-bg-paper);
+  --color-background-warning: rgba(245, 158, 11, 0.1);
+  
+  --color-text: var(--jb-text-primary);
+  --color-text-aside: var(--jb-text-secondary);
+  
+  --color-link: var(--jb-primary);
+  
+  --color-accent: var(--jb-primary);
+  
+  --color-icon-background: var(--jb-bg-paper);
+  --color-icon-text: var(--jb-text-primary);
+  
+  --color-ts-keyword: #c678dd;
+  --color-ts-module: var(--jb-primary);
+  --color-ts-namespace: var(--jb-primary);
+  --color-ts-enum: var(--jb-warning);
+  --color-ts-enum-member: var(--jb-warning);
+  --color-ts-class: var(--jb-secondary);
+  --color-ts-interface: var(--jb-success);
+  --color-ts-type-alias: var(--jb-success);
+  --color-ts-function: var(--jb-secondary-light);
+  --color-ts-variable: var(--jb-primary);
+  --color-ts-property: var(--jb-text-primary);
+  --color-ts-method: var(--jb-secondary-light);
+  --color-ts-accessor: var(--jb-secondary-light);
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--jb-font-body);
+  background: var(--jb-bg-default);
+  color: var(--jb-text-secondary);
+}
+
+/* =============================================================================
+   Typography
+   ============================================================================= */
+
+h1, h2, h3, h4, h5, h6,
+.tsd-page-title h1,
+.tsd-panel h1,
+.tsd-panel h2,
+.tsd-panel h3 {
+  font-family: var(--jb-font-heading);
+  color: var(--jb-text-primary);
+  letter-spacing: -0.01em;
+}
+
+code, pre, .tsd-signature {
+  font-family: var(--jb-font-mono);
+  font-size: 0.875rem;
+}
+
+/* =============================================================================
+   Navigation
+   ============================================================================= */
+
+.tsd-navigation {
+  background: var(--jb-bg-paper);
+  border-right: 1px solid var(--jb-border);
+}
+
+.tsd-navigation a {
+  color: var(--jb-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.tsd-navigation a:hover {
+  color: var(--jb-text-primary);
+}
+
+.tsd-navigation .current > a {
+  color: var(--jb-primary);
+}
+
+/* =============================================================================
+   Content Panels
+   ============================================================================= */
+
+.tsd-panel {
+  background: var(--jb-bg-paper);
+  border: 1px solid var(--jb-border);
+  border-radius: var(--jb-radius-lg);
+}
+
+.tsd-panel-group {
+  border: none;
+}
+
+/* =============================================================================
+   Code Blocks
+   ============================================================================= */
+
+pre {
+  background: var(--jb-bg-paper);
+  border: 1px solid var(--jb-border);
+  border-radius: var(--jb-radius-md);
+  padding: 1rem;
+}
+
+code {
+  background: var(--jb-bg-paper);
+  padding: 2px 6px;
+  border-radius: var(--jb-radius-sm);
+}
+
+/* =============================================================================
+   Signatures
+   ============================================================================= */
+
+.tsd-signature {
+  background: var(--jb-bg-elevated);
+  border-radius: var(--jb-radius-md);
+  padding: 0.5rem 1rem;
+}
+
+.tsd-signature-type {
+  color: var(--jb-success);
+}
+
+.tsd-kind-icon {
+  color: var(--jb-primary);
+}
+
+/* =============================================================================
+   Tags & Badges
+   ============================================================================= */
+
+.tsd-tag {
+  background: rgba(6, 182, 212, 0.15);
+  color: var(--jb-primary);
+  border-radius: var(--jb-radius-sm);
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+/* =============================================================================
+   Links
+   ============================================================================= */
+
+a {
+  color: var(--jb-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--jb-primary-light);
+}
+
+/* =============================================================================
+   Search
+   ============================================================================= */
+
+.tsd-search input {
+  background: var(--jb-bg-paper);
+  border: 1px solid var(--jb-border);
+  border-radius: var(--jb-radius-md);
+  color: var(--jb-text-primary);
+}
+
+.tsd-search input::placeholder {
+  color: var(--jb-text-disabled);
+}
+
+/* =============================================================================
+   Accessibility
+   ============================================================================= */
+
+*:focus-visible {
+  outline: 2px solid var(--jb-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =============================================================================
+   Scrollbar
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--jb-bg-paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--jb-text-disabled);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--jb-text-secondary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jb-text-disabled) var(--jb-bg-paper);
+}

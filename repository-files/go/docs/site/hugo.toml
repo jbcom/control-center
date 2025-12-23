@@ -1,0 +1,65 @@
+# =============================================================================
+# jbcom Go Documentation - Hugo Configuration
+# =============================================================================
+# 
+# This Hugo site wraps doc2go-generated API documentation with full jbcom
+# branding. API docs are generated in embed mode and placed in content/api/.
+#
+# Usage:
+#   1. Generate API docs: doc2go -embed -out docs/site/content/api -basename _index.md ./...
+#   2. Build site: cd docs/site && hugo --minify
+#   3. Output in: docs/site/public/
+#
+# =============================================================================
+
+baseURL = "https://jbcom.github.io/${PROJECT_NAME}/"
+languageCode = "en-us"
+title = "${PROJECT_NAME} Documentation"
+theme = []  # No external theme - using custom layouts
+
+# Build settings
+enableRobotsTXT = true
+enableGitInfo = true
+
+[params]
+  description = "Documentation for ${PROJECT_NAME}"
+  author = "Jon Bogaty"
+  github_repo = "https://github.com/jbcom/${PROJECT_NAME}"
+  
+  # jbcom brand colors (reference only - CSS handles actual styling)
+  primary_color = "#06b6d4"
+  background_color = "#0a0f1a"
+
+[markup]
+  [markup.highlight]
+    style = "github-dark"
+    lineNos = false
+    codeFences = true
+    guessSyntax = true
+  
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true  # Allow HTML in markdown (for doc2go output)
+
+[menu]
+  [[menu.main]]
+    name = "Home"
+    url = "/"
+    weight = 1
+  
+  [[menu.main]]
+    name = "API Reference"
+    url = "/api/"
+    weight = 2
+  
+  [[menu.main]]
+    name = "GitHub"
+    url = "https://github.com/jbcom/${PROJECT_NAME}"
+    weight = 3
+    [menu.main.params]
+      external = true
+
+[outputs]
+  home = ["HTML"]
+  section = ["HTML"]
+  page = ["HTML"]

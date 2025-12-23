@@ -1,6 +1,89 @@
 # Active Context - jbcom Control Center
 
-## Current Status: SUBMODULES REMOVED + DEAD REPOS CLEANED
+## Current Status: DOCUMENTATION BRANDING STANDARDIZED
+
+Added unified jbcom Design System to always-sync for brand consistency across ALL repositories.
+
+---
+
+## Session: 2025-12-21 (Documentation Branding Standardization)
+
+### Task
+Migrate brand guidelines from jbcom.github.io to always-sync docs so ALL jbcom repositories have consistent documentation styling regardless of language (Python, TypeScript, Go, etc.).
+
+### Source Reviewed
+Cloned `jbcom/jbcom.github.io` and analyzed:
+- `docs/DESIGN-SYSTEM.md` - Complete brand specifications
+- `assets/css/style.css` - Full CSS implementation
+- `.Jules/palette.md` - Color palette notes
+- `AGENTS.md`, `CLAUDE.md` - Agentic instructions
+- `.github/agents/` - Agent role definitions
+
+### Files Created/Updated
+
+#### Language-Specific Documentation Scaffolds
+| Directory | Tool | Files |
+|-----------|------|-------|
+| `python/docs/` | Sphinx | `conf.py`, `jbcom-sphinx.css`, `index.rst`, `Makefile` |
+| `nodejs/docs/` | TypeDoc | `typedoc.json`, `jbcom-typedoc.css` |
+| `go/docs/` | godoc | `README.md` (conventions guide) |
+| `terraform/docs/` | terraform-docs | `README.md` (config examples) |
+
+#### Always-sync (Brand Guidelines - synced to ALL repos)
+| File | Purpose |
+|------|---------|
+| `docs/DESIGN-SYSTEM.md` | Complete jbcom brand guide |
+| `docs/_static/jbcom-sphinx.css` | Sphinx theme CSS (reference) |
+| `.cursor/rules/03-docs-branding.mdc` | Cursor rule for brand compliance |
+
+#### Initial-only (Generic scaffold for new repos)
+| File | Purpose |
+|------|---------|
+| `docs/README.md` | Generic docs guide pointing to language scaffolds |
+| `docs/DESIGN-SYSTEM.md` | Copy of brand guide |
+| `docs/getting-started/*` | User onboarding docs |
+| `docs/development/*` | Contributor docs |
+
+#### Moved Files (always-sync → initial-only) - Primary Instructions
+| File | Reason |
+|------|--------|
+| `.github/copilot-instructions.md` | Primary repo instruction - repos customize |
+| `.github/agents/*` | Primary repo instructions - repos customize |
+
+### Architecture
+- **always-sync**: Brand guidelines only (DESIGN-SYSTEM.md, Cursor rule)
+- **initial-only**: Generic scaffold, primary instructions (repos customize)
+- **python/nodejs/go/terraform**: Language-specific docs with appropriate tooling
+
+### jbcom Design System Summary
+
+| Element | Specification |
+|---------|--------------|
+| Primary Color | `#06b6d4` (Cyan) |
+| Secondary Color | `#3b82f6` (Blue) |
+| Background | `#0a0f1a` (Dark Navy) |
+| Surface | `#111827` (Cards/Paper) |
+| Heading Font | Space Grotesk |
+| Body Font | Inter |
+| Code Font | JetBrains Mono |
+| Theme | Dark mode only |
+
+### Brand Requirements for All Repos
+
+1. **Colors**: Use jbcom palette (dark theme default)
+2. **Typography**: Space Grotesk (headings), Inter (body), JetBrains Mono (code)
+3. **Accessibility**: WCAG AA contrast (4.5:1 minimum)
+4. **Consistency**: No per-repo customization of brand colors
+
+### For Next Agent
+- Brand guidelines will sync to all repos on next ecosystem-sync run
+- Existing repos may need manual CSS update if not using Sphinx
+- TypeDoc and MkDocs configurations documented in DESIGN-SYSTEM.md
+- All AI agents instructed to enforce brand compliance in reviews
+
+---
+
+## Previous Status: SUBMODULES REMOVED + DEAD REPOS CLEANED
 
 Eliminated all submodule support and removed non-existent repositories from sync targets.
 
