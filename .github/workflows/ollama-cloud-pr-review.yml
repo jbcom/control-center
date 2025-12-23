@@ -280,12 +280,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Pass comment body via environment variable to prevent shell injection
           COMMENT_BODY: ${{ github.event.comment.body }}
+          # Pass event objects via environment variables to avoid shell injection in run block
+          ISSUE_JSON: ${{ toJSON(github.event.issue) }}
+          PR_JSON: ${{ toJSON(github.event.pull_request) }}
         run: |
           # Get PR number from event
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            PR_NUMBER=$(echo '${{ toJSON(github.event.issue) }}' | jq -r '.number')
+            PR_NUMBER=$(echo "$ISSUE_JSON" | jq -r '.number')
           else
-            PR_NUMBER=$(echo '${{ toJSON(github.event.pull_request) }}' | jq -r '.number')
+            PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
           fi
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
