@@ -56,9 +56,14 @@ while [[ $# -gt 0 ]]; do
       if [[ -z "$2" || "$2" =~ [^a-zA-Z0-9_-] ]]; then
         log_error "Invalid ecosystem name. Only alphanumeric characters, hyphens, and underscores are allowed."
         exit 1
+    --ecosystem)
+      if [[ -z "$2" || "$2" =~ [^a-zA-Z0-9_-] ]]; then
+        log_error "Invalid ecosystem name. Only alphanumeric characters, hyphens, and underscores are allowed."
+        exit 1
       fi
       ECOSYSTEM_FILTER="$2"
       shift 2
+      ;;
       ;;
     *)
       log_error "Unknown option: $1"
