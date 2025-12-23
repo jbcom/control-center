@@ -575,18 +575,20 @@ jobs:
             echo "✅ Created PR: $PR_URL"
           fi
 
-      - name: Request AI review
+      - name: Request AI reviews
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PR_NUM="${{ steps.pr.outputs.pr_number }}"
           
           if [ -n "$PR_NUM" ]; then
-            # Trigger AI reviews via comments
-            # These integrate with the existing AI QA workflow
             echo "🤖 Requesting AI reviews..."
             
-            # Request reviews from configured AI assistants
+            # Note: Ollama review triggers automatically on PR open/sync
+            # But we can request a focused review if the PR was just updated
+            gh pr comment "$PR_NUM" --body "/ollama-review Please review the latest nightly improvements" 2>/dev/null || true
+            
+            # Request reviews from other AI assistants
             gh pr comment "$PR_NUM" --body "/gemini review" 2>/dev/null || true
             gh pr comment "$PR_NUM" --body "/q review" 2>/dev/null || true
           fi
