@@ -278,6 +278,8 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass comment body via environment variable to prevent shell injection
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           # Get PR number from event
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
@@ -292,7 +294,8 @@ jobs:
           gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
           
           # Get user's comment (the part after /ollama-review)
-          USER_REQUEST=$(echo '${{ github.event.comment.body }}' | sed 's|.*/ollama-review||' | xargs)
+          # Using environment variable to prevent shell injection from untrusted input
+          USER_REQUEST=$(echo "$COMMENT_BODY" | sed 's|.*/ollama-review||' | xargs)
           echo "user_request=$USER_REQUEST" >> $GITHUB_OUTPUT
 
       - name: Generate follow-up review

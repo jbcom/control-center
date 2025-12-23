@@ -24,24 +24,40 @@ author = "Jon Bogaty"
 release = "0.0.0"
 
 # Try to get project info from pyproject.toml
+# Use tomllib (Python 3.11+) or tomli as fallback
 try:
-    import tomllib
-    pyproject_path = os.path.join(root_dir, "pyproject.toml")
-    if os.path.exists(pyproject_path):
-        with open(pyproject_path, "rb") as f:
-            data = tomllib.load(f)
-            project_data = data.get("project", {})
-            release = project_data.get("version", "0.0.0")
-            project = project_data.get("name", "PACKAGE_NAME")
-except Exception:
-    # Fallback to package.json
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        try:
+            import tomli as tomllib
+        except ImportError:
+            tomllib = None
+            print("Warning: tomli not installed, cannot read pyproject.toml on Python < 3.11", file=sys.stderr)
+    
+    if tomllib is not None:
+        pyproject_path = os.path.join(root_dir, "pyproject.toml")
+        if os.path.exists(pyproject_path):
+            with open(pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+                project_data = data.get("project", {})
+                release = project_data.get("version", "0.0.0")
+                project = project_data.get("name", "PACKAGE_NAME")
+except Exception as exc:
+    # Log the error for visibility, then try fallback
+    print(f"Warning: failed to read pyproject.toml: {exc}", file=sys.stderr)
+
+# Fallback to package.json if pyproject.toml failed or doesn't exist
+if release == "0.0.0":
     try:
         import json
         package_json_path = os.path.join(root_dir, "package.json")
         if os.path.exists(package_json_path):
             with open(package_json_path) as f:
-                release = json.load(f).get("version", "0.0.0")
-                # usually package.json has name too
+                pkg_data = json.load(f)
+                release = pkg_data.get("version", "0.0.0")
+                if project == "PACKAGE_NAME":
+                    project = pkg_data.get("name", "PACKAGE_NAME")
     except Exception as exc:
         # Ignore errors reading package.json, but emit a warning for visibility
         print(f"Warning: failed to read package.json for version information: {exc}", file=sys.stderr)

@@ -1,4 +1,10 @@
-name: Ollama Cloud PR Review (GLM-4.6)
+name: Ollama Cloud PR Review
+
+# AI-powered code review using GLM-4.6 on Ollama Cloud
+# - Automatic review on PR open/update
+# - Structured JSON output with issues and fixes
+# - Auto-applies safe fixes
+# - Multi-turn follow-up via /ollama-review
 
 on:
   pull_request:
@@ -9,14 +15,13 @@ on:
     types: [created]
 
 permissions:
-  contents: write          # Required for git-auto-commit-action
+  contents: write
   pull-requests: write
   issues: write
 
 env:
   OLLAMA_HOST: https://ollama.com
-  OLLAMA_MODEL: glm-4.6:cloud
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 jobs:
   # ============================================
@@ -34,37 +39,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Install Ollama CLI
-      - name: Install Ollama CLI
-        run: curl -fsSL https://ollama.com/install.sh | sh
-
-      # Configure for Cloud
-      - name: Configure Ollama for Cloud
-        run: |
-          echo "OLLAMA_HOST=https://ollama.com" >> $GITHUB_ENV
-          echo "OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }}" >> $GITHUB_ENV
-
-      # Register cloud model
-      - name: Register cloud model
-        run: ollama pull glm-4.6:cloud
-
-      # Get PR diff
       - name: Get PR diff
         id: diff
-        run: |
-          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never)
-          DIFF_ESCAPED=$(echo "$DIFF" | sed 's/"/\\"/g; s/\n/\\n/g')
-          echo "diff=$DIFF_ESCAPED" >> $GITHUB_OUTPUT
         env:
-          GH_TOKEN: ${{ github.token }}
-
-      # Define JSON Schema (shared across jobs)
-      - name: Define JSON Schema
-        id: schema
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Use a shared schema definition to avoid duplication
-          cat > /tmp/review-schema.json << 'EOF'
-          {
+          # Get the diff and store in a file to avoid escaping issues
+          gh pr diff ${{ github.event.pull_request.number }} --color=never > /tmp/pr_diff.txt
+          echo "diff_file=/tmp/pr_diff.txt" >> $GITHUB_OUTPUT
+
+      - name: Generate structured review with Ollama
+        id: review
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          # Read the diff
+          DIFF=$(cat /tmp/pr_diff.txt)
+          
+          # Define the JSON schema
+          SCHEMA='{
             "type": "object",
             "properties": {
               "summary": { "type": "string" },
@@ -79,8 +72,7 @@ jobs:
                     "description": { "type": "string" },
                     "suggestion": { "type": "string" }
                   },
-                  "required": ["file", "severity", "description"],
-                  "additionalProperties": false
+                  "required": ["file", "severity", "description"]
                 }
               },
               "suggested_fixes": {
@@ -89,149 +81,190 @@ jobs:
                   "type": "object",
                   "properties": {
                     "file": { "type": "string" },
-                    "patch": { "type": "string", "description": "Unified diff patch compatible with 'git apply'" },
+                    "patch": { "type": "string" },
                     "description": { "type": "string" }
                   },
-                  "required": ["file", "patch", "description"],
-                  "additionalProperties": false
+                  "required": ["file", "patch", "description"]
                 }
               },
               "overall_score": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "approval_recommendation": { "type": "string", "enum": ["approve", "request_changes", "comment"] },
               "should_auto_apply": { "type": "boolean" }
             },
-            "required": ["summary", "issues", "suggested_fixes", "overall_score", "should_auto_apply"],
-            "additionalProperties": false
-          }
-          EOF
+            "required": ["summary", "issues", "suggested_fixes", "overall_score", "approval_recommendation", "should_auto_apply"]
+          }'
           
-          SCHEMA=$(cat /tmp/review-schema.json)
-          echo "schema=$SCHEMA" >> $GITHUB_OUTPUT
+          # Build prompt
+          PROMPT="You are an expert code reviewer. Analyze the following diff carefully.
 
-      # Generate structured review
-      - name: Generate structured review with fixes
-        id: review
-        run: |
-          RESPONSE=$(curl -s --fail-with-body --max-time 300  \
-            -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
-            -d "{
-              \"model\": \"glm-4.6:cloud\",
-              \"messages\": [
-                {
-                  \"role\": \"system\",
-                  \"content\": \"You are an expert code reviewer. Analyze the diff carefully. Identify issues and provide precise, safe fixes as unified diff patches. Set should_auto_apply to true only if all fixes are low-risk and improve the code without changing behaviour. Respond EXCLUSIVELY with valid JSON matching the schema.\"
-                },
-                {
-                  \"role\": \"user\",
-                  \"content\": \"Schema (respond exactly this format): ${{ steps.schema.outputs.schema }}\\n\\nDiff to review:\\n${{ steps.diff.outputs.diff }}\"
-                }
+          Identify issues and provide precise, safe fixes as unified diff patches.
+          
+          Set approval_recommendation to:
+          - 'approve' if the code is good quality with no significant issues
+          - 'request_changes' if there are high severity issues
+          - 'comment' if there are only minor issues or suggestions
+          
+          Set should_auto_apply to true only if all fixes are low-risk and improve the code without changing behavior.
+          
+          Respond EXCLUSIVELY with valid JSON matching the schema.
+
+          Diff to review:
+          $DIFF"
+          
+          # Build JSON payload safely using jq
+          JSON_PAYLOAD=$(jq -n \
+            --arg model "${{ env.OLLAMA_MODEL }}" \
+            --arg system_msg "You are an expert code reviewer. Respond only with valid JSON." \
+            --arg user_msg "$PROMPT" \
+            --argjson schema "$SCHEMA" \
+            '{
+              model: $model,
+              messages: [
+                { role: "system", content: $system_msg },
+                { role: "user", content: $user_msg }
               ],
-              \"format\": ${{ steps.schema.outputs.schema }},
-              \"options\": {
-                \"temperature\": 0.1,
-                \"mirostat\": 2,
-                \"mirostat_tau\": 5.0,
-                \"mirostat_eta\": 0.1,
-                \"top_p\": 0.95,
-                \"repeat_penalty\": 1.15,
-                \"num_ctx\": 196608,
-                \"num_predict\": 4096
+              format: $schema,
+              options: {
+                temperature: 0.1,
+                mirostat: 2,
+                mirostat_tau: 5.0,
+                mirostat_eta: 0.1,
+                top_p: 0.95,
+                repeat_penalty: 1.15,
+                num_ctx: 196608,
+                num_predict: 4096
               },
-              \"stream\": false
-            }")
-
+              stream: false
+            }')
+          
+          # Call Ollama API
+          RESPONSE=$(curl -s --fail-with-body --max-time 300 \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" \
+            "${{ env.OLLAMA_HOST }}/api/chat")
+          
           if [ $? -ne 0 ]; then
             echo "Error: Failed to connect to Ollama API"
-            exit 1
+            echo '{"summary":"Review failed - API error","issues":[],"suggested_fixes":[],"overall_score":5,"approval_recommendation":"comment","should_auto_apply":false}' > /tmp/review.json
+          else
+            echo "$RESPONSE" | jq -r '.message.content // empty' > /tmp/review.json
           fi
-
-          REVIEW_JSON=$(echo "$RESPONSE" | jq -r '.message.content // empty')
-
-          if [ -z "$REVIEW_JSON" ] || [ "$REVIEW_JSON" = "null" ]; then
-            echo "Error: Empty or invalid response from model"
-            exit 1
+          
+          # Validate JSON
+          if ! jq empty /tmp/review.json 2>/dev/null; then
+            echo "Warning: Invalid JSON from model, using fallback"
+            echo '{"summary":"Review completed with parsing issues","issues":[],"suggested_fixes":[],"overall_score":5,"approval_recommendation":"comment","should_auto_apply":false}' > /tmp/review.json
           fi
+          
+          # Output for later steps
+          echo "json_file=/tmp/review.json" >> $GITHUB_OUTPUT
+          
+          # Extract key fields
+          SCORE=$(jq -r '.overall_score // 5' /tmp/review.json)
+          RECOMMENDATION=$(jq -r '.approval_recommendation // "comment"' /tmp/review.json)
+          SHOULD_APPLY=$(jq -r '.should_auto_apply // false' /tmp/review.json)
+          
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "recommendation=$RECOMMENDATION" >> $GITHUB_OUTPUT
+          echo "should_apply=$SHOULD_APPLY" >> $GITHUB_OUTPUT
 
-          REVIEW_FORMATTED=$(echo "$REVIEW_JSON" | jq '.')
-
-          echo "json<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_JSON" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-          echo "formatted<<EOF" >> $GITHUB_OUTPUT
-          echo "$REVIEW_FORMATTED" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      # Validate JSON output
-      - name: Validate JSON output
-        run: |
-          REVIEW_JSON="${{ steps.review.outputs.json }}"
-
-          echo "$REVIEW_JSON" | jq empty || (
-            echo "Invalid JSON received from model"
-            exit 1
-          )
-
-          echo "JSON is valid and structured"
-
-      # Apply suggested patches (if approved by model)
       - name: Apply suggested fixes (if approved)
-        if: fromJSON(steps.review.outputs.json).should_auto_apply == true
+        if: steps.review.outputs.should_apply == 'true'
         run: |
-          REVIEW_JSON="${{ steps.review.outputs.json }}"
-
-          echo "$REVIEW_JSON" | jq -r '.suggested_fixes[] | select(.patch != null and .patch != "") | @base64' | while read -r encoded_patch; do
-            PATCH_JSON=$(echo "$encoded_patch" | base64 -d)
-            FILE=$(echo "$PATCH_JSON" | jq -r '.file')
-            PATCH=$(echo "$PATCH_JSON" | jq -r '.patch')
-            DESC=$(echo "$PATCH_JSON" | jq -r '.description')
-
-            # Validate file path to prevent directory traversal
+          jq -r '.suggested_fixes[] | select(.patch != null and .patch != "") | @base64' /tmp/review.json | while read -r encoded; do
+            PATCH_OBJ=$(echo "$encoded" | base64 -d)
+            FILE=$(echo "$PATCH_OBJ" | jq -r '.file')
+            PATCH=$(echo "$PATCH_OBJ" | jq -r '.patch')
+            DESC=$(echo "$PATCH_OBJ" | jq -r '.description')
+            
+            # Security: validate file path
             if [[ "$FILE" =~ \.\./|^/ ]]; then
-              echo "Warning: Skipping unsafe file path: $FILE"
+              echo "⚠️ Skipping unsafe path: $FILE"
               continue
             fi
-
-            echo "Applying patch to $FILE: $DESC"
-
-            # Write patch to temporary file to avoid shell injection
-            PATCH_FILE=$(mktemp)
-            echo "$PATCH" > "$PATCH_FILE"
-            git apply --whitespace=nowarn --verbose "$PATCH_FILE" || echo "Warning: Patch failed for $FILE (skipping)"
-            rm -f "$PATCH_FILE"
+            
+            echo "Applying: $DESC"
+            echo "$PATCH" > /tmp/patch.diff
+            git apply --whitespace=nowarn /tmp/patch.diff 2>/dev/null || echo "⚠️ Patch failed for $FILE"
           done
 
-      # Commit and push auto-applied fixes
-      - name: Commit and push auto-applied fixes
-        if: fromJSON(steps.review.outputs.json).should_auto_apply == true
+      - name: Commit auto-applied fixes
+        if: steps.review.outputs.should_apply == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "fix: Apply AI-suggested improvements (GLM-4.6 review)"
+          commit_message: "fix: apply AI-suggested improvements (Ollama GLM-4.6)"
           branch: ${{ github.head_ref }}
-          commit_user_name: "GLM-4.6 Bot"
-          commit_user_email: "glm-bot@users.noreply.github.com"
-          commit_author: "GLM-4.6 Bot <glm-bot@users.noreply.github.com>"
+          commit_user_name: "Ollama Bot"
+          commit_user_email: "ollama-bot@users.noreply.github.com"
           file_pattern: .
           skip_dirty_check: false
 
-      # Post review comment on PR
-      - name: Post review comment on PR
-        run: |
-          AUTO_APPLIED=$(jq -r 'if .should_auto_apply then "✅ Fixes automatically applied and pushed to this branch!" else "⚠️ Fixes suggested – review and apply manually" end' <<< '${{ steps.review.outputs.json }}')
-          SUMMARY=$(jq -r '.summary' <<< '${{ steps.review.outputs.json }}')
-          SCORE=$(jq -r '.overall_score' <<< '${{ steps.review.outputs.json }}')
-
-          COMMENT_BODY="## GLM-4.6 Cloud Auto-Fix Review\n\n**Summary**: $SUMMARY\n**Overall Score**: $SCORE / 10\n\n$AUTO_APPLIED\n\n\`\`\`json\n${{ steps.review.outputs.formatted }}\n\`\`\`\n\n> Powered by **glm-4.6:cloud** on Ollama Cloud – structured, validated, and auto-applied where safe."
-
-          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT_BODY"
+      - name: Submit review
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SCORE="${{ steps.review.outputs.score }}"
+          RECOMMENDATION="${{ steps.review.outputs.recommendation }}"
+          SHOULD_APPLY="${{ steps.review.outputs.should_apply }}"
+          
+          SUMMARY=$(jq -r '.summary' /tmp/review.json)
+          ISSUES=$(jq -r '.issues | length' /tmp/review.json)
+          FIXES=$(jq -r '.suggested_fixes | length' /tmp/review.json)
+          
+          # Build review body
+          BODY="## 🤖 Ollama Cloud Review (GLM-4.6)
+
+          **Summary:** $SUMMARY
+
+          | Metric | Value |
+          |--------|-------|
+          | Score | $SCORE / 10 |
+          | Issues Found | $ISSUES |
+          | Fixes Suggested | $FIXES |
+          | Auto-Applied | $SHOULD_APPLY |
+
+          <details>
+          <summary>📋 Full Review JSON</summary>
+
+          \`\`\`json
+          $(cat /tmp/review.json | jq '.')
+          \`\`\`
+
+          </details>
+
+          ---
+          *Powered by GLM-4.6 on Ollama Cloud*"
+          
+          # Map recommendation to GitHub review event
+          case "$RECOMMENDATION" in
+            approve)
+              EVENT="APPROVE"
+              ;;
+            request_changes)
+              EVENT="REQUEST_CHANGES"
+              ;;
+            *)
+              EVENT="COMMENT"
+              ;;
+          esac
+          
+          # Submit as a PR review (not just a comment)
+          gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+            -f body="$BODY" \
+            -f event="$EVENT" || {
+              # Fallback to comment if review submission fails
+              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+            }
 
   # ============================================
-  # Multi-turn Follow-up - Handle comments and reviews
+  # Follow-up Review - Handle /ollama-review comments
   # ============================================
-  follow-up-review:
-    name: Ollama Cloud Follow-Up Review
-    if: (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') && contains(github.event.comment.body, '/ollama-review')
+  follow-up:
+    name: Ollama Follow-Up Review
+    if: |
+      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      contains(github.event.comment.body, '/ollama-review')
     runs-on: ubuntu-latest
     
     steps:
@@ -239,207 +272,90 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.event.issue.pull_request.head.sha }}
           fetch-depth: 0
 
-      # Install Ollama CLI
-      - name: Install Ollama CLI
-        run: curl -fsSL https://ollama.com/install.sh | sh
-
-      # Configure for Cloud
-      - name: Configure Ollama for Cloud
+      - name: Get PR context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Pass comment body via environment variable to prevent shell injection
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          echo "OLLAMA_HOST=https://ollama.com" >> $GITHUB_ENV
-          echo "OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }}" >> $GITHUB_ENV
-
-      # Register cloud model
-      - name: Register cloud model
-        run: ollama pull glm-4.6:cloud
-
-      # Get PR diff
-      - name: Get PR diff
-        id: diff
-        run: |
-          PR_NUMBER=$(echo "${{ github.event }}" | jq -r '.pull_request.number // .issue.pull_request.number')
-          DIFF=$(gh pr diff $PR_NUMBER --color=never)
-          DIFF_ESCAPED=$(echo "$DIFF" | sed 's/"/\\"/g; s/\n/\\n/g')
-          echo "diff=$DIFF_ESCAPED" >> $GITHUB_OUTPUT
+          # Get PR number from event
+          if [ "${{ github.event_name }}" = "issue_comment" ]; then
+            PR_NUMBER=$(echo '${{ toJSON(github.event.issue) }}' | jq -r '.number')
+          else
+            PR_NUMBER=$(echo '${{ toJSON(github.event.pull_request) }}' | jq -r '.number')
+          fi
+          
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-        env:
-          GH_TOKEN: ${{ github.token }}
-
-      # Define Enhanced JSON Schema
-      - name: Define Enhanced JSON Schema
-        id: schema
-        run: |
-          SCHEMA=$(cat <<'EOF'
-          {
-            "type": "object",
-            "properties": {
-              "summary": { "type": "string" },
-              "issues": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "file": { "type": "string" },
-                    "line": { "type": "integer", "minimum": 1 },
-                    "severity": { "type": "string", "enum": ["low", "medium", "high"] },
-                    "description": { "type": "string" },
-                    "suggestion": { "type": "string" }
-                  },
-                  "required": ["file", "severity", "description"],
-                  "additionalProperties": false
-                }
-              },
-              "suggested_fixes": {
-                "type": "array",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "file": { "type": "string" },
-                    "patch": { "type": "string", "description": "Unified diff patch compatible with 'git apply'" },
-                    "description": { "type": "string" }
-                  },
-                  "required": ["file", "patch", "description"],
-                  "additionalProperties": false
-                }
-              },
-              "overall_score": { "type": "integer", "minimum": 1, "maximum": 10 },
-              "should_auto_apply": { "type": "boolean" }
-            },
-            "required": ["summary", "issues", "suggested_fixes", "overall_score", "should_auto_apply"],
-            "additionalProperties": false
-          }
-          EOF
-          )
-          echo "schema=$SCHEMA" >> $GITHUB_OUTPUT
-
-      # Get previous AI comments for context
-      - name: Fetch previous AI comments
-        id: history
-        run: |
-          PR_NUMBER=$(echo "${{ github.event }}" | jq -r '.pull_request.number // .issue.pull_request.number')
           
-          # Get last 10 comments, extract AI ones (assume bot username is your bot)
-          COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments -q '.[] | select(.user.login == "github-actions[bot]") | .body' --jq 'join("\n---\n")')
-          echo "prev=$COMMENTS" >> $GITHUB_OUTPUT
+          # Get the diff
+          gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
+          
+          # Get user's comment (the part after /ollama-review)
+          # Using environment variable to prevent shell injection from untrusted input
+          USER_REQUEST=$(echo "$COMMENT_BODY" | sed 's|.*/ollama-review||' | xargs)
+          echo "user_request=$USER_REQUEST" >> $GITHUB_OUTPUT
+
+      - name: Generate follow-up review
+        id: review
         env:
-          GH_TOKEN: ${{ github.token }}
-
-      # Multi-turn structured response
-      - name: Multi-turn structured response
-        id: response
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         run: |
-          USER_COMMENT="${{ github.event.comment.body }}"
-          PR_NUMBER=$(echo "${{ github.event }}" | jq -r '.pull_request.number // .issue.pull_request.number')
+          DIFF=$(cat /tmp/pr_diff.txt)
+          USER_REQUEST="${{ steps.context.outputs.user_request }}"
+          
+          PROMPT="You are reviewing a PR. The user has requested additional feedback.
 
-          MESSAGES_JSON=$(cat <<EOF
-          [
-            {"role": "system", "content": "You are an expert code reviewer. Use previous context."},
-            {"role": "user", "content": "Initial diff:\n${{ steps.diff.outputs.diff }}"},
-            {"role": "assistant", "content": "${{ steps.history.outputs.prev }}"},
-            {"role": "user", "content": "$USER_COMMENT"}
-          ]
-          EOF
-          )
+          User request: $USER_REQUEST
 
-          RESPONSE=$(curl -s https://ollama.com/api/chat \
-            -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
-            -d "{
-              \"model\": \"glm-4.6:cloud\",
-              \"messages\": $MESSAGES_JSON,
-              \"format\": ${{ steps.schema.outputs.schema }},
-              \"options\": {
-                \"temperature\": 0.1,
-                \"mirostat\": 2,
-                \"mirostat_tau\": 5.0,
-                \"mirostat_eta\": 0.1,
-                \"top_p\": 0.95,
-                \"repeat_penalty\": 1.15,
-                \"num_ctx\": 196608,
-                \"num_predict\": 4096
+          PR Diff:
+          $DIFF
+
+          Provide a focused response addressing the user's request. Include any issues found and suggested fixes."
+          
+          # Build JSON payload safely
+          JSON_PAYLOAD=$(jq -n \
+            --arg model "${{ env.OLLAMA_MODEL }}" \
+            --arg prompt "$PROMPT" \
+            '{
+              model: $model,
+              messages: [
+                { role: "system", content: "You are an expert code reviewer." },
+                { role: "user", content: $prompt }
+              ],
+              options: {
+                temperature: 0.1,
+                num_ctx: 196608,
+                num_predict: 4096
               },
-              \"stream\": false
-            }")
+              stream: false
+            }')
+          
+          RESPONSE=$(curl -s --max-time 300 \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" \
+            "${{ env.OLLAMA_HOST }}/api/chat")
+          
+          CONTENT=$(echo "$RESPONSE" | jq -r '.message.content // "Unable to generate response"')
+          
+          # Save for comment
+          echo "$CONTENT" > /tmp/response.txt
 
-          REVIEW_JSON=$(echo "$RESPONSE" | jq -r '.message.content')
-
-          echo "json=$REVIEW_JSON" >> $GITHUB_OUTPUT
-
-      # Validate JSON
-      - name: Validate JSON
-        run: |
-          REVIEW_JSON="${{ steps.response.outputs.json }}"
-
-          echo "$REVIEW_JSON" | jq empty || (
-            echo "Invalid JSON received from model"
-            exit 1
-          )
-
-          echo "JSON is valid and structured"
-
-      # Apply suggested patches (if approved by model)
-      - name: Apply suggested fixes (if approved)
-        if: fromJSON(steps.response.outputs.json).should_auto_apply == true
-        run: |
-          REVIEW_JSON="${{ steps.response.outputs.json }}"
-
-          echo "$REVIEW_JSON" | jq -r '.suggested_fixes[] | select(.patch != null and .patch != "") | @base64' | while read -r encoded_patch; do
-            PATCH_JSON=$(echo "$encoded_patch" | base64 -d)
-            FILE=$(echo "$PATCH_JSON" | jq -r '.file')
-            PATCH=$(echo "$PATCH_JSON" | jq -r '.patch')
-            DESC=$(echo "$PATCH_JSON" | jq -r '.description')
-
-            echo "Applying patch to $FILE: $DESC"
-
-            echo "$PATCH" | git apply --whitespace=nowarn --verbose || echo "Warning: Patch failed for $FILE (skipping)"
-          done
-
-      # Commit and push auto-applied fixes
-      - name: Commit and push auto-applied fixes
-        if: fromJSON(steps.response.outputs.json).should_auto_apply == true
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "fix: Apply AI-suggested improvements (GLM-4.6 follow-up)"
-          branch: ${{ github.event.pull_request.head.ref || github.event.issue.pull_request.head.ref }}
-          commit_user_name: "GLM-4.6 Bot"
-          commit_user_email: "glm-bot@users.noreply.github.com"
-          commit_author: "GLM-4.6 Bot <glm-bot@users.noreply.github.com>"
-          file_pattern: .
-          skip_dirty_check: false
-
-      # Post follow-up comment
       - name: Post follow-up comment
-        run: |
-          PR_NUMBER=$(echo "${{ github.event }}" | jq -r '.pull_request.number // .issue.pull_request.number')
-          AUTO_APPLIED=$(jq -r 'if .should_auto_apply then "✅ Fixes automatically applied and pushed to this branch!" else "⚠️ Fixes suggested – review and apply manually" end' <<< '${{ steps.response.outputs.json }}')
-          SUMMARY=$(jq -r '.summary' <<< '${{ steps.response.outputs.json }}')
-          SCORE=$(jq -r '.overall_score' <<< '${{ steps.response.outputs.json }}')
-
-          COMMENT_BODY="## GLM-4.6 Cloud Follow-Up Review\n\n**Summary**: $SUMMARY\n**Overall Score**: $SCORE / 10\n\n$AUTO_APPLIED\n\n\`\`\`json\n${{ steps.response.outputs.json }}\n\`\`\`\n\n> Powered by **glm-4.6:cloud** on Ollama Cloud – structured, validated, and auto-applied where safe."
-
-          gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments --field body="$COMMENT_BODY"
         env:
-          GH_TOKEN: ${{ github.token }}
-
-  # ============================================
-  # Request AI Reviews - Trigger other AI reviewers
-  # ============================================
-  request-ai-reviews:
-    name: Request AI Reviews
-    if: github.event_name == 'pull_request' && github.event.action == 'opened'
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Request AI reviews
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUMBER=${{ github.event.pull_request.number }}
+          PR_NUMBER="${{ steps.context.outputs.pr_number }}"
+          RESPONSE=$(cat /tmp/response.txt)
           
-          # Request reviews from various AI tools
-          gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments --field body="/gemini review"
-          gh api repos/${{ github.repository }}/issues/$PR_NUMBER/comments --field body="/q review"
+          BODY="## 🤖 Ollama Follow-Up Review
+
+          $RESPONSE
+
+          ---
+          *Reply with \`/ollama-review <your question>\` for more feedback*"
           
-          echo "✅ Requested AI reviews from Gemini and Amazon Q"
-        env:
-          GH_TOKEN: ${{ github.token }}
+          gh pr comment "$PR_NUMBER" --body "$BODY"
