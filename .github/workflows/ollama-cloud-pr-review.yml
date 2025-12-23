@@ -9,7 +9,7 @@ on:
     types: [created]
 
 permissions:
-  contents: read
+  contents: write          # Required for git-auto-commit-action
   pull-requests: write
   issues: write
 
