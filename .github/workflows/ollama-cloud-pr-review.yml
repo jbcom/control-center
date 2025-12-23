@@ -9,8 +9,6 @@ name: Ollama Cloud PR Review
 on:
   pull_request:
     types: [opened, synchronize]
-  pull_request_review_comment:
-    types: [created]
   issue_comment:
     types: [created]
 
@@ -264,7 +262,8 @@ jobs:
   follow-up:
     name: Ollama Follow-Up Review
     if: |
-      (github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment') &&
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
       contains(github.event.comment.body, '/ollama-review')
     runs-on: ubuntu-latest
     
@@ -281,16 +280,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # Pass comment body via environment variable to prevent shell injection
           COMMENT_BODY: ${{ github.event.comment.body }}
-          # Pass event objects via environment variables to avoid shell injection in run block
+          # Pass issue object via environment variable to avoid shell injection
           ISSUE_JSON: ${{ toJSON(github.event.issue) }}
-          PR_JSON: ${{ toJSON(github.event.pull_request) }}
         run: |
-          # Get PR number from event
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            PR_NUMBER=$(echo "$ISSUE_JSON" | jq -r '.number')
-          else
-            PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
-          fi
+          # Get PR number from issue_comment event
+          PR_NUMBER=$(echo "$ISSUE_JSON" | jq -r '.number')
           
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
           
