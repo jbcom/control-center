@@ -1,0 +1,211 @@
+#!/usr/bin/env bash
+# =============================================================================
+# create-repos - Idempotently create GitHub repositories from repo-config.json
+# =============================================================================
+# Creates public repositories that don't exist yet. Safe to run multiple times.
+#
+# Usage:
+#   ./scripts/create-repos [options]
+#
+# Options:
+#   --dry-run     Show what would be created without making changes
+#   --ecosystem   Only create repos for specific ecosystem (python, nodejs, go, etc.)
+#   --verbose     Show detailed output
+# =============================================================================
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${SCRIPT_DIR}/.."
+CONFIG_FILE="${REPO_ROOT}/repo-config.json"
+GITHUB_ORG="${GITHUB_ORG:-jbcom}"
+
+# Options
+DRY_RUN=false
+VERBOSE=false
+ECOSYSTEM_FILTER=""
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+log_info()  { echo -e "${BLUE}[INFO]${NC} $*"; }
+log_ok()    { echo -e "${GREEN}[OK]${NC} $*"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_verbose() { [[ "$VERBOSE" == "true" ]] && echo -e "${BLUE}[VERBOSE]${NC} $*" || true; }
+
+# =============================================================================
+# Parse Arguments
+# =============================================================================
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dry-run)
+      DRY_RUN=true
+      shift
+      ;;
+    --verbose|-v)
+      VERBOSE=true
+      shift
+      ;;
+    --ecosystem)
+      if [[ -z "$2" || "$2" =~ [^a-zA-Z0-9_-] ]]; then
+        log_error "Invalid ecosystem name. Only alphanumeric characters, hyphens, and underscores are allowed."
+        exit 1
+      fi
+      ECOSYSTEM_FILTER="$2"
+      shift 2
+      ;;
+    *)
+      log_error "Unknown option: $1"
+      exit 1
+      ;;
+  esac
+done
+
+# =============================================================================
+# Helper Functions
+# =============================================================================
+
+repo_exists() {
+  local repo="$1"
+  gh repo view "${GITHUB_ORG}/${repo}" &>/dev/null
+}
+
+get_repo_description() {
+  local repo="$1"
+  local ecosystem="$2"
+  
+  # Try to get description from repo-config.json first
+  local config_desc
+  config_desc=$(jq -r --arg repo "$repo" '.repository_descriptions[$repo] // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
+  
+  if [[ -n "$config_desc" ]]; then
+    echo "$config_desc"
+    return 0
+  fi
+
+  # Default descriptions based on naming convention
+  case "$repo" in
+    python-*)
+      echo "Python package: ${repo#python-}"
+      ;;
+    nodejs-*)
+      echo "Node.js/TypeScript package: ${repo#nodejs-}"
+      ;;
+    go-*)
+      echo "Go module: ${repo#go-}"
+      ;;
+    *)
+      echo "Repository: $repo"
+      ;;
+  esac
+}
+
+create_repo() {
+  local repo="$1"
+  local ecosystem="$2"
+  local description
+  description=$(get_repo_description "$repo" "$ecosystem")
+  
+  if repo_exists "$repo"; then
+    log_verbose "Repository ${GITHUB_ORG}/${repo} already exists"
+    return 0
+  fi
+  
+  log_info "Creating repository: ${GITHUB_ORG}/${repo}"
+  log_verbose "  Description: $description"
+  
+  if [[ "$DRY_RUN" == "true" ]]; then
+    log_warn "[DRY RUN] Would create: ${GITHUB_ORG}/${repo}"
+    return 0
+  fi
+  
+  # Create public repository with standard settings
+  if gh repo create "${GITHUB_ORG}/${repo}" \
+    --public \
+    --description "$description" \
+    --add-readme; then
+    log_ok "Created: ${GITHUB_ORG}/${repo}"
+  else
+    log_error "Failed to create: ${GITHUB_ORG}/${repo}"
+    return 1
+  fi
+}
+
+# =============================================================================
+# Main
+# =============================================================================
+
+main() {
+  log_info "=== Idempotent Repository Creation ==="
+  log_info "Organization: $GITHUB_ORG"
+  [[ "$DRY_RUN" == "true" ]] && log_warn "DRY RUN MODE - no changes will be made"
+  echo ""
+  
+  # Check if gh is installed and authenticated
+  if ! command -v gh &>/dev/null; then
+    log_error "GitHub CLI (gh) is not installed. Please install it first."
+    exit 1
+  fi
+  if ! gh auth status &>/dev/null; then
+    log_error "Not authenticated with GitHub CLI. Run 'gh auth login' first."
+    exit 1
+  fi
+  
+  local created=0
+  local skipped=0
+  local failed=0
+  local total=0
+  
+  # Get all ecosystems or filter to specific one
+  local ecosystems
+  if [[ -n "$ECOSYSTEM_FILTER" ]]; then
+    ecosystems="$ECOSYSTEM_FILTER"
+  else
+    ecosystems=$(jq -r '.ecosystems | keys[]' "$CONFIG_FILE")
+  fi
+  
+  for ecosystem in $ecosystems; do
+    log_info "Processing ecosystem: $ecosystem"
+    
+    local repos
+    repos=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].repos[]" "$CONFIG_FILE" 2>/dev/null || echo "")
+    
+    if [[ -z "$repos" ]]; then
+      log_warn "  No repos configured for ecosystem: $ecosystem"
+      continue
+    fi
+    
+    for repo in $repos; do
+      total=$((total + 1))
+      if repo_exists "$repo"; then
+        skipped=$((skipped + 1))
+        log_verbose "  ✓ $repo (exists)"
+      else
+        if create_repo "$repo" "$ecosystem"; then
+          created=$((created + 1))
+        else
+          failed=$((failed + 1))
+        fi
+      fi
+    done
+    
+    echo ""
+  done
+  
+  # Summary
+  echo ""
+  log_info "=== Summary ==="
+  log_ok "Created: $created"
+  log_info "Skipped (already exist): $skipped"
+  [[ $failed -gt 0 ]] && log_error "Failed: $failed"
+  
+  return $failed
+}
+
+main
