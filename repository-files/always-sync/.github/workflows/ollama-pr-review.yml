@@ -221,6 +221,195 @@ jobs:
           gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
             -f body="$BODY" -f event="$EVENT" || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
 
+      - name: Upload review artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ollama-review
+          path: /tmp/review.json
+          retention-days: 1
+
+  # ============================================
+  # Self-Resolve - Process our own review (chains after initial-review)
+  # GitHub doesn't trigger events for GITHUB_TOKEN actions, so we chain directly
+  # ============================================
+  self-resolve:
+    name: Self-Resolve Issues
+    needs: initial-review
+    if: needs.initial-review.outputs.recommendation == 'request_changes'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout PR branch
+        run: git checkout ${{ github.head_ref }}
+
+      - name: Download review artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ollama-review
+          path: /tmp
+
+      - name: Analyze and resolve our own issues
+        id: resolve
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          # Read our own review
+          ISSUES=$(jq '.issues' /tmp/review.json)
+          ISSUE_COUNT=$(echo "$ISSUES" | jq 'length')
+          
+          if [[ "$ISSUE_COUNT" == "0" ]]; then
+            echo "No issues to resolve"
+            echo "resolved=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "📋 Found $ISSUE_COUNT issues to analyze"
+          
+          # Get the diff for context
+          gh pr diff ${{ github.event.pull_request.number }} --color=never > /tmp/diff.txt 2>/dev/null || true
+          
+          cat > /tmp/prompt.txt << 'EOF'
+          You are resolving issues from your own code review. For each issue, determine:
+          
+          1. Is this a REAL issue that needs fixing? Or is it an INTENTIONAL change that should be acknowledged?
+          2. If it needs fixing, provide exact old_content and new_content for search/replace
+          3. If it's intentional (e.g., "file deleted" when deletion was the goal), mark as acknowledged
+          
+          Categories:
+          - fix: Real issue, provide fix
+          - acknowledge: Intentional change, no fix needed
+          - dismiss: False positive or not actionable
+          
+          Respond with JSON:
+          {
+            "resolutions": [
+              {
+                "issue_description": "original issue",
+                "category": "fix|acknowledge|dismiss", 
+                "reason": "why this resolution",
+                "file": "path if fix",
+                "old_content": "if fix",
+                "new_content": "if fix"
+              }
+            ],
+            "summary": "overall summary",
+            "all_resolved": true/false
+          }
+          
+          ISSUES TO RESOLVE:
+          EOF
+          
+          echo "$ISSUES" >> /tmp/prompt.txt
+          echo -e "\n\nCURRENT DIFF:\n" >> /tmp/prompt.txt
+          head -c 50000 /tmp/diff.txt >> /tmp/prompt.txt
+          
+          jq -n \
+            --arg model "$OLLAMA_MODEL" \
+            --rawfile prompt /tmp/prompt.txt \
+            '{
+              model: $model,
+              messages: [
+                { role: "system", content: "Self-resolving code review agent. Be practical - acknowledge intentional changes, fix real issues. JSON only." },
+                { role: "user", content: $prompt }
+              ],
+              options: { temperature: 0.1, num_ctx: 131072, num_predict: 8192 },
+              stream: false
+            }' > /tmp/payload.json
+          
+          if curl -sf --max-time 300 \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d @/tmp/payload.json \
+            "$OLLAMA_HOST/api/chat" > /tmp/response.json; then
+            jq -r '.message.content // empty' /tmp/response.json > /tmp/resolutions.json
+          else
+            echo '{"resolutions":[],"summary":"API error","all_resolved":false}' > /tmp/resolutions.json
+          fi
+          
+          if ! jq empty /tmp/resolutions.json 2>/dev/null; then
+            echo '{"resolutions":[],"summary":"Parse error","all_resolved":false}' > /tmp/resolutions.json
+          fi
+          
+          FIX_COUNT=$(jq '[.resolutions[] | select(.category == "fix")] | length' /tmp/resolutions.json)
+          ACK_COUNT=$(jq '[.resolutions[] | select(.category == "acknowledge")] | length' /tmp/resolutions.json)
+          ALL_RESOLVED=$(jq -r '.all_resolved' /tmp/resolutions.json)
+          
+          echo "fix_count=$FIX_COUNT" >> $GITHUB_OUTPUT
+          echo "ack_count=$ACK_COUNT" >> $GITHUB_OUTPUT
+          echo "resolved=$ALL_RESOLVED" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Apply fixes
+        if: steps.resolve.outputs.fix_count != '0'
+        run: |
+          jq -c '.resolutions[] | select(.category == "fix")' /tmp/resolutions.json | while read -r fix; do
+            FILE=$(echo "$fix" | jq -r '.file')
+            OLD=$(echo "$fix" | jq -r '.old_content')
+            NEW=$(echo "$fix" | jq -r '.new_content')
+            
+            [[ -z "$FILE" || "$FILE" == "null" ]] && continue
+            [[ "$FILE" =~ \.\./|^/ ]] && continue
+            [[ ! -f "$FILE" ]] && continue
+            
+            if grep -qF "$OLD" "$FILE"; then
+              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Fixed: $FILE"
+            fi
+          done
+
+      - name: Commit fixes
+        if: steps.resolve.outputs.fix_count != '0'
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fix: self-resolve review issues (Ollama)"
+          branch: ${{ github.head_ref }}
+
+      - name: Post resolution summary
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SUMMARY=$(jq -r '.summary' /tmp/resolutions.json)
+          FIX_COUNT=${{ steps.resolve.outputs.fix_count }}
+          ACK_COUNT=${{ steps.resolve.outputs.ack_count }}
+          
+          BODY="## 🔄 Self-Resolution Complete
+
+          $SUMMARY
+
+          | Resolution | Count |
+          |------------|-------|
+          | Fixes Applied | $FIX_COUNT |
+          | Acknowledged (Intentional) | $ACK_COUNT |
+
+          <details>
+          <summary>Details</summary>
+
+          \`\`\`json
+          $(cat /tmp/resolutions.json)
+          \`\`\`
+          </details>"
+          
+          gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+          
+          # If all resolved, dismiss our own review
+          if [[ "${{ steps.resolve.outputs.resolved }}" == "true" ]]; then
+            echo "✅ All issues resolved - dismissing blocking review"
+            # Find our blocking review and dismiss it
+            REVIEW_ID=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+              --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | last | .id')
+            if [[ -n "$REVIEW_ID" && "$REVIEW_ID" != "null" ]]; then
+              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
+                -f message="All issues have been resolved or acknowledged as intentional changes." || true
+            fi
+          fi
+
   # ============================================
   # Monitor AI Feedback - Triggered on any comment/review
   # ============================================
