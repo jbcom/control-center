@@ -305,9 +305,10 @@ jobs:
         id: review
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          # Pass user_request via environment to avoid shell injection from GitHub expressions
+          USER_REQUEST: ${{ steps.context.outputs.user_request }}
         run: |
           DIFF=$(cat /tmp/pr_diff.txt)
-          USER_REQUEST="${{ steps.context.outputs.user_request }}"
           
           PROMPT="You are reviewing a PR. The user has requested additional feedback.
 
