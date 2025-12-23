@@ -336,3 +336,12 @@ Documentation work was completed directly by bc-fcfe779a instead.
 
 ---
 *Log maintained via agentic-control tooling*
+
+## Session: 2025-12-23 (Dependabot Configuration Fix)
+
+### Completed
+- [x] Rename `.github/dependabot.yamy` to `.github/dependabot.yml`
+- [x] Configure Dependabot for `github-actions` and `docker` in Control Center
+- [x] Implement grouping for major and minor updates to reduce noise
+- [x] Update shared Dependabot template for all managed repositories
+- [x] Staged changes for commit in `feat/dependabot` branch
