@@ -37,20 +37,20 @@ group:
       jbcom/python-extended-data-types
       jbcom/python-directed-inputs-class
       jbcom/python-lifecyclelogging
-      jbcom/python-terraform-bridge
-      jbcom/python-rivers-of-reckoning
-      jbcom/python-ai-game-dev
+      jbcom/python-agentic-game-development
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
-      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
       jbcom/nodejs-otterfall
       jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
       jbcom/jbcom.github.io
       jbcom/go-secretsync
-      jbcom/terraform-github-markdown
-      jbcom/terraform-repository-automation
+      jbcom/rust-cosmic-cults
+      jbcom/rust-agentic-game-generator
 
   # ============================================================================
   # Python ecosystem - language-specific rules
@@ -67,9 +67,7 @@ group:
       jbcom/python-extended-data-types
       jbcom/python-directed-inputs-class
       jbcom/python-lifecyclelogging
-      jbcom/python-terraform-bridge
-      jbcom/python-rivers-of-reckoning
-      jbcom/python-ai-game-dev
+      jbcom/python-agentic-game-development
 
   # ============================================================================
   # Node.js ecosystem - language-specific rules
@@ -84,7 +82,9 @@ group:
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
-      jbcom/nodejs-otter-river-rush
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
       jbcom/nodejs-otterfall
       jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
@@ -105,12 +105,17 @@ group:
   # ============================================================================
   # Terraform ecosystem - language-specific rules
   # ============================================================================
+  # No active public Terraform repos (both were private)
+  
+  # ============================================================================
+  # Rust ecosystem - language-specific rules
+  # ============================================================================
   - files:
-      - source: repository-files/terraform/.cursor/
+      - source: repository-files/rust/.cursor/
         dest: .cursor/
         deleteOrphaned: false
-      - source: repository-files/terraform/.github/copilot-instructions.md
+      - source: repository-files/rust/.github/copilot-instructions.md
         dest: .github/copilot-instructions.md
-    repos: &terraform_repos |
-      jbcom/terraform-github-markdown
-      jbcom/terraform-repository-automation
+    repos: &rust_repos |
+      jbcom/rust-cosmic-cults
+      jbcom/rust-agentic-game-generator
