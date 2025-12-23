@@ -1054,6 +1054,24 @@ jobs:
             exit 1
           fi
 
+          # Validate the response contains valid TOML before writing
+          echo "$UPDATED_PYPROJECT" | python3 -c "
+          import sys
+          try:
+              import tomllib
+          except ImportError:
+              import tomli as tomllib
+          try:
+              tomllib.loads(sys.stdin.read())
+              print('Valid TOML')
+          except Exception as e:
+              print(f'Invalid TOML: {e}')
+              sys.exit(1)
+          " || {
+            echo "Error: AI response is not valid TOML"
+            exit 1
+          }
+          
           # Write the updated file
           echo "$UPDATED_PYPROJECT" > pyproject.toml
           echo "Updated pyproject.toml successfully"
