@@ -10,7 +10,6 @@ globs: ["**/*"]
 
 This is **jbcom-control-center**, the unified control center for:
 - **jbcom packages**: Python/TypeScript/Go packages in `packages/`
-- **FSC infrastructure**: Terraform/SAM in `ecosystems//`
 - **Centralized configs**: Cursor rules synced to public repos
 
 ### First Steps
@@ -33,7 +32,6 @@ cat memory-bank/progress.md
 ```bash
 # All repos - gh CLI auto-uses GITHUB_TOKEN
 gh pr list --repo jbcom/jbcom-control-center
-gh pr list --repo /<repo>
 ```
 
 ## 📁 Key Locations
@@ -41,7 +39,6 @@ gh pr list --repo /<repo>
 | Path | Purpose |
 |------|---------|
 | `packages/` | All jbcom packages |
-| `ecosystems//` | FSC infrastructure |
 | `repository-files/` | Files synced to public repos |
 | `memory-bank/` | Session context |
 | `.github/workflows/` | CI/CD |
@@ -62,5 +59,4 @@ gh pr list --repo /<repo>
 
 - Packages: `docs/JBCOM-ECOSYSTEM-INTEGRATION.md`
 - Releases: `docs/RELEASE-PROCESS.md`
-- FSC infra: `docs/FSC-INFRASTRUCTURE.md`
 - Tokens: `docs/TOKEN-MANAGEMENT.md`

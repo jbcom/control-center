@@ -7,24 +7,6 @@
         "tokenEnvVar": "GITHUB_TOKEN",
         "defaultBranch": "main",
         "isEnterprise": false
-      },
-      "": {
-        "name": "",
-        "tokenEnvVar": "GITHUB_TOKEN",
-        "defaultBranch": "main",
-        "isEnterprise": true
-      },
-      "": {
-        "name": "",
-        "tokenEnvVar": "GITHUB_TOKEN",
-        "defaultBranch": "main",
-        "isEnterprise": true
-      },
-      "": {
-        "name": "",
-        "tokenEnvVar": "GITHUB_TOKEN",
-        "defaultBranch": "main",
-        "isEnterprise": true
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN",

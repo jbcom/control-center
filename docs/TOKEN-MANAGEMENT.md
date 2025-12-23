@@ -32,10 +32,6 @@ The config maps all organizations to use the unified token:
       "jbcom": {
         "name": "jbcom",
         "tokenEnvVar": "GITHUB_TOKEN"
-      },
-      "": {
-        "name": "", 
-        "tokenEnvVar": "GITHUB_TOKEN"
       }
     },
     "defaultTokenEnvVar": "GITHUB_TOKEN"
@@ -52,7 +48,6 @@ The `gh` CLI automatically uses `GITHUB_TOKEN` from environment:
 ```bash
 # All repos work without explicit token
 gh pr list --repo jbcom/jbcom-control-center
-gh pr list --repo /terraform-modules
 gh issue create --repo jbcom/agentic-control
 ```
 
@@ -74,7 +69,7 @@ The unified token requires these scopes:
 - `repo` - Full repository access
 - `workflow` - GitHub Actions
 - `write:packages` - Package publishing (npm, PyPI)
-- `admin:org` - Organization management (for enterprise repos)
+- `admin:org` - Organization management
 
 ## CI/CD Workflows
 
@@ -113,7 +108,7 @@ Token lacks required scopes. Check permissions and regenerate if needed.
 
 ### "Organization access denied"
 
-For  or enterprise orgs, ensure:
+Ensure:
 1. Token has org access enabled
 2. SSO authorization completed (if required)
 

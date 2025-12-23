@@ -239,15 +239,9 @@ Different file types have different sync semantics:
    - Mission: Complete CI, publish Docker/Helm, merge PR #1
    - URL: https://cursor.com/agents?id=bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
 
-2. **cluster-ops Agent** (`bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c`)
-   - Repository: /cluster-ops
-   - Branch: proposal/vault-secret-sync
-   - Mission: Complete PR #154, integrate vault-secret-sync fork
-   - URL: https://cursor.com/agents?id=bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c
-
 ### Handoff Protocol
 
-Both agents instructed to:
+Agent instructed to:
 - Request AI reviews (`/gemini review`, `/q review`)
 - Post `🚨 USER ACTION REQUIRED` comments when needing tokens/auth
 - Coordinate via PR comments
