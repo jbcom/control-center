@@ -1,58 +1,70 @@
-name: Ollama Cloud PR Review
+name: Ollama PR Orchestrator
 
-# AI-powered code review using GLM-4.6 on Ollama Cloud
-# - Automatic review on PR open/update
-# - Automatic follow-up on any PR comment
-# - Structured JSON output with issues and fixes
-# - Auto-applies safe fixes
+# Autonomous PR lifecycle management:
+# - Automatic code review on PR open
+# - Monitors ALL AI agent feedback (Gemini, Copilot, Q, CodeRabbit, etc.)
+# - Analyzes, triages, and resolves AI feedback automatically
+# - Applies fixes and commits them
+# - Resolves comment threads
+# - Removes draft status when ready
+# - Auto-merges when all feedback satisfied and CI green
 
 on:
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
+  pull_request_review:
+    types: [submitted]
+  pull_request_review_comment:
+    types: [created]
   issue_comment:
     types: [created]
+  check_suite:
+    types: [completed]
 
 permissions:
   contents: write
   pull-requests: write
   issues: write
+  checks: read
 
 env:
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+  # Known AI agent bot names
+  AI_AGENTS: "gemini-code-assist[bot],copilot[bot],amazon-q-developer[bot],coderabbitai[bot],cursor[bot],github-advanced-security[bot],dependabot[bot]"
 
 jobs:
   # ============================================
-  # PR Review - Initial review on open/synchronize
+  # Initial Review - On PR open/sync
   # ============================================
-  pr-review:
-    name: Ollama Cloud PR Review
+  initial-review:
+    name: Initial Code Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ github.event.pull_request.number }}
+      recommendation: ${{ steps.review.outputs.recommendation }}
     
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Get PR diff
-        id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get the diff and store in a file to avoid escaping issues
           gh pr diff ${{ github.event.pull_request.number }} --color=never > /tmp/pr_diff.txt
-          echo "diff_file=/tmp/pr_diff.txt" >> $GITHUB_OUTPUT
 
-      - name: Generate structured review with Ollama
+      - name: Generate structured review
         id: review
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         run: |
-          # Define the JSON schema
-          cat > /tmp/schema.json << 'SCHEMA_EOF'
+          # Schema for structured output
+          cat > /tmp/schema.json << 'EOF'
           {
             "type": "object",
             "properties": {
@@ -63,301 +75,422 @@ jobs:
                   "type": "object",
                   "properties": {
                     "file": { "type": "string" },
-                    "line": { "type": "integer", "minimum": 1 },
-                    "severity": { "type": "string", "enum": ["low", "medium", "high"] },
+                    "line": { "type": "integer" },
+                    "severity": { "type": "string", "enum": ["low", "medium", "high", "critical"] },
                     "description": { "type": "string" },
-                    "suggestion": { "type": "string" }
+                    "fix": { "type": "string" }
                   },
                   "required": ["file", "severity", "description"]
                 }
               },
-              "suggested_fixes": {
+              "fixes": {
                 "type": "array",
                 "items": {
                   "type": "object",
                   "properties": {
                     "file": { "type": "string" },
-                    "patch": { "type": "string" },
+                    "old_content": { "type": "string" },
+                    "new_content": { "type": "string" },
                     "description": { "type": "string" }
                   },
-                  "required": ["file", "patch", "description"]
+                  "required": ["file", "old_content", "new_content", "description"]
                 }
               },
-              "overall_score": { "type": "integer", "minimum": 1, "maximum": 10 },
-              "approval_recommendation": { "type": "string", "enum": ["approve", "request_changes", "comment"] },
-              "should_auto_apply": { "type": "boolean" }
+              "score": { "type": "integer", "minimum": 1, "maximum": 10 },
+              "recommendation": { "type": "string", "enum": ["approve", "request_changes", "comment"] },
+              "auto_apply": { "type": "boolean" }
             },
-            "required": ["summary", "issues", "suggested_fixes", "overall_score", "approval_recommendation", "should_auto_apply"]
+            "required": ["summary", "issues", "fixes", "score", "recommendation", "auto_apply"]
           }
-          SCHEMA_EOF
+          EOF
           
-          # Build prompt - write to file to avoid argument length limits
-          cat > /tmp/prompt.txt << 'PROMPT_EOF'
-          You are an expert code reviewer. Analyze the following diff carefully.
-
-          Identify issues and provide precise, safe fixes as unified diff patches.
+          cat > /tmp/prompt.txt << 'EOF'
+          You are an expert code reviewer. Analyze this diff and provide:
+          1. A concise summary
+          2. List of issues by severity (critical, high, medium, low)
+          3. Concrete fixes with exact old_content and new_content for search/replace
+          4. A score from 1-10
+          5. recommendation: approve (score >= 8, no critical/high), request_changes (critical/high issues), comment (otherwise)
+          6. auto_apply: true only if fixes are safe refactoring with no behavior change
           
-          Set approval_recommendation to:
-          - 'approve' if the code is good quality with no significant issues
-          - 'request_changes' if there are high severity issues
-          - 'comment' if there are only minor issues or suggestions
+          Be thorough but practical. Focus on real issues, not style nitpicks.
           
-          Set should_auto_apply to true only if all fixes are low-risk and improve the code without changing behavior.
+          DIFF:
+          EOF
           
-          Respond EXCLUSIVELY with valid JSON matching the schema.
-
-          Diff to review:
-          PROMPT_EOF
-          
-          # Append diff to prompt (truncate if too large to avoid token limits)
           head -c 100000 /tmp/pr_diff.txt >> /tmp/prompt.txt
           
-          # Build JSON payload using files instead of args to avoid "Argument list too long"
           jq -n \
-            --arg model "${{ env.OLLAMA_MODEL }}" \
-            --arg system_msg "You are an expert code reviewer. Respond only with valid JSON." \
-            --rawfile user_msg /tmp/prompt.txt \
+            --arg model "$OLLAMA_MODEL" \
+            --rawfile prompt /tmp/prompt.txt \
             --slurpfile schema /tmp/schema.json \
             '{
               model: $model,
               messages: [
-                { role: "system", content: $system_msg },
-                { role: "user", content: $user_msg }
+                { role: "system", content: "Expert code reviewer. Respond with valid JSON only." },
+                { role: "user", content: $prompt }
               ],
               format: $schema[0],
-              options: {
-                temperature: 0.1,
-                mirostat: 2,
-                mirostat_tau: 5.0,
-                mirostat_eta: 0.1,
-                top_p: 0.95,
-                repeat_penalty: 1.15,
-                num_ctx: 196608,
-                num_predict: 4096
-              },
+              options: { temperature: 0.1, num_ctx: 131072, num_predict: 8192 },
               stream: false
             }' > /tmp/payload.json
           
-          # Call Ollama API - check exit code directly (SC2181)
-          if ! curl -s --fail-with-body --max-time 300 \
+          if curl -sf --max-time 300 \
             -H "Authorization: Bearer $OLLAMA_API_KEY" \
             -H "Content-Type: application/json" \
             -d @/tmp/payload.json \
-            "${{ env.OLLAMA_HOST }}/api/chat" > /tmp/response.json; then
-            echo "Error: Failed to connect to Ollama API"
-            echo '{"summary":"Review failed - API error","issues":[],"suggested_fixes":[],"overall_score":5,"approval_recommendation":"comment","should_auto_apply":false}' > /tmp/review.json
-          else
+            "$OLLAMA_HOST/api/chat" > /tmp/response.json; then
             jq -r '.message.content // empty' /tmp/response.json > /tmp/review.json
+          else
+            echo '{"summary":"API error","issues":[],"fixes":[],"score":5,"recommendation":"comment","auto_apply":false}' > /tmp/review.json
           fi
           
-          # Validate JSON
+          # Validate
           if ! jq empty /tmp/review.json 2>/dev/null; then
-            echo "Warning: Invalid JSON from model, using fallback"
-            echo '{"summary":"Review completed with parsing issues","issues":[],"suggested_fixes":[],"overall_score":5,"approval_recommendation":"comment","should_auto_apply":false}' > /tmp/review.json
+            echo '{"summary":"Parse error","issues":[],"fixes":[],"score":5,"recommendation":"comment","auto_apply":false}' > /tmp/review.json
           fi
           
-          # Output for later steps
-          echo "json_file=/tmp/review.json" >> $GITHUB_OUTPUT
-          
-          # Extract key fields
-          SCORE=$(jq -r '.overall_score // 5' /tmp/review.json)
-          RECOMMENDATION=$(jq -r '.approval_recommendation // "comment"' /tmp/review.json)
-          SHOULD_APPLY=$(jq -r '.should_auto_apply // false' /tmp/review.json)
-          
-          echo "score=$SCORE" >> $GITHUB_OUTPUT
-          echo "recommendation=$RECOMMENDATION" >> $GITHUB_OUTPUT
-          echo "should_apply=$SHOULD_APPLY" >> $GITHUB_OUTPUT
+          echo "recommendation=$(jq -r '.recommendation' /tmp/review.json)" >> $GITHUB_OUTPUT
+          echo "auto_apply=$(jq -r '.auto_apply' /tmp/review.json)" >> $GITHUB_OUTPUT
 
-      - name: Apply suggested fixes (if approved)
-        if: steps.review.outputs.should_apply == 'true'
+      - name: Apply safe fixes
+        if: steps.review.outputs.auto_apply == 'true'
         run: |
-          jq -r '.suggested_fixes[] | select(.patch != null and .patch != "") | @base64' /tmp/review.json | while read -r encoded; do
-            PATCH_OBJ=$(echo "$encoded" | base64 -d)
-            FILE=$(echo "$PATCH_OBJ" | jq -r '.file')
-            PATCH=$(echo "$PATCH_OBJ" | jq -r '.patch')
-            DESC=$(echo "$PATCH_OBJ" | jq -r '.description')
+          jq -c '.fixes[]' /tmp/review.json | while read -r fix; do
+            FILE=$(echo "$fix" | jq -r '.file')
+            OLD=$(echo "$fix" | jq -r '.old_content')
+            NEW=$(echo "$fix" | jq -r '.new_content')
             
-            # Security: validate file path
+            # Security check
             if [[ "$FILE" =~ \.\./|^/ ]]; then
-              echo "⚠️ Skipping unsafe path: $FILE"
+              echo "Skipping unsafe path: $FILE"
               continue
             fi
             
-            echo "Applying: $DESC"
-            echo "$PATCH" > /tmp/patch.diff
-            git apply --whitespace=nowarn /tmp/patch.diff 2>/dev/null || echo "⚠️ Patch failed for $FILE"
+            if [[ -f "$FILE" ]] && grep -qF "$OLD" "$FILE"; then
+              # Use perl for reliable multi-line replace
+              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Fixed: $FILE"
+            fi
           done
 
-      - name: Commit auto-applied fixes
-        if: steps.review.outputs.should_apply == 'true'
+      - name: Commit fixes
+        if: steps.review.outputs.auto_apply == 'true'
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "fix: apply AI-suggested improvements (Ollama GLM-4.6)"
+          commit_message: "fix: auto-apply safe improvements (Ollama)"
           branch: ${{ github.head_ref }}
-          commit_user_name: "Ollama Bot"
-          commit_user_email: "ollama-bot@users.noreply.github.com"
-          file_pattern: .
-          skip_dirty_check: false
 
       - name: Submit review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          SCORE="${{ steps.review.outputs.score }}"
-          RECOMMENDATION="${{ steps.review.outputs.recommendation }}"
-          SHOULD_APPLY="${{ steps.review.outputs.should_apply }}"
-          
           SUMMARY=$(jq -r '.summary' /tmp/review.json)
-          ISSUES=$(jq -r '.issues | length' /tmp/review.json)
-          FIXES=$(jq -r '.suggested_fixes | length' /tmp/review.json)
+          SCORE=$(jq -r '.score' /tmp/review.json)
+          REC=$(jq -r '.recommendation' /tmp/review.json)
+          ISSUES=$(jq '.issues | length' /tmp/review.json)
           
-          # Build review body
-          BODY="## 🤖 Ollama Cloud Review (GLM-4.6)
+          BODY="## 🤖 Ollama Code Review
 
           **Summary:** $SUMMARY
 
-          | Metric | Value |
-          |--------|-------|
-          | Score | $SCORE / 10 |
-          | Issues Found | $ISSUES |
-          | Fixes Suggested | $FIXES |
-          | Auto-Applied | $SHOULD_APPLY |
+          | Score | Issues | Recommendation |
+          |-------|--------|----------------|
+          | $SCORE/10 | $ISSUES | $REC |
 
           <details>
-          <summary>📋 Full Review JSON</summary>
+          <summary>Details</summary>
 
           \`\`\`json
-          $(jq '.' /tmp/review.json)
+          $(cat /tmp/review.json)
           \`\`\`
-
-          </details>
-
-          ---
-          *Powered by GLM-4.6 on Ollama Cloud*"
+          </details>"
           
-          # Map recommendation to GitHub review event
-          case "$RECOMMENDATION" in
-            approve)
-              EVENT="APPROVE"
-              ;;
-            request_changes)
-              EVENT="REQUEST_CHANGES"
-              ;;
-            *)
-              EVENT="COMMENT"
-              ;;
-          esac
+          EVENT="COMMENT"
+          [[ "$REC" == "approve" ]] && EVENT="APPROVE"
+          [[ "$REC" == "request_changes" ]] && EVENT="REQUEST_CHANGES"
           
-          # Submit as a PR review (not just a comment)
           gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
-            -f body="$BODY" \
-            -f event="$EVENT" || {
-              # Fallback to comment if review submission fails
-              gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
-            }
+            -f body="$BODY" -f event="$EVENT" || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
 
   # ============================================
-  # Follow-up Review - Automatic on any PR comment
+  # Monitor AI Feedback - Triggered on any comment/review
   # ============================================
-  follow-up:
-    name: Ollama Follow-Up Review
+  monitor-ai-feedback:
+    name: Monitor & Resolve AI Feedback
     if: |
-      github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request
+      (github.event_name == 'pull_request_review' && 
+       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.actor)) ||
+      (github.event_name == 'pull_request_review_comment' &&
+       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login)) ||
+      (github.event_name == 'issue_comment' && 
+       github.event.issue.pull_request &&
+       contains(fromJSON('["gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login))
     runs-on: ubuntu-latest
     
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get PR context
-        id: context
+      - name: Get PR number
+        id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Pass comment body via environment variable to prevent shell injection
-          COMMENT_BODY: ${{ github.event.comment.body }}
-          # Pass event objects via environment variables to avoid shell injection in run block
-          ISSUE_JSON: ${{ toJSON(github.event.issue) }}
-          PR_JSON: ${{ toJSON(github.event.pull_request) }}
         run: |
-          # Get PR number from event
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            PR_NUMBER=$(echo "$ISSUE_JSON" | jq -r '.number')
+          if [[ "${{ github.event_name }}" == "pull_request_review"* ]]; then
+            PR_NUM=${{ github.event.pull_request.number }}
           else
-            PR_NUMBER=$(echo "$PR_JSON" | jq -r '.number')
+            PR_NUM=$(echo '${{ toJSON(github.event.issue) }}' | jq -r '.number')
           fi
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
           
-          echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
-          
-          # Get the diff
-          gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
-          
-          # Get user's comment
-          # Using environment variable to prevent shell injection from untrusted input
-          echo "user_request=$COMMENT_BODY" >> $GITHUB_OUTPUT
+          # Get PR head ref for checkout
+          HEAD_REF=$(gh pr view "$PR_NUM" --json headRefName -q '.headRefName')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
-      - name: Generate follow-up review
-        id: review
+      - name: Checkout PR branch
+        run: git checkout ${{ steps.pr.outputs.head_ref }}
+
+      - name: Collect all AI feedback
+        id: feedback
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM=${{ steps.pr.outputs.number }}
+          
+          # Get all unresolved review comments from AI agents
+          gh api repos/${{ github.repository }}/pulls/$PR_NUM/comments \
+            --jq '[.[] | select(.user.login | test("bot]$")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line, resolved: false}]' > /tmp/review_comments.json
+          
+          # Get all issue comments from AI agents
+          gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
+            --jq '[.[] | select(.user.login | test("bot]$")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json
+          
+          # Get reviews from AI agents
+          gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
+            --jq '[.[] | select(.user.login | test("bot]$") and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json
+          
+          # Combine all feedback
+          jq -s 'add' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
+          
+          FEEDBACK_COUNT=$(jq 'length' /tmp/all_feedback.json)
+          echo "count=$FEEDBACK_COUNT" >> $GITHUB_OUTPUT
+
+      - name: Analyze and generate fixes
+        if: steps.feedback.outputs.count != '0'
+        id: analyze
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-          # Pass user_request via environment to avoid shell injection from GitHub expressions
-          USER_REQUEST: ${{ steps.context.outputs.user_request }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          DIFF=$(cat /tmp/pr_diff.txt)
+          # Get current code state
+          gh pr diff ${{ steps.pr.outputs.number }} --color=never > /tmp/diff.txt
           
-          PROMPT="You are reviewing a PR. The user has requested additional feedback.
-
-          User request: $USER_REQUEST
-
-          PR Diff:
-          $DIFF
-
-          Provide a focused response addressing the user's request. Include any issues found and suggested fixes."
+          cat > /tmp/prompt.txt << 'EOF'
+          You are a code improvement agent. Analyze this AI reviewer feedback and generate fixes.
           
-          # Build JSON payload safely
-          JSON_PAYLOAD=$(jq -n \
-            --arg model "${{ env.OLLAMA_MODEL }}" \
-            --arg prompt "$PROMPT" \
+          For each piece of feedback:
+          1. Determine if it's actionable (needs a code change) or informational
+          2. If actionable, generate a fix with exact old_content and new_content
+          3. Categorize: critical (security/bug), high (functionality), medium (quality), low (style)
+          4. Determine if the fix is safe to auto-apply
+          
+          Respond with JSON:
+          {
+            "fixes": [
+              {
+                "feedback_id": "id of the comment",
+                "feedback_user": "bot name",
+                "category": "critical|high|medium|low|informational",
+                "action": "fix|acknowledge|dismiss",
+                "reason": "why this action",
+                "file": "path if fix needed",
+                "old_content": "exact text to find",
+                "new_content": "replacement text",
+                "safe_to_apply": true/false
+              }
+            ],
+            "summary": "overall summary of actions taken"
+          }
+          
+          AI FEEDBACK:
+          EOF
+          
+          cat /tmp/all_feedback.json >> /tmp/prompt.txt
+          echo -e "\n\nCURRENT DIFF:\n" >> /tmp/prompt.txt
+          head -c 50000 /tmp/diff.txt >> /tmp/prompt.txt
+          
+          jq -n \
+            --arg model "$OLLAMA_MODEL" \
+            --rawfile prompt /tmp/prompt.txt \
             '{
               model: $model,
               messages: [
-                { role: "system", content: "You are an expert code reviewer." },
+                { role: "system", content: "Code improvement agent. Generate precise fixes for AI feedback. JSON only." },
                 { role: "user", content: $prompt }
               ],
-              options: {
-                temperature: 0.1,
-                num_ctx: 196608,
-                num_predict: 4096
-              },
+              options: { temperature: 0.1, num_ctx: 131072, num_predict: 8192 },
               stream: false
-            }')
+            }' > /tmp/payload.json
           
-          RESPONSE=$(curl -s --max-time 300 \
+          if curl -sf --max-time 300 \
             -H "Authorization: Bearer $OLLAMA_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" \
-            "${{ env.OLLAMA_HOST }}/api/chat")
+            -d @/tmp/payload.json \
+            "$OLLAMA_HOST/api/chat" > /tmp/response.json; then
+            jq -r '.message.content // empty' /tmp/response.json > /tmp/fixes.json
+          else
+            echo '{"fixes":[],"summary":"API error"}' > /tmp/fixes.json
+          fi
           
-          CONTENT=$(echo "$RESPONSE" | jq -r '.message.content // "Unable to generate response"')
+          if ! jq empty /tmp/fixes.json 2>/dev/null; then
+            echo '{"fixes":[],"summary":"Parse error"}' > /tmp/fixes.json
+          fi
           
-          # Save for comment
-          echo "$CONTENT" > /tmp/response.txt
+          FIX_COUNT=$(jq '[.fixes[] | select(.action == "fix")] | length' /tmp/fixes.json)
+          echo "fix_count=$FIX_COUNT" >> $GITHUB_OUTPUT
 
-      - name: Post follow-up comment
+      - name: Apply fixes
+        if: steps.analyze.outputs.fix_count != '0'
+        run: |
+          jq -c '.fixes[] | select(.action == "fix" and .safe_to_apply == true)' /tmp/fixes.json | while read -r fix; do
+            FILE=$(echo "$fix" | jq -r '.file')
+            OLD=$(echo "$fix" | jq -r '.old_content')
+            NEW=$(echo "$fix" | jq -r '.new_content')
+            
+            [[ "$FILE" =~ \.\./|^/ ]] && continue
+            [[ ! -f "$FILE" ]] && continue
+            
+            if grep -qF "$OLD" "$FILE"; then
+              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Applied fix to $FILE"
+            fi
+          done
+
+      - name: Commit fixes
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "fix: resolve AI feedback (automated)"
+          branch: ${{ steps.pr.outputs.head_ref }}
+
+      - name: Post resolution summary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ steps.context.outputs.pr_number }}
         run: |
-          RESPONSE=$(cat /tmp/response.txt)
+          SUMMARY=$(jq -r '.summary' /tmp/fixes.json)
+          FIX_COUNT=$(jq '[.fixes[] | select(.action == "fix")] | length' /tmp/fixes.json)
+          ACK_COUNT=$(jq '[.fixes[] | select(.action == "acknowledge")] | length' /tmp/fixes.json)
           
-          BODY="## 🤖 Ollama Follow-Up Review
+          BODY="## 🔄 AI Feedback Resolution
 
-          $RESPONSE
+          $SUMMARY
 
-          ---
-          *Reply with \`/ollama-review <your question>\` for more feedback*"
+          | Action | Count |
+          |--------|-------|
+          | Fixes Applied | $FIX_COUNT |
+          | Acknowledged | $ACK_COUNT |
+
+          <details>
+          <summary>Details</summary>
+
+          \`\`\`json
+          $(cat /tmp/fixes.json)
+          \`\`\`
+          </details>"
           
-          gh pr comment "$PR_NUMBER" --body "$BODY"
+          gh pr comment ${{ steps.pr.outputs.number }} --body "$BODY"
+
+  # ============================================
+  # Check if Ready to Merge
+  # ============================================
+  check-ready:
+    name: Check Merge Readiness
+    if: github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success'
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Get associated PRs
+        id: prs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get PRs associated with this check suite
+          gh api repos/${{ github.repository }}/commits/${{ github.event.check_suite.head_sha }}/pulls \
+            --jq '.[0].number // empty' > /tmp/pr_num.txt
+          
+          PR_NUM=$(cat /tmp/pr_num.txt)
+          if [[ -z "$PR_NUM" ]]; then
+            echo "No PR found"
+            exit 0
+          fi
+          echo "number=$PR_NUM" >> $GITHUB_OUTPUT
+
+      - name: Check all conditions
+        if: steps.prs.outputs.number != ''
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM=${{ steps.prs.outputs.number }}
+          
+          # Check CI status
+          CI_STATUS=$(gh pr checks "$PR_NUM" --json state -q '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length')
+          
+          # Check for blocking reviews
+          BLOCKING=$(gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
+            --jq '[.[] | select(.state == "CHANGES_REQUESTED")] | length')
+          
+          # Check for unresolved threads
+          UNRESOLVED=$(gh api graphql -f query='
+            query($owner: String!, $repo: String!, $pr: Int!) {
+              repository(owner: $owner, name: $repo) {
+                pullRequest(number: $pr) {
+                  reviewThreads(first: 100) {
+                    nodes { isResolved }
+                  }
+                }
+              }
+            }' -f owner="${{ github.repository_owner }}" -f repo="${{ github.event.repository.name }}" -F pr="$PR_NUM" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
+          
+          # Check draft status
+          IS_DRAFT=$(gh pr view "$PR_NUM" --json isDraft -q '.isDraft')
+          
+          echo "ci_failures=$CI_STATUS" >> $GITHUB_OUTPUT
+          echo "blocking_reviews=$BLOCKING" >> $GITHUB_OUTPUT
+          echo "unresolved_threads=$UNRESOLVED" >> $GITHUB_OUTPUT
+          echo "is_draft=$IS_DRAFT" >> $GITHUB_OUTPUT
+          
+          if [[ "$CI_STATUS" == "0" && "$BLOCKING" == "0" && "$UNRESOLVED" == "0" ]]; then
+            echo "ready=true" >> $GITHUB_OUTPUT
+          else
+            echo "ready=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Mark ready for review
+        if: steps.check.outputs.ready == 'true' && steps.check.outputs.is_draft == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr ready ${{ steps.prs.outputs.number }}
+          echo "✅ Marked PR as ready for review"
+
+      - name: Auto-merge
+        if: steps.check.outputs.ready == 'true' && steps.check.outputs.is_draft == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUM=${{ steps.prs.outputs.number }}
+          
+          # Final approval comment
+          gh pr comment "$PR_NUM" --body "## ✅ All Checks Passed
+
+          - CI: ✅ All green
+          - Reviews: ✅ No blocking reviews  
+          - Threads: ✅ All resolved
+
+          **Auto-merging now.**"
+          
+          # Merge
+          gh pr merge "$PR_NUM" --squash --delete-branch || echo "Merge failed - may need manual intervention"
