@@ -27,7 +27,10 @@ release = "0.0.0"
 # Use tomllib (Python 3.11+) or tomli as fallback
 try:
     if sys.version_info >= (3, 11):
+        if sys.version_info >= (3, 11):
         import tomllib
+    else:
+        import tomli as tomllib
     else:
         try:
             import tomli as tomllib
