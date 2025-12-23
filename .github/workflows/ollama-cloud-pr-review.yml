@@ -179,9 +179,15 @@ jobs:
               continue
             fi
             
+            # Validate OLD is not empty (prevents file corruption)
+            if [[ -z "$OLD" ]]; then
+              echo "⚠️ Skipping fix with empty old_content"
+              continue
+            fi
+            
             if [[ -f "$FILE" ]] && grep -qF "$OLD" "$FILE"; then
-              # Use perl for reliable multi-line replace
-              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Fixed: $FILE"
+              # Use perl with environment variables to handle slashes in content
+              OLD="$OLD" NEW="$NEW" perl -i -p0e 's/\Q$ENV{OLD}\E/$ENV{NEW}/s' "$FILE" && echo "✅ Fixed: $FILE"
             fi
           done
 
@@ -364,8 +370,15 @@ jobs:
             [[ "$FILE" =~ \.\./|^/ ]] && continue
             [[ ! -f "$FILE" ]] && continue
             
+            # Validate OLD is not empty (prevents file corruption)
+            if [[ -z "$OLD" || "$OLD" == "null" ]]; then
+              echo "⚠️ Skipping fix with empty old_content"
+              continue
+            fi
+            
             if grep -qF "$OLD" "$FILE"; then
-              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Fixed: $FILE"
+              # Use perl with environment variables to handle slashes in content
+              OLD="$OLD" NEW="$NEW" perl -i -p0e 's/\Q$ENV{OLD}\E/$ENV{NEW}/s' "$FILE" && echo "✅ Fixed: $FILE"
             fi
           done
 
@@ -379,10 +392,12 @@ jobs:
       - name: Post resolution summary
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          RESOLVED: ${{ steps.resolve.outputs.resolved }}
+          FIX_COUNT: ${{ steps.resolve.outputs.fix_count }}
+          ACK_COUNT: ${{ steps.resolve.outputs.ack_count }}
         run: |
           SUMMARY=$(jq -r '.summary' /tmp/resolutions.json)
-          FIX_COUNT=${{ steps.resolve.outputs.fix_count }}
-          ACK_COUNT=${{ steps.resolve.outputs.ack_count }}
           
           BODY="## 🔄 Self-Resolution Complete
 
@@ -401,19 +416,19 @@ jobs:
           \`\`\`
           </details>"
           
-          gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+          gh pr comment "$PR_NUMBER" --body "$BODY"
           
           # If all resolved, dismiss ALL our blocking reviews
-          if [[ "${{ steps.resolve.outputs.resolved }}" == "true" ]]; then
+          if [[ "$RESOLVED" == "true" ]]; then
             echo "✅ All issues resolved - dismissing all blocking reviews"
             # Find ALL our blocking reviews and dismiss them
-            REVIEW_IDS=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
+            REVIEW_IDS=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
               --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | .[].id')
             
             if [[ -n "$REVIEW_IDS" ]]; then
               for REVIEW_ID in $REVIEW_IDS; do
                 echo "Dismissing review ID: $REVIEW_ID"
-                gh api -X PUT repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
+                gh api -X PUT "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
                   -f message="All issues have been resolved or acknowledged as intentional changes." || echo "⚠️ Could not dismiss review $REVIEW_ID"
               done
             else
@@ -769,8 +784,15 @@ jobs:
             [[ "$FILE" =~ \.\./|^/ ]] && continue
             [[ ! -f "$FILE" ]] && continue
             
+            # Validate OLD is not empty (prevents file corruption)
+            if [[ -z "$OLD" || "$OLD" == "null" ]]; then
+              echo "⚠️ Skipping fix with empty old_content"
+              continue
+            fi
+            
             if grep -qF "$OLD" "$FILE"; then
-              perl -i -p0e "s/\Q$OLD\E/$NEW/s" "$FILE" && echo "✅ Applied fix to $FILE"
+              # Use perl with environment variables to handle slashes in content
+              OLD="$OLD" NEW="$NEW" perl -i -p0e 's/\Q$ENV{OLD}\E/$ENV{NEW}/s' "$FILE" && echo "✅ Applied fix to $FILE"
             fi
           done
 
@@ -781,6 +803,7 @@ jobs:
           branch: ${{ steps.pr.outputs.head_ref }}
 
       - name: Post resolution summary
+        if: steps.feedback.outputs.count != '0' && steps.analyze.outputs.fix_count != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
