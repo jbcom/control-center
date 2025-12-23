@@ -212,8 +212,8 @@ env:
 
 This workflow is designed to complement existing AI review workflows:
 
-- **Claude Code**: Works alongside `claude-code.yml`
-- **Agentic Triage**: Integrates with `agentic-triage.yml`
+- **Replaces Claude Code**: This workflow replaces the legacy `claude-code.yml`.
+- **Replaces Agentic Triage**: This workflow replaces the legacy `agentic-triage.yml`.
 - **Multi-AI**: Requests reviews from Gemini and Q for comprehensive coverage
 
 ## Security Considerations
