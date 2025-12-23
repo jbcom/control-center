@@ -148,12 +148,14 @@ jobs:
   # =============================================================================
   phase-2-always:
     name: 🔄 Phase 2 - Always Sync
-    needs: [validate, phase-1-initial]
+    needs: [validate, phase-0-create-repos, phase-1-initial]
     runs-on: ubuntu-latest
     # Run even if phase-1 was skipped (when sync_type is always-only)
+    # But require phase-0 to succeed so we know repos exist
     if: |
       always() && 
       needs.validate.result == 'success' &&
+      needs.phase-0-create-repos.result == 'success' &&
       github.event.inputs.sync_type != 'initial-only' &&
       (needs.phase-1-initial.result == 'success' || needs.phase-1-initial.result == 'skipped')
     steps:
