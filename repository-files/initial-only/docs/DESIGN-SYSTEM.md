@@ -184,9 +184,9 @@ For TypeScript projects using TypeDoc:
 
 For projects using MkDocs:
 
-1. **Theme**: Use `material` theme with jbcom colors
-2. **Palette**: Configure dark mode with jbcom colors
-3. **Custom CSS**: Include `jbcom-mkdocs.css`
+1. **Theme**: Use `material` theme
+2. **Palette**: Configure dark mode (`slate` scheme) with jbcom colors
+3. **Custom CSS**: Create custom stylesheet using CSS variables from this guide
 
 ### General Requirements
 

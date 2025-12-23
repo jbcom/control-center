@@ -89,7 +89,7 @@ This repository follows the **jbcom Design System** for all documentation.
 ### Key Files
 
 - `docs/DESIGN-SYSTEM.md` - Complete brand guide
-- `docs/_static/custom.css` - Branded CSS
+- `docs/_static/jbcom-sphinx.css` - Branded CSS
 - `.cursor/rules/03-docs-branding.mdc` - Cursor AI rule
 
 See `docs/DESIGN-SYSTEM.md` for full specifications.

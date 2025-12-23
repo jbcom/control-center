@@ -3,7 +3,7 @@
 #
 # BRANDING: This project follows the jbcom Design System.
 # See docs/DESIGN-SYSTEM.md for complete brand specifications.
-# CSS: _static/custom.css provides jbcom-branded styling.
+# CSS: _static/jbcom-sphinx.css provides jbcom-branded styling.
 
 import os
 import sys

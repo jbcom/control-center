@@ -158,7 +158,7 @@ All jbcom repositories follow a unified design system for documentation.
 ### Reference Documents
 
 - `docs/DESIGN-SYSTEM.md` - Complete brand specifications
-- `docs/_static/custom.css` - jbcom-branded CSS
+- `docs/_static/jbcom-sphinx.css` - jbcom-branded CSS
 - `.cursor/rules/03-docs-branding.mdc` - Cursor rule for docs
 
 ### Documentation Checklist
