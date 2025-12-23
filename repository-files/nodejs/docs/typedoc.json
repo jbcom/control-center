@@ -1,0 +1,26 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["../src"],
+  "entryPointStrategy": "expand",
+  "out": "api",
+  "name": "API Documentation",
+  "readme": "../README.md",
+  "includeVersion": true,
+  "categorizeByGroup": true,
+  "categoryOrder": ["*"],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "excludeExternals": true,
+  "sort": ["source-order"],
+  "visibilityFilters": {
+    "protected": true,
+    "inherited": true
+  },
+  "navigationLinks": {
+    "GitHub": "https://github.com/jbcom/${PROJECT_NAME}"
+  },
+  "customCss": "jbcom-typedoc.css",
+  "darkHighlightTheme": "github-dark",
+  "lightHighlightTheme": "github-light"
+}

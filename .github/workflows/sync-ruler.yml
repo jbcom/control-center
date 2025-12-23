@@ -32,14 +32,15 @@ on:
           - jbcom/terraform-repository-automation
         default: jbcom/vendor-connectors
       model:
-        description: "Anthropic model to use"
+        description: "Ollama Cloud model to use"
         required: true
         type: choice
         options:
-          - claude-haiku-4-5
-          - claude-sonnet-4-5
-          - claude-opus-4-5
-        default: claude-sonnet-4-5
+          # GLM-4.6:cloud - Current generation (from ollama.com)
+          - glm-4.6:cloud       # Advanced reasoning and coding model
+          - qwen3-coder:480b-cloud  # Specialized coding model
+          - gpt-oss:120b-cloud  # Large general-purpose model
+        default: glm-4.6:cloud
       base_branch:
         description: "Base branch to analyze"
         required: false
@@ -216,124 +217,171 @@ jobs:
           git checkout -b "$BRANCH_NAME"
           echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
 
-      # anthropics/claude-code-action v1
-      - name: Generate ruler configuration with Claude
+      # Install Ollama CLI
+      - name: Install Ollama CLI
+        run: curl -fsSL https://ollama.com/install.sh | sh
+
+      # Configure for Cloud
+      - name: Configure Ollama for Cloud
+        run: |
+          echo "OLLAMA_HOST=https://ollama.com" >> $GITHUB_ENV
+          echo "OLLAMA_API_KEY=${{ secrets.OLLAMA_API_KEY }}" >> $GITHUB_ENV
+
+      # Register cloud model
+      - name: Register cloud model
+        run: ollama pull ${{ inputs.model }}
+
+      # Generate ruler configuration with Ollama
+      - name: Generate ruler configuration with Ollama
         id: generate
-        uses: anthropics/claude-code-action@928c84b37e02abd33f08826a2200058c68633a85
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          prompt: |
-            You are an expert at configuring AI coding assistant instructions using the Ruler framework.
-            
-            ## Repository Context
-            - **Repository**: ${{ inputs.repository }}
-            - **Primary Language**: ${{ needs.analyze.outputs.language }}
-            - **Framework**: ${{ needs.analyze.outputs.framework }}
-            - **Has existing .cursor/**: ${{ needs.analyze.outputs.has_cursor }}
-            - **Has existing .kiro/**: ${{ needs.analyze.outputs.has_kiro }}
-            
-            ## Your Task
-            Create a comprehensive `.ruler/` configuration that centralizes AI agent instructions for this codebase.
-            
-            ## Instructions
-            
-            ### 1. Initialize Ruler Structure
-            Create the following structure:
-            ```
-            .ruler/
-            ├── AGENTS.md           # Main instructions file
-            ├── ruler.toml          # Configuration
-            └── <context>.md        # Additional context-specific files
-            ```
-            
-            ### 2. Analyze the Codebase
-            - Read key files: README.md, pyproject.toml/package.json/go.mod, any existing CLAUDE.md
-            - Understand the project's purpose, architecture, and patterns
-            - If .cursor/rules/ exists, read those rules to understand existing conventions
-            - If .kiro/steering/ exists, incorporate those guidelines
-            
-            ### 3. Create .ruler/AGENTS.md
-            Write comprehensive instructions covering:
-            
-            **For Python projects:**
-            - Code style (PEP 8, type hints, docstrings)
-            - Testing conventions (pytest, fixtures, coverage)
-            - Package management (uv, pyproject.toml)
-            - Common patterns in this codebase
-            
-            **For TypeScript/JavaScript projects:**
-            - Code style (ESLint, Prettier)
-            - Testing conventions (Jest, Vitest)
-            - Package management (npm, bun)
-            - Framework-specific patterns (React, Next.js, etc.)
-            
-            **For Go projects:**
-            - Code style (gofmt, golint)
-            - Testing conventions (go test)
-            - Module structure
-            
-            **For Terraform projects:**
-            - Module conventions
-            - Variable naming
-            - Resource organization
-            
-            **For all projects:**
-            - Git workflow (conventional commits, PR process)
-            - Memory bank usage if present
-            - Agent handoff protocols
-            - Security considerations
-            
-            ### 4. Create .ruler/ruler.toml
-            Configure agents appropriately:
-            ```toml
-            default_agents = ["copilot", "claude", "cursor", "kiro", "aider"]
-            nested = false
-            
-            [gitignore]
-            enabled = true
-            
-            [agents.claude]
-            enabled = true
-            
-            [agents.cursor]
-            enabled = true
-            
-            [agents.kiro]
-            enabled = true
-            ```
-            
-            ### 5. Create Context-Specific Files (if needed)
-            For complex projects, create additional .md files:
-            - `development.md` - Development process and workflow
-            - `architecture.md` - System architecture documentation
-            - `security.md` - Security guidelines
-            
-            ### 6. Run Ruler Apply
-            After creating the configuration, run:
-            ```bash
-            ruler apply --verbose
-            ```
-            This will distribute the rules to all supported agent formats.
-            
-            ### 7. Clean Up Legacy Files
-            If migrating from direct .cursor/rules/ sync:
-            - The ruler-generated files will be in .gitignore
-            - Keep any custom rules that aren't covered by the new configuration
-            
-            ## Important Guidelines
-            - Be specific to THIS repository, not generic
-            - Reference actual files and patterns found in the codebase
-            - Don't just copy templates - tailor to the project's needs
-            - Include examples from the actual codebase where helpful
-            - Keep instructions concise but comprehensive
-            
-            ## Output
-            Create the files directly. After creating them, run `ruler apply` and verify the output.
-            
-          claude_args: |
-            --model "${{ inputs.model }}"
-            --allowedTools "Edit,MultiEdit,Write,Read,Glob,Grep,LS,Bash(ruler:*),Bash(npm:*),Bash(git:*)"
-          track_progress: true
+        run: |
+          # Build the prompt
+          PROMPT="You are an expert at configuring AI coding assistant instructions using the Ruler framework.
+
+          ## Repository Context
+          - **Repository**: ${{ inputs.repository }}
+          - **Primary Language**: ${{ needs.analyze.outputs.language }}
+          - **Framework**: ${{ needs.analyze.outputs.framework }}
+          - **Has existing .cursor/**: ${{ needs.analyze.outputs.has_cursor }}
+          - **Has existing .kiro/**: ${{ needs.analyze.outputs.has_kiro }}
+
+          ## Your Task
+          Create a comprehensive \`.ruler/\` configuration that centralizes AI agent instructions for this codebase.
+
+          ## Instructions
+
+          ### 1. Initialize Ruler Structure
+          Create the following structure:
+          \`\`\`
+          .ruler/
+          ├── AGENTS.md           # Main instructions file
+          ├── ruler.toml          # Configuration
+          └── <context>.md        # Additional context-specific files
+          \`\`\`
+
+          ### 2. Analyze the Codebase
+          - Read key files: README.md, pyproject.toml/package.json/go.mod, any existing CLAUDE.md
+          - Understand the project's purpose, architecture, and patterns
+          - If .cursor/rules/ exists, read those rules to understand existing conventions
+          - If .kiro/steering/ exists, incorporate those guidelines
+
+          ### 3. Create .ruler/AGENTS.md
+          Write comprehensive instructions covering:
+
+          **For Python projects:**
+          - Code style (PEP 8, type hints, docstrings)
+          - Testing conventions (pytest, fixtures, coverage)
+          - Package management (uv, pyproject.toml)
+          - Common patterns in this codebase
+
+          **For TypeScript/JavaScript projects:**
+          - Code style (ESLint, Prettier)
+          - Testing conventions (Jest, Vitest)
+          - Package management (npm, bun)
+          - Framework-specific patterns (React, Next.js, etc.)
+
+          **For Go projects:**
+          - Code style (gofmt, golint)
+          - Testing conventions (go test)
+          - Module structure
+
+          **For Terraform projects:**
+          - Module conventions
+          - Variable naming
+          - Resource organization
+
+          **For all projects:**
+          - Git workflow (conventional commits, PR process)
+          - Memory bank usage if present
+          - Agent handoff protocols
+          - Security considerations
+
+          ### 4. Create .ruler/ruler.toml
+          Configure agents appropriately:
+          \`\`\`toml
+          default_agents = [\"copilot\", \"claude\", \"cursor\", \"kiro\", \"aider\"]
+          nested = false
+
+          [gitignore]
+          enabled = true
+
+          [agents.claude]
+          enabled = true
+
+          [agents.cursor]
+          enabled = true
+
+          [agents.kiro]
+          enabled = true
+          \`\`\`
+
+          ### 5. Create Context-Specific Files (if needed)
+          For complex projects, create additional .md files:
+          - \`development.md\` - Development process and workflow
+          - \`architecture.md\` - System architecture documentation
+          - \`security.md\` - Security guidelines
+
+          ### 6. Run Ruler Apply
+          After creating the configuration, run:
+          \`\`\`bash
+          ruler apply --verbose
+          \`\`\`
+          This will distribute the rules to all supported agent formats.
+
+          ### 7. Clean Up Legacy Files
+          If migrating from direct .cursor/rules/ sync:
+          - The ruler-generated files will be in .gitignore
+          - Keep any custom rules that aren't covered by the new configuration
+
+          ## Important Guidelines
+          - Be specific to THIS repository, not generic
+          - Reference actual files and patterns found in the codebase
+          - Don't just copy templates - tailor to the project's needs
+          - Include examples from the actual codebase where helpful
+          - Keep instructions concise but comprehensive
+
+          ## Output
+          Create the files directly. After creating them, run \`ruler apply\` and verify the output."
+
+          # Send to Ollama API
+          RESPONSE=$(curl -s https://ollama.com/api/chat \
+            -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
+            -d "{
+              \"model\": \"${{ inputs.model }}\",
+              \"messages\": [
+                {
+                  \"role\": \"system\",
+                  \"content\": \"You are an expert AI coding assistant configuration specialist.\"
+                },
+                {
+                  \"role\": \"user\",
+                  \"content\": \"$PROMPT\"
+                }
+              ],
+              \"options\": {
+                \"temperature\": 0.1,
+                \"mirostat\": 2,
+                \"mirostat_tau\": 5.0,
+                \"mirostat_eta\": 0.1,
+                \"top_p\": 0.95,
+                \"repeat_penalty\": 1.15,
+                \"num_ctx\": 196608,
+                \"num_predict\": 4096
+              },
+              \"stream\": false
+            }")
+
+          # Extract the response content
+          CONFIG_CODE=$(echo "$RESPONSE" | jq -r '.message.content // empty')
+
+          if [ -z "$CONFIG_CODE" ] || [ "$CONFIG_CODE" = "null" ]; then
+            echo "Error: Empty or invalid response from model"
+            exit 1
+          fi
+
+          echo "Generated ruler configuration successfully"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Verify ruler output
         run: |
