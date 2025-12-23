@@ -43,6 +43,11 @@ group:
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
+      jbcom/nodejs-strata-presets
+      jbcom/nodejs-strata-shaders
       jbcom/nodejs-otter-river-rush
       jbcom/nodejs-otterfall
       jbcom/nodejs-rivermarsh
@@ -84,6 +89,11 @@ group:
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
       jbcom/nodejs-strata
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-examples
+      jbcom/nodejs-strata-presets
+      jbcom/nodejs-strata-shaders
       jbcom/nodejs-otter-river-rush
       jbcom/nodejs-otterfall
       jbcom/nodejs-rivermarsh

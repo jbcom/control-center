@@ -2,7 +2,6 @@
   "$schema": "./schemas/repo-config.schema.json",
   "version": "1.0.0",
   "description": "Comprehensive repository configuration - extracted from strata as template",
-  
   "projects": {
     "integration": {
       "id": "PVT_kwHOAChyN84BJLOn",
@@ -19,16 +18,14 @@
       "purpose": "Feature roadmap, EPICs, enhancements"
     }
   },
-  
   "_protected_fields": [
     "visibility",
-    "name", 
+    "name",
     "description",
     "homepage",
     "private",
     "archived"
   ],
-  
   "defaults": {
     "merge_settings": {
       "allow_squash_merge": true,
@@ -43,7 +40,6 @@
       "merge_commit_message": "PR_TITLE",
       "use_squash_pr_title_as_default": false
     },
-    
     "features": {
       "has_issues": true,
       "has_projects": true,
@@ -54,7 +50,6 @@
       "allow_forking": true,
       "web_commit_signoff_required": false
     },
-    
     "security": {
       "dependabot_security_updates": "enabled",
       "secret_scanning": "enabled",
@@ -63,13 +58,11 @@
       "secret_scanning_validity_checks": "disabled",
       "vulnerability_alerts": true
     },
-    
     "actions": {
       "enabled": true,
       "allowed_actions": "all",
       "sha_pinning_required": false
     },
-    
     "pages": {
       "enabled": true,
       "build_type": "workflow",
@@ -78,7 +71,6 @@
       "https_enforced": true
     }
   },
-  
   "rulesets": {
     "main": {
       "name": "Main",
@@ -86,7 +78,9 @@
       "enforcement": "active",
       "conditions": {
         "ref_name": {
-          "include": ["~DEFAULT_BRANCH"],
+          "include": [
+            "~DEFAULT_BRANCH"
+          ],
           "exclude": []
         }
       },
@@ -98,12 +92,18 @@
         }
       ],
       "rules": [
-        { "type": "non_fast_forward" },
-        { "type": "required_linear_history" },
+        {
+          "type": "non_fast_forward"
+        },
+        {
+          "type": "required_linear_history"
+        },
         {
           "type": "pull_request",
           "parameters": {
-            "allowed_merge_methods": ["squash"],
+            "allowed_merge_methods": [
+              "squash"
+            ],
             "dismiss_stale_reviews_on_push": false,
             "require_code_owner_review": false,
             "require_last_push_approval": false,
@@ -114,7 +114,6 @@
         }
       ]
     },
-    
     "prs": {
       "name": "PRs",
       "target": "branch",
@@ -122,7 +121,9 @@
       "conditions": {
         "ref_name": {
           "include": [],
-          "exclude": ["refs/heads/main"]
+          "exclude": [
+            "refs/heads/main"
+          ]
         }
       },
       "bypass_actors": [],
@@ -138,8 +139,12 @@
           "type": "copilot_code_review_analysis_tools",
           "parameters": {
             "tools": [
-              { "name": "CodeQL" },
-              { "name": "ESLint" }
+              {
+                "name": "CodeQL"
+              },
+              {
+                "name": "ESLint"
+              }
             ]
           }
         },
@@ -152,7 +157,6 @@
       ]
     }
   },
-  
   "environments": {
     "github-pages": {
       "deployment_branch_policy": {
@@ -162,40 +166,123 @@
       "can_admins_bypass": true
     }
   },
-  
   "labels": {
     "_comment": "Standard labels to sync across all repos",
     "standard": [
-      { "name": "bug", "color": "d73a4a", "description": "Something isn't working" },
-      { "name": "enhancement", "color": "a2eeef", "description": "New feature or request" },
-      { "name": "documentation", "color": "0075ca", "description": "Improvements or additions to documentation" },
-      { "name": "good first issue", "color": "7057ff", "description": "Good for newcomers" },
-      { "name": "help wanted", "color": "008672", "description": "Extra attention is needed" },
-      { "name": "question", "color": "d876e3", "description": "Further information is requested" },
-      { "name": "duplicate", "color": "cfd3d7", "description": "This issue or pull request already exists" },
-      { "name": "invalid", "color": "e4e669", "description": "This doesn't seem right" },
-      { "name": "epic", "color": "7057ff", "description": "Epic issue tracking multiple sub-tasks" },
-      { "name": "priority: critical", "color": "b60205", "description": "Critical priority - must fix immediately" },
-      { "name": "priority: high", "color": "d93f0b", "description": "High priority" },
-      { "name": "priority: medium", "color": "fbca04", "description": "Medium priority" },
-      { "name": "ci", "color": "d0cce4", "description": "CI/CD related" },
-      { "name": "queued", "color": "bdba7f", "description": "Queued for processing" },
-      { "name": "dequeued", "color": "648202", "description": "Removed from queue" },
-      { "name": "extraction", "color": "0E8A16", "description": "Work being extracted from integration branch" }
+      {
+        "name": "bug",
+        "color": "d73a4a",
+        "description": "Something isn't working"
+      },
+      {
+        "name": "enhancement",
+        "color": "a2eeef",
+        "description": "New feature or request"
+      },
+      {
+        "name": "documentation",
+        "color": "0075ca",
+        "description": "Improvements or additions to documentation"
+      },
+      {
+        "name": "good first issue",
+        "color": "7057ff",
+        "description": "Good for newcomers"
+      },
+      {
+        "name": "help wanted",
+        "color": "008672",
+        "description": "Extra attention is needed"
+      },
+      {
+        "name": "question",
+        "color": "d876e3",
+        "description": "Further information is requested"
+      },
+      {
+        "name": "duplicate",
+        "color": "cfd3d7",
+        "description": "This issue or pull request already exists"
+      },
+      {
+        "name": "invalid",
+        "color": "e4e669",
+        "description": "This doesn't seem right"
+      },
+      {
+        "name": "epic",
+        "color": "7057ff",
+        "description": "Epic issue tracking multiple sub-tasks"
+      },
+      {
+        "name": "priority: critical",
+        "color": "b60205",
+        "description": "Critical priority - must fix immediately"
+      },
+      {
+        "name": "priority: high",
+        "color": "d93f0b",
+        "description": "High priority"
+      },
+      {
+        "name": "priority: medium",
+        "color": "fbca04",
+        "description": "Medium priority"
+      },
+      {
+        "name": "ci",
+        "color": "d0cce4",
+        "description": "CI/CD related"
+      },
+      {
+        "name": "queued",
+        "color": "bdba7f",
+        "description": "Queued for processing"
+      },
+      {
+        "name": "dequeued",
+        "color": "648202",
+        "description": "Removed from queue"
+      },
+      {
+        "name": "extraction",
+        "color": "0E8A16",
+        "description": "Work being extracted from integration branch"
+      }
     ],
     "ai_agents": [
-      { "name": "Amazon Q development agent", "color": "008dff", "description": "Generate new features or iterate code based on issue descriptions and comments." },
-      { "name": "Amazon Q transform agent", "color": "7f33ff", "description": "Upgrade codebase to latest language version." },
-      { "name": "codex", "color": "ededed", "description": "Codex AI agent" },
-      { "name": "copilot-assigned", "color": "6f42c1", "description": "Assigned to GitHub Copilot Coding Agent" }
+      {
+        "name": "Amazon Q development agent",
+        "color": "008dff",
+        "description": "Generate new features or iterate code based on issue descriptions and comments."
+      },
+      {
+        "name": "Amazon Q transform agent",
+        "color": "7f33ff",
+        "description": "Upgrade codebase to latest language version."
+      },
+      {
+        "name": "codex",
+        "color": "ededed",
+        "description": "Codex AI agent"
+      },
+      {
+        "name": "copilot-assigned",
+        "color": "6f42c1",
+        "description": "Assigned to GitHub Copilot Coding Agent"
+      }
     ]
   },
-  
   "ecosystems": {
     "python": {
       "files": {
-        "always": ["always-sync", "python"],
-        "initial": ["initial-only"]
+        "always": [
+          "always-sync",
+          "python"
+        ],
+        "initial": [
+          "initial-only"
+        ]
       },
       "repos": [
         "python-agentic-crew",
@@ -221,8 +308,12 @@
               "type": "copilot_code_review_analysis_tools",
               "parameters": {
                 "tools": [
-                  { "name": "CodeQL" },
-                  { "name": "Ruff" }
+                  {
+                    "name": "CodeQL"
+                  },
+                  {
+                    "name": "Ruff"
+                  }
                 ]
               }
             },
@@ -238,13 +329,23 @@
     },
     "nodejs": {
       "files": {
-        "always": ["always-sync", "nodejs"],
-        "initial": ["initial-only"]
+        "always": [
+          "always-sync",
+          "nodejs"
+        ],
+        "initial": [
+          "initial-only"
+        ]
       },
       "repos": [
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
         "nodejs-strata",
+        "nodejs-strata-capacitor-plugin",
+        "nodejs-strata-react-native-plugin",
+        "nodejs-strata-examples",
+        "nodejs-strata-presets",
+        "nodejs-strata-shaders",
         "nodejs-otter-river-rush",
         "nodejs-otterfall",
         "nodejs-rivermarsh",
@@ -254,8 +355,13 @@
     },
     "go": {
       "files": {
-        "always": ["always-sync", "go"],
-        "initial": ["initial-only"]
+        "always": [
+          "always-sync",
+          "go"
+        ],
+        "initial": [
+          "initial-only"
+        ]
       },
       "repos": [
         "go-secretsync"
@@ -275,8 +381,12 @@
               "type": "copilot_code_review_analysis_tools",
               "parameters": {
                 "tools": [
-                  { "name": "CodeQL" },
-                  { "name": "golangci-lint" }
+                  {
+                    "name": "CodeQL"
+                  },
+                  {
+                    "name": "golangci-lint"
+                  }
                 ]
               }
             },
@@ -292,8 +402,13 @@
     },
     "terraform": {
       "files": {
-        "always": ["always-sync", "terraform"],
-        "initial": ["initial-only"]
+        "always": [
+          "always-sync",
+          "terraform"
+        ],
+        "initial": [
+          "initial-only"
+        ]
       },
       "repos": [
         "terraform-github-markdown",
@@ -302,6 +417,53 @@
       "feature_overrides": {
         "has_pages": false,
         "has_discussions": false
+      }
+    },
+    "rust": {
+      "files": {
+        "always": [
+          "always-sync",
+          "rust"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "rust-cosmic-cults",
+        "rust-agentic-game-generator"
+      ],
+      "ruleset_overrides": {
+        "prs": {
+          "rules": [
+            {
+              "type": "copilot_code_review",
+              "parameters": {
+                "review_draft_pull_requests": false,
+                "review_on_push": true
+              }
+            },
+            {
+              "type": "copilot_code_review_analysis_tools",
+              "parameters": {
+                "tools": [
+                  {
+                    "name": "CodeQL"
+                  },
+                  {
+                    "name": "Clippy"
+                  }
+                ]
+              }
+            },
+            {
+              "type": "code_quality",
+              "parameters": {
+                "severity": "errors"
+              }
+            }
+          ]
+        }
       }
     },
     "control": {

@@ -67,12 +67,43 @@ jobs:
           echo "✅ All validations passed"
 
   # =============================================================================
+  # PHASE 0: Create Repos (Idempotent)
+  # Creates any repos that don't exist yet - safe to run every time
+  # =============================================================================
+  phase-0-create-repos:
+    name: 🆕 Phase 0 - Create Repos
+    needs: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Create missing repositories
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            ./scripts/create-repos --dry-run --verbose
+          else
+            ./scripts/create-repos --verbose
+          fi
+
+      - name: Phase 0 Summary
+        run: |
+          echo "### 🆕 Phase 0: Create Repos" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Behavior:** Idempotently creates any missing repositories" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Repos are created as public with:" >> $GITHUB_STEP_SUMMARY
+          echo "- README initialized" >> $GITHUB_STEP_SUMMARY
+          echo "- Standard descriptions from repo-config.json" >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
   # PHASE 1: Initial Sync
   # Creates files ONLY if they don't exist - safe for repos with customizations
   # =============================================================================
   phase-1-initial:
     name: 📦 Phase 1 - Initial Sync
-    needs: validate
+    needs: phase-0-create-repos
     runs-on: ubuntu-latest
     if: github.event.inputs.sync_type != 'always-only'
     steps:
