@@ -203,10 +203,9 @@
         "python-extended-data-types",
         "python-directed-inputs-class",
         "python-lifecyclelogging",
-        "python-terraform-bridge",
-        "python-rivers-of-reckoning",
-        "python-ai-game-dev"
+        "python-agentic-game-development"
       ],
+      "_comment_removed_repos": "python-rivers-of-reckoning (archived), python-terraform-bridge (private), python-ai-game-dev (renamed to python-agentic-game-development)",
       "ruleset_overrides": {
         "prs": {
           "rules": [
@@ -248,12 +247,12 @@
         "nodejs-strata-capacitor-plugin",
         "nodejs-strata-react-native-plugin",
         "nodejs-strata-examples",
-        "nodejs-otter-river-rush",
         "nodejs-otterfall",
         "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
         "jbcom.github.io"
-      ]
+      ],
+      "_comment_removed_repos": "nodejs-otter-river-rush removed - private repo"
     },
     "go": {
       "files": {
@@ -298,13 +297,49 @@
         "always": ["always-sync", "terraform"],
         "initial": ["initial-only"]
       },
-      "repos": [
-        "terraform-github-markdown",
-        "terraform-repository-automation"
-      ],
+      "repos": [],
+      "_comment_removed_repos": "terraform-github-markdown and terraform-repository-automation removed - both private repos",
       "feature_overrides": {
         "has_pages": false,
         "has_discussions": false
+      }
+    },
+    "rust": {
+      "files": {
+        "always": ["always-sync", "rust"],
+        "initial": ["initial-only"]
+      },
+      "repos": [
+        "rust-cosmic-cults",
+        "rust-agentic-game-generator"
+      ],
+      "ruleset_overrides": {
+        "prs": {
+          "rules": [
+            {
+              "type": "copilot_code_review",
+              "parameters": {
+                "review_draft_pull_requests": false,
+                "review_on_push": true
+              }
+            },
+            {
+              "type": "copilot_code_review_analysis_tools",
+              "parameters": {
+                "tools": [
+                  { "name": "CodeQL" },
+                  { "name": "Clippy" }
+                ]
+              }
+            },
+            {
+              "type": "code_quality",
+              "parameters": {
+                "severity": "errors"
+              }
+            }
+          ]
+        }
       }
     },
     "control": {
@@ -313,10 +348,9 @@
         "initial": []
       },
       "repos": [
-        "control-center",
-        ".github"
+        "control-center"
       ],
-      "_comment": "Control center and org config - no file sync, just project tracking"
+      "_comment": "Control center (public) - no file sync, just project tracking. .github removed (private org config repo)"
     }
   }
 }
