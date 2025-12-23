@@ -282,17 +282,17 @@ jobs:
         run: |
           PR_NUM=${{ steps.pr.outputs.number }}
           
-          # Get all unresolved review comments from AI agents (escape brackets in regex)
+          # Get all unresolved review comments from AI agents
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/comments \
-            --jq '[.[] | select(.user.login | test("\\[bot\\]$")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line}]' > /tmp/review_comments.json || echo '[]' > /tmp/review_comments.json
+            --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line}]' > /tmp/review_comments.json || echo '[]' > /tmp/review_comments.json
           
           # Get all issue comments from AI agents
           gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
-            --jq '[.[] | select(.user.login | test("\\[bot\\]$")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json || echo '[]' > /tmp/issue_comments.json
+            --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json || echo '[]' > /tmp/issue_comments.json
           
           # Get reviews from AI agents (non-approved)
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
-            --jq '[.[] | select((.user.login | test("\\[bot\\]$")) and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json || echo '[]' > /tmp/reviews.json
+            --jq '[.[] | select((.user.login | endswith("[bot]")) and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json || echo '[]' > /tmp/reviews.json
           
           # Combine all feedback (handle empty arrays properly)
           jq -s 'map(select(. != null)) | add // []' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
