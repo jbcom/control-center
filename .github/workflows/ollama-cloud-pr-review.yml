@@ -58,11 +58,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-      # Define JSON Schema
+      # Define JSON Schema (shared across jobs)
       - name: Define JSON Schema
         id: schema
         run: |
-          SCHEMA=$(cat <<'EOF'
+          # Use a shared schema definition to avoid duplication
+          cat > /tmp/review-schema.json << 'EOF'
           {
             "type": "object",
             "properties": {
@@ -102,7 +103,8 @@ jobs:
             "additionalProperties": false
           }
           EOF
-          )
+          
+          SCHEMA=$(cat /tmp/review-schema.json)
           echo "schema=$SCHEMA" >> $GITHUB_OUTPUT
 
       # Generate structured review
