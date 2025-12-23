@@ -448,8 +448,6 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          PR_NUM=${{ github.event.pull_request.number }}
-          
           # Get all open code scanning alerts for this PR's ref
           ALERTS=$(gh api repos/${{ github.repository }}/code-scanning/alerts \
             --jq '[.[] | select(.state == "open") | {number: .number, rule: .rule.id, file: .most_recent_instance.location.path}]' 2>/dev/null || echo '[]')
@@ -480,6 +478,7 @@ jobs:
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           # Use Ollama to evaluate each autofix suggestion
           cat > /tmp/prompt.txt << 'EOF'
@@ -542,7 +541,7 @@ jobs:
             # Use the autofix commit endpoint
             if gh api repos/${{ github.repository }}/code-scanning/alerts/$ALERT_NUM/autofix \
               -X POST \
-              -f ref="refs/heads/${{ github.head_ref }}" \
+              -f ref="refs/heads/$HEAD_REF" \
               -f message="fix: apply Copilot autofix for alert #$ALERT_NUM" 2>/dev/null; then
               echo "✅ Applied autofix for alert #$ALERT_NUM"
               APPLIED=$((APPLIED + 1))
