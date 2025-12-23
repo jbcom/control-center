@@ -273,7 +273,9 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
-        run: git checkout ${{ steps.pr.outputs.head_ref }}
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: git checkout "$HEAD_REF"
 
       - name: Collect all AI feedback
         id: feedback
