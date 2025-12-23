@@ -1,0 +1,9 @@
+# Repository settings - Control ecosystem
+# Inherits from organization .github repository
+# No language-specific overrides (configuration repository)
+
+# Inherit all settings from organization .github repository
+_extends: .github
+
+# Control repositories use organization defaults
+# No language-specific linters required
