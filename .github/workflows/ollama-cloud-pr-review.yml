@@ -253,7 +253,7 @@ jobs:
       - name: Checkout PR branch
         env:
           HEAD_REF: ${{ github.head_ref }}
-        run: git checkout "$HEAD_REF"
+        run: git checkout ""$HEAD_REF"
 
       - name: Download review artifact
         uses: actions/download-artifact@v4
