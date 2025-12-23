@@ -147,7 +147,11 @@ main() {
   [[ "$DRY_RUN" == "true" ]] && log_warn "DRY RUN MODE - no changes will be made"
   echo ""
   
-  # Check gh authentication
+  # Check if gh is installed and authenticated
+  if ! command -v gh &>/dev/null; then
+    log_error "GitHub CLI (gh) is not installed. Please install it first."
+    exit 1
+  fi
   if ! gh auth status &>/dev/null; then
     log_error "Not authenticated with GitHub CLI. Run 'gh auth login' first."
     exit 1
