@@ -2,9 +2,9 @@ name: Ollama Cloud PR Review
 
 # AI-powered code review using GLM-4.6 on Ollama Cloud
 # - Automatic review on PR open/update
+# - Automatic follow-up on any PR comment
 # - Structured JSON output with issues and fixes
 # - Auto-applies safe fixes
-# - Multi-turn follow-up via /ollama-review
 
 on:
   pull_request:
@@ -257,14 +257,13 @@ jobs:
             }
 
   # ============================================
-  # Follow-up Review - Handle /ollama-review comments
+  # Follow-up Review - Automatic on any PR comment
   # ============================================
   follow-up:
     name: Ollama Follow-Up Review
     if: |
       github.event_name == 'issue_comment' &&
-      github.event.issue.pull_request &&
-      contains(github.event.comment.body, '/ollama-review')
+      github.event.issue.pull_request
     runs-on: ubuntu-latest
     
     steps:
@@ -291,10 +290,9 @@ jobs:
           # Get the diff
           gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
           
-          # Get user's comment (the part after /ollama-review)
+          # Get user's comment
           # Using environment variable to prevent shell injection from untrusted input
-          USER_REQUEST=$(echo "$COMMENT_BODY" | sed 's|.*/ollama-review||' | xargs)
-          echo "user_request=$USER_REQUEST" >> $GITHUB_OUTPUT
+          echo "user_request=$COMMENT_BODY" >> $GITHUB_OUTPUT
 
       - name: Generate follow-up review
         id: review
