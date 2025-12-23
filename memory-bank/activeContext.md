@@ -619,3 +619,38 @@ Investigated actual failures in the Ecosystem Sync workflow on main branch.
 - Monitor next Ecosystem Sync workflow run to verify fixes
 - If repos `go-port-api` and `go-vault-secret-sync` are created later, add them back to config
 
+
+## Session: 2025-12-23 (Agent Session)
+
+### Context
+PR #413 - Ollama Cloud AI PR Review Workflow had issues where the automated workflow was posting "Self-Resolution Complete" messages without actually fixing the identified issues.
+
+### Issues Identified & Fixed
+
+1. **Perl substitution failing with slashes** (HIGH)
+   - Problem: `perl -i -p0e "s/\Q$OLD\E/$NEW/s"` failed when content contained `/`
+   - Fix: Use `OLD="$OLD" NEW="$NEW" perl -i -p0e 's/\Q$ENV{OLD}\E/$ENV{NEW}/s'`
+
+2. **Empty old_content causing file corruption** (MEDIUM)
+   - Problem: No validation of OLD before perl replace
+   - Fix: Added `if [[ -z "$OLD" || "$OLD" == "null" ]]; then continue; fi`
+
+3. **Post resolution summary running with missing data** (HIGH)
+   - Problem: Step ran even when analyze step was skipped
+   - Fix: Added `if: steps.feedback.outputs.count != '0' && steps.analyze.outputs.fix_count != ''`
+
+4. **Code injection from step outputs** (CRITICAL)
+   - Problem: `${{ steps.resolve.outputs.resolved }}` used directly in shell
+   - Fix: Moved to env var `RESOLVED: ${{ steps.resolve.outputs.resolved }}`
+
+5. **CodeQL false positives dismissed**
+   - 3 "untrusted checkout" alerts dismissed with explanation
+   - Jobs have `if: github.event_name == 'pull_request'` guards
+
+### Outcome
+PR #413 was merged by jbdevprimary at 2025-12-23T09:05:05Z
+
+### For Next Agent
+- The Ollama PR Orchestrator workflow is now deployed to main
+- Monitor that the fixes work correctly on future PRs
+- Consider splitting the workflow to eliminate CodeQL warnings entirely
