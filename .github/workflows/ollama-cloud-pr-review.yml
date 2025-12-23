@@ -410,8 +410,11 @@ jobs:
             REVIEW_ID=$(gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
               --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | last | .id')
             if [[ -n "$REVIEW_ID" && "$REVIEW_ID" != "null" ]]; then
-              gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
-                -f message="All issues have been resolved or acknowledged as intentional changes." || true
+              echo "Dismissing review ID: $REVIEW_ID"
+              gh api -X PUT repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews/$REVIEW_ID/dismissals \
+                -f message="All issues have been resolved or acknowledged as intentional changes." || echo "⚠️ Could not dismiss review (may require admin access)"
+            else
+              echo "No blocking review found to dismiss"
             fi
           fi
 
