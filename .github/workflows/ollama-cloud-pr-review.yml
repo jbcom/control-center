@@ -425,4 +425,4 @@ jobs:
           
           echo "✅ Requested AI reviews from Gemini and Amazon Q"
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
