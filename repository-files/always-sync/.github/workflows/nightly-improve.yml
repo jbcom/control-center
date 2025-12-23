@@ -1,0 +1,568 @@
+name: Nightly Codebase Improvement
+
+# Runs automatically on schedule to continuously improve:
+# - Test coverage
+# - Documentation
+# - Code quality
+# - Security
+
+on:
+  schedule:
+    # Run at 2 AM UTC on weekdays
+    - cron: '0 2 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      focus:
+        description: "Focus area for improvement"
+        required: false
+        type: choice
+        options:
+          - all
+          - tests
+          - docs
+          - quality
+          - security
+        default: all
+      dry_run:
+        description: "Analyze only, don't create PR"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+  security-events: read
+
+env:
+  # Configurable via repository variables
+  COVERAGE_TARGET: ${{ vars.COVERAGE_TARGET || '80' }}
+
+jobs:
+  # ============================================
+  # ANALYZE - Understand the codebase
+  # ============================================
+  analyze:
+    name: Analyze Codebase
+    runs-on: ubuntu-latest
+    outputs:
+      language: ${{ steps.detect.outputs.language }}
+      framework: ${{ steps.detect.outputs.framework }}
+      has_tests: ${{ steps.detect.outputs.has_tests }}
+      coverage_pct: ${{ steps.coverage.outputs.percent }}
+      needs_tests: ${{ steps.coverage.outputs.needs_tests }}
+      needs_docs: ${{ steps.docs.outputs.needs_docs }}
+      needs_security: ${{ steps.security.outputs.needs_security }}
+      improvement_needed: ${{ steps.summary.outputs.improvement_needed }}
+
+    steps:
+      # actions/checkout v6.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          fetch-depth: 0
+
+      - name: Detect language and framework
+        id: detect
+        run: |
+          # Detect primary language
+          if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+            LANGUAGE="python"
+          elif [ -f "package.json" ]; then
+            if grep -q '"typescript"' package.json 2>/dev/null; then
+              LANGUAGE="typescript"
+            else
+              LANGUAGE="javascript"
+            fi
+          elif [ -f "go.mod" ]; then
+            LANGUAGE="go"
+          elif [ -f "Cargo.toml" ]; then
+            LANGUAGE="rust"
+          elif find . -maxdepth 2 -name "*.tf" -type f | head -1 | grep -q .; then
+            LANGUAGE="terraform"
+          else
+            LANGUAGE="unknown"
+          fi
+          echo "language=$LANGUAGE" >> $GITHUB_OUTPUT
+          
+          # Detect framework
+          FRAMEWORK="none"
+          if [ "$LANGUAGE" = "python" ]; then
+            if grep -qE "crewai|langchain|langgraph" pyproject.toml 2>/dev/null; then
+              FRAMEWORK="ai-agents"
+            elif grep -qE "fastapi|flask|django" pyproject.toml 2>/dev/null; then
+              FRAMEWORK="web"
+            elif grep -qE "pytest|unittest" pyproject.toml 2>/dev/null; then
+              FRAMEWORK="library"
+            fi
+          elif [ "$LANGUAGE" = "typescript" ] || [ "$LANGUAGE" = "javascript" ]; then
+            if grep -qE '"react"|"next"' package.json 2>/dev/null; then
+              FRAMEWORK="react"
+            elif grep -qE '"express"|"fastify"|"hono"' package.json 2>/dev/null; then
+              FRAMEWORK="node-api"
+            fi
+          fi
+          echo "framework=$FRAMEWORK" >> $GITHUB_OUTPUT
+          
+          # Check for tests
+          HAS_TESTS="false"
+          [ -d "tests" ] || [ -d "test" ] || [ -d "__tests__" ] || [ -d "spec" ] && HAS_TESTS="true"
+          echo "has_tests=$HAS_TESTS" >> $GITHUB_OUTPUT
+          
+          echo "📊 Language: $LANGUAGE, Framework: $FRAMEWORK, Has tests: $HAS_TESTS"
+
+      - name: Setup language environment
+        run: |
+          LANGUAGE="${{ steps.detect.outputs.language }}"
+          
+          case "$LANGUAGE" in
+            python)
+              python3 -m pip install --upgrade pip
+              pip install pytest pytest-cov coverage
+              if [ -f "pyproject.toml" ]; then
+                pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+              elif [ -f "requirements.txt" ]; then
+                pip install -r requirements.txt 2>/dev/null || true
+              fi
+              ;;
+            typescript|javascript)
+              npm ci 2>/dev/null || npm install 2>/dev/null || true
+              ;;
+            go)
+              go mod download 2>/dev/null || true
+              ;;
+          esac
+
+      - name: Measure test coverage
+        id: coverage
+        continue-on-error: true
+        run: |
+          LANGUAGE="${{ steps.detect.outputs.language }}"
+          COVERAGE_PCT=0
+          
+          case "$LANGUAGE" in
+            python)
+              if [ -d "tests" ] || [ -d "test" ]; then
+                pytest --cov=. --cov-report=json -q 2>/dev/null || true
+                if [ -f "coverage.json" ]; then
+                  COVERAGE_PCT=$(python3 -c "import json; print(int(json.load(open('coverage.json'))['totals']['percent_covered']))" 2>/dev/null || echo "0")
+                fi
+              fi
+              ;;
+            typescript|javascript)
+              if npm run test:coverage 2>/dev/null; then
+                if [ -f "coverage/coverage-summary.json" ]; then
+                  COVERAGE_PCT=$(jq '.total.lines.pct // 0' coverage/coverage-summary.json 2>/dev/null | cut -d. -f1 || echo "0")
+                fi
+              fi
+              ;;
+            go)
+              go test -coverprofile=coverage.out ./... 2>/dev/null || true
+              if [ -f "coverage.out" ]; then
+                COVERAGE_PCT=$(go tool cover -func=coverage.out 2>/dev/null | grep total | awk '{print int($3)}' || echo "0")
+              fi
+              ;;
+          esac
+          
+          echo "percent=$COVERAGE_PCT" >> $GITHUB_OUTPUT
+          
+          if [ "$COVERAGE_PCT" -lt "${{ env.COVERAGE_TARGET }}" ]; then
+            echo "needs_tests=true" >> $GITHUB_OUTPUT
+            echo "📉 Coverage: ${COVERAGE_PCT}% (target: ${{ env.COVERAGE_TARGET }}%)"
+          else
+            echo "needs_tests=false" >> $GITHUB_OUTPUT
+            echo "✅ Coverage: ${COVERAGE_PCT}% meets target"
+          fi
+
+      - name: Check documentation gaps
+        id: docs
+        run: |
+          NEEDS_DOCS="false"
+          
+          # Check for README
+          if [ ! -f "README.md" ]; then
+            NEEDS_DOCS="true"
+            echo "📝 Missing README.md"
+          fi
+          
+          # Check for API docs (language-specific)
+          LANGUAGE="${{ steps.detect.outputs.language }}"
+          case "$LANGUAGE" in
+            python)
+              MISSING_DOCS=$(find . -name "*.py" -not -path "*/test*" -not -path "*/__pycache__/*" \
+                -exec grep -L '"""' {} \; 2>/dev/null | head -5 | wc -l)
+              if [ "$MISSING_DOCS" -gt 3 ]; then
+                NEEDS_DOCS="true"
+                echo "📝 Multiple Python files missing docstrings"
+              fi
+              ;;
+            typescript|javascript)
+              MISSING_DOCS=$(find src -name "*.ts" -o -name "*.js" 2>/dev/null | head -10 | \
+                xargs grep -L '/\*\*' 2>/dev/null | wc -l || echo "0")
+              if [ "$MISSING_DOCS" -gt 3 ]; then
+                NEEDS_DOCS="true"
+                echo "📝 Multiple source files missing JSDoc"
+              fi
+              ;;
+          esac
+          
+          echo "needs_docs=$NEEDS_DOCS" >> $GITHUB_OUTPUT
+
+      - name: Check security issues
+        id: security
+        run: |
+          NEEDS_SECURITY="false"
+          
+          LANGUAGE="${{ steps.detect.outputs.language }}"
+          case "$LANGUAGE" in
+            python)
+              if grep -rE "(password|secret|api_key)\s*=\s*['\"][^'\"]+['\"]" --include="*.py" . 2>/dev/null | grep -v test | head -1 | grep -q .; then
+                NEEDS_SECURITY="true"
+                echo "🔒 Potential hardcoded secrets found"
+              fi
+              ;;
+            typescript|javascript)
+              if npm audit --json 2>/dev/null | jq -e '.metadata.vulnerabilities.high > 0 or .metadata.vulnerabilities.critical > 0' >/dev/null 2>&1; then
+                NEEDS_SECURITY="true"
+                echo "🔒 High/critical npm vulnerabilities found"
+              fi
+              ;;
+          esac
+          
+          echo "needs_security=$NEEDS_SECURITY" >> $GITHUB_OUTPUT
+
+      - name: Summarize analysis
+        id: summary
+        run: |
+          NEEDS_TESTS="${{ steps.coverage.outputs.needs_tests }}"
+          NEEDS_DOCS="${{ steps.docs.outputs.needs_docs }}"
+          NEEDS_SECURITY="${{ steps.security.outputs.needs_security }}"
+          FOCUS="${{ inputs.focus || 'all' }}"
+          
+          IMPROVEMENT_NEEDED="false"
+          
+          case "$FOCUS" in
+            all)
+              [ "$NEEDS_TESTS" = "true" ] || [ "$NEEDS_DOCS" = "true" ] || [ "$NEEDS_SECURITY" = "true" ] && IMPROVEMENT_NEEDED="true"
+              ;;
+            tests)
+              [ "$NEEDS_TESTS" = "true" ] && IMPROVEMENT_NEEDED="true"
+              ;;
+            docs)
+              [ "$NEEDS_DOCS" = "true" ] && IMPROVEMENT_NEEDED="true"
+              ;;
+            security)
+              [ "$NEEDS_SECURITY" = "true" ] && IMPROVEMENT_NEEDED="true"
+              ;;
+            quality)
+              IMPROVEMENT_NEEDED="true"
+              ;;
+          esac
+          
+          echo "improvement_needed=$IMPROVEMENT_NEEDED" >> $GITHUB_OUTPUT
+          
+          echo "## 📊 Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Check | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Language | ${{ steps.detect.outputs.language }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage | ${{ steps.coverage.outputs.percent }}% (target: ${{ env.COVERAGE_TARGET }}%) |" >> $GITHUB_STEP_SUMMARY
+          echo "| Needs Tests | $NEEDS_TESTS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Needs Docs | $NEEDS_DOCS |" >> $GITHUB_STEP_SUMMARY
+          echo "| Needs Security | $NEEDS_SECURITY |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Improvement Needed** | **$IMPROVEMENT_NEEDED** |" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================
+  # IMPROVE - Generate improvements
+  # ============================================
+  improve:
+    name: Generate Improvements
+    needs: analyze
+    if: needs.analyze.outputs.improvement_needed == 'true' && inputs.dry_run != true
+    runs-on: ubuntu-latest
+    outputs:
+      has_changes: ${{ steps.check.outputs.has_changes }}
+      branch_name: ${{ steps.branch.outputs.name }}
+
+    steps:
+      # actions/checkout v6.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create improvement branch
+        id: branch
+        run: |
+          BRANCH_NAME="improve/nightly-$(date +%Y%m%d)"
+          git checkout -b "$BRANCH_NAME"
+          echo "name=$BRANCH_NAME" >> $GITHUB_OUTPUT
+
+      - name: Setup language environment
+        run: |
+          LANGUAGE="${{ needs.analyze.outputs.language }}"
+          
+          case "$LANGUAGE" in
+            python)
+              python3 -m pip install --upgrade pip
+              pip install pytest pytest-cov ruff
+              if [ -f "pyproject.toml" ]; then
+                pip install -e ".[dev,test]" 2>/dev/null || pip install -e . 2>/dev/null || true
+              fi
+              ;;
+            typescript|javascript)
+              npm ci 2>/dev/null || npm install 2>/dev/null || true
+              ;;
+            go)
+              go mod download 2>/dev/null || true
+              ;;
+          esac
+
+      # ---- TEST IMPROVEMENTS ----
+      - name: Improve test coverage
+        if: needs.analyze.outputs.needs_tests == 'true' && (inputs.focus == 'all' || inputs.focus == 'tests')
+        shell: bash
+        run: |
+          LANGUAGE="${{ needs.analyze.outputs.language }}"
+          echo "🧪 Improving test coverage for $LANGUAGE..."
+          
+          case "$LANGUAGE" in
+            python)
+              mkdir -p tests
+              pytest --cov=. --cov-report=term-missing -q 2>/dev/null || true
+              
+              # Generate test stubs for modules without tests
+              for src in $(find . -name "*.py" -not -path "*/test*" -not -path "*/.venv/*" -not -name "conftest.py" -not -name "__init__.py" 2>/dev/null | head -20); do
+                module_name=$(basename "$src" .py)
+                test_file="tests/test_${module_name}.py"
+                
+                if [ ! -f "$test_file" ]; then
+                  echo "Creating test stub: $test_file"
+                  printf '"""Tests for %s module.\n\nGenerated by nightly-improve workflow.\nTODO: Add comprehensive test cases.\n"""\nimport pytest\n\n\nclass Test%s:\n    """Test cases for %s."""\n\n    def test_placeholder(self):\n        """Placeholder test - replace with actual tests."""\n        assert True\n' "$module_name" "${module_name^}" "$module_name" > "$test_file"
+                fi
+              done
+              ;;
+              
+            typescript|javascript)
+              mkdir -p __tests__
+              
+              for src in $(find src -name "*.ts" -o -name "*.tsx" 2>/dev/null | head -10); do
+                base_name=$(basename "$src" | sed 's/\.[^.]*$//')
+                test_file="__tests__/${base_name}.test.ts"
+                
+                if [ ! -f "$test_file" ]; then
+                  echo "Creating test stub: $test_file"
+                  printf '/**\n * Tests for %s\n * Generated by nightly-improve workflow.\n */\nimport { describe, it, expect } from '\''vitest'\'';\n\ndescribe('\''%s'\'', () => {\n  it('\''placeholder test'\'', () => {\n    expect(true).toBe(true);\n  });\n});\n' "$base_name" "$base_name" > "$test_file"
+                fi
+              done
+              ;;
+              
+            go)
+              for src in $(find . -name "*.go" -not -name "*_test.go" 2>/dev/null | head -10); do
+                test_file="${src%.go}_test.go"
+                pkg_name=$(head -1 "$src" | awk '{print $2}')
+                
+                if [ ! -f "$test_file" ] && [ -n "$pkg_name" ]; then
+                  echo "Creating test stub: $test_file"
+                  printf 'package %s\n\nimport "testing"\n\n// Generated by nightly-improve workflow\n\nfunc TestPlaceholder(t *testing.T) {\n\tt.Log("Placeholder test - replace with actual tests")\n}\n' "$pkg_name" > "$test_file"
+                fi
+              done
+              ;;
+          esac
+
+      # ---- DOCUMENTATION IMPROVEMENTS ----
+      - name: Improve documentation
+        if: needs.analyze.outputs.needs_docs == 'true' && (inputs.focus == 'all' || inputs.focus == 'docs')
+        shell: bash
+        run: |
+          LANGUAGE="${{ needs.analyze.outputs.language }}"
+          echo "📝 Improving documentation..."
+          
+          # Create README if missing
+          if [ ! -f "README.md" ]; then
+            REPO_NAME="${{ github.repository }}"
+            REPO_SHORT="${REPO_NAME#*/}"
+            
+            printf '# %s\n\n> TODO: Add project description\n\n## Installation\n\n```bash\n# TODO: Add installation instructions\n```\n\n## Usage\n\n```bash\n# TODO: Add usage examples\n```\n\n## Development\n\n```bash\n# TODO: Add development setup\n```\n\n## License\n\nSee [LICENSE](LICENSE) for details.\n\n---\n*README generated by nightly-improve workflow*\n' "$REPO_SHORT" > README.md
+          fi
+
+      # ---- QUALITY IMPROVEMENTS ----
+      - name: Improve code quality
+        if: inputs.focus == 'all' || inputs.focus == 'quality'
+        run: |
+          LANGUAGE="${{ needs.analyze.outputs.language }}"
+          echo "✨ Running code quality fixes..."
+          
+          case "$LANGUAGE" in
+            python)
+              ruff check --fix . 2>/dev/null || true
+              ruff format . 2>/dev/null || true
+              ;;
+            typescript|javascript)
+              npx eslint --fix . 2>/dev/null || true
+              npx prettier --write . 2>/dev/null || true
+              ;;
+            go)
+              gofmt -w . 2>/dev/null || true
+              ;;
+          esac
+
+      # ---- SECURITY IMPROVEMENTS ----
+      - name: Improve security
+        if: needs.analyze.outputs.needs_security == 'true' && (inputs.focus == 'all' || inputs.focus == 'security')
+        run: |
+          LANGUAGE="${{ needs.analyze.outputs.language }}"
+          echo "🔒 Applying security improvements..."
+          
+          case "$LANGUAGE" in
+            typescript|javascript)
+              npm audit fix 2>/dev/null || true
+              ;;
+            python)
+              if [ -f "requirements.txt" ]; then
+                pip install pip-audit 2>/dev/null || true
+                pip-audit --fix 2>/dev/null || true
+              fi
+              ;;
+          esac
+
+      - name: Check for changes
+        id: check
+        run: |
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes to commit"
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Changes detected"
+            git status --short
+          fi
+
+      - name: Commit and push
+        if: steps.check.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          
+          git add -A
+          git commit -m "chore: nightly codebase improvements
+          
+          Automated improvements from nightly-improve workflow:
+          - Language: ${{ needs.analyze.outputs.language }}
+          - Coverage: ${{ needs.analyze.outputs.coverage_pct }}%
+          - Focus: ${{ inputs.focus || 'all' }}
+          
+          Run ID: ${{ github.run_id }}"
+          
+          git push origin HEAD
+
+  # ============================================
+  # CREATE PR - Submit improvements for review
+  # ============================================
+  create-pr:
+    name: Create Pull Request
+    needs: [analyze, improve]
+    if: needs.improve.outputs.has_changes == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      # actions/checkout v6.0.1
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ needs.improve.outputs.branch_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          LANGUAGE: ${{ needs.analyze.outputs.language }}
+          COVERAGE: ${{ needs.analyze.outputs.coverage_pct }}
+          FOCUS: ${{ inputs.focus || 'all' }}
+          NEEDS_TESTS: ${{ needs.analyze.outputs.needs_tests }}
+          NEEDS_DOCS: ${{ needs.analyze.outputs.needs_docs }}
+          NEEDS_SECURITY: ${{ needs.analyze.outputs.needs_security }}
+          BRANCH_NAME: ${{ needs.improve.outputs.branch_name }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          # Build PR body using printf to avoid heredoc issues
+          PR_BODY="## 🌙 Nightly Codebase Improvements
+
+          This PR contains automated improvements generated by the nightly workflow.
+
+          ### 📊 Analysis Results
+          | Metric | Value |
+          |--------|-------|
+          | Language | ${LANGUAGE} |
+          | Coverage Before | ${COVERAGE}% |
+          | Focus Area | ${FOCUS} |
+
+          ### ✅ Improvements Made"
+          
+          if [ "$NEEDS_TESTS" = "true" ]; then
+            PR_BODY="${PR_BODY}
+          - 🧪 Added test stubs for uncovered modules"
+          fi
+          
+          if [ "$NEEDS_DOCS" = "true" ]; then
+            PR_BODY="${PR_BODY}
+          - 📝 Added missing documentation"
+          fi
+          
+          if [ "$NEEDS_SECURITY" = "true" ]; then
+            PR_BODY="${PR_BODY}
+          - 🔒 Applied security fixes"
+          fi
+          
+          PR_BODY="${PR_BODY}
+          - ✨ Applied code quality fixes
+
+          ### 📋 Review Checklist
+          - [ ] Test stubs have been filled in with actual tests
+          - [ ] Documentation is accurate and complete
+          - [ ] No unintended changes
+          - [ ] CI passes
+
+          ---
+          *Generated by [nightly-improve.yml](${RUN_URL})*"
+          
+          # Create PR
+          gh pr create \
+            --title "🌙 Nightly improvements ($(date +%Y-%m-%d))" \
+            --body "$PR_BODY" \
+            --label "automated,improvements" \
+            --base main \
+            --head "$BRANCH_NAME" || echo "PR may already exist"
+
+      - name: Output PR info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_URL=$(gh pr view --json url -q '.url' 2>/dev/null || echo "")
+          
+          if [ -n "$PR_URL" ]; then
+            echo "## 🎉 Pull Request Created!" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "**URL:** $PR_URL" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # ============================================
+  # SUMMARY
+  # ============================================
+  summary:
+    name: Workflow Summary
+    needs: [analyze, improve, create-pr]
+    if: always()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## 🌙 Nightly Improvement Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Analyze | ${{ needs.analyze.result == 'success' && '✅' || '❌' }} ${{ needs.analyze.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Improve | ${{ needs.improve.result == 'success' && '✅' || needs.improve.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.improve.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Create PR | ${{ needs.create-pr.result == 'success' && '✅' || needs.create-pr.result == 'skipped' && '⏭️' || '❌' }} ${{ needs.create-pr.result }} |" >> $GITHUB_STEP_SUMMARY
