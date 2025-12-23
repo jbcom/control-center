@@ -53,6 +53,10 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --ecosystem)
+      if [[ -z "$2" || "$2" =~ [^a-zA-Z0-9_-] ]]; then
+        log_error "Invalid ecosystem name. Only alphanumeric characters, hyphens, and underscores are allowed."
+        exit 1
+      fi
       ECOSYSTEM_FILTER="$2"
       shift 2
       ;;
@@ -76,23 +80,17 @@ get_repo_description() {
   local repo="$1"
   local ecosystem="$2"
   
+  # Try to get description from repo-config.json first
+  local config_desc
+  config_desc=$(jq -r --arg repo "$repo" '.repository_descriptions[$repo] // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
+  
+  if [[ -n "$config_desc" ]]; then
+    echo "$config_desc"
+    return 0
+  fi
+
   # Default descriptions based on naming convention
   case "$repo" in
-    nodejs-strata-presets)
-      echo "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets"
-      ;;
-    nodejs-strata-shaders)
-      echo "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects"
-      ;;
-    nodejs-strata-examples)
-      echo "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos"
-      ;;
-    nodejs-strata-capacitor-plugin)
-      echo "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
-      ;;
-    nodejs-strata-react-native-plugin)
-      echo "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
-      ;;
     python-*)
       echo "Python package: ${repo#python-}"
       ;;
@@ -172,7 +170,7 @@ main() {
     log_info "Processing ecosystem: $ecosystem"
     
     local repos
-    repos=$(jq -r ".ecosystems.${ecosystem}.repos[]" "$CONFIG_FILE" 2>/dev/null || echo "")
+    repos=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].repos[]" "$CONFIG_FILE" 2>/dev/null || echo "")
     
     if [[ -z "$repos" ]]; then
       log_warn "  No repos configured for ecosystem: $ecosystem"
@@ -206,4 +204,4 @@ main() {
   return $failed
 }
 
-main "$@"
+main

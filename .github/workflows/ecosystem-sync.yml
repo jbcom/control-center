@@ -197,12 +197,13 @@ jobs:
   # =============================================================================
   summary:
     name: 📊 Summary
-    needs: [phase-1-initial, phase-2-always]
+    needs: [phase-0-create-repos, phase-1-initial, phase-2-always]
     runs-on: ubuntu-latest
     if: always()
     steps:
       - name: Generate final summary
         env:
+          PHASE0_RESULT: ${{ needs.phase-0-create-repos.result }}
           PHASE1_RESULT: ${{ needs.phase-1-initial.result }}
           PHASE2_RESULT: ${{ needs.phase-2-always.result }}
         run: |
@@ -218,6 +219,13 @@ jobs:
           
           echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
           echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+
+          case "$PHASE0_RESULT" in
+            success) echo "| 🆕 Create Repos | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
+            skipped) echo "| 🆕 Create Repos | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
+            failure) echo "| 🆕 Create Repos | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
+            *) echo "| 🆕 Create Repos | ⚠️ $PHASE0_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
+          esac
           
           case "$PHASE1_RESULT" in
             success) echo "| 📦 Initial Sync | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;

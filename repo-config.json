@@ -273,6 +273,13 @@
       }
     ]
   },
+  "repository_descriptions": {
+    "nodejs-strata-presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
+    "nodejs-strata-shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
+    "nodejs-strata-examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
+    "nodejs-strata-capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
+    "nodejs-strata-react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
+  },
   "ecosystems": {
     "python": {
       "files": {
