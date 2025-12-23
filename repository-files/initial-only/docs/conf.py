@@ -42,8 +42,9 @@ except Exception:
             with open(package_json_path) as f:
                 release = json.load(f).get("version", "0.0.0")
                 # usually package.json has name too
-    except Exception:
-        pass
+    except Exception as exc:
+        # Ignore errors reading package.json, but emit a warning for visibility
+        print(f"Warning: failed to read package.json for version information: {exc}", file=sys.stderr)
 
 # -- General configuration ---------------------------------------------------
 
