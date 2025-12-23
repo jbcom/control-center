@@ -109,7 +109,7 @@ jobs:
       - name: Generate structured review with fixes
         id: review
         run: |
-          RESPONSE=$(curl -s https://ollama.com/api/chat \
+          RESPONSE=$(curl -s --fail-with-body --max-time 300  \
             -H "Authorization: Bearer ${{ secrets.OLLAMA_API_KEY }}" \
             -d "{
               \"model\": \"glm-4.6:cloud\",
@@ -136,6 +136,11 @@ jobs:
               },
               \"stream\": false
             }")
+
+          if [ $? -ne 0 ]; then
+            echo "Error: Failed to connect to Ollama API"
+            exit 1
+          fi
 
           REVIEW_JSON=$(echo "$RESPONSE" | jq -r '.message.content // empty')
 
