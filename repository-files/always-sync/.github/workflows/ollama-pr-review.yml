@@ -46,6 +46,15 @@ jobs:
       recommendation: ${{ steps.review.outputs.recommendation }}
     
     steps:
+      - name: Check required secrets
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "::error::OLLAMA_API_KEY secret is not configured"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -228,6 +237,15 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
+      - name: Check required secrets
+        env:
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "::error::OLLAMA_API_KEY secret is not configured"
+            exit 1
+          fi
+
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -238,11 +256,15 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER_FROM_PR: ${{ github.event.pull_request.number }}
+          PR_NUMBER_FROM_ISSUE: ${{ github.event.issue.number }}
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request_review"* ]]; then
-            PR_NUM=${{ github.event.pull_request.number }}
+          # Determine PR number based on event type
+          if [[ "$EVENT_NAME" == "pull_request_review" ]] || [[ "$EVENT_NAME" == "pull_request_review_comment" ]]; then
+            PR_NUM="$PR_NUMBER_FROM_PR"
           else
-            PR_NUM=$(echo '${{ toJSON(github.event.issue) }}' | jq -r '.number')
+            PR_NUM="$PR_NUMBER_FROM_ISSUE"
           fi
           echo "number=$PR_NUM" >> $GITHUB_OUTPUT
           
@@ -251,7 +273,9 @@ jobs:
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
-        run: git checkout ${{ steps.pr.outputs.head_ref }}
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.head_ref }}
+        run: git checkout "$HEAD_REF"
 
       - name: Collect all AI feedback
         id: feedback
@@ -262,18 +286,18 @@ jobs:
           
           # Get all unresolved review comments from AI agents
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/comments \
-            --jq '[.[] | select(.user.login | test("bot]$")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line, resolved: false}]' > /tmp/review_comments.json
+            --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line}]' > /tmp/review_comments.json || echo '[]' > /tmp/review_comments.json
           
           # Get all issue comments from AI agents
           gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
-            --jq '[.[] | select(.user.login | test("bot]$")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json
+            --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body}]' > /tmp/issue_comments.json || echo '[]' > /tmp/issue_comments.json
           
-          # Get reviews from AI agents
+          # Get reviews from AI agents (non-approved)
           gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
-            --jq '[.[] | select(.user.login | test("bot]$") and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json
+            --jq '[.[] | select((.user.login | endswith("[bot]")) and .state != "APPROVED") | {id: .id, user: .user.login, body: .body, state: .state}]' > /tmp/reviews.json || echo '[]' > /tmp/reviews.json
           
-          # Combine all feedback
-          jq -s 'add' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
+          # Combine all feedback (handle empty arrays properly)
+          jq -s 'map(select(. != null)) | add // []' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
           
           FEEDBACK_COUNT=$(jq 'length' /tmp/all_feedback.json)
           echo "count=$FEEDBACK_COUNT" >> $GITHUB_OUTPUT
@@ -442,16 +466,12 @@ jobs:
             --jq '[.[] | select(.state == "CHANGES_REQUESTED")] | length')
           
           # Check for unresolved threads
-          UNRESOLVED=$(gh api graphql -f query='
-            query($owner: String!, $repo: String!, $pr: Int!) {
-              repository(owner: $owner, name: $repo) {
-                pullRequest(number: $pr) {
-                  reviewThreads(first: 100) {
-                    nodes { isResolved }
-                  }
-                }
-              }
-            }' -f owner="${{ github.repository_owner }}" -f repo="${{ github.event.repository.name }}" -F pr="$PR_NUM" \
+          # shellcheck disable=SC2016
+          GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $pr) { reviewThreads(first: 100) { nodes { isResolved } } } } }'
+          UNRESOLVED=$(gh api graphql -f query="$GRAPHQL_QUERY" \
+            -f owner="${{ github.repository_owner }}" \
+            -f repo="${{ github.event.repository.name }}" \
+            -F pr="$PR_NUM" \
             --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
           
           # Check draft status
