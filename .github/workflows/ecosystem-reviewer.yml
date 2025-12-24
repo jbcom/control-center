@@ -1,6 +1,6 @@
-name: Ollama PR Orchestrator
+name: Ecosystem Reviewer
 
-# Autonomous PR lifecycle management:
+# Ecosystem Reviewer - Autonomous PR lifecycle management:
 # - Automatic code review on PR open
 # - Monitors ALL AI agent feedback (Gemini, Copilot, Q, CodeRabbit, etc.)
 # - Analyzes, triages, and resolves AI feedback automatically

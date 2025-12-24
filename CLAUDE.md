@@ -68,7 +68,7 @@ All repo settings are defined in `repo-config.json`:
 ./scripts/sync-secrets --all
 
 # Orchestrate agents
-./scripts/cursor-jules-orchestrator.mjs jbcom/jbcom-control-center cursor:agent-id:123
+./scripts/ecosystem-harvester.mjs jbcom/jbcom-control-center cursor:agent-id:123
 
 # Preview without making changes
 ./scripts/sync-files --dry-run --all
@@ -77,7 +77,7 @@ All repo settings are defined in `repo-config.json`:
 
 ## Agent Orchestration
 
-The `scripts/cursor-jules-orchestrator.mjs` script manages multi-agent workflows.
+The `scripts/ecosystem-harvester.mjs` script manages multi-agent workflows.
 
 ### Ecosystem Curator
 
@@ -205,7 +205,7 @@ curl -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
 ### Orchestrator Script
 
 ```bash
-node scripts/cursor-jules-orchestrator.mjs
+node scripts/ecosystem-harvester.mjs
 ```
 
 ### Task Routing

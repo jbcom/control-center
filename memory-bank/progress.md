@@ -365,8 +365,8 @@ Documentation work was completed directly by bc-fcfe779a instead.
 - [x] Move PR #421 to ready for review.
 - [x] Pin all GitHub Actions in #426 and #421 to latest SHAs.
 - [x] Add input validation for branch names and session IDs to prevent command injection.
-- [x] Implement auto-commit and push logic in `ci-failure-resolution.yml`.
-- [x] Add safety checks for secrets and executables in `cursor-jules-orchestrator.mjs`.
+- [x] Implement auto-commit and push logic in `ecosystem-fixer.yml`.
+- [x] Add safety checks for secrets and executables in `ecosystem-harvester.mjs`.
 - [x] Resolve 15+ review threads via GraphQL mutations.
 - [x] Fix corrupted action hashes (doubled SHAs).
 - [x] Verify zero open CodeQL alerts on PR branches.

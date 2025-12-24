@@ -1,4 +1,4 @@
-name: CI Failure Resolution
+name: Ecosystem Fixer
 
 on:
   workflow_run:

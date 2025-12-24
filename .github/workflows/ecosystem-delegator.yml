@@ -1,0 +1,236 @@
+name: Ecosystem Delegator
+
+# Unified issue/task delegation to AI agents:
+# - /jules - Delegate to Google Jules (complex refactors, multi-file changes)
+# - /cursor - Delegate to Cursor Cloud Agent (debugging, quick fixes)
+# - /sage - Invoke Ecosystem Sage for advice (handled by ecosystem-sage.yml)
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+env:
+  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+
+jobs:
+  # ============================================
+  # Delegate to Jules (complex work)
+  # ============================================
+  delegate-to-jules:
+    name: Delegate to Jules
+    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/jules')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for GOOGLE_JULES_API_KEY
+        id: check_secret
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Initial Acknowledgement
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Delegating to Google Jules for complex work..."
+
+      - name: Parse Task from Comment
+        id: parse_task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | sed 's|[[:space:]]*/jules[[:space:]]*||' | head -c 1000 | xargs)
+          echo "task<<EOF" >> $GITHUB_OUTPUT
+          echo "$TASK" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Jules Session
+        if: steps.check_secret.outputs.available == 'true'
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          TASK: ${{ steps.parse_task.outputs.task }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          JSON_PAYLOAD=$(jq -n \
+            --arg task "$TASK" \
+            --arg repo "$REPO_FULL_NAME" \
+            --arg branch "$DEFAULT_BRANCH" \
+            --arg issue "$ISSUE_NUMBER" \
+            '{
+              prompt: ("Fix issue #" + $issue + ": " + $task),
+              sourceContext: {
+                source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                githubRepoContext: {
+                  startingBranch: $branch
+                }
+              },
+              automationMode: "AUTO_CREATE_PR"
+            }')
+
+          SESSION_RESPONSE=$(curl -s -f --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD" 2>/dev/null)
+          CURL_EXIT_CODE=$?
+
+          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
+            echo "::error::Failed to reach Jules API"
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Unable to connect to Jules service. Please try again later."
+            exit 1
+          fi
+
+          SESSION_NAME=$(echo "$SESSION_RESPONSE" | jq -r '.name // empty')
+          if [[ -z "$SESSION_NAME" ]]; then
+            ERROR_MSG=$(echo "$SESSION_RESPONSE" | jq -r '.error.message // "Unknown error"')
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Failed to create Jules session: $ERROR_MSG"
+            exit 1
+          fi
+
+          SESSION_URL="https://jules.google.com/session/${SESSION_NAME##*/}"
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+          echo "session_name=$SESSION_NAME" >> $GITHUB_OUTPUT
+
+      - name: Post Session URL
+        if: steps.check_secret.outputs.available == 'true' && steps.jules.outputs.session_url != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
+
+          Delegated to Google's AI software engineer, **Jules**.
+
+          ➡️ **[Monitor Session]($SESSION_URL)**
+
+          Jules will analyze the issue, write the code, and submit a PR."
+
+      - name: Post Secret Not Available Message
+        if: steps.check_secret.outputs.available == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured. Please add it to enable '/jules'."
+
+  # ============================================
+  # Delegate to Cursor (quick fixes, debugging)
+  # ============================================
+  delegate-to-cursor:
+    name: Delegate to Cursor
+    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/cursor')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for CURSOR_API_KEY
+        id: check_secret
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+        run: |
+          if [[ -z "$CURSOR_API_KEY" ]]; then
+            echo "::warning::CURSOR_API_KEY not set. Cannot delegate to Cursor."
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Initial Acknowledgement
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "⚡ Received '/cursor' command. Spawning Cursor Cloud Agent for quick work..."
+
+      - name: Parse Task from Comment
+        id: parse_task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/cursor[[:space:]]*||' | sed 's|[[:space:]]*/cursor[[:space:]]*||' | head -c 2000 | xargs)
+          echo "task<<EOF" >> $GITHUB_OUTPUT
+          echo "$TASK" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Spawn Cursor Agent
+        if: steps.check_secret.outputs.available == 'true'
+        id: cursor
+        env:
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CURSOR_GITHUB_TOKEN: ${{ secrets.CURSOR_GITHUB_TOKEN }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          TASK: ${{ steps.parse_task.outputs.task }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          AGENT_RESPONSE=$(curl -s -f --max-time 30 -X POST "https://api.cursor.com/v0/agents" \
+            -u "${CURSOR_API_KEY}:" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg repo "https://github.com/$REPO_FULL_NAME" \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
+              '{
+                repository: $repo,
+                task: $task,
+                secrets: {
+                  "GITHUB_TOKEN": env.CURSOR_GITHUB_TOKEN
+                }
+              }')" 2>/dev/null)
+          CURL_EXIT_CODE=$?
+
+          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
+            echo "::error::Failed to reach Cursor API"
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Unable to spawn Cursor agent. Please try again later."
+            exit 1
+          fi
+
+          AGENT_ID=$(echo "$AGENT_RESPONSE" | jq -r '.id // empty')
+          if [[ -z "$AGENT_ID" ]]; then
+            ERROR_MSG=$(echo "$AGENT_RESPONSE" | jq -r '.error // "Unknown error"')
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Failed to spawn Cursor agent: $ERROR_MSG"
+            exit 1
+          fi
+
+          echo "agent_id=$AGENT_ID" >> $GITHUB_OUTPUT
+
+      - name: Post Agent ID
+        if: steps.check_secret.outputs.available == 'true' && steps.cursor.outputs.agent_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          AGENT_ID: ${{ steps.cursor.outputs.agent_id }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "## ⚡ Cursor Agent Spawned
+
+          Delegated to **Cursor Cloud Agent** for quick work.
+
+          🆔 **Agent ID:** \`$AGENT_ID\`
+
+          The agent will analyze the issue and create a PR with fixes.
+
+          The **Ecosystem Harvester** will monitor progress and merge when ready."
+
+      - name: Post Secret Not Available Message
+        if: steps.check_secret.outputs.available == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Action Required:** The 'CURSOR_API_KEY' secret is not configured. Please add it to enable '/cursor'."

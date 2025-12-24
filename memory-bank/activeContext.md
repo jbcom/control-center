@@ -10,13 +10,13 @@ Two major PRs (#426 and #421) have been significantly improved and are awaiting 
     - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
     - Implemented `persist-credentials: false` for untrusted checkouts.
     - Added `contents: write` permissions where necessary for auto-resolution.
-3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ci-failure-resolution.yml` to fulfill the promised automated fix functionality.
-4. ✅ **Orchestrator Safety**: Enhanced `cursor-jules-orchestrator.mjs` with safety checks for risky files (executables/secrets) before merging.
+3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ecosystem-fixer.yml` to fulfill the promised automated fix functionality.
+4. ✅ **Orchestrator Safety**: Enhanced `ecosystem-harvester.mjs` with safety checks for risky files (executables/secrets) before merging.
 5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
 
 ### Changes Made
-- Updated workflows: `ci.yml`, `ci-failure-resolution.yml`, `ollama-cloud-pr-review.yml`, `jules-issue-automation.yml`.
-- Updated orchestrator script: `scripts/cursor-jules-orchestrator.mjs`.
+- Updated workflows: `ci.yml`, `ecosystem-fixer.yml`, `ecosystem-reviewer.yml`, `ecosystem-delegator.yml`.
+- Updated orchestrator script: `scripts/ecosystem-harvester.mjs`.
 - Updated repository-files templates.
 
 ---
