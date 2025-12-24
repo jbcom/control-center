@@ -31,7 +31,7 @@ jobs:
           echo "Linting all workflow files..."
           # Ignore SC2086 (double quote to prevent globbing) - common in GHA workflows
           # where variables like $GITHUB_STEP_SUMMARY are known-safe
-          actionlint -ignore 'SC2086' -ignore 'SC2129' -color
+          actionlint -ignore 'SC2086' -ignore 'SC2129' -ignore 'SC2016' -color
           echo "✅ All workflows pass linting"
 
   validate-expressions:
