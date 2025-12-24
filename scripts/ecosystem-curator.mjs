@@ -218,7 +218,7 @@ async function spawnCursorAgent(repository, task, options = {}) {
     return result.data;
   }
   
-  // Fallback to direct API
+  // Fallback to direct API - using /agents endpoint as corrected in fix/issue-430
   return cursorRequest('/agents', 'POST', {
     prompt: { text: task },
     source: { repository, ref: options.ref },
