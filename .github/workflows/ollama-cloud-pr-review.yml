@@ -195,7 +195,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.review.outputs.auto_apply == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "fix: auto-apply safe improvements (Ollama)"
           branch: ${{ github.head_ref }}
