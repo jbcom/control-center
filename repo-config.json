@@ -274,11 +274,13 @@
     ]
   },
   "repository_descriptions": {
-    "nodejs-strata-presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
-    "nodejs-strata-shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
-    "nodejs-strata-examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
-    "nodejs-strata-capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
-    "nodejs-strata-react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
+    "strata-game-library/core": "Procedural 3D graphics library for React Three Fiber - terrain, water, vegetation, sky, volumetrics",
+    "strata-game-library/examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
+    "strata-game-library/shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
+    "strata-game-library/presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
+    "strata-game-library/typescript-tutor": "Professor Pixels educational game platform - interactive lessons for learning game development",
+    "strata-game-library/capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
+    "strata-game-library/react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
   },
   "ecosystems": {
     "python": {
@@ -345,12 +347,6 @@
       "repos": [
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
-        "nodejs-strata",
-        "nodejs-strata-capacitor-plugin",
-        "nodejs-strata-react-native-plugin",
-        "nodejs-strata-examples",
-        "nodejs-strata-presets",
-        "nodejs-strata-shaders",
         "nodejs-otterfall",
         "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
@@ -460,6 +456,34 @@
         ".github"
       ],
       "_comment": "Control center and org config - no file sync, just project tracking"
+    },
+    "strata": {
+      "organization": "strata-game-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "nodejs"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "core",
+        "examples",
+        "shaders",
+        "presets",
+        "typescript-tutor",
+        "capacitor-plugin",
+        "react-native-plugin"
+      ]
     }
+  },
+  "organizations": {
+    "primary": "jbcom",
+    "managed": [
+      "jbcom",
+      "strata-game-library"
+    ]
   }
 }

@@ -9,6 +9,10 @@ on:
         description: 'Dry run (do not create sessions or agents)'
         required: false
         default: 'false'
+      target_org:
+        description: 'Target organization (jbcom, strata-game-library, or empty for all)'
+        required: false
+        default: ''
       target_repo:
         description: 'Target repository (optional)'
         required: false
@@ -41,6 +45,7 @@ jobs:
           OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
+          TARGET_ORG: ${{ github.event.inputs.target_org }}
           TARGET_REPO: ${{ github.event.inputs.target_repo }}
         run: |
           node scripts/ecosystem-curator.mjs

@@ -20,9 +20,12 @@ const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
-const ORG = 'jbcom';
+
+// Managed organizations - control-center manages both
+const ORGANIZATIONS = ['jbcom', 'strata-game-library'];
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const TARGET_REPO = process.env.TARGET_REPO;
+const TARGET_ORG = process.env.TARGET_ORG;
 
 // Stats for the report
 const stats = {
@@ -228,19 +231,39 @@ async function ollamaApi(messages) {
 // Core Logic
 // ============================================
 async function discoverRepos() {
-  console.log(`🔍 Discovering repositories in ${ORG}...`);
+  const orgsToScan = TARGET_ORG ? [TARGET_ORG] : ORGANIZATIONS;
+  console.log(`🔍 Discovering repositories in: ${orgsToScan.join(', ')}`);
+  
   if (TARGET_REPO) {
     console.log(`   Filtering for target repository: ${TARGET_REPO}`);
+    // Try to find the repo in any of the orgs
+    for (const org of orgsToScan) {
+      try {
+        const repo = await ghApi(`/repos/${org}/${TARGET_REPO}`);
+        return [repo];
+      } catch (e) {
+        // Try next org
+      }
+    }
+    console.error(`   Could not find ${TARGET_REPO} in any organization`);
+    return [];
+  }
+  
+  let allRepos = [];
+  for (const org of orgsToScan) {
+    console.log(`   Scanning ${org}...`);
     try {
-      const repo = await ghApi(`/repos/${ORG}/${TARGET_REPO}`);
-      return [repo];
+      const repos = await ghApi(`/orgs/${org}/repos`, { allPages: true });
+      const activeRepos = repos.filter(r => !r.archived && !r.disabled);
+      console.log(`   Found ${activeRepos.length} active repos in ${org}`);
+      allRepos = allRepos.concat(activeRepos);
     } catch (e) {
-      console.error(`   Error finding target repo ${TARGET_REPO}: ${e.message}`);
-      return [];
+      console.error(`   Error scanning ${org}: ${e.message}`);
+      stats.errors.push(`Org scan error for ${org}: ${e.message}`);
     }
   }
-  const repos = await ghApi(`/orgs/${ORG}/repos`, { allPages: true });
-  return repos.filter(r => !r.archived && !r.disabled);
+  
+  return allRepos;
 }
 
 async function triageIssue(repo, issue) {

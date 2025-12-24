@@ -19,7 +19,9 @@ const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
-const ORG = 'jbcom';
+
+// Managed organizations
+const ORGANIZATIONS = ['jbcom', 'strata-game-library'];
 
 const stats = {
   cursor_composers_checked: 0,
@@ -235,20 +237,22 @@ async function harvestJulesSessions() {
 async function processPRs() {
   console.log('\n📋 Processing Open PRs...');
   
-  try {
-    // Get all repos
-    const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100`);
-    
-    for (const repo of repos.filter(r => !r.archived)) {
-      const prs = await ghApi(`/repos/${ORG}/${repo.name}/pulls?state=open&per_page=50`);
+  for (const org of ORGANIZATIONS) {
+    console.log(`   Scanning ${org}...`);
+    try {
+      const repos = await ghApi(`/orgs/${org}/repos?per_page=100`);
       
-      for (const pr of prs) {
-        await processPR(ORG, repo.name, pr);
+      for (const repo of repos.filter(r => !r.archived)) {
+        const prs = await ghApi(`/repos/${org}/${repo.name}/pulls?state=open&per_page=50`);
+        
+        for (const pr of prs) {
+          await processPR(org, repo.name, pr);
+        }
       }
+    } catch (e) {
+      console.log(`   Error listing PRs for ${org}: ${e.message}`);
+      stats.errors.push(`PR list error for ${org}: ${e.message}`);
     }
-  } catch (e) {
-    console.log(`   Error listing PRs: ${e.message}`);
-    stats.errors.push(`PR list error: ${e.message}`);
   }
 }
 
