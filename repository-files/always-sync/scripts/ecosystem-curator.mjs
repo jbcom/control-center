@@ -35,20 +35,44 @@ async function ghApi(endpoint, options = {}) {
     console.log(`    [DRY RUN] ghApi: ${options.method} ${endpoint}`);
     return { dry_run: true };
   }
-  const res = await fetch(`https://api.github.com${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `token ${GITHUB_TOKEN}`,
-      'Accept': 'application/vnd.github+json',
-      'User-Agent': 'jbcom-ecosystem-curator',
-      ...options.headers
+
+  const fetchPage = async (url) => {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Authorization': `token ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'User-Agent': 'jbcom-ecosystem-curator',
+        ...options.headers
+      }
+    });
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ message: res.statusText }));
+      throw new Error(`GitHub API Error (${res.status}) on ${url}: ${JSON.stringify(error)}`);
     }
-  });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(`GitHub API Error (${res.status}) on ${endpoint}: ${JSON.stringify(error)}`);
+    const link = res.headers.get('link');
+    const data = await res.json();
+    return { data, link };
+  };
+
+  let url = `https://api.github.com${endpoint}`;
+  if (options.allPages) {
+    let allData = [];
+    let currentUrl = url;
+    if (!currentUrl.includes('per_page=')) {
+      currentUrl += (currentUrl.includes('?') ? '&' : '?') + 'per_page=100';
+    }
+    while (currentUrl) {
+      const { data, link } = await fetchPage(currentUrl);
+      allData = allData.concat(data);
+      const nextMatch = link?.match(/<([^>]+)>; rel="next"/);
+      currentUrl = nextMatch ? nextMatch[1] : null;
+    }
+    return allData;
   }
-  return res.json();
+
+  const { data } = await fetchPage(url);
+  return data;
 }
 
 async function julesApi(endpoint, options = {}) {
@@ -117,10 +141,15 @@ async function discoverRepos() {
   console.log(`🔍 Discovering repositories in ${ORG}...`);
   if (TARGET_REPO) {
     console.log(`   Filtering for target repository: ${TARGET_REPO}`);
-    const repo = await ghApi(`/repos/${ORG}/${TARGET_REPO}`);
-    return [repo];
+    try {
+      const repo = await ghApi(`/repos/${ORG}/${TARGET_REPO}`);
+      return [repo];
+    } catch (e) {
+      console.error(`   Error finding target repo ${TARGET_REPO}: ${e.message}`);
+      return [];
+    }
   }
-  const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100`);
+  const repos = await ghApi(`/orgs/${ORG}/repos`, { allPages: true });
   return repos.filter(r => !r.archived && !r.disabled);
 }
 
@@ -151,9 +180,14 @@ async function triageIssue(repo, issue) {
       await julesApi('/sessions', {
         method: 'POST',
         body: JSON.stringify({
-          repository: { url: repo.html_url },
-          task: { description: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}` },
-          workMode: "AUTO_CREATE_PR"
+          prompt: `Fix issue #${issue.number}: ${issue.title}
+
+${issue.body}`,
+          sourceContext: {
+            source: `sources/github/${repo.owner.login}/${repo.name}`,
+            githubRepoContext: { startingBranch: repo.default_branch }
+          },
+          automationMode: "AUTO_CREATE_PR"
         })
       });
       stats.jules_sessions_created++;
@@ -270,8 +304,14 @@ async function manageAgents() {
 }
 
 async function main() {
-  if (!GITHUB_TOKEN || !CURSOR_API_KEY || !GOOGLE_JULES_API_KEY) {
-    console.error('Missing required environment variables');
+  // API Key Validation
+  const missingVars = [];
+  if (!GITHUB_TOKEN) missingVars.push('JULES_GITHUB_TOKEN or GITHUB_TOKEN');
+  if (!CURSOR_API_KEY) missingVars.push('CURSOR_API_KEY');
+  if (!GOOGLE_JULES_API_KEY) missingVars.push('GOOGLE_JULES_API_KEY');
+  
+  if (missingVars.length > 0) {
+    console.error(`❌ Critical Error: Missing required environment variables: ${missingVars.join(', ')}`);
     process.exit(1);
   }
 
@@ -282,21 +322,32 @@ async function main() {
     for (const repo of repos) {
       console.log(`\n📦 Repository: ${repo.full_name}`);
       
-      const issues = await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues?state=open`);
-      for (const issue of issues) {
-        // Skip if issue has an assignee or is already being processed by an agent
-        const labels = issue.labels.map(l => l.name.toLowerCase());
-        if (issue.assignee || labels.includes('in-progress') || labels.includes('jules') || labels.includes('cursor')) {
-          continue;
+      try {
+        const issues = await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues?state=open`, { allPages: true });
+        for (const issue of issues) {
+          // Skip if issue has an assignee or is already being processed by an agent
+          const labels = issue.labels?.map(l => l.name.toLowerCase()) || [];
+          if (issue.assignee || labels.includes('in-progress') || labels.includes('jules') || labels.includes('cursor')) {
+            continue;
+          }
+          if (!issue.pull_request) {
+            await triageIssue(repo, issue).catch(e => {
+              console.error(`      Error triaging issue #${issue.number}: ${e.message}`);
+              stats.errors.push(`Triage error for ${repo.name}#${issue.number}: ${e.message}`);
+            });
+          }
         }
-        if (!issue.pull_request) {
-          await triageIssue(repo, issue);
-        }
-      }
 
-      const prs = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls?state=open`);
-      for (const pr of prs) {
-        await processPR(repo, pr);
+        const prs = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls?state=open`, { allPages: true });
+        for (const pr of prs) {
+          await processPR(repo, pr).catch(e => {
+            console.error(`      Error processing PR #${pr.number}: ${e.message}`);
+            stats.errors.push(`PR error for ${repo.name}#${pr.number}: ${e.message}`);
+          });
+        }
+      } catch (e) {
+        console.error(`    Error processing repository ${repo.full_name}: ${e.message}`);
+        stats.errors.push(`Repo error for ${repo.full_name}: ${e.message}`);
       }
     }
 

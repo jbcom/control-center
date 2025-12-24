@@ -180,9 +180,14 @@ async function triageIssue(repo, issue) {
       await julesApi('/sessions', {
         method: 'POST',
         body: JSON.stringify({
-          repository: { url: repo.html_url },
-          task: { description: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}` },
-          workMode: "AUTO_CREATE_PR"
+          prompt: `Fix issue #${issue.number}: ${issue.title}
+
+${issue.body}`,
+          sourceContext: {
+            source: `sources/github/${repo.owner.login}/${repo.name}`,
+            githubRepoContext: { startingBranch: repo.default_branch }
+          },
+          automationMode: "AUTO_CREATE_PR"
         })
       });
       stats.jules_sessions_created++;
