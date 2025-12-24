@@ -79,6 +79,22 @@ All repo settings are defined in `repo-config.json`:
 
 The `scripts/cursor-jules-orchestrator.mjs` script manages multi-agent workflows.
 
+### Ecosystem Curator
+
+The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration workflow that triages issues and processes PRs across all repositories in the `jbcom` organization.
+
+- **Schedule**: Nightly at 2 AM UTC (`.github/workflows/ecosystem-curator.yml`)
+- **Discovery**: Scans all non-archived repositories in the `jbcom` org.
+- **Triage**:
+  - Complex issues/Epics -> Google Jules session.
+  - Quick fixes -> Cursor Cloud Agent.
+  - Questions -> Ollama (GLM 4.6 Cloud) resolution.
+- **PR Processing**:
+  - Failed CI -> Cursor Agent fix.
+  - Blocking reviews -> Cursor Agent address.
+  - Ready to merge -> Auto-merge (squash).
+  - Agent questions -> Ollama resolution.
+
 ### Task Routing Guidelines
 
 | Task Type | Recommended Agent | Description |

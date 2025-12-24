@@ -8,6 +8,10 @@ The control center uses a unified GitHub token for all operations:
 |----------|---------|
 | `GITHUB_TOKEN` | All GitHub API operations (gh CLI, Terraform, etc.) |
 | `CI_GITHUB_TOKEN` | Same token, used in CI/CD workflows |
+| `CURSOR_API_KEY` | Auth for Cursor Cloud Agents |
+| `GOOGLE_JULES_API_KEY` | Auth for Google Jules sessions |
+| `JULES_GITHUB_TOKEN` | GitHub token for Jules to access repositories |
+| `OLLAMA_API_URL` | URL for Ollama Cloud API (GLM 4.6) |
 
 ## Configuration
 
