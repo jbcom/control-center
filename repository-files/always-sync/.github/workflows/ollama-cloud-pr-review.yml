@@ -45,6 +45,8 @@ jobs:
     outputs:
       pr_number: ${{ github.event.pull_request.number }}
       recommendation: ${{ steps.review.outputs.recommendation }}
+      score: ${{ steps.submit_review.outputs.score }}
+      issues_count: ${{ steps.submit_review.outputs.issues_count }}
     
     steps:
       - name: Check required secrets
@@ -199,6 +201,7 @@ jobs:
           branch: ${{ github.head_ref }}
 
       - name: Submit review
+        id: submit_review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -206,6 +209,9 @@ jobs:
           SCORE=$(jq -r '.score' /tmp/review.json)
           REC=$(jq -r '.recommendation' /tmp/review.json)
           ISSUES=$(jq '.issues | length' /tmp/review.json)
+
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "issues_count=$ISSUES" >> $GITHUB_OUTPUT
           
           BODY="## 🤖 Ollama Code Review
 
@@ -919,3 +925,93 @@ jobs:
           
           # Merge
           gh pr merge "$PR_NUM" --squash --delete-branch || echo "Merge failed - may need manual intervention"
+
+  # ============================================
+  # Delegate to Google Jules for Complex Fixes
+  # ============================================
+  delegate-to-jules:
+    name: Delegate to Google Jules
+    needs: initial-review
+    if: needs.initial-review.outputs.score < 5 && needs.initial-review.outputs.issues_count > 5
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for GOOGLE_JULES_API_KEY
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "::warning::GOOGLE_JULES_API_KEY not set. Skipping Jules delegation."
+            exit 0  # Exit gracefully
+          fi
+
+      - name: Get PR details
+        id: pr_details
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_JSON=$(gh pr view ${{ needs.initial-review.outputs.pr_number }} --json headRefName,body)
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName')
+          BODY=$(echo "$PR_JSON" | jq -r '.body')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+          echo "body<<EOF" >> $GITHUB_OUTPUT
+          echo "$BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Jules Session
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          HEAD_REF: ${{ steps.pr_details.outputs.head_ref }}
+        run: |
+          PROMPT="The code review score is low (${{ needs.initial-review.outputs.score }}/10) with ${{ needs.initial-review.outputs.issues_count }} issues. Please help fix this PR. Original PR body:\n\n${{ steps.pr_details.outputs.body }}"
+
+          JSON_PAYLOAD=$(jq -n \
+            --arg prompt "$PROMPT" \
+            --arg repo "$REPO_FULL_NAME" \
+            --arg branch "$HEAD_REF" \
+            '{
+              prompt: $prompt,
+              sourceContext: {
+                source: "github",
+                githubRepoContext: {
+                  owner: ($repo | split("/")[0]),
+                  repository: ($repo | split("/")[1]),
+                  startingBranch: $branch
+                }
+              },
+              automationMode: "AUTO_CREATE_PR"
+            }')
+
+          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
+
+          if [[ -z "$SESSION_URL" ]]; then
+            echo "::error::Failed to create Jules session. Response: $SESSION_RESPONSE"
+            exit 1
+          fi
+
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+
+      - name: Post Jules Session URL to PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR_NUMBER=${{ needs.initial-review.outputs.pr_number }}
+          SESSION_URL=${{ steps.jules.outputs.session_url }}
+
+          BODY="## 🤖 Delegation to Google Jules
+
+          This PR has a high number of complex issues that require significant work. To accelerate the process, I've delegated the fixes to Google's AI software engineer, Jules.
+
+          You can monitor the progress and interact with Jules here:
+          ➡️ **[Jules Session]($SESSION_URL)**
+
+          Jules will analyze the codebase, apply the necessary fixes, and submit a new PR with the changes."
+
+          gh pr comment "$PR_NUMBER" --body "$BODY"

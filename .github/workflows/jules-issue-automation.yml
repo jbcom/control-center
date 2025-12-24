@@ -1,0 +1,113 @@
+name: Jules Issue Automation
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  delegate-to-jules:
+    name: Delegate Issue to Jules
+    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/jules')
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check for GOOGLE_JULES_API_KEY
+        id: check_secret
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Post Initial Acknowledgement
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating a session to work on this issue..."
+
+      - name: Parse Task from Comment
+        id: parse_task
+        run: |
+          # Remove the /jules command and trim whitespace
+          TASK=$(echo "${{ github.event.comment.body }}" | sed 's|/jules||' | xargs)
+          echo "task<<EOF" >> $GITHUB_OUTPUT
+          echo "$TASK" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Jules Session
+        if: steps.check_secret.outputs.available == 'true'
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          TASK: ${{ steps.parse_task.outputs.task }}
+        run: |
+          PROMPT="Please address the following issue:\n\n${TASK}"
+
+          JSON_PAYLOAD=$(jq -n \
+            --arg prompt "$PROMPT" \
+            --arg repo "$REPO_FULL_NAME" \
+            --arg branch "$DEFAULT_BRANCH" \
+            '{
+              prompt: $prompt,
+              sourceContext: {
+                source: "github",
+                githubRepoContext: {
+                  owner: ($repo | split("/")[0]),
+                  repository: ($repo | split("/")[1]),
+                  startingBranch: $branch
+                }
+              },
+              automationMode: "AUTO_CREATE_PR"
+            }')
+
+          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
+
+          if [[ -z "$SESSION_URL" ]]; then
+            echo "::error::Failed to create Jules session. Response: $SESSION_RESPONSE"
+            # Post error message to issue
+            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
+            exit 1
+          fi
+
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+
+      - name: Post Session URL as Reply
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SESSION_URL=${{ steps.jules.outputs.session_url }}
+
+          BODY="## 🤖 Jules Session Created
+
+          I have created a session for Google's AI software engineer, Jules, to work on this issue.
+
+          You can monitor the progress and interact with Jules here:
+          ➡️ **[Jules Session]($SESSION_URL)**
+
+          Jules will analyze the issue, write the necessary code, and submit a PR with the solution."
+
+          gh issue comment ${{ github.event.issue.number }} --body "$BODY"
+
+      - name: Post Secret Not Available Message
+        if: steps.check_secret.outputs.available == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="⚠️ **Action Required:** The `GOOGLE_JULES_API_KEY` secret is not configured for this repository. Please add it to enable the `/jules` command."
+          gh issue comment ${{ github.event.issue.number }} --body "$BODY"
