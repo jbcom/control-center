@@ -91,9 +91,15 @@ jobs:
             # Check if SC2016 is already ignored
             if ! grep -q "SC2016" .github/workflows/ci.yml; then
               # Look for existing shellcheck ignores in actionlint
-              if grep -q -- "-ignore 'SC[0-9]\{4\}'" .github/workflows/ci.yml; then
-                sed -i "s/-ignore 'SC\([0-9]\{4\}\)'/& -ignore 'SC2016'/" .github/workflows/ci.yml
-                echo "Added SC2016 ignore to ci.yml"
+              if grep -q "actionlint" .github/workflows/ci.yml; then
+                if grep -q -- "-ignore 'SC[0-9]\{4\}'" .github/workflows/ci.yml; then
+                  sed -i "s/-ignore 'SC\([0-9]\{4\}\)'/& -ignore 'SC2016'/g" .github/workflows/ci.yml
+                  echo "Added SC2016 ignore to ci.yml"
+                else
+                  # Fallback: add after actionlint if no ignores exist
+                  sed -i "s/actionlint/& -ignore 'SC2016'/" .github/workflows/ci.yml
+                  echo "Added SC2016 ignore to ci.yml (fallback)"
+                fi
               fi
             fi
           fi
@@ -102,14 +108,10 @@ jobs:
         if: steps.alerts.outputs.has_missing_permissions == 'true'
         run: |
           for f in .github/workflows/*.yml; do
-            if ! grep -q "^permissions:" "$f"; then
-              # Check if file has 'jobs:' section
-              if grep -q "^jobs:" "$f"; then
-                # Insert permissions after 'on:' section, before 'jobs:'
-                # We use contents: read as default safe permission
-                awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
-                echo "Added permissions to $f"
-              fi
+            if grep -q "^on:" "$f" && grep -q "^jobs:" "$f" && ! grep -q "^permissions:" "$f"; then
+              # Insert permissions before 'jobs:'
+              awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
+              echo "Added permissions to $f"
             fi
           done
 

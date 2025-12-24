@@ -76,7 +76,6 @@ async function checkPRStatus(owner, repo, prNumber) {
   );
 
   const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
-  // At least one approval if we want to be strict, but for Jules maybe we just check no changes requested
   const isApproved = reviews.some(r => r.state === 'APPROVED');
 
   return {
@@ -90,6 +89,16 @@ async function checkPRStatus(owner, repo, prNumber) {
 }
 
 async function mergePR(owner, repo, prNumber) {
+  // Safety check: ensure PR doesn't contain obvious secrets or risky files
+  const files = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/files`);
+  if (Array.isArray(files)) {
+    const hasSecrets = files.some(f => f.patch && /password|secret|key|token/i.test(f.patch));
+    if (hasSecrets) {
+      console.log(`  ⚠️ Skipping merge - PR contains potentially sensitive data`);
+      return { merged: false, message: 'Safety check failed: potential secrets detected' };
+    }
+  }
+
   return ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
     method: 'PUT',
     body: JSON.stringify({ merge_method: 'squash' })
@@ -129,11 +138,9 @@ async function orchestrate() {
             continue;
           }
 
-          console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'} | Review: ${status.hasChangesRequested ? '❌ Changes Requested' : (status.isApproved ? '✅ Approved' : '⏳ Pending')}`);
+          console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'} | Review: ${status.hasChangesRequested ? '❌ Changes Requested' : (status.isApproved ? '✅ Approved' : '⏳ Pending Approval')}`);
           
-          if (status.allPassing && status.mergeable && !status.hasChangesRequested) {
-            // In a real scenario, we might want to wait for at least one approval or human check
-            // but for this orchestrator we follow the 'all passing and no blockers' rule
+          if (status.allPassing && status.mergeable && status.isApproved && !status.hasChangesRequested) {
             console.log(`  🔀 Merging...`);
             const result = await mergePR(owner, repo, prNum);
             console.log(`  Result: ${result.merged ? '✅ Merged' : result.message || 'Failed'}`);
@@ -141,6 +148,7 @@ async function orchestrate() {
             if (!status.allPassing) console.log(`  Waiting for CI to pass...`);
             if (!status.mergeable) console.log(`  Waiting for mergeable state (clean)...`);
             if (status.hasChangesRequested) console.log(`  Changes were requested. Please address them.`);
+            if (!status.isApproved && !status.hasChangesRequested) console.log(`  Waiting for approval...`);
           }
         }
       }
