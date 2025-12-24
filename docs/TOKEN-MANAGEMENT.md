@@ -77,11 +77,11 @@ The unified token requires these scopes:
 
 ## CI/CD Workflows
 
-Workflows use `CI_GITHUB_TOKEN` secret:
+Workflows use `JULES_GITHUB_TOKEN` (primary) or `CI_GITHUB_TOKEN` (legacy) secret:
 
 ```yaml
 env:
-  GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN || secrets.CI_GITHUB_TOKEN }}
 ```
 
 This is the same token as `GITHUB_TOKEN`, just stored as a secret.

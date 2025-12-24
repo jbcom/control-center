@@ -384,3 +384,15 @@ Documentation work was completed directly by bc-fcfe779a instead.
 
 ### In Progress
 - [ ] Add missing secrets to GitHub repository (requires human/admin action).
+
+## Session: 2025-12-24 (CI Failure Fix & Security Hardening)
+
+### Completed
+- [x] Fixed CI failures in `Ollama PR Orchestrator` by updating secret fallbacks to prefer `JULES_GITHUB_TOKEN`.
+- [x] Removed hardcoded GitHub PATs from `memory-bank/activeContext.md` and `docs/OSS-REPO-SYNC-CLEANUP.md`.
+- [x] Standardized secret fallbacks across all root and `always-sync` workflows.
+- [x] Fixed inconsistency in `cursor-jules-orchestrator.mjs` secret fallbacks between root and `always-sync`.
+- [x] Updated `docs/TOKEN-MANAGEMENT.md` with new standardized secret usage.
+
+### In Progress
+- [ ] Monitor CI for PR #436 to ensure green status.
