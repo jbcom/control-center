@@ -59,7 +59,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -984,7 +984,9 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
-          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          # Rate limit: wait 1 second between API calls
+          sleep 1
+          SESSION_RESPONSE=$(curl -s --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
