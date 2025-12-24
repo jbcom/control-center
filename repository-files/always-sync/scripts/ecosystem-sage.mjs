@@ -19,7 +19,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://ollama.jbcom.dev/api';
+const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://ollama.jbcom.dev';
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'glm-4.6:cloud';
 const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
@@ -57,7 +57,7 @@ async function ghApi(endpoint, options = {}) {
 }
 
 async function ollama(messages, options = {}) {
-  const res = await fetch(`${OLLAMA_API_URL}/chat`, {
+  const res = await fetch(`${OLLAMA_API_URL}/api/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
