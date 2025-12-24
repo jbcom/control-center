@@ -5,7 +5,6 @@ on:
     workflows: ["CI"]
     types: [completed]
     branches-ignore: [main]
-  # Also trigger on code scanning completion
   check_suite:
     types: [completed]
 
@@ -51,12 +50,10 @@ jobs:
           echo "Downloading logs for run ${{ steps.branch.outputs.run_id }}"
           gh run view ${{ steps.branch.outputs.run_id }} --log-failed > failure.log 2>&1 || true
           
-          # Extract shellcheck errors
           echo "shellcheck_errors<<EOF" >> $GITHUB_OUTPUT
           grep -oE "SC[0-9]{4}" failure.log | sort -u >> $GITHUB_OUTPUT || true
           echo "EOF" >> $GITHUB_OUTPUT
           
-          # Check error types
           grep -q "SC2016" failure.log && echo "has_sc2016=true" >> $GITHUB_OUTPUT || echo "has_sc2016=false" >> $GITHUB_OUTPUT
 
       - name: Check code scanning alerts
@@ -64,47 +61,36 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get open alerts for this branch
-          ALERTS=$(gh api repos/${{ github.repository }}/code-scanning/alerts \
-            --jq '[.[] | select(.state=="open")] | length')
+          ALERTS=$(gh api repos/${{ github.repository }}/code-scanning/alerts --jq '[.[] | select(.state=="open")] | length' 2>/dev/null || echo "0")
           echo "alert_count=$ALERTS" >> $GITHUB_OUTPUT
           
-          # Check for specific alert types
-          gh api repos/${{ github.repository }}/code-scanning/alerts \
-            --jq '.[] | select(.state=="open") | .rule.id' > alert_rules.txt
+          gh api repos/${{ github.repository }}/code-scanning/alerts --jq '.[] | select(.state=="open") | .rule.id' > alert_rules.txt 2>/dev/null || true
           
-          grep -q "missing-workflow-permissions" alert_rules.txt && echo "has_missing_permissions=true" >> $GITHUB_OUTPUT || echo "has_missing_permissions=false" >> $GITHUB_OUTPUT
-          grep -q "untrusted-checkout" alert_rules.txt && echo "has_untrusted_checkout=true" >> $GITHUB_OUTPUT || echo "has_untrusted_checkout=false" >> $GITHUB_OUTPUT
+          grep -q "missing-workflow-permissions" alert_rules.txt 2>/dev/null && echo "has_missing_permissions=true" >> $GITHUB_OUTPUT || echo "has_missing_permissions=false" >> $GITHUB_OUTPUT
+          grep -q "untrusted-checkout" alert_rules.txt 2>/dev/null && echo "has_untrusted_checkout=true" >> $GITHUB_OUTPUT || echo "has_untrusted_checkout=false" >> $GITHUB_OUTPUT
 
       - name: Fix SC2016 (single quotes intentional)
         if: steps.logs.outputs.has_sc2016 == 'true'
         run: |
-          echo "Adding SC2016 to actionlint ignore list..."
           CI_FILE=".github/workflows/ci.yml"
           if [ -f "$CI_FILE" ] && grep -q "actionlint.*-ignore" "$CI_FILE" && ! grep -q "SC2016" "$CI_FILE"; then
-            sed -i "s/actionlint \(.*\)'SC2129'/actionlint \1'SC2129' -ignore 'SC2016'/" "$CI_FILE"
-            echo "✅ Added SC2016 to ignore list"
+            sed -i "s/-ignore 'SC2129'/-ignore 'SC2129' -ignore 'SC2016'/" "$CI_FILE"
+            echo "Added SC2016 to ignore list"
           fi
 
       - name: Fix missing workflow permissions
         if: steps.alerts.outputs.has_missing_permissions == 'true'
         run: |
-          echo "Adding permissions blocks to workflows..."
-          
           for workflow in .github/workflows/*.yml; do
-            # Skip if already has permissions
             if grep -q "^permissions:" "$workflow"; then
               continue
             fi
             
-            # Add minimal permissions after 'on:' block
-            # Find the line number of first 'jobs:' and insert before it
             if grep -q "^jobs:" "$workflow"; then
-              sed -i '/^jobs:/i\
-permissions:\
-  contents: read\
-' "$workflow"
-              echo "✅ Added permissions to $workflow"
+              # Use awk to insert permissions block before jobs:
+              awk '/^jobs:/ {print "permissions:\n  contents: read\n"} {print}' "$workflow" > "$workflow.tmp"
+              mv "$workflow.tmp" "$workflow"
+              echo "Added permissions to $workflow"
             fi
           done
 
@@ -113,29 +99,15 @@ permissions:\
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "⚠️ Untrusted checkout detected - requires manual security review"
-          
-          # Get the PR number
-          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number')
+          echo "Untrusted checkout detected - flagging for review"
+          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
           
           if [ -n "$PR_NUM" ]; then
-            gh pr comment "$PR_NUM" --body "## ⚠️ Security Alert: Untrusted Checkout Detected
+            gh pr comment "$PR_NUM" --body "## ⚠️ Security: Untrusted Checkout
 
-The code scanning found \`untrusted-checkout\` issues in workflow files.
+Code scanning found untrusted-checkout issues requiring manual review.
 
-This requires manual review because:
-- Checking out PR code with write permissions is a security risk
-- The fix depends on the specific workflow's requirements
-
-**Files affected:**
-\`\`\`
-$(gh api repos/${{ github.repository }}/code-scanning/alerts --jq '.[] | select(.rule.id | contains(\"untrusted-checkout\")) | .most_recent_instance.location.path' | sort -u)
-\`\`\`
-
-**Recommended fixes:**
-1. Use \`pull_request_target\` with explicit ref
-2. Split into two workflows (untrusted build, trusted deploy)
-3. Reduce permissions to minimum required"
+See: https://github.com/${{ github.repository }}/security/code-scanning"
           fi
 
       - name: Commit and push fixes
@@ -149,15 +121,6 @@ $(gh api repos/${{ github.repository }}/code-scanning/alerts --jq '.[] | select(
           fi
           
           git add -A
-          git diff --staged --stat
-          
-          git commit -m "fix(ci): auto-resolve CI failures
-
-          Shellcheck errors: ${{ steps.logs.outputs.shellcheck_errors }}
-          Code scanning alerts: ${{ steps.alerts.outputs.alert_count }}
-          
-          Applied by: CI Failure Resolution workflow"
-          
+          git commit -m "fix(ci): auto-resolve CI failures [bot]"
           git push origin ${{ steps.branch.outputs.ref }}
-          
-          echo "✅ Fixes pushed - CI will re-run"
+          echo "Fixes pushed"
