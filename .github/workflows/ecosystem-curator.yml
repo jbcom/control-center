@@ -1,0 +1,58 @@
+name: Ecosystem Curator
+
+on:
+  schedule:
+    - cron: '0 2 * * *' # Nightly at 2 AM UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (do not create sessions or agents)'
+        required: false
+        default: 'false'
+      target_repo:
+        description: 'Target repository (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+jobs:
+  curate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: Setup Node.js
+        uses: actions/setup-node@39225597ea64c5ed3ad200f884ffd8ed2012c0c9
+        with:
+          node-version: '20'
+
+      - name: Run Curator
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}
+          OLLAMA_API_URL: ${{ secrets.OLLAMA_API_URL }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          TARGET_REPO: ${{ github.event.inputs.target_repo }}
+        run: |
+          node scripts/ecosystem-curator.mjs
+
+      - name: Post Summary
+        if: always()
+        run: |
+          if [ -f curator-report.json ]; then
+            echo "### Ecosystem Curator Summary 🤖" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat curator-report.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Ecosystem Curator Failed ❌" >> $GITHUB_STEP_SUMMARY
+            echo "Report not found." >> $GITHUB_STEP_SUMMARY
+          fi
