@@ -141,9 +141,15 @@ Manual issue delegation:
 |--------|---------|
 | `GOOGLE_JULES_API_KEY` | Google Jules API authentication |
 | `JULES_GITHUB_TOKEN` | GitHub PAT for Jules operations |
-| `CURSOR_API_KEY` | Cursor Cloud Agent API authentication |
-| `CURSOR_GITHUB_TOKEN` | GitHub PAT for Cursor operations |
+| `CURSOR_SESSION_TOKEN` | Cursor session token (from `WorkosCursorSessionToken` cookie) |
 | `OLLAMA_API_KEY` | Ollama cloud API authentication |
+
+#### Getting CURSOR_SESSION_TOKEN
+
+1. Log in to [cursor.com](https://cursor.com)
+2. Open browser DevTools → Application → Cookies
+3. Copy the value of `WorkosCursorSessionToken`
+4. Add it as a repository/organization secret named `CURSOR_SESSION_TOKEN`
 
 ### Required Variables
 

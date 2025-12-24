@@ -75,7 +75,7 @@ jobs:
           OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           # Event context
           EVENT_NAME: ${{ github.event_name }}

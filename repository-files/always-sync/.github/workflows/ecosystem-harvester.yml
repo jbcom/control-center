@@ -32,7 +32,7 @@ jobs:
       - name: Run Harvester
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run }}

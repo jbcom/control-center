@@ -3,26 +3,27 @@
  * Ecosystem Harvester
  * 
  * Runs every 15 minutes to:
- * 1. Check finished Cursor agents → process their work
+ * 1. Check Cursor Background Composers → process completed work
  * 2. Check completed Jules sessions → process their PRs
  * 3. Find PRs ready to merge → merge them
  * 4. Request reviews on PRs needing attention
  * 
- * This complements the nightly Curator which spawns work.
- * The Harvester consumes and completes that work.
+ * Uses:
+ * - Cursor Background Composer API (https://cursor.com)
+ * - Google Jules API (https://jules.googleapis.com)
  */
 
 import { writeFileSync } from 'fs';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
+const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const ORG = 'jbcom';
 
 const stats = {
-  cursor_agents_checked: 0,
-  cursor_agents_finished: 0,
+  cursor_composers_checked: 0,
+  cursor_composers_completed: 0,
   jules_sessions_checked: 0,
   jules_sessions_completed: 0,
   prs_reviewed: 0,
@@ -32,7 +33,7 @@ const stats = {
 };
 
 // ============================================================================
-// API Clients
+// GitHub API
 // ============================================================================
 
 async function ghApi(endpoint, options = {}) {
@@ -53,23 +54,77 @@ async function ghApi(endpoint, options = {}) {
   return res.json();
 }
 
-async function cursorApi(endpoint, options = {}) {
-  if (!CURSOR_API_KEY) return null;
-  const auth = Buffer.from(`${CURSOR_API_KEY}:`).toString('base64');
-  const res = await fetch(`https://api.cursor.com${endpoint}`, {
-    ...options,
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/json',
-      ...options.headers
-    }
+// ============================================================================
+// Cursor Background Composer API
+// Based on: https://github.com/mjdierkes/cursor-background-agent-api
+// ============================================================================
+
+function getCursorHeaders() {
+  if (!CURSOR_SESSION_TOKEN) return null;
+  return {
+    'Accept': '*/*',
+    'Content-Type': 'application/json',
+    'Cookie': `WorkosCursorSessionToken=${CURSOR_SESSION_TOKEN}`,
+    'Origin': 'https://cursor.com',
+    'Referer': 'https://cursor.com/agents',
+    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
+  };
+}
+
+async function cursorListComposers(n = 100) {
+  const headers = getCursorHeaders();
+  if (!headers) return [];
+  
+  const res = await fetch('https://cursor.com/api/background-composer/list', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ n, include_status: true })
   });
+  
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(`Cursor API ${res.status}: ${JSON.stringify(error)}`);
+    throw new Error(`Cursor API ${res.status}: ${await res.text()}`);
   }
+  
   return res.json();
 }
+
+async function cursorGetDetailed(bcId) {
+  const headers = getCursorHeaders();
+  if (!headers) return null;
+  
+  const res = await fetch('https://cursor.com/api/background-composer/get-detailed-composer', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ bcId, n: 1, includeDiff: true, includeTeamWide: true })
+  });
+  
+  if (!res.ok) {
+    throw new Error(`Cursor API ${res.status}: ${await res.text()}`);
+  }
+  
+  return res.json();
+}
+
+async function cursorOpenPr(bcId) {
+  const headers = getCursorHeaders();
+  if (!headers) return null;
+  
+  const res = await fetch('https://cursor.com/api/background-composer/open-pr', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ bcId })
+  });
+  
+  if (!res.ok) {
+    throw new Error(`Cursor API ${res.status}: ${await res.text()}`);
+  }
+  
+  return res.json();
+}
+
+// ============================================================================
+// Jules API
+// ============================================================================
 
 async function julesApi(endpoint, options = {}) {
   if (!GOOGLE_JULES_API_KEY) return null;
@@ -89,49 +144,47 @@ async function julesApi(endpoint, options = {}) {
 }
 
 // ============================================================================
-// Cursor Agent Harvesting
+// Cursor Composer Harvesting
 // ============================================================================
 
-async function harvestCursorAgents() {
-  console.log('\n🤖 Harvesting Cursor Agents...');
+async function harvestCursorComposers() {
+  console.log('\n🤖 Harvesting Cursor Background Composers...');
+  
+  if (!CURSOR_SESSION_TOKEN) {
+    console.log('   ⚠️ CURSOR_SESSION_TOKEN not set - skipping');
+    return;
+  }
   
   try {
-    const { agents } = await cursorApi('/v0/agents');
-    stats.cursor_agents_checked = agents.length;
+    const composers = await cursorListComposers(100);
+    stats.cursor_composers_checked = Array.isArray(composers) ? composers.length : 0;
+    console.log(`   Found ${stats.cursor_composers_checked} composers`);
     
-    const finished = agents.filter(a => a.status === 'FINISHED');
-    stats.cursor_agents_finished = finished.length;
-    
-    console.log(`  Total: ${agents.length} | Finished: ${finished.length}`);
-    
-    for (const agent of finished.slice(0, 20)) { // Process up to 20 per run
-      const repo = agent.source?.repository?.replace('github.com/', '') || '';
-      const branch = agent.target?.branchName;
+    for (const composer of (composers || [])) {
+      const status = composer.status || composer.state || 'unknown';
+      console.log(`   - ${composer.bcId || composer.id}: ${status}`);
       
-      if (!repo || !branch) continue;
-      
-      console.log(`  📋 Agent ${agent.id.slice(0, 8)}: ${agent.name}`);
-      console.log(`     Repo: ${repo} | Branch: ${branch}`);
-      
-      // Check if there's a PR for this branch
-      try {
-        const [owner, repoName] = repo.split('/');
-        const prs = await ghApi(`/repos/${owner}/${repoName}/pulls?head=${owner}:${branch}&state=open`);
+      // Check if completed and needs PR
+      if (status === 'completed' || status === 'finished' || status === 'done') {
+        stats.cursor_composers_completed++;
         
-        if (prs.length > 0) {
-          const pr = prs[0];
-          console.log(`     PR #${pr.number}: ${pr.title}`);
-          await processPR(owner, repoName, pr);
-        } else {
-          console.log(`     No PR found for branch`);
+        // Try to get detailed info
+        try {
+          const details = await cursorGetDetailed(composer.bcId || composer.id);
+          
+          // If there are changes but no PR, open one
+          if (details?.hasChanges && !details?.prUrl && !DRY_RUN) {
+            console.log(`     -> Opening PR for completed composer`);
+            await cursorOpenPr(composer.bcId || composer.id);
+          }
+        } catch (e) {
+          console.log(`     Error getting details: ${e.message}`);
         }
-      } catch (e) {
-        console.log(`     Error: ${e.message}`);
       }
     }
   } catch (e) {
-    console.error(`  Failed to harvest Cursor agents: ${e.message}`);
-    stats.errors.push(`Cursor harvest: ${e.message}`);
+    console.log(`   Error: ${e.message}`);
+    stats.errors.push(`Cursor harvest error: ${e.message}`);
   }
 }
 
@@ -142,54 +195,36 @@ async function harvestCursorAgents() {
 async function harvestJulesSessions() {
   console.log('\n📝 Harvesting Jules Sessions...');
   
+  if (!GOOGLE_JULES_API_KEY) {
+    console.log('   ⚠️ GOOGLE_JULES_API_KEY not set - skipping');
+    return;
+  }
+  
   try {
-    const { sessions } = await julesApi('/sessions');
-    if (!sessions) {
-      console.log('  No sessions found');
-      return;
-    }
-    
+    const sessionsData = await julesApi('/sessions');
+    const sessions = sessionsData?.sessions || [];
     stats.jules_sessions_checked = sessions.length;
+    console.log(`   Found ${sessions.length} sessions`);
     
-    const completed = sessions.filter(s => s.state === 'COMPLETED');
-    stats.jules_sessions_completed = completed.length;
-    
-    console.log(`  Total: ${sessions.length} | Completed: ${completed.length}`);
-    
-    for (const session of completed.slice(0, 10)) { // Process up to 10 per run
-      const sessionId = session.name?.split('/')[1];
-      if (!sessionId) continue;
+    for (const session of sessions) {
+      const sessionId = session.name?.split('/').pop();
+      const state = session.state || 'unknown';
+      console.log(`   - ${sessionId}: ${state}`);
       
-      try {
-        const details = await julesApi(`/sessions/${sessionId}`);
-        const prUrl = details.outputs?.[0]?.pullRequest?.url;
-        
-        console.log(`  📋 Session ${sessionId.slice(0, 8)}: ${details.title || 'Untitled'}`);
-        
-        if (prUrl) {
-          // Extract PR info from URL
-          const match = prUrl.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-          if (match) {
-            const [, owner, repo, prNum] = match;
-            console.log(`     PR: ${owner}/${repo}#${prNum}`);
-            
-            try {
-              const pr = await ghApi(`/repos/${owner}/${repo}/pulls/${prNum}`);
-              await processPR(owner, repo, pr);
-            } catch (e) {
-              console.log(`     Error fetching PR: ${e.message}`);
-            }
-          }
-        } else {
-          console.log(`     No PR created yet`);
+      if (state === 'COMPLETED' || state === 'PR_CREATED') {
+        stats.jules_sessions_completed++;
+      } else if (state === 'PROPOSED_PLAN' && !DRY_RUN) {
+        console.log(`     -> Auto-approving plan`);
+        try {
+          await julesApi(`/sessions/${sessionId}:approvePlan`, { method: 'POST' });
+        } catch (e) {
+          console.log(`     Error approving: ${e.message}`);
         }
-      } catch (e) {
-        console.log(`     Error: ${e.message}`);
       }
     }
   } catch (e) {
-    console.error(`  Failed to harvest Jules sessions: ${e.message}`);
-    stats.errors.push(`Jules harvest: ${e.message}`);
+    console.log(`   Error: ${e.message}`);
+    stats.errors.push(`Jules harvest error: ${e.message}`);
   }
 }
 
@@ -197,97 +232,79 @@ async function harvestJulesSessions() {
 // PR Processing
 // ============================================================================
 
-async function processPR(owner, repo, pr) {
-  stats.prs_reviewed++;
-  
-  // Get PR status
-  const checks = await ghApi(`/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`).catch(() => ({ check_runs: [] }));
-  const reviews = await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/reviews`).catch(() => []);
-  
-  const allChecksPass = checks.check_runs?.length === 0 || 
-    checks.check_runs?.every(c => c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'skipped'));
-  const hasApproval = reviews.some(r => r.state === 'APPROVED');
-  const hasBlocker = reviews.some(r => r.state === 'CHANGES_REQUESTED');
-  
-  console.log(`     Checks: ${allChecksPass ? '✅' : '❌'} | Approved: ${hasApproval ? '✅' : '⏳'} | Blocked: ${hasBlocker ? '❌' : '✅'}`);
-  
-  // If ready to merge
-  if (allChecksPass && !hasBlocker && pr.mergeable !== false && !pr.draft) {
-    console.log(`     🚀 Ready to merge!`);
-    
-    if (!DRY_RUN) {
-      try {
-        await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
-          method: 'PUT',
-          body: JSON.stringify({ merge_method: 'squash' })
-        });
-        console.log(`     ✅ Merged!`);
-        stats.prs_merged++;
-      } catch (e) {
-        console.log(`     Merge failed: ${e.message}`);
-      }
-    } else {
-      console.log(`     [DRY RUN] Would merge`);
-    }
-  }
-  
-  // If no reviews yet, request them
-  if (reviews.length === 0 && !pr.draft) {
-    console.log(`     📢 Requesting reviews...`);
-    
-    if (!DRY_RUN) {
-      // Trigger review by commenting
-      try {
-        await ghApi(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, {
-          method: 'POST',
-          body: JSON.stringify({ 
-            body: '🤖 **Harvester**: This PR was created by an AI agent and is ready for review.\n\n@gemini-code-assist @amazon-q-developer Please review.' 
-          })
-        });
-        stats.reviews_requested++;
-      } catch (e) {
-        // Ignore comment errors
-      }
-    }
-  }
-}
-
-// ============================================================================
-// Scan All Org PRs for Merge-Ready
-// ============================================================================
-
-async function scanOrgPRs() {
-  console.log('\n🔍 Scanning org for merge-ready PRs...');
+async function processPRs() {
+  console.log('\n📋 Processing Open PRs...');
   
   try {
     // Get all repos
-    const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100&type=all`);
+    const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100`);
     
-    for (const repo of repos.filter(r => !r.archived && !r.fork)) {
-      try {
-        const prs = await ghApi(`/repos/${ORG}/${repo.name}/pulls?state=open&per_page=10`);
-        
-        for (const pr of prs) {
-          // Skip drafts
-          if (pr.draft) continue;
-          
-          // Check if auto-merge candidate (bot PRs or labeled)
-          const isBot = pr.user?.login?.includes('bot') || pr.user?.login?.includes('dependabot');
-          const labels = pr.labels?.map(l => l.name) || [];
-          const isAutoMerge = isBot || labels.includes('automerge') || labels.includes('dependencies');
-          
-          if (isAutoMerge) {
-            console.log(`  📋 ${repo.name}#${pr.number}: ${pr.title.slice(0, 50)}...`);
-            await processPR(ORG, repo.name, pr);
-          }
-        }
-      } catch (e) {
-        // Skip repos with errors
+    for (const repo of repos.filter(r => !r.archived)) {
+      const prs = await ghApi(`/repos/${ORG}/${repo.name}/pulls?state=open&per_page=50`);
+      
+      for (const pr of prs) {
+        await processPR(ORG, repo.name, pr);
       }
     }
   } catch (e) {
-    console.error(`  Failed to scan org PRs: ${e.message}`);
-    stats.errors.push(`Org scan: ${e.message}`);
+    console.log(`   Error listing PRs: ${e.message}`);
+    stats.errors.push(`PR list error: ${e.message}`);
+  }
+}
+
+async function processPR(owner, repo, pr) {
+  stats.prs_reviewed++;
+  console.log(`   ${owner}/${repo}#${pr.number}: ${pr.title.substring(0, 50)}...`);
+  
+  try {
+    // Check CI status
+    const checks = await ghApi(`/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`);
+    const allChecksPass = checks.check_runs?.length > 0 && 
+      checks.check_runs.every(c => 
+        c.status === 'completed' && 
+        ['success', 'neutral', 'skipped'].includes(c.conclusion)
+      );
+    
+    // Check for blocking reviews
+    const reviews = await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/reviews`);
+    const hasBlocker = reviews.some(r => r.state === 'CHANGES_REQUESTED');
+    const isApproved = reviews.some(r => r.state === 'APPROVED');
+    
+    // Determine action
+    if (allChecksPass && isApproved && !hasBlocker && pr.mergeable !== false && !pr.draft) {
+      console.log(`     🚀 Ready to merge!`);
+      if (!DRY_RUN) {
+        try {
+          await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
+            method: 'PUT',
+            body: JSON.stringify({ merge_method: 'squash' })
+          });
+          console.log(`     ✅ Merged!`);
+          stats.prs_merged++;
+        } catch (e) {
+          console.log(`     Merge failed: ${e.message}`);
+        }
+      } else {
+        console.log(`     [DRY RUN] Would merge`);
+      }
+    } else if (allChecksPass && !isApproved && !hasBlocker) {
+      // Request reviews from AI reviewers
+      console.log(`     📝 CI passing, requesting reviews`);
+      if (!DRY_RUN) {
+        try {
+          // Request Gemini review
+          await ghApi(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, {
+            method: 'POST',
+            body: JSON.stringify({ body: '@gemini-code-assist Please review this PR.' })
+          });
+          stats.reviews_requested++;
+        } catch (e) {
+          // Ignore comment errors
+        }
+      }
+    }
+  } catch (e) {
+    console.log(`     Error: ${e.message}`);
   }
 }
 
@@ -295,33 +312,35 @@ async function scanOrgPRs() {
 // Main
 // ============================================================================
 
-async function harvest() {
+async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
-  console.log('║              ECOSYSTEM HARVESTER - CONSUMING VALUE               ║');
+  console.log('║                    ECOSYSTEM HARVESTER                            ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝');
-  console.log(`\nTime: ${new Date().toISOString()}`);
-  console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
+  console.log('');
+  console.log(`Time: ${new Date().toISOString()}`);
+  console.log(`Dry Run: ${DRY_RUN}`);
+  console.log('');
   
-  // Harvest from agents
-  await harvestCursorAgents();
+  if (!GITHUB_TOKEN) {
+    console.error('❌ GITHUB_TOKEN not set');
+    process.exit(1);
+  }
+  
+  await harvestCursorComposers();
   await harvestJulesSessions();
+  await processPRs();
   
-  // Scan for merge-ready PRs
-  await scanOrgPRs();
-  
-  // Report
-  console.log('\n╔══════════════════════════════════════════════════════════════════╗');
-  console.log('║                      HARVEST COMPLETE                            ║');
-  console.log('╚══════════════════════════════════════════════════════════════════╝');
-  console.log(`\n✅ Harvester finished`);
-  console.log(JSON.stringify(stats, null, 2));
-  
+  // Write report
   writeFileSync('harvester-report.json', JSON.stringify(stats, null, 2));
+  
+  console.log('\n═══════════════════════════════════════════════════════════════════');
+  console.log('                         HARVESTER REPORT                           ');
+  console.log('═══════════════════════════════════════════════════════════════════');
+  console.log(JSON.stringify(stats, null, 2));
+  console.log('\n✅ Ecosystem Harvester finished successfully');
 }
 
-harvest().catch(e => {
+main().catch(e => {
   console.error('Fatal error:', e);
-  stats.errors.push(`Fatal: ${e.message}`);
-  writeFileSync('harvester-report.json', JSON.stringify(stats, null, 2));
   process.exit(1);
 });

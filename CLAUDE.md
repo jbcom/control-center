@@ -217,3 +217,28 @@ node scripts/ecosystem-harvester.mjs
 | CI failure resolution | Cursor (direct) |
 | Documentation | Jules |
 | Complex debugging | Cursor (direct) |
+
+## Cursor Background Composer API
+
+The ecosystem uses Cursor's Background Composer API for AI-assisted coding tasks.
+
+**Authentication**: Session token via `WorkosCursorSessionToken` cookie
+
+**API Reference**: https://github.com/mjdierkes/cursor-background-agent-api
+
+### Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/auth/startBackgroundComposerFromSnapshot` | POST | Create a new background composer |
+| `/api/background-composer/list` | POST | List all composers |
+| `/api/background-composer/get-detailed-composer` | POST | Get composer details |
+| `/api/background-composer/open-pr` | POST | Create PR from composer |
+| `/api/background-composer/pause` | POST | Pause a running composer |
+
+### Getting the Session Token
+
+1. Log in to [cursor.com](https://cursor.com)
+2. Open browser DevTools → Application → Cookies
+3. Copy the value of `WorkosCursorSessionToken`
+4. Set as `CURSOR_SESSION_TOKEN` secret
