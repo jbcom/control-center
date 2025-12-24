@@ -5,11 +5,9 @@ on:
     workflows: ["CI"]
     types: [completed]
     branches-ignore: [main]
-  check_suite:
-    types: [completed]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   actions: read
   security-events: read
@@ -33,6 +31,16 @@ jobs:
             echo "ref=${{ github.event.check_suite.head_branch }}" >> $GITHUB_OUTPUT
             echo "run_id=" >> $GITHUB_OUTPUT
           fi
+
+      - name: Validate PR branch
+        run: |
+          # Ensure this is a PR branch, not an arbitrary branch
+          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -z "$PR_NUM" ]; then
+            echo "Branch ${{ steps.branch.outputs.ref }} is not associated with a PR. Skipping."
+            exit 0
+          fi
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
         uses: actions/checkout@v4
@@ -90,11 +98,22 @@ jobs:
             gh pr comment "$PR_NUM" --body "Security: untrusted-checkout detected. Manual review needed."
           fi
 
-      - name: Commit and push
+      - name: Comment PR with suggested fixes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          git config user.email "ci-bot@jbcom.dev"
-          git config user.name "CI Bot"
-          git diff --quiet && exit 0
-          git add -A
-          git commit -m "fix(ci): auto-resolve failures [bot]"
-          git push origin ${{ steps.branch.outputs.ref }}
+          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if [ -n "$PR_NUM" ]; then
+            git diff --quiet && exit 0
+            git diff > suggested-changes.patch
+            echo "## Suggested CI Fixes" > pr-comment.md
+            echo "" >> pr-comment.md
+            echo "The following changes are suggested to resolve CI failures:" >> pr-comment.md
+            echo "" >> pr-comment.md
+            echo "\`\`\`diff" >> pr-comment.md
+            cat suggested-changes.patch >> pr-comment.md
+            echo "\`\`\`" >> pr-comment.md
+            echo "" >> pr-comment.md
+            echo "Please review and apply these changes manually." >> pr-comment.md
+            gh pr comment "$PR_NUM" --body-file pr-comment.md
+          fi
