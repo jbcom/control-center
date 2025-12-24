@@ -18,6 +18,7 @@ The workflow provides a complete AI code review solution using GLM-4.6:cloud mod
 Add these secrets to your repository settings:
 
 - `OLLAMA_API_KEY` - Your Ollama.com API key for cloud model access
+- `GOOGLE_JULES_API_KEY` - Your API key for Google's Jules AI software engineer
 
 ### Required Variables (Optional)
 Set these repository variables for customization:
@@ -78,6 +79,35 @@ The workflow is triggered by:
 1. Automatically requests reviews from other AI tools
 2. Posts comments with `/gemini review` and `/q review`
 3. Enables complementary review from multiple AI sources
+
+### 4. Google Jules Integration
+
+For highly complex pull requests or issues that require significant rework, the workflow can delegate the task to Google Jules, an AI software engineer.
+
+#### a. Automatic Delegation for Complex PRs (`delegate-to-jules` job)
+
+**Triggers**: After `initial-review` job if the review score is < 5 and there are > 5 issues.
+
+**Process**:
+1. **Condition Check**: The job checks if the PR is a candidate for delegation based on the low score and high issue count from the `initial-review`.
+2. **API Key Check**: It verifies if the `GOOGLE_JULES_API_KEY` secret is available.
+3. **Create Jules Session**: It calls the Jules API, providing the PR context and a prompt to fix the identified issues.
+4. **Post Session URL**: It posts a comment on the PR with a link to the Jules session, allowing the team to monitor the AI's progress as it works on a fix.
+
+#### b. Manual Delegation from Issues (`jules-issue-automation.yml` workflow)
+
+**Triggers**: A new comment on an issue containing the command `/jules`.
+
+**Process**:
+1. **Command Detection**: The workflow listens for comments on issues (not PRs) that contain `/jules`.
+2. **Task Parsing**: It extracts the content of the comment (excluding the `/jules` command) to use as the task for the AI.
+3. **Create Jules Session**: It creates a new Jules session, instructing the AI to work on the task described in the issue comment, starting from the repository's default branch.
+4. **Post Session URL**: It replies to the issue comment with a link to the newly created Jules session.
+
+**Use Cases**:
+- Fixing complex bugs reported in issues.
+- Implementing new features described in an issue.
+- Performing large-scale refactoring.
 
 ## JSON Schema
 
