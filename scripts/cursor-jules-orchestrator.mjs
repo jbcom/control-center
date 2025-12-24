@@ -8,7 +8,6 @@
 import { execSync } from 'child_process';
 
 // Configuration from environment
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN || process.env.CI_GITHUB_TOKEN;
 const CURSOR_TOKEN = process.env.CURSOR_TOKEN;
 const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
 
@@ -26,7 +25,7 @@ const github = {
    */
   async getPRStatus(repo, prNumber) {
     try {
-      const output = execSync(`gh pr view ${prNumber} --repo ${repo} --json state,mergeable,reviewDecision`, { encoding: 'utf8' });
+      const output = execSync(`gh pr view ${JSON.stringify(prNumber)} --repo ${JSON.stringify(repo)} --json state,mergeable,reviewDecision`, { encoding: 'utf8' });
       return JSON.parse(output);
     } catch (error) {
       console.error(`Error fetching PR status for ${repo}#${prNumber}:`, error.message);
@@ -42,7 +41,7 @@ const github = {
   async mergePR(repo, prNumber) {
     try {
       console.log(`Merging PR ${repo}#${prNumber}...`);
-      execSync(`gh pr merge ${prNumber} --repo ${repo} --squash --delete-branch`, { stdio: 'inherit' });
+      execSync(`gh pr merge ${JSON.stringify(prNumber)} --repo ${JSON.stringify(repo)} --squash --delete-branch`, { stdio: 'inherit' });
       return true;
     } catch (error) {
       console.error(`Failed to merge PR ${repo}#${prNumber}:`, error.message);
@@ -150,9 +149,12 @@ async function orchestrate(options = {}) {
       status = await cursor.getAgentStatus(agent.id);
     } else if (agent.type === 'jules') {
       status = await jules.getSessionStatus(agent.id);
+    } else {
+      console.error(`Unknown agent type: ${agent.type}`);
+      continue;
     }
 
-    console.log(`Agent ${agent.id} status: ${status.state || status.status}`);
+    console.log(`Agent ${agent.id} status: ${status?.state || status?.status || 'unknown'}`);
 
     // Check for associated PRs if agent finished
     if (agent.prNumber) {
@@ -176,7 +178,12 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
   const repo = args[0];
   const agents = args.slice(1).map(arg => {
-    const [type, id, prNumber] = arg.split(':');
+    const parts = arg.split(':');
+    if (parts.length < 2) {
+      console.error(`Invalid agent format: ${arg}. Expected format: type:id[:prNumber]`);
+      process.exit(1);
+    }
+    const [type, id, prNumber] = parts;
     return { type, id, prNumber: prNumber ? parseInt(prNumber) : null };
   });
 
