@@ -1,135 +1,41 @@
 # Active Context - jbcom Control Center
 
-## Current Status: DEPENDABOT CONFIGURATION CORRECTED
+## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
 
-The Dependabot configuration has been properly set up in the Control Center repository and the shared template.
+Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
 
-### What Was Fixed
-1. ✅ **Renamed**: `.github/dependabot.yamy` → `.github/dependabot.yml` (fixed file extension error)
-2. ✅ **Configured Ecosystems**: Added `github-actions` and `docker` to track the Control Center's own dependencies.
-3. ✅ **Grouped Updates**: Implemented Dependabot `groups` to consolidate `major` and `minor` updates, reducing PR noise.
-4. ✅ **Updated Template**: Applied similar grouping improvements to the shared Dependabot template at `repository-files/initial-only/.github/dependabot.yml`.
-5. ✅ **SHA Pinning**: Verified that all internal workflows already use exact SHA pinning for security, which Dependabot will now track and maintain.
+### What Was Fixed/Added
+1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
+2. ✅ **Security Hardening**:
+    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
+    - Implemented `persist-credentials: false` for untrusted checkouts.
+    - Added `contents: write` permissions where necessary for auto-resolution.
+3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ci-failure-resolution.yml` to fulfill the promised automated fix functionality.
+4. ✅ **Orchestrator Safety**: Enhanced `cursor-jules-orchestrator.mjs` with safety checks for risky files (executables/secrets) before merging.
+5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
 
 ### Changes Made
-- `.github/dependabot.yml` - New corrected configuration
-- `repository-files/initial-only/.github/dependabot.yml` - Updated with grouping for all ecosystems
-- `.github/dependabot.yamy` - Deleted (incorrect extension)
+- Updated workflows: `ci.yml`, `ci-failure-resolution.yml`, `ollama-cloud-pr-review.yml`, `jules-issue-automation.yml`.
+- Updated orchestrator script: `scripts/cursor-jules-orchestrator.mjs`.
+- Updated repository-files templates.
 
 ---
 
-## Session: 2025-12-23 (Dependabot Configuration Fix)
+## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
 
 ### Task
-Fix the Dependabot configuration per PR feedback: rename the file, set valid ecosystems, group major/minor updates, and ensure GitHub Actions are tracked with SHA pinning in mind.
+Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all security criteria are met.
 
 ### Final State
-- **Control Center**: Tracking `github-actions` (root) and `docker` (`.cursor/`) with grouped major/minor updates.
-- **Ecosystem Template**: All standard ecosystems (npm, pip, gomod, cargo, terraform, docker, github-actions) now have grouping enabled by default.
+- PR #426 and #421 updated with security fixes and pinned actions.
+- CodeQL alerts on PR branches resolved.
+- CI workflows triggered and pending.
 
 ### For Next Agent
-- Monitor the next Dependabot run to verify PRs are created correctly.
-- Verify that downstream repositories receive the updated Dependabot template during their next `initial-only` sync (if applicable).
+- Merge PR #426 and #421 once CI passes green.
+- Monitor for any new AI feedback from Gemini or Amazon Q.
+- Verify that auto-resolution triggers correctly on next CI failure.
 
 ---
 
-## Previous Status: SUBMODULES REMOVED + DEAD REPOS CLEANED
-
-Eliminated all submodule support and removed non-existent repositories from sync targets.
-
----
-
-## Session: 2025-12-19 (Repository Cleanup - Submodules and Dead Repos)
-
-### Issue
-Ecosystem Sync workflow failing with errors:
-- `jbcom/go-port-api` - Repository not found
-- `jbcom/go-vault-secret-sync` - Repository not found
-- Submodule support was outdated and causing confusion
-
-### Fixes Applied
-
-1. **Removed dead repositories from sync configs:**
-   - Removed `jbcom/go-port-api` and `jbcom/go-vault-secret-sync` from:
-     - `.github/sync-initial.yml`
-     - `.github/sync-always.yml`
-     - `.github/workflows/agentic-triage.yml` (fallback matrix)
-
-2. **Eliminated submodule support:**
-   - Deleted `.gitmodules` file (was referencing 20 repos in `ecosystems/oss/`)
-   - Removed `update-submodules` job from `ecosystem-sync.yml`
-   - Updated `sync-projects` job dependency (now depends on `phase-2-always`)
-   - Removed `gitsubmodule` ecosystem from `repository-files/initial-only/.github/dependabot.yml`
-
-3. **Updated ecosystem CLI (`scripts/ecosystem`):**
-   - Removed submodule references from matrix output
-   - Simplified `cmd_discover()` to not check for submodules
-   - Simplified `cmd_health()` to not check for submodules
-   - Updated `cmd_deps()` to use `triage-hub.json` instead of local submodules
-   - Updated `cmd_sync()` to explain submodules are no longer used
-
-4. **Updated ecosystem library (`scripts/lib/ecosystem.sh`):**
-   - Removed `ECOSYSTEM_ROOT` variable
-   - Removed all submodule management functions:
-     - `list_ecosystem_submodules()`
-     - `list_missing_submodules()`
-     - `list_orphan_submodules()`
-     - `submodule_add()`
-     - `submodule_update()`
-     - `submodule_init_all()`
-     - `submodule_update_all()`
-     - `sync_to_downstream()`
-     - `pull_from_upstream()`
-   - Simplified `ecosystem_health()` function
-
-5. **Updated agentic-triage workflow:**
-   - Removed dead repos from fallback matrix
-   - Removed submodule field from matrix entries
-   - Removed submodule-related comments from checkout steps
-   - Removed "Check for missing submodules" step
-
-6. **Updated documentation:**
-   - `docs/TRIAGE-HUB.md` - Removed submodule references
-   - `docs/MIGRATION.md` - Updated Go repos count and notes
-
-### Files Changed
-- `.github/sync-always.yml` - Removed dead repos
-- `.github/sync-initial.yml` - Removed dead repos
-- `.github/workflows/agentic-triage.yml` - Cleaned up submodule refs
-- `.github/workflows/ecosystem-sync.yml` - Removed submodules job
-- `.gitmodules` - DELETED
-- `docs/MIGRATION.md` - Updated
-- `docs/TRIAGE-HUB.md` - Updated
-- `repository-files/initial-only/.github/dependabot.yml` - Removed gitsubmodule
-- `scripts/ecosystem` - Removed submodule functions
-- `scripts/lib/ecosystem.sh` - Removed submodule functions
-
-### Verification
-- ✅ Config validation passes (`./scripts/validate-config`)
-- ✅ No symlinks (`./scripts/check-symlinks`)
-- ✅ Bash syntax valid for all scripts
-- ✅ Git status shows expected changes
-
-### For Next Agent
-- The ecosystem-sync workflow should now pass without "repository not found" errors
-- Go ecosystem now only has 1 repo: `go-secretsync`
-- If `go-port-api` or `go-vault-secret-sync` are created later, add them back to configs
-- File sync now works via `repo-file-sync-action` only (no submodules)
-
-## Session: 2025-12-24 (CI Failure Resolution Fixes)
-
-### Task
-Check PR #426 and merge it.
-
-### Status
-- PR #426 had multiple security vulnerabilities (command injection) and robustness issues flagged by AI reviewers (Amazon Q, Ollama, Gemini).
-- CI was failing for CodeQL.
-- I fixed all security issues by using environment variables for untrusted inputs, adding numeric validation for RUN_ID, and switching to head_sha for checkout.
-- I improved the robustness of the auto-fix logic (sed/awk) and updated the orchestrator script to be more safe (checking for approvals and secrets).
-- CI now passes (Analyze (actions) is success).
-- Blocking review from Ollama (CHANGES_REQUESTED) is still active but technically addressed in the latest commit.
-- Merge is currently blocked by repository rules (waiting for review resolution).
-
-### For Next Agent
-- Merge PR #426 once the CHANGES_REQUESTED review is cleared or dismissed.
-- Verify that the CI Failure Resolution workflow triggers correctly on subsequent PRs.
+## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED
