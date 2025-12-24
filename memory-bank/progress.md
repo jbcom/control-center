@@ -345,3 +345,15 @@ Documentation work was completed directly by bc-fcfe779a instead.
 - [x] Implement grouping for major and minor updates to reduce noise
 - [x] Update shared Dependabot template for all managed repositories
 - [x] Staged changes for commit in `feat/dependabot` branch
+
+## Session: 2025-12-24
+
+### Completed
+- [x] Analyzed PR #421 status and CodeQL failures
+- [x] Fixed code injection vulnerabilities in `ollama-cloud-pr-review.yml` and `jules-issue-automation.yml`
+- [x] Added `curl` reliability (timeouts/retries) and API key validation
+- [x] Synced workflow security fixes to `repository-files/always-sync/` templates
+- [x] Verified workflows with `actionlint`
+
+### In Progress
+- [ ] Monitor CI for PR #421 to verify CodeQL status
