@@ -123,14 +123,28 @@ async function orchestrate() {
   for (const session of sessionsData.sessions || []) {
     try {
       const sessionId = session.name.split('/')[1];
+      
+      // Validate sessionId format (expecting alphanumeric or UUID-like)
+      if (!/^[a-zA-Z0-9-]+$/.test(sessionId)) {
+        console.log(`  ⚠️ Invalid sessionId format: ${sessionId}`);
+        continue;
+      }
+
       const details = await getSession(sessionId);
       console.log(`Session ${sessionId}: ${details.state || 'UNKNOWN'}`);
       
       if (details.state === 'COMPLETED' && details.pullRequest) {
         console.log(`  PR: ${details.pullRequest}`);
-        const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+        const match = details.pullRequest.match(/github\.com\/([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)\/pull\/(\d+)/);
         if (match) {
           const [, owner, repo, prNum] = match;
+          
+          // Validate owner and repo to prevent potential API path traversal or injection
+          if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo)) {
+            console.log(`  ⚠️ Invalid owner or repo format: ${owner}/${repo}`);
+            continue
+          }
+
           const status = await checkPRStatus(owner, repo, prNum);
           
           if (!status) {
