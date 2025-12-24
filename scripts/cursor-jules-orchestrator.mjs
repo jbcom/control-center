@@ -152,6 +152,9 @@ async function orchestrate(options = {}) {
     } else {
       console.error(`Unknown agent type: ${agent.type}`);
       continue;
+    } else {
+      console.error(`Unknown agent type: ${agent.type}`);
+      continue;
     }
 
     console.log(`Agent ${agent.id} status: ${status?.state || status?.status || 'unknown'}`);
