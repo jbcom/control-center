@@ -105,8 +105,8 @@ The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration
 
 ### API Endpoints
 
-- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_TOKEN`)
-- **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_API_KEY`)
+- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_API_KEY`)
+- **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_JULES_API_KEY`)
 
 ## Session Start/End Protocol
 
@@ -183,15 +183,16 @@ Defined in `repo-config.json`:
 ### Environment Variables
 
 Cloud agents have access to:
-- `JULES_API_KEY` - Google Jules API for async code changes
+- `GOOGLE_JULES_API_KEY` - Google Jules API for async code changes
 - `CURSOR_GITHUB_TOKEN` - GitHub API for repo operations
+- `CURSOR_API_KEY` - Cursor API for agent operations
 
 ### Jules API Usage
 
 ```bash
 # Create session
 curl -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
-  -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
   -d '{
     "prompt": "Task description",
     "sourceContext": {
