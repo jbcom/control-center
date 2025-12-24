@@ -374,3 +374,12 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-24 (Cursor API Fix)
+
+### Completed
+- [x] Discovered correct Cursor Cloud Agent API endpoints via source code inspection of `@agentic/control`.
+- [x] Updated `scripts/cursor-jules-orchestrator.mjs` with agent spawning capabilities.
+- [x] Implemented auto-fix spawning logic in orchestrator for failed Jules PRs.
+- [x] Standardized Cursor API calls across `ecosystem-curator.mjs` and orchestrator.
+- [x] Documented all Cursor Cloud Agent API endpoints in `CLAUDE.md`.

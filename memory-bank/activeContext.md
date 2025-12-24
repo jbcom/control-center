@@ -39,3 +39,22 @@ Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all secu
 ---
 
 ## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED
+
+## Update: Cursor Cloud Agent API Fixed (Issue #430)
+The correct Cursor Cloud Agent API endpoints have been discovered and documented. They are located under the `/v0` version prefix.
+
+### Correct Endpoints (v0)
+- `POST /agents`: Launch a new agent
+- `GET /agents`: List active agents
+- `GET /agents/{id}`: Get agent status
+- `GET /agents/{id}/conversation`: Get agent conversation history
+- `POST /agents/{id}/followup`: Send a follow-up message
+
+### Changes Made
+1. **Orchestrator Update**: `scripts/cursor-jules-orchestrator.mjs` now includes `spawnCursorAgent` logic and automatically spawns a Cursor sub-agent if a Jules PR fails CI.
+2. **Curator Update**: `scripts/ecosystem-curator.mjs` and its template have been updated to use the correct `/v0` endpoints and `Bearer` authentication.
+3. **Documentation**: `CLAUDE.md` now contains the full list of Cursor Cloud Agent endpoints.
+
+## For Next Agent
+- Verify that the orchestrator correctly spawns agents during real failures.
+- Monitor `ecosystem-curator` nightly runs for any authentication issues with the new `Bearer` token format.

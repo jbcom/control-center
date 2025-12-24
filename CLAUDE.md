@@ -79,6 +79,11 @@ All repo settings are defined in `repo-config.json`:
 
 The `scripts/cursor-jules-orchestrator.mjs` script manages multi-agent workflows.
 
+- **Supervisor**: Typically run by a Cursor Cloud Agent.
+- **Jules Integration**: Monitors Google Jules sessions, reviews PRs, and auto-merges.
+- **Auto-Fix**: If a Jules PR fails CI, the orchestrator spawns a Cursor sub-agent to fix it.
+- **Idempotency**: Checks for existing active agents before spawning new ones.
+
 ### Ecosystem Curator
 
 The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration workflow that triages issues and processes PRs across all repositories in the `jbcom` organization.
@@ -105,8 +110,20 @@ The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration
 
 ### API Endpoints
 
-- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_TOKEN`)
+- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_API_KEY`)
 - **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_API_KEY`)
+
+#### Cursor Cloud Agent Endpoints (v0)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/agents` | Launch a new background agent |
+| `GET` | `/agents` | List all background agents |
+| `GET` | `/agents/{id}` | Get agent status |
+| `GET` | `/agents/{id}/conversation` | Get agent conversation history |
+| `POST` | `/agents/{id}/followup` | Send a follow-up message to an agent |
+| `GET` | `/repositories` | List accessible repositories |
+| `GET` | `/models` | List available AI models |
 
 ## Session Start/End Protocol
 

@@ -100,11 +100,10 @@ async function cursorApi(endpoint, options = {}) {
     console.log(`    [DRY RUN] cursorApi: ${options.method} ${endpoint}`);
     return { dry_run: true };
   }
-  const auth = Buffer.from(`${CURSOR_API_KEY}:`).toString('base64');
-  const res = await fetch(`https://api.cursor.com${endpoint}`, {
+  const res = await fetch(`https://api.cursor.com/v0${endpoint}`, {
     ...options,
     headers: {
-      'Authorization': `Basic ${auth}`,
+      'Authorization': `Bearer ${CURSOR_API_KEY}`,
       'Content-Type': 'application/json',
       ...options.headers
     }
@@ -193,7 +192,7 @@ async function triageIssue(repo, issue) {
   } else {
     console.log(`    -> Spawning Cursor agent`);
     try {
-      await cursorApi('/v0/agents', {
+      await cursorApi('/agents', {
         method: 'POST',
         body: JSON.stringify({
           prompt: { text: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}` },
@@ -225,7 +224,7 @@ async function processPR(repo, pr) {
 
   if (hasFailedCI) {
     console.log(`    -> CI Failed. Spawning agent to fix.`);
-    await cursorApi('/v0/agents', {
+    await cursorApi('/agents', {
       method: 'POST',
       body: JSON.stringify({
         prompt: { text: `Fix CI failures in PR #${pr.number}: ${pr.title}` },
@@ -237,7 +236,7 @@ async function processPR(repo, pr) {
   } else if (hasChangesRequested) {
     console.log(`    -> Changes requested. Spawning agent to address.`);
     const lastReview = reviews.filter(r => r.state === 'CHANGES_REQUESTED').pop();
-    await cursorApi('/v0/agents', {
+    await cursorApi('/agents', {
       method: 'POST',
       body: JSON.stringify({
         prompt: { text: `Address review comments in PR #${pr.number}:\n\n${lastReview.body}` },
@@ -275,7 +274,7 @@ async function manageAgents() {
   
   // Check Cursor Agents
   try {
-    const agents = await cursorApi('/v0/agents');
+    const agents = await cursorApi('/agents');
     console.log(`  Found ${agents.length || 0} active Cursor agents`);
   } catch (e) {
     console.error(`  Failed to list Cursor agents: ${e.message}`);

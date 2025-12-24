@@ -10,10 +10,12 @@
  * 
  * Environment variables required:
  * - JULES_API_KEY: Google Jules API key
+ * - CURSOR_API_KEY: Cursor Cloud Agent API key
  * - CURSOR_GITHUB_TOKEN: GitHub token for API access
  */
 
 const JULES_API_KEY = process.env.JULES_API_KEY;
+const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GITHUB_TOKEN = process.env.CURSOR_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 
 if (!JULES_API_KEY) {
@@ -27,6 +29,38 @@ if (!GITHUB_TOKEN) {
 }
 
 const JULES_BASE = 'https://jules.googleapis.com/v1alpha';
+const CURSOR_BASE = 'https://api.cursor.com/v0';
+
+async function cursorApi(endpoint, options = {}) {
+  if (!CURSOR_API_KEY) {
+    throw new Error('CURSOR_API_KEY not set');
+  }
+  const res = await fetch(`${CURSOR_BASE}${endpoint}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${CURSOR_API_KEY}`,
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(`Cursor API Error (${res.status}) on ${endpoint}: ${JSON.stringify(error)}`);
+  }
+  return res.json();
+}
+
+async function spawnCursorAgent(repo, task, branch = 'main') {
+  console.log(`🚀 Spawning Cursor agent for ${repo}...`);
+  return cursorApi('/agents', {
+    method: 'POST',
+    body: JSON.stringify({
+      prompt: { text: task },
+      source: { repository: repo, ref: branch },
+      target: { autoCreatePr: true }
+    })
+  });
+}
 
 async function getSession(sessionId) {
   const res = await fetch(`${JULES_BASE}/sessions/${sessionId}`, {
@@ -105,13 +139,20 @@ async function mergePR(owner, repo, prNumber) {
 async function orchestrate() {
   console.log('🤖 Cursor-Jules Orchestrator starting...');
   console.log(`JULES_API_KEY: ${JULES_API_KEY ? '✅' : '❌'}`);
+  console.log(`CURSOR_API_KEY: ${CURSOR_API_KEY ? '✅' : '❌'}`);
   console.log(`GITHUB_TOKEN: ${GITHUB_TOKEN ? '✅' : '❌'}`);
   
   let sessionsData;
+  let activeAgents = [];
   try {
     sessionsData = await listSessions();
+    if (CURSOR_API_KEY) {
+      const agentsData = await cursorApi('/agents');
+      activeAgents = agentsData.agents || [];
+      console.log(`Found ${activeAgents.length} active Cursor agents`);
+    }
   } catch (err) {
-    console.error('Failed to list sessions:', err.message);
+    console.error('Failed to list sessions or agents:', err.message);
     return;
   }
 
@@ -156,7 +197,27 @@ async function orchestrate() {
             const result = await mergePR(owner, repo, prNum);
             console.log(`  Result: ${result.merged ? '✅ Merged' : result.message || 'Failed'}`);
           } else {
-            if (!status.allPassing) console.log(`  Waiting for CI to pass...`);
+            if (!status.allPassing) {
+              console.log(`  Waiting for CI to pass...`);
+              
+              // If CI is failing and this is a Jules PR, spawn a Cursor agent to fix it
+              if (status.checks.some(c => c.conclusion === 'failure')) {
+                const alreadyRunning = activeAgents.some(a => 
+                  a.source?.repository === `${owner}/${repo}` && 
+                  a.prompt?.text?.includes(`#${prNum}`)
+                );
+
+                if (alreadyRunning) {
+                  console.log(`  ℹ️ Cursor agent already running for PR #${prNum}`);
+                } else {
+                  try {
+                    await spawnCursorAgent(`${owner}/${repo}`, `Fix CI failures in PR #${prNum}: ${status.pr.title}`, status.pr.head.ref);
+                  } catch (err) {
+                    console.error(`  ❌ Failed to spawn Cursor agent:`, err.message);
+                  }
+                }
+              }
+            }
             if (!status.mergeable) console.log(`  Waiting for mergeable state (clean)...`);
             if (status.hasChangesRequested) console.log(`  Changes were requested. Please address them.`);
             if (!status.isApproved && !status.hasChangesRequested) console.log(`  Waiting for approval...`);
