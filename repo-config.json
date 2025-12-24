@@ -343,19 +343,19 @@
         ]
       },
       "repos": [
+        "jbcom.github.io",
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
+        "nodejs-otterfall",
+        "nodejs-pixels-pygame-palace",
+        "nodejs-rivermarsh",
         "nodejs-strata",
         "nodejs-strata-capacitor-plugin",
-        "nodejs-strata-react-native-plugin",
         "nodejs-strata-examples",
         "nodejs-strata-presets",
+        "nodejs-strata-react-native-plugin",
         "nodejs-strata-shaders",
-        "nodejs-strata-typescript-tutor",
-        "nodejs-otterfall",
-        "nodejs-rivermarsh",
-        "nodejs-pixels-pygame-palace",
-        "jbcom.github.io"
+        "nodejs-strata-typescript-tutor"
       ]
     },
     "go": {
