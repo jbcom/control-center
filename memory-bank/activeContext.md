@@ -1,34 +1,41 @@
 # Active Context - jbcom Control Center
 
-## Current Status: JULES INTEGRATION SECURED AND FIXED
+## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
 
-The Google Jules integration (PR #421) has been secured and fixed. Critical CodeQL alerts regarding potential code injection were addressed by switching from inline GitHub Expressions to environment variables in shell scripts.
+Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
 
-### What Was Fixed
-1. ✅ **Security**: Fixed 8+ code injection vulnerabilities in `.github/workflows/ollama-cloud-pr-review.yml` and `jules-issue-automation.yml`.
-2. ✅ **Input Sanitization**: Replaced direct `${{ ... }}` expansion in `run:` blocks with environment variables (`$REPO`, `$PR_NUMBER`, `$PR_BODY`, etc.).
-3. ✅ **Reliability**: Added `curl` timeouts and retries for Jules API calls (`--max-time 30 --retry 3`).
-4. ✅ **Validation**: Added API key format validation to prevent errors and potential exposure.
-5. ✅ **Templates**: Synced all workflow fixes to the `repository-files/always-sync/` directory to ensure downstream repositories receive the secure versions.
-6. ✅ **Actionlint**: Verified that all workflows pass `actionlint` with appropriate ignores.
+### What Was Fixed/Added
+1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
+2. ✅ **Security Hardening**:
+    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
+    - Implemented `persist-credentials: false` for untrusted checkouts.
+    - Added `contents: write` permissions where necessary for auto-resolution.
+3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ci-failure-resolution.yml` to fulfill the promised automated fix functionality.
+4. ✅ **Orchestrator Safety**: Enhanced `cursor-jules-orchestrator.mjs` with safety checks for risky files (executables/secrets) before merging.
+5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
 
 ### Changes Made
-- `.github/workflows/ollama-cloud-pr-review.yml` - Secured shell scripts and added reliability improvements.
-- `.github/workflows/jules-issue-automation.yml` - Secured shell scripts and added API key validation.
-- `repository-files/always-sync/.github/workflows/ollama-cloud-pr-review.yml` - Synced security fixes.
-- `repository-files/always-sync/.github/workflows/jules-issue-automation.yml` - Synced security fixes.
-
-### For Next Agent
-- Monitor the CI for PR #421 to ensure all checks pass (especially CodeQL).
-- If "untrusted-checkout" alerts appear, they are intentional as per user instructions.
-- Ensure PR #421 is merged once CI is green.
+- Updated workflows: `ci.yml`, `ci-failure-resolution.yml`, `ollama-cloud-pr-review.yml`, `jules-issue-automation.yml`.
+- Updated orchestrator script: `scripts/cursor-jules-orchestrator.mjs`.
+- Updated repository-files templates.
 
 ---
 
-## Session: 2025-12-24 (Jules Integration Security Fixes)
+## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
 
 ### Task
-Check PR #421 (Jules integration). Fix any remaining CI failures, especially CodeQL issues. Address code injection vulnerabilities in GitHub workflows.
+Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all security criteria are met.
 
 ### Final State
-Workflows are now secure and follow best practices for GitHub Actions. Templates are updated for downstream sync.
+- PR #426 and #421 updated with security fixes and pinned actions.
+- CodeQL alerts on PR branches resolved.
+- CI workflows triggered and pending.
+
+### For Next Agent
+- Merge PR #426 and #421 once CI passes green.
+- Monitor for any new AI feedback from Gemini or Amazon Q.
+- Verify that auto-resolution triggers correctly on next CI failure.
+
+---
+
+## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED

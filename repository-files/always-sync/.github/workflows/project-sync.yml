@@ -25,34 +25,33 @@ jobs:
     steps:
       - name: Get issue details
         id: issue
+        env:
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_LABELS: ${{ join(github.event.issue.labels.*.name, ',') }}
         run: |
           echo "number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
-          echo "title=${{ github.event.issue.title }}" >> $GITHUB_OUTPUT
           
           # Determine project based on labels and title
-          LABELS="${{ join(github.event.issue.labels.*.name, ',') }}"
-          TITLE="${{ github.event.issue.title }}"
-          
           ADD_INTEGRATION=false
           ADD_ROADMAP=false
           
           # EPICs go to Roadmap
-          if [[ "$TITLE" == *"EPIC"* ]] || [[ "$LABELS" == *"epic"* ]]; then
+          if [[ "$ISSUE_TITLE" == *"EPIC"* ]] || [[ "$ISSUE_LABELS" == *"epic"* ]]; then
             ADD_ROADMAP=true
           fi
           
           # Features go to Roadmap
-          if [[ "$LABELS" == *"enhancement"* ]] || [[ "$TITLE" == "feat:"* ]]; then
+          if [[ "$ISSUE_LABELS" == *"enhancement"* ]] || [[ "$ISSUE_TITLE" == "feat:"* ]]; then
             ADD_ROADMAP=true
           fi
           
           # Bugs go to Integration
-          if [[ "$LABELS" == *"bug"* ]] || [[ "$TITLE" == "fix:"* ]]; then
+          if [[ "$ISSUE_LABELS" == *"bug"* ]] || [[ "$ISSUE_TITLE" == "fix:"* ]]; then
             ADD_INTEGRATION=true
           fi
           
           # CI/infra go to Integration
-          if [[ "$LABELS" == *"ci"* ]] || [[ "$LABELS" == *"infrastructure"* ]]; then
+          if [[ "$ISSUE_LABELS" == *"ci"* ]] || [[ "$ISSUE_LABELS" == *"infrastructure"* ]]; then
             ADD_INTEGRATION=true
           fi
           

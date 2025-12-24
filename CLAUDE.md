@@ -161,3 +161,43 @@ Defined in `repo-config.json`:
 
 - Token management: `docs/TOKEN-MANAGEMENT.md`
 - Environment variables: `docs/ENVIRONMENT_VARIABLES.md`
+
+## Cursor Cloud Agent Orchestration
+
+### Environment Variables
+
+Cloud agents have access to:
+- `JULES_API_KEY` - Google Jules API for async code changes
+- `CURSOR_GITHUB_TOKEN` - GitHub API for repo operations
+
+### Jules API Usage
+
+```bash
+# Create session
+curl -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
+  -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  -d '{
+    "prompt": "Task description",
+    "sourceContext": {
+      "source": "sources/github/jbcom/REPO_NAME",
+      "githubRepoContext": {"startingBranch": "main"}
+    },
+    "automationMode": "AUTO_CREATE_PR"
+  }'
+```
+
+### Orchestrator Script
+
+```bash
+node scripts/cursor-jules-orchestrator.mjs
+```
+
+### Task Routing
+
+| Task Type | Agent |
+|-----------|-------|
+| Quick fix (<10 lines) | Cursor (direct) |
+| Multi-file refactor | Jules |
+| CI failure resolution | Cursor (direct) |
+| Documentation | Jules |
+| Complex debugging | Cursor (direct) |
