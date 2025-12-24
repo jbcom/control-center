@@ -109,6 +109,79 @@ For highly complex pull requests or issues that require significant rework, the 
 - Implementing new features described in an issue.
 - Performing large-scale refactoring.
 
+### c. Jules Supervisor Pattern for Full PR Lifecycle
+
+For a complete, end-to-end PR management lifecycle, the **Cursor Cloud Agent** can act as a supervisor for Jules sessions. This pattern enables the agent to handle everything from initial PR creation to final merging, including CI checks, AI feedback, and complex fixes.
+
+**Environment Variables for Supervisor Agents:**
+
+| Variable | Purpose |
+|----------|---------|
+| `JULES_API_KEY` | Google Jules API access |
+| `CURSOR_GITHUB_TOKEN` | GitHub API access for merges |
+
+**Orchestration Pattern:**
+
+The supervisor agent follows this lifecycle:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                  CURSOR CLOUD AGENT                         │
+│                    (Supervisor)                             │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  1. List active Jules sessions                              │
+│     GET /v1alpha/sessions                                   │
+│                                                             │
+│  2. Check session status                                    │
+│     GET /v1alpha/sessions/{id}                              │
+│                                                             │
+│  3. When COMPLETED with PR:                                 │
+│     - Check PR CI status                                    │
+│     - Review AI feedback                                    │
+│     - Handle any failing checks                             │
+│     - Merge when ready                                      │
+│                                                             │
+│  4. For complex work, spawn additional:                     │
+│     - Jules sessions (async refactoring)                    │
+│     - Cursor Cloud Agents (long-running tasks)              │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Orchestrator Script:**
+
+This pattern is implemented in the following script, which can be used by future Cursor Cloud Agents:
+
+- **Script**: `/workspace/scripts/cursor-jules-orchestrator.mjs`
+- **Usage**: `node scripts/cursor-jules-orchestrator.mjs`
+
+**Workflow:**
+
+1. **Jules Creates PR**: The Jules session completes, and its state becomes `COMPLETED`.
+2. **Agent Detection**: The Cursor Cloud Agent detects the completed session.
+3. **CI/Feedback Checks**: The agent checks the PR's CI status and looks for any AI-generated feedback.
+4. **Fixes (if needed)**: If CI fails or there's feedback, the agent can either attempt to fix it directly or spawn a new Jules session for the task.
+5. **Merge**: Once all checks pass and feedback is addressed, the agent merges the PR.
+6. **Complex Tasks**: For complex follow-up work, the agent can spawn sub-agents or new Jules sessions to work in parallel.
+
+**Spawning Additional Agents:**
+
+Supervisor agents can launch new agents for long-running or specialized tasks:
+
+```bash
+# Spawn an agent to monitor a specific repo
+curl -X POST 'https://api.cursor.com/agents/launch' \
+  -u "$CURSOR_API_KEY:" \
+  -d '{
+    "repository": "jbcom/nodejs-strata",
+    "task": "Monitor Jules PRs, handle reviews, merge when ready",
+    "branch": "main"
+  }'
+```
+
+This pattern provides a scalable way to manage the entire PR lifecycle, from code generation to automated merging.
+
 ## JSON Schema
 
 The workflow uses a strict JSON schema for structured output:

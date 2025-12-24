@@ -51,6 +51,17 @@ const apiKey = options.apiKey ?? process.env.COPILOT_MCP_CURSOR_API_KEY ?? proce
 **Used in:**
 - `packages/agentic-control/src/ai-analyzer.ts`
 
+### Google Jules
+
+| COPILOT_MCP Prefix | Standard Name | Usage |
+|-------------------|---------------|-------|
+| `COPILOT_MCP_JULES_API_KEY` | `JULES_API_KEY` | Google Jules API access for supervised sessions |
+| `COPILOT_MCP_CURSOR_GITHUB_TOKEN` | `CURSOR_GITHUB_TOKEN` | GitHub API access for PR merges by supervisor |
+
+**Used in:**
+- `scripts/cursor-jules-orchestrator.mjs`
+- Future Cursor Cloud Agents
+
 ### Context7 (Optional)
 
 | COPILOT_MCP Prefix | Standard Name | Usage |
