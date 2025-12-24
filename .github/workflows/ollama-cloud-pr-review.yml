@@ -965,7 +965,20 @@ jobs:
           REPO_FULL_NAME: ${{ github.repository }}
           HEAD_REF: ${{ steps.pr_details.outputs.head_ref }}
         run: |
-          PROMPT="The code review score is low (${{ needs.initial-review.outputs.score }}/10) with ${{ needs.initial-review.outputs.issues_count }} issues. Please help fix this PR. Original PR body:\n\n${{ steps.pr_details.outputs.body }}"
+          # Sanitize external inputs to prevent code injection
+          SCORE="${{ needs.initial-review.outputs.score }}"
+          ISSUES_COUNT="${{ needs.initial-review.outputs.issues_count }}"
+          PR_BODY="${{ steps.pr_details.outputs.body }}"
+          # Validate score is numeric
+          if [[ ! "$SCORE" =~ ^[0-9]+$ ]]; then
+            SCORE="0"
+          fi
+          if [[ ! "$ISSUES_COUNT" =~ ^[0-9]+$ ]]; then
+            ISSUES_COUNT="0"
+          fi
+          # Sanitize PR body
+          PR_BODY=$(echo "$PR_BODY" | tr -d '`$(){}[]<>;&|' | head -c 2000)
+          PROMPT="The code review score is low ($SCORE/10) with $ISSUES_COUNT issues. Please help fix this PR. Original PR body:\n\n$PR_BODY"
 
           JSON_PAYLOAD=$(jq -n \
             --arg prompt "$PROMPT" \

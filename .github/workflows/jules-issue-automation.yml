@@ -40,7 +40,10 @@ jobs:
         id: parse_task
         run: |
           # Remove the /jules command and trim whitespace
-          TASK=$(echo "${{ github.event.comment.body }}" | sed 's|/jules||' | xargs)
+          # Sanitize user input to prevent code injection
+          COMMENT_BODY="${{ github.event.comment.body }}"
+          # Remove any shell special characters and limit length
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '`$(){}[]<>;&|' | head -c 1000 | xargs)
           echo "task<<EOF" >> $GITHUB_OUTPUT
           echo "$TASK" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
