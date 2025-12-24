@@ -8,6 +8,11 @@ updates:
       github-actions:
         patterns:
           - "*"
+    # Limit to major and minor updates to reduce noise
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
+
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
@@ -16,6 +21,10 @@ updates:
       docker:
         patterns:
           - "*"
+    # Limit to major and minor updates to reduce noise
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-patch"]
 
 # Required secrets for Ollama PR Orchestrator:
 # - GOOGLE_JULES_API_KEY: Used for delegating complex PRs and issues to Google Jules.

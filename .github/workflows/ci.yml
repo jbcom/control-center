@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+
 jobs:
   lint-workflows:
     name: Lint Workflows
@@ -18,7 +23,7 @@ jobs:
         run: |
           # actionlint v1.7.9 - https://github.com/rhysd/actionlint/releases/tag/v1.7.9
           ACTIONLINT_VERSION="1.7.9"
-          ACTIONLINT_CHECKSUM="233b280d05e100837f4af1433c7b40a5dcb306e3aa68fb4f17f8a7f45a7df7b4"
+          ACTIONLINT_CHECKSUM="233b280d05e100837f4af1433c7b40a5dcb306e3"
           
           curl -sL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
           echo "${ACTIONLINT_CHECKSUM}  actionlint.tar.gz" | sha256sum -c
@@ -224,7 +229,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repository-files structure
         run: |
@@ -267,11 +272,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       # actions/setup-python v6.1.0
       - name: Set up Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548a892e2d95755f2dac6acb0bfd1e9ac5d548
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
           python-version: "3.12"
 
