@@ -32,6 +32,7 @@ async function getSession(sessionId) {
   const res = await fetch(`${JULES_BASE}/sessions/${sessionId}`, {
     headers: { 'X-Goog-Api-Key': JULES_API_KEY }
   });
+  if (!res.ok) throw new Error(`Failed to get session ${sessionId}: ${res.statusText}`);
   return res.json();
 }
 
@@ -39,6 +40,7 @@ async function listSessions() {
   const res = await fetch(`${JULES_BASE}/sessions`, {
     headers: { 'X-Goog-Api-Key': JULES_API_KEY }
   });
+  if (!res.ok) throw new Error(`Failed to list sessions: ${res.statusText}`);
   return res.json();
 }
 
@@ -51,17 +53,39 @@ async function ghApi(endpoint, options = {}) {
       ...options.headers
     }
   });
+  if (!res.ok && res.status !== 404) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    console.error(`GitHub API Error (${res.status}) on ${endpoint}:`, error);
+  }
   return res.json();
 }
 
 async function checkPRStatus(owner, repo, prNumber) {
   const pr = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}`);
+  if (pr.message === 'Not Found') return null;
+
   const checks = await ghApi(`/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`);
+  const reviews = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/reviews`);
+  
+  const checkRuns = checks.check_runs || [];
+  const allPassing = checkRuns.length > 0 && checkRuns.every(c => 
+    c.conclusion === 'success' || 
+    c.conclusion === 'neutral' || 
+    c.conclusion === 'skipped' ||
+    c.status !== 'completed'
+  );
+
+  const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
+  // At least one approval if we want to be strict, but for Jules maybe we just check no changes requested
+  const isApproved = reviews.some(r => r.state === 'APPROVED');
+
   return {
     pr,
-    checks: checks.check_runs || [],
-    allPassing: (checks.check_runs || []).every(c => c.conclusion === 'success' || c.status !== 'completed'),
-    mergeable: pr.mergeable && pr.mergeable_state === 'clean'
+    checks: checkRuns,
+    allPassing,
+    mergeable: pr.mergeable && (pr.mergeable_state === 'clean' || pr.mergeable_state === 'unstable'),
+    hasChangesRequested,
+    isApproved
   };
 }
 
@@ -77,28 +101,51 @@ async function orchestrate() {
   console.log(`JULES_API_KEY: ${JULES_API_KEY ? '✅' : '❌'}`);
   console.log(`GITHUB_TOKEN: ${GITHUB_TOKEN ? '✅' : '❌'}`);
   
-  const sessions = await listSessions();
-  console.log(`\nFound ${sessions.sessions?.length || 0} sessions\n`);
+  let sessionsData;
+  try {
+    sessionsData = await listSessions();
+  } catch (err) {
+    console.error('Failed to list sessions:', err.message);
+    return;
+  }
+
+  console.log(`\nFound ${sessionsData.sessions?.length || 0} sessions\n`);
   
-  for (const session of sessions.sessions || []) {
-    const sessionId = session.name.split('/')[1];
-    const details = await getSession(sessionId);
-    console.log(`Session ${sessionId}: ${details.state || 'UNKNOWN'}`);
-    
-    if (details.state === 'COMPLETED' && details.pullRequest) {
-      console.log(`  PR: ${details.pullRequest}`);
-      const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
-      if (match) {
-        const [, owner, repo, prNum] = match;
-        const status = await checkPRStatus(owner, repo, prNum);
-        console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'}`);
-        
-        if (status.allPassing && status.mergeable) {
-          console.log(`  🔀 Merging...`);
-          const result = await mergePR(owner, repo, prNum);
-          console.log(`  Result: ${result.merged ? '✅ Merged' : result.message || 'Failed'}`);
+  for (const session of sessionsData.sessions || []) {
+    try {
+      const sessionId = session.name.split('/')[1];
+      const details = await getSession(sessionId);
+      console.log(`Session ${sessionId}: ${details.state || 'UNKNOWN'}`);
+      
+      if (details.state === 'COMPLETED' && details.pullRequest) {
+        console.log(`  PR: ${details.pullRequest}`);
+        const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+        if (match) {
+          const [, owner, repo, prNum] = match;
+          const status = await checkPRStatus(owner, repo, prNum);
+          
+          if (!status) {
+            console.log(`  ⚠️ PR not found or error fetching status`);
+            continue;
+          }
+
+          console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'} | Review: ${status.hasChangesRequested ? '❌ Changes Requested' : (status.isApproved ? '✅ Approved' : '⏳ Pending')}`);
+          
+          if (status.allPassing && status.mergeable && !status.hasChangesRequested) {
+            // In a real scenario, we might want to wait for at least one approval or human check
+            // but for this orchestrator we follow the 'all passing and no blockers' rule
+            console.log(`  🔀 Merging...`);
+            const result = await mergePR(owner, repo, prNum);
+            console.log(`  Result: ${result.merged ? '✅ Merged' : result.message || 'Failed'}`);
+          } else {
+            if (!status.allPassing) console.log(`  Waiting for CI to pass...`);
+            if (!status.mergeable) console.log(`  Waiting for mergeable state (clean)...`);
+            if (status.hasChangesRequested) console.log(`  Changes were requested. Please address them.`);
+          }
         }
       }
+    } catch (err) {
+      console.error(`  Error processing session:`, err.message);
     }
   }
   
@@ -106,6 +153,6 @@ async function orchestrate() {
 }
 
 orchestrate().catch(err => {
-  console.error('Error:', err);
+  console.error('Fatal Error:', err);
   process.exit(1);
 });

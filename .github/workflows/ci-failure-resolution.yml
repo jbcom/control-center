@@ -7,7 +7,7 @@ on:
     branches-ignore: [main]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   actions: read
   security-events: read
@@ -23,24 +23,33 @@ jobs:
     steps:
       - name: Determine branch
         id: branch
+        env:
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch || github.event.check_suite.head_branch }}
+          RUN_ID: ${{ github.event.workflow_run.id || '' }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha || github.event.check_suite.head_sha }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            echo "ref=${{ github.event.workflow_run.head_branch }}" >> $GITHUB_OUTPUT
-            echo "run_id=${{ github.event.workflow_run.id }}" >> $GITHUB_OUTPUT
-          else
-            echo "ref=${{ github.event.check_suite.head_branch }}" >> $GITHUB_OUTPUT
-            echo "run_id=" >> $GITHUB_OUTPUT
+          # Validate RUN_ID is numeric
+          if [ -n "$RUN_ID" ] && ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
+            echo "Error: Invalid RUN_ID: $RUN_ID"
+            exit 1
           fi
+          echo "ref=$HEAD_BRANCH" >> $GITHUB_OUTPUT
+          echo "run_id=$RUN_ID" >> $GITHUB_OUTPUT
+          echo "sha=$HEAD_SHA" >> $GITHUB_OUTPUT
 
       - name: Validate PR branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HEAD_BRANCH: ${{ steps.branch.outputs.ref }}
         run: |
           # Ensure this is a PR branch, not an arbitrary branch
-          if ! PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null); then
+          if ! PR_NUM=$(gh pr list --head "$HEAD_BRANCH" --json number --jq '.[0].number' 2>/dev/null); then
             echo "Warning: Failed to query PR information, continuing anyway"
             PR_NUM=""
           fi
           if [ -z "$PR_NUM" ]; then
-            echo "Branch ${{ steps.branch.outputs.ref }} is not associated with a PR. Skipping."
+            echo "Branch $HEAD_BRANCH is not associated with a PR. Skipping."
             exit 0
           fi
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
@@ -48,7 +57,7 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
-          ref: ${{ steps.branch.outputs.ref }}
+          ref: ${{ steps.branch.outputs.sha }}
           fetch-depth: 0
 
       - name: Download failure logs
@@ -56,8 +65,9 @@ jobs:
         if: steps.branch.outputs.run_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ steps.branch.outputs.run_id }}
         run: |
-          gh run view ${{ steps.branch.outputs.run_id }} --log-failed > failure.log 2>&1 || true
+          gh run view "$RUN_ID" --log-failed > failure.log 2>&1 || true
           echo "shellcheck_errors<<EOF" >> $GITHUB_OUTPUT
           grep -oE "SC[0-9]{4}" failure.log | sort -u >> $GITHUB_OUTPUT || true
           echo "EOF" >> $GITHUB_OUTPUT
@@ -78,12 +88,13 @@ jobs:
         if: steps.logs.outputs.has_sc2016 == 'true'
         run: |
           if [ -f ".github/workflows/ci.yml" ]; then
-            # Check if the pattern exists before modifying
-            if grep -q "-ignore 'SC2129'" .github/workflows/ci.yml; then
-              sed -i "s/-ignore 'SC2129'/-ignore 'SC2129' -ignore 'SC2016'/" .github/workflows/ci.yml
-              echo "Added SC2016 ignore to ci.yml"
-            else
-              echo "SC2129 pattern not found in ci.yml, skipping"
+            # Check if SC2016 is already ignored
+            if ! grep -q "SC2016" .github/workflows/ci.yml; then
+              # Look for existing shellcheck ignores in actionlint
+              if grep -q -- "-ignore 'SC[0-9]\{4\}'" .github/workflows/ci.yml; then
+                sed -i "s/-ignore 'SC\([0-9]\{4\}\)'/& -ignore 'SC2016'/" .github/workflows/ci.yml
+                echo "Added SC2016 ignore to ci.yml"
+              fi
             fi
           fi
 
@@ -94,11 +105,10 @@ jobs:
             if ! grep -q "^permissions:" "$f"; then
               # Check if file has 'jobs:' section
               if grep -q "^jobs:" "$f"; then
-                # Insert permissions after the 'on:' section, before 'jobs:'
-                awk '/^jobs:/{print "permissions:\n  contents: write"}1' "$f" > tmp && mv tmp "$f"
+                # Insert permissions after 'on:' section, before 'jobs:'
+                # We use contents: read as default safe permission
+                awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
                 echo "Added permissions to $f"
-              else
-                echo "Warning: $f has no 'jobs:' section, skipping"
               fi
             fi
           done
@@ -107,8 +117,8 @@ jobs:
         if: steps.alerts.outputs.has_untrusted_checkout == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.pr.outputs.pr_number }}
         run: |
-          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$PR_NUM" ]; then
             gh pr comment "$PR_NUM" --body "Security: untrusted-checkout detected. Manual review needed."
           fi
@@ -116,8 +126,8 @@ jobs:
       - name: Comment PR with suggested fixes
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.pr.outputs.pr_number }}
         run: |
-          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
           if [ -n "$PR_NUM" ]; then
             git diff --quiet && exit 0
             git diff > suggested-changes.patch
