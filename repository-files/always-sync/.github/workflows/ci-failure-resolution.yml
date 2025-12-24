@@ -7,7 +7,7 @@ on:
     branches-ignore: [main]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
   security-events: read
@@ -31,6 +31,11 @@ jobs:
           # Validate RUN_ID is numeric
           if [ -n "$RUN_ID" ] && ! [[ "$RUN_ID" =~ ^[0-9]+$ ]]; then
             echo "Error: Invalid RUN_ID: $RUN_ID"
+            exit 1
+          fi
+          # Validate branch name format to prevent command injection
+          if [[ ! "$HEAD_BRANCH" =~ ^[a-zA-Z0-9/._-]+$ ]]; then
+            echo "Error: Invalid branch name format: $HEAD_BRANCH"
             exit 1
           fi
           echo "ref=$HEAD_BRANCH" >> $GITHUB_OUTPUT
@@ -125,14 +130,62 @@ jobs:
             gh pr comment "$PR_NUM" --body "Security: untrusted-checkout detected. Manual review needed."
           fi
 
-      - name: Comment PR with suggested fixes
+      - name: Apply and Push Fixes
+        id: push
+        if: steps.pr.outputs.pr_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REF: ${{ steps.branch.outputs.ref }}
+        run: |
+          if ! git diff --quiet; then
+            # Create patch as backup/for commenting
+            git diff > suggested-changes.patch
+            
+            # Configure git
+            git config --local user.email "action@github.com"
+            git config --local user.name "GitHub Action"
+            
+            # Commit changes
+            git add -A
+            COMMIT_MSG=$(cat <<'EOF'
+            fix(ci): auto-resolve CI failures
+            
+            Shellcheck errors detected: ${{ steps.logs.outputs.shellcheck_errors }}
+            
+            Applied automatic fixes:
+            - SC2016: Added to actionlint ignore (single quotes intentional)
+            - Permissions: Added missing workflow permissions
+            
+            Applied by: CI Failure Resolution workflow
+            Triggered by: Run #${{ steps.branch.outputs.run_id }}
+            EOF
+            )
+            git commit -m "$COMMIT_MSG"
+            
+            # Push changes to the validated branch
+            if git push origin "HEAD:$REF"; then
+              echo "pushed=true" >> $GITHUB_OUTPUT
+            else
+              echo "pushed=false" >> $GITHUB_OUTPUT
+              echo "Failed to push fixes (check branch protection)"
+            fi
+          else
+            echo "pushed=false" >> $GITHUB_OUTPUT
+            echo "No changes to apply"
+          fi
+
+      - name: Comment PR with status
+        if: steps.pr.outputs.pr_number != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_NUM: ${{ steps.pr.outputs.pr_number }}
+          PUSHED: ${{ steps.push.outputs.pushed }}
         run: |
-          if [ -n "$PR_NUM" ]; then
-            git diff --quiet && exit 0
-            git diff > suggested-changes.patch
+          if [ "$PUSHED" = "true" ]; then
+            gh pr comment "$PR_NUM" --body "✅ CI Failure Resolution: Automatically applied and pushed fixes for SC2016/Permissions. CI should re-run shortly."
+          elif [ -f "suggested-changes.patch" ]; then
+            # This case handles if we have patches but didn't push for some reason
+            # (though currently we try to push everything)
             echo "## Suggested CI Fixes" > pr-comment.md
             echo "" >> pr-comment.md
             echo "The following changes are suggested to resolve CI failures:" >> pr-comment.md

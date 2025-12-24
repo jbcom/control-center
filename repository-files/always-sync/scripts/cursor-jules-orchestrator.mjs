@@ -69,10 +69,7 @@ async function checkPRStatus(owner, repo, prNumber) {
   
   const checkRuns = checks.check_runs || [];
   const allPassing = checkRuns.length > 0 && checkRuns.every(c => 
-    c.conclusion === 'success' || 
-    c.conclusion === 'neutral' || 
-    c.conclusion === 'skipped' ||
-    c.status !== 'completed'
+    c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'neutral' || c.conclusion === 'skipped')
   );
 
   const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
@@ -124,9 +121,9 @@ async function orchestrate() {
     try {
       const sessionId = session.name.split('/')[1];
       
-      // Validate sessionId format (expecting alphanumeric or UUID-like)
-      if (!/^[a-zA-Z0-9-]+$/.test(sessionId)) {
-        console.log(`  ⚠️ Invalid sessionId format: ${sessionId}`);
+      // Validate sessionId format to prevent path traversal
+      if (!sessionId || !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
+        console.log(`  ⚠️ Skipping invalid session ID: ${sessionId}`);
         continue;
       }
 
@@ -135,14 +132,14 @@ async function orchestrate() {
       
       if (details.state === 'COMPLETED' && details.pullRequest) {
         console.log(`  PR: ${details.pullRequest}`);
-        const match = details.pullRequest.match(/github\.com\/([a-zA-Z0-9._-]+)\/([a-zA-Z0-9._-]+)\/pull\/(\d+)/);
+        const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
         if (match) {
           const [, owner, repo, prNum] = match;
           
-          // Validate owner and repo to prevent potential API path traversal or injection
-          if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo)) {
-            console.log(`  ⚠️ Invalid owner or repo format: ${owner}/${repo}`);
-            continue
+          // Validate extracted parameters to prevent injection
+          if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo) || !/^\d+$/.test(prNum)) {
+            console.log(`  ⚠️ Skipping PR with invalid parameters: ${owner}/${repo}#${prNum}`);
+            continue;
           }
 
           const status = await checkPRStatus(owner, repo, prNum);
