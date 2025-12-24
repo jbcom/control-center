@@ -67,10 +67,30 @@ All repo settings are defined in `repo-config.json`:
 # Sync secrets
 ./scripts/sync-secrets --all
 
+# Orchestrate agents
+./scripts/cursor-jules-orchestrator.mjs jbcom/jbcom-control-center cursor:agent-id:123
+
 # Preview without making changes
 ./scripts/sync-files --dry-run --all
 ./scripts/configure-repos --dry-run --all
 ```
+
+## Agent Orchestration
+
+The `scripts/cursor-jules-orchestrator.mjs` script manages multi-agent workflows.
+
+### Task Routing Guidelines
+
+| Task Type | Recommended Agent | Description |
+|-----------|-------------------|-------------|
+| **Quick Fix** | Ollama | Fast, local execution for single-file changes |
+| **Multi-file** | Jules | Google Jules for complex multi-file refactors |
+| **Long-running** | Cursor | Cursor Cloud Agents for autonomous background tasks |
+
+### API Endpoints
+
+- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_TOKEN`)
+- **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_API_KEY`)
 
 ## Session Start/End Protocol
 
