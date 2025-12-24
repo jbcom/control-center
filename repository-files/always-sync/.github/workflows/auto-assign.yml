@@ -30,7 +30,7 @@ jobs:
       # pozil/auto-assign-issue v2.2.0
       - name: Auto-assign Copilot to issue
         if: github.event_name == 'issues'
-        uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
+        uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2ec06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           assignees: copilot
@@ -39,7 +39,7 @@ jobs:
       # pozil/auto-assign-issue v2.2.0
       - name: Auto-assign Copilot to PR
         if: github.event_name == 'pull_request'
-        uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
+        uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2ec06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
         with:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           assignees: copilot
@@ -48,7 +48,7 @@ jobs:
       # actions/github-script v8
       - name: Add triage label to issues
         if: github.event_name == 'issues'
-        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cded597411d8f924073f98dfc5c65a23a2325f34cd
         with:
           script: |
             await github.rest.issues.addLabels({
