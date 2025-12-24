@@ -477,13 +477,57 @@
         "capacitor-plugin",
         "react-native-plugin"
       ]
+    },
+    "agentic": {
+      "organization": "agentic-dev-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "nodejs"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "control",
+        "triage",
+        "crew",
+        "game-generator"
+      ]
+    },
+    "extended-data": {
+      "organization": "extended-data-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "python"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "vendor-connectors",
+        "inputs",
+        "logging",
+        "core"
+      ]
     }
   },
   "organizations": {
     "primary": "jbcom",
     "managed": [
       "jbcom",
-      "strata-game-library"
-    ]
+      "strata-game-library",
+      "agentic-dev-library",
+      "extended-data-library"
+    ],
+    "domains": {
+      "jbcom": "jonbogaty.com",
+      "strata-game-library": "strata.game",
+      "agentic-dev-library": "agentic.dev",
+      "extended-data-library": "extendeddata.dev"
+    }
   }
 }
