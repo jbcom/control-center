@@ -69,8 +69,9 @@ jobs:
       - name: Get PR diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          gh pr diff ${{ github.event.pull_request.number }} --color=never > /tmp/pr_diff.txt
+          gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
 
       - name: Generate structured review
         id: review
@@ -204,6 +205,8 @@ jobs:
         id: submit_review
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           SUMMARY=$(jq -r '.summary' /tmp/review.json)
           SCORE=$(jq -r '.score' /tmp/review.json)
@@ -233,8 +236,8 @@ jobs:
           [[ "$REC" == "approve" ]] && EVENT="APPROVE"
           [[ "$REC" == "request_changes" ]] && EVENT="REQUEST_CHANGES"
           
-          gh api repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews \
-            -f body="$BODY" -f event="$EVENT" || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+          gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" \
+            -f body="$BODY" -f event="$EVENT" || gh pr comment "$PR_NUMBER" --body "$BODY"
 
       - name: Upload review artifact
         uses: actions/upload-artifact@v6
@@ -278,6 +281,7 @@ jobs:
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Read our own review
           ISSUES=$(jq '.issues' /tmp/review.json)
@@ -292,7 +296,7 @@ jobs:
           echo "📋 Found $ISSUE_COUNT issues to analyze"
           
           # Get the diff for context
-          gh pr diff ${{ github.event.pull_request.number }} --color=never > /tmp/diff.txt 2>/dev/null || true
+          gh pr diff "$PR_NUMBER" --color=never > /tmp/diff.txt 2>/dev/null || true
           
           cat > /tmp/prompt.txt << 'EOF'
           You are resolving issues from your own code review. For each issue, determine:
@@ -402,6 +406,7 @@ jobs:
           RESOLVED: ${{ steps.resolve.outputs.resolved }}
           FIX_COUNT: ${{ steps.resolve.outputs.fix_count }}
           ACK_COUNT: ${{ steps.resolve.outputs.ack_count }}
+          REPO: ${{ github.repository }}
         run: |
           SUMMARY=$(jq -r '.summary' /tmp/resolutions.json)
           
@@ -428,13 +433,13 @@ jobs:
           if [[ "$RESOLVED" == "true" ]]; then
             echo "✅ All issues resolved - dismissing all blocking reviews"
             # Find ALL our blocking reviews and dismiss them
-            REVIEW_IDS=$(gh api "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews" \
+            REVIEW_IDS=$(gh api "repos/$REPO/pulls/$PR_NUMBER/reviews" \
               --jq '[.[] | select(.user.login == "github-actions[bot]" and .state == "CHANGES_REQUESTED")] | .[].id')
             
             if [[ -n "$REVIEW_IDS" ]]; then
               for REVIEW_ID in $REVIEW_IDS; do
                 echo "Dismissing review ID: $REVIEW_ID"
-                gh api -X PUT "repos/${{ github.repository }}/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
+                gh api -X PUT "repos/$REPO/pulls/$PR_NUMBER/reviews/$REVIEW_ID/dismissals" \
                   -f message="All issues have been resolved or acknowledged as intentional changes." || echo "⚠️ Could not dismiss review $REVIEW_ID"
               done
             else
@@ -468,9 +473,10 @@ jobs:
         id: alerts
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         run: |
           # Get all open code scanning alerts for this PR's ref
-          ALERTS=$(gh api repos/${{ github.repository }}/code-scanning/alerts \
+          ALERTS=$(gh api "repos/$REPO/code-scanning/alerts" \
             --jq '[.[] | select(.state == "open") | {number: .number, rule: .rule.id, file: .most_recent_instance.location.path}]' 2>/dev/null || echo '[]')
           
           echo "Found $(echo "$ALERTS" | jq 'length') open alerts"
@@ -480,7 +486,7 @@ jobs:
           for alert_num in $(echo "$ALERTS" | jq -r '.[].number'); do
             echo "Checking alert #$alert_num for autofix..."
             
-            AUTOFIX=$(gh api repos/${{ github.repository }}/code-scanning/alerts/$alert_num/autofix 2>/dev/null || echo '{}')
+            AUTOFIX=$(gh api "repos/$REPO/code-scanning/alerts/$alert_num/autofix" 2>/dev/null || echo '{}')
             
             if echo "$AUTOFIX" | jq -e '.status == "succeeded"' > /dev/null 2>&1; then
               echo "✅ Autofix available for alert #$alert_num"
@@ -500,6 +506,8 @@ jobs:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HEAD_REF: ${{ github.head_ref }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           # Use Ollama to evaluate each autofix suggestion
           cat > /tmp/prompt.txt << 'EOF'
@@ -560,7 +568,7 @@ jobs:
             echo "Applying autofix for alert #$ALERT_NUM..."
             
             # Use the autofix commit endpoint
-            if gh api repos/${{ github.repository }}/code-scanning/alerts/$ALERT_NUM/autofix \
+            if gh api "repos/$REPO/code-scanning/alerts/$ALERT_NUM/autofix" \
               -X POST \
               -f ref="refs/heads/$HEAD_REF" \
               -f message="fix: apply Copilot autofix for alert #$ALERT_NUM" 2>/dev/null; then
@@ -577,10 +585,10 @@ jobs:
         if: steps.alerts.outputs.fix_count != '0'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          FIX_COUNT: ${{ steps.alerts.outputs.fix_count }}
+          APPLIED: ${{ steps.apply.outputs.applied_count || '0' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FIX_COUNT=${{ steps.alerts.outputs.fix_count }}
-          APPLIED=${{ steps.apply.outputs.applied_count || '0' }}
-          
           BODY="## 🔧 Copilot Autofix Evaluation
 
           | Metric | Count |
@@ -596,7 +604,7 @@ jobs:
           \`\`\`
           </details>"
           
-          gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
+          gh pr comment "$PR_NUMBER" --body "$BODY"
 
   # ============================================
   # Monitor AI Feedback - Triggered on any comment/review
@@ -661,18 +669,18 @@ jobs:
         id: feedback
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUM: ${{ steps.pr.outputs.number }}
         run: |
-          PR_NUM=${{ steps.pr.outputs.number }}
-          
           # Loop prevention: Filter out our own resolution summaries and previous Ollama reviews
           # We only want to process NEW feedback that hasn't been addressed yet
           
           # Get all unresolved review comments from AI agents
-          gh api repos/${{ github.repository }}/pulls/$PR_NUM/comments \
+          gh api "repos/$REPO/pulls/$PR_NUM/comments" \
             --jq '[.[] | select(.user.login | endswith("[bot]")) | {id: .id, user: .user.login, body: .body, path: .path, line: .line}]' > /tmp/review_comments.json || echo '[]' > /tmp/review_comments.json
           
           # Get all issue comments from AI agents, excluding our resolution summaries
-          gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
+          gh api "repos/$REPO/issues/$PR_NUM/comments" \
             --jq '[.[] | select(
               (.user.login | endswith("[bot]")) and
               (.body | contains("## 🔄 AI Feedback Resolution") | not) and
@@ -681,7 +689,7 @@ jobs:
           
           # Get reviews from AI agents (non-approved, with actual issues to address)
           # For Ollama reviews: only process if they have actionable issues (not just summaries)
-          gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
+          gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --jq '[.[] | select(
               (.user.login | endswith("[bot]")) and 
               .state != "APPROVED" and
@@ -692,7 +700,7 @@ jobs:
           jq -s 'map(select(. != null)) | add // []' /tmp/review_comments.json /tmp/issue_comments.json /tmp/reviews.json > /tmp/all_feedback.json
           
           # Additional loop prevention: Check if we've already posted too many resolution comments
-          ALREADY_PROCESSED=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments \
+          ALREADY_PROCESSED=$(gh api "repos/$REPO/issues/$PR_NUM/comments" \
             --jq "[.[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"AI Feedback Resolution\"))) | .body] | length")
           
           if [[ "$ALREADY_PROCESSED" -gt 3 ]]; then
@@ -711,9 +719,10 @@ jobs:
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.pr.outputs.number }}
         run: |
           # Get current code state
-          gh pr diff ${{ steps.pr.outputs.number }} --color=never > /tmp/diff.txt
+          gh pr diff "$PR_NUM" --color=never > /tmp/diff.txt
           
           cat > /tmp/prompt.txt << 'EOF'
           You are a code improvement agent. Analyze this AI reviewer feedback and generate fixes.
@@ -849,9 +858,11 @@ jobs:
         id: prs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          HEAD_SHA: ${{ github.event.check_suite.head_sha }}
         run: |
           # Get PRs associated with this check suite
-          gh api repos/${{ github.repository }}/commits/${{ github.event.check_suite.head_sha }}/pulls \
+          gh api "repos/$REPO/commits/$HEAD_SHA/pulls" \
             --jq '.[0].number // empty' > /tmp/pr_num.txt
           
           PR_NUM=$(cat /tmp/pr_num.txt)
@@ -866,22 +877,24 @@ jobs:
         id: check
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+          PR_NUM: ${{ steps.prs.outputs.number }}
         run: |
-          PR_NUM=${{ steps.prs.outputs.number }}
-          
           # Check CI status
           CI_STATUS=$(gh pr checks "$PR_NUM" --json state -q '[.[] | select(.state != "SUCCESS" and .state != "SKIPPED")] | length')
           
           # Check for blocking reviews
-          BLOCKING=$(gh api repos/${{ github.repository }}/pulls/$PR_NUM/reviews \
+          BLOCKING=$(gh api "repos/$REPO/pulls/$PR_NUM/reviews" \
             --jq '[.[] | select(.state == "CHANGES_REQUESTED")] | length')
           
           # Check for unresolved threads
           # shellcheck disable=SC2016
           GRAPHQL_QUERY='query($owner: String!, $repo: String!, $pr: Int!) { repository(owner: $owner, name: $repo) { pullRequest(number: $pr) { reviewThreads(first: 100) { nodes { isResolved } } } } }'
           UNRESOLVED=$(gh api graphql -f query="$GRAPHQL_QUERY" \
-            -f owner="${{ github.repository_owner }}" \
-            -f repo="${{ github.event.repository.name }}" \
+            -f owner="$REPO_OWNER" \
+            -f repo="$REPO_NAME" \
             -F pr="$PR_NUM" \
             --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')
           
@@ -903,17 +916,17 @@ jobs:
         if: steps.check.outputs.ready == 'true' && steps.check.outputs.is_draft == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.prs.outputs.number }}
         run: |
-          gh pr ready ${{ steps.prs.outputs.number }}
+          gh pr ready "$PR_NUM"
           echo "✅ Marked PR as ready for review"
 
       - name: Auto-merge
         if: steps.check.outputs.ready == 'true' && steps.check.outputs.is_draft == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUM: ${{ steps.prs.outputs.number }}
         run: |
-          PR_NUM=${{ steps.prs.outputs.number }}
-          
           # Final approval comment
           gh pr comment "$PR_NUM" --body "## ✅ All Checks Passed
 
@@ -949,8 +962,9 @@ jobs:
         id: pr_details
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.initial-review.outputs.pr_number }}
         run: |
-          PR_JSON=$(gh pr view ${{ needs.initial-review.outputs.pr_number }} --json headRefName,body)
+          PR_JSON=$(gh pr view "$PR_NUMBER" --json headRefName,body)
           HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName')
           BODY=$(echo "$PR_JSON" | jq -r '.body')
           echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
@@ -964,15 +978,18 @@ jobs:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           REPO_FULL_NAME: ${{ github.repository }}
           HEAD_REF: ${{ steps.pr_details.outputs.head_ref }}
+          SCORE: ${{ needs.initial-review.outputs.score }}
+          ISSUES_COUNT: ${{ needs.initial-review.outputs.issues_count }}
+          PR_BODY: ${{ steps.pr_details.outputs.body }}
         run: |
-          PROMPT="The code review score is low (${{ needs.initial-review.outputs.score }}/10) with ${{ needs.initial-review.outputs.issues_count }} issues. Please help fix this PR. Original PR body:\n\n${{ steps.pr_details.outputs.body }}"
-
           JSON_PAYLOAD=$(jq -n \
-            --arg prompt "$PROMPT" \
+            --arg score "$SCORE" \
+            --arg issues "$ISSUES_COUNT" \
+            --arg body "$PR_BODY" \
             --arg repo "$REPO_FULL_NAME" \
             --arg branch "$HEAD_REF" \
             '{
-              prompt: $prompt,
+              prompt: "The code review score is low (\($score)/10) with \($issues) issues. Please help fix this PR. Original PR body:\n\n\($body)",
               sourceContext: {
                 source: "github",
                 githubRepoContext: {
@@ -984,7 +1001,7 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
-          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          SESSION_RESPONSE=$(curl -s --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
@@ -1001,10 +1018,9 @@ jobs:
       - name: Post Jules Session URL to PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ needs.initial-review.outputs.pr_number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
         run: |
-          PR_NUMBER=${{ needs.initial-review.outputs.pr_number }}
-          SESSION_URL=${{ steps.jules.outputs.session_url }}
-
           BODY="## 🤖 Delegation to Google Jules
 
           This PR has a high number of complex issues that require significant work. To accelerate the process, I've delegated the fixes to Google's AI software engineer, Jules.

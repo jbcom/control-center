@@ -22,6 +22,9 @@ jobs:
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
             echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
             echo "available=false" >> $GITHUB_OUTPUT
+          elif [[ ! "$GOOGLE_JULES_API_KEY" =~ ^AIza[0-9A-Za-z_-]{35}$ ]]; then
+            echo "::error::GOOGLE_JULES_API_KEY format is invalid (should start with AIza and be 39 chars)."
+            echo "available=false" >> $GITHUB_OUTPUT
           else
             echo "available=true" >> $GITHUB_OUTPUT
           fi
@@ -30,8 +33,9 @@ jobs:
         if: steps.check_secret.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating a session to work on this issue..."
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating a session to work on this issue..."
 
       - name: Parse Task from Comment
         id: parse_task
@@ -53,15 +57,14 @@ jobs:
           REPO_FULL_NAME: ${{ github.repository }}
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           TASK: ${{ steps.parse_task.outputs.task }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          PROMPT="Please address the following issue:\n\n${TASK}"
-
           JSON_PAYLOAD=$(jq -n \
-            --arg prompt "$PROMPT" \
+            --arg task "$TASK" \
             --arg repo "$REPO_FULL_NAME" \
             --arg branch "$DEFAULT_BRANCH" \
             '{
-              prompt: $prompt,
+              prompt: "Please address the following issue:\n\n\($task)",
               sourceContext: {
                 source: "github",
                 githubRepoContext: {
@@ -73,8 +76,8 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
-          # Capture response without logging it
-          SESSION_RESPONSE=$(curl -s -f -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          # Capture response securely without logging it
+          SESSION_RESPONSE=$(curl -s -f --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD" 2>/dev/null)
@@ -83,16 +86,16 @@ jobs:
           if [[ $CURL_EXIT_CODE -ne 0 ]]; then
             echo "::error::Failed to reach Jules API. curl exit code: $CURL_EXIT_CODE"
             # Post error message to issue
-            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Unable to connect to Jules service. The service may be temporarily unavailable. Please try again later."
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Unable to connect to Jules service. The service may be temporarily unavailable. Please try again later."
             exit 1
           fi
 
           SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
 
           if [[ -z "$SESSION_URL" ]]; then
-            echo "::error::Failed to create Jules session. Check API key and permissions."
+            echo "::error::Failed to create Jules session. Check workflow logs for details."
             # Post error message to issue
-            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
+            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
             exit 1
           fi
 
@@ -102,6 +105,7 @@ jobs:
         if: steps.check_secret.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           SESSION_URL=${{ steps.jules.outputs.session_url }}
 
@@ -114,12 +118,13 @@ jobs:
 
           Jules will analyze the issue, write the necessary code, and submit a PR with the solution."
 
-          gh issue comment ${{ github.event.issue.number }} --body "$BODY"
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"
 
       - name: Post Secret Not Available Message
         if: steps.check_secret.outputs.available == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           BODY="⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured for this repository. Please add it to enable the '/jules' command."
-          gh issue comment ${{ github.event.issue.number }} --body "$BODY"
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"
