@@ -301,6 +301,13 @@
         "python-lifecyclelogging",
         "python-vendor-connectors"
       ],
+      "repo_overrides": {
+        "python-agentic-crew": {
+          "pages": {
+            "cname": "crew.agentic.dev"
+          }
+        }
+      },
       "ruleset_overrides": {
         "prs": {
           "rules": [
@@ -351,7 +358,19 @@
         "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
         "jbcom.github.io"
-      ]
+      ],
+      "repo_overrides": {
+        "nodejs-agentic-triage": {
+          "pages": {
+            "cname": "triage.agentic.dev"
+          }
+        },
+        "nodejs-agentic-control": {
+          "pages": {
+            "cname": "control.agentic.dev"
+          }
+        }
+      }
     },
     "go": {
       "files": {
