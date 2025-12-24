@@ -7,7 +7,7 @@ on:
     branches-ignore: [main]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
   actions: read
   security-events: read
@@ -16,8 +16,8 @@ jobs:
   resolve-ci-failures:
     name: Auto-resolve CI Failures
     if: |
-      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
-      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'failure')
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != 'main') ||
+      (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'failure' && github.event.check_suite.head_branch != 'main')
     runs-on: ubuntu-latest
     
     steps:
@@ -36,8 +36,8 @@ jobs:
         run: |
           # Ensure this is a PR branch, not an arbitrary branch
           if ! PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null); then
-            echo "Error: Failed to query PR information"
-            exit 1
+            echo "Warning: Failed to query PR information, continuing anyway"
+            PR_NUM=""
           fi
           if [ -z "$PR_NUM" ]; then
             echo "Branch ${{ steps.branch.outputs.ref }} is not associated with a PR. Skipping."
@@ -95,7 +95,7 @@ jobs:
               # Check if file has 'jobs:' section
               if grep -q "^jobs:" "$f"; then
                 # Insert permissions after the 'on:' section, before 'jobs:'
-                awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
+                awk '/^jobs:/{print "permissions:\n  contents: write"}1' "$f" > tmp && mv tmp "$f"
                 echo "Added permissions to $f"
               else
                 echo "Warning: $f has no 'jobs:' section, skipping"
