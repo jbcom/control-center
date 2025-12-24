@@ -929,3 +929,167 @@ jobs:
           
           # Merge
           gh pr merge "$PR_NUM" --squash --delete-branch || echo "Merge failed - may need manual intervention"
+
+  # ============================================
+  # Delegate to Jules for complex refactoring
+  # ============================================
+  delegate-to-jules:
+    name: Delegate to Jules
+    # Trigger on PR comments with "/jules refactor"
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '/jules refactor')
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: read # To get PR branch info
+
+    steps:
+      - name: Check for GOOGLE_JULES_API_KEY
+        id: check_secret
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "::warning::GOOGLE_JULES_API_KEY not set."
+            echo "available=false" >> $GITHUB_OUTPUT
+          elif [[ ! "$GOOGLE_JULES_API_KEY" =~ ^AIza[0-9A-Za-z_-]{35}$ ]]; then
+            echo "::error::GOOGLE_JULES_API_KEY format is invalid."
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get PR Info
+        if: steps.check_secret.outputs.available == 'true'
+        id: pr_info
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          PR_JSON=$(gh pr view "$PR_NUMBER" --json headRefName)
+          HEAD_REF=$(echo "$PR_JSON" | jq -r '.headRefName')
+          echo "head_ref=$HEAD_REF" >> $GITHUB_OUTPUT
+          # Get PR diff for context
+          gh pr diff "$PR_NUMBER" --color=never > /tmp/pr_diff.txt
+
+      - name: Post Initial Acknowledgement
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$PR_NUMBER" --body "🤖 Received '/jules refactor' command. Creating a session for a complex refactoring task..."
+
+      - name: Parse Task from Comment
+        id: parse_task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
+        run: |
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules refactor[[:space:]]*||' | head -c 2000 | xargs)
+          echo "task<<EOF" >> $GITHUB_OUTPUT
+          echo "$TASK" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create Jules Session
+        if: steps.check_secret.outputs.available == 'true'
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          HEAD_REF: ${{ steps.pr_info.outputs.head_ref }}
+          TASK: ${{ steps.parse_task.outputs.task }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Combine PR info and user task into a detailed prompt
+          PR_DIFF=$(head -c 50000 /tmp/pr_diff.txt)
+          PR_TITLE=$(gh pr view "$PR_NUMBER" --json title -q .title)
+          PR_BODY=$(gh pr view "$PR_NUMBER" --json body -q .body)
+          # Construct the prompt
+          read -r -d '' FULL_PROMPT << EOM
+          Please perform the following refactoring task on the current Pull Request.
+          **User Request:**
+          $TASK
+          **Pull Request Details:**
+          - **Title:** $PR_TITLE
+          - **Description:**
+          $PR_BODY
+          **Current Diff of the PR:**
+          \`\`\`diff
+          $PR_DIFF
+          \`\`\`
+          **Instructions:**
+          1. Analyze the user's request in the context of the PR's existing changes.
+          2. Apply the necessary refactoring directly to the PR's source branch ('$HEAD_REF').
+          3. Ensure your changes integrate cleanly with the existing diff.
+          4. Commit your changes to the branch. Your work will be added to this pull request automatically.
+          EOM
+          # Use jq to safely construct the JSON payload
+          JSON_PAYLOAD=$(jq -n \
+            --arg prompt "$FULL_PROMPT" \
+            --arg repo "$REPO_FULL_NAME" \
+            --arg branch "$HEAD_REF" \
+            '{
+              prompt: $prompt,
+              sourceContext: {
+                source: "github",
+                githubRepoContext: {
+                  owner: ($repo | split("/")[0]),
+                  repository: ($repo | split("/")[1]),
+                  startingBranch: $branch
+                }
+              },
+              automationMode: "AUTO_APPLY_CHANGES"
+            }')
+
+          # Make the API call
+          SESSION_RESPONSE=$(curl -s -f --max-time 60 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+          CURL_EXIT_CODE=$?
+
+          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
+            echo "::error::Failed to connect to Jules API. curl exit code: $CURL_EXIT_CODE"
+            gh issue comment "$PR_NUMBER" --body "🔴 **Error:** Unable to connect to the Jules API. The service may be temporarily unavailable."
+            exit 1
+          fi
+
+          SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
+
+          if [[ -z "$SESSION_URL" ]]; then
+            echo "::error::Failed to create Jules session. Response: $SESSION_RESPONSE"
+            gh issue comment "$PR_NUMBER" --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
+            exit 1
+          fi
+
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+
+      - name: Post Session URL as Reply
+        if: steps.check_secret.outputs.available == 'true' && steps.jules.outputs.session_url
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
+        run: |
+          BODY="## 🤖 Jules Refactoring Session Started
+
+          I have delegated the refactoring task to Google's AI engineer, Jules.
+
+          You can monitor the progress here:
+          ➡️ **[Jules Session]($SESSION_URL)**
+
+          Jules will apply changes directly to the PR branch."
+
+          gh issue comment "$PR_NUMBER" --body "$BODY"
+
+      - name: Post Secret Not Available Message
+        if: steps.check_secret.outputs.available == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          BODY="⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured. Please add it to enable the '/jules refactor' command."
+          gh issue comment "$PR_NUMBER" --body "$BODY"
