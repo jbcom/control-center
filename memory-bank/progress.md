@@ -374,3 +374,17 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-24 (Ecosystem Curator CI Fixes)
+
+### Completed
+- [x] Fixed actionlint syntax errors (heredoc indentation) in `ci-failure-resolution.yml`.
+- [x] Pinned all actions to SHAs in `ecosystem-curator.yml`.
+- [x] Implemented GitHub API pagination in `ecosystem-curator.mjs`.
+- [x] Added API key validation and try-catch robustness to `ecosystem-curator.mjs`.
+- [x] Added `timeout-minutes` and `contents: write` permissions to workflows.
+- [x] Updated `repository-files` templates with fixes.
+- [x] Resolved AI review threads and merged PR #434.
+
+### In Progress
+- [ ] Monitor automated nightly runs of Ecosystem Curator.

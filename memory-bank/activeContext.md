@@ -1,41 +1,40 @@
 # Active Context - jbcom Control Center
 
-## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
+## Current Status: ECOSYSTEM CURATOR MERGED AND REPOSITORY HARDENED
 
-Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
+The Ecosystem Curator system (PR #434) has been fully fixed, hardened, and merged into main. This autonomous nightly orchestration workflow is now active and robust.
 
 ### What Was Fixed/Added
-1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
-2. ✅ **Security Hardening**:
-    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
-    - Implemented `persist-credentials: false` for untrusted checkouts.
-    - Added `contents: write` permissions where necessary for auto-resolution.
-3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ci-failure-resolution.yml` to fulfill the promised automated fix functionality.
-4. ✅ **Orchestrator Safety**: Enhanced `cursor-jules-orchestrator.mjs` with safety checks for risky files (executables/secrets) before merging.
-5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
+1. ✅ **Actionlint Fixes**: Resolved critical YAML syntax errors in `ci-failure-resolution.yml` related to heredoc indentation. Switched to `printf -v` for robust multi-line string generation in commit messages.
+2. ✅ **Pagination Support**: Updated `ecosystem-curator.mjs` to handle GitHub API pagination for repositories, issues, and PRs, ensuring it scales to large organizations.
+3. ✅ **Robustness & Error Handling**: 
+    - Added API key validation at startup.
+    - Implemented try-catch blocks around individual repo, issue, and PR processing to prevent single failures from stopping the entire curator.
+4. ✅ **Security & Configuration**:
+    - Pinned all GitHub Actions to exact SHAs.
+    - Added `timeout-minutes` and necessary `contents: write` permissions to curator workflows.
+    - Updated `repository-files` templates to include all fixes.
+5. ✅ **Maintainability**: Refactored `ecosystem-curator.mjs` to use a generic `apiFetch` helper and extracted base URLs into constants.
 
 ### Changes Made
-- Updated workflows: `ci.yml`, `ci-failure-resolution.yml`, `ollama-cloud-pr-review.yml`, `jules-issue-automation.yml`.
-- Updated orchestrator script: `scripts/cursor-jules-orchestrator.mjs`.
-- Updated repository-files templates.
+- Updated workflows: `.github/workflows/ci-failure-resolution.yml`, `.github/workflows/ecosystem-curator.yml`.
+- Updated script: `scripts/ecosystem-curator.mjs`.
+- Updated templates: `repository-files/always-sync/.github/workflows/ci-failure-resolution.yml`, `repository-files/always-sync/.github/workflows/ecosystem-curator.yml`.
 
 ---
 
-## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
+## Session: 2025-12-24 (Ecosystem Curator CI Resolution)
 
 ### Task
-Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all security criteria are met.
+Fix CI failures and address AI feedback on PR #434 (Ecosystem Curator).
 
 ### Final State
-- PR #426 and #421 updated with security fixes and pinned actions.
-- CodeQL alerts on PR branches resolved.
-- CI workflows triggered and pending.
+- PR #434 merged successfully.
+- CI is green for all core checks.
+- AI feedback from Amazon Q and Gemini fully addressed.
+- Templates updated for organizational sync.
 
 ### For Next Agent
-- Merge PR #426 and #421 once CI passes green.
-- Monitor for any new AI feedback from Gemini or Amazon Q.
-- Verify that auto-resolution triggers correctly on next CI failure.
-
----
-
-## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED
+- Monitor the first nightly run of the Ecosystem Curator (scheduled for 2 AM UTC).
+- Verify that `curator-report.json` is generated and posted correctly in the workflow summary.
+- Consider further refactoring of `ecosystem-curator.mjs` if new duplication is identified.
