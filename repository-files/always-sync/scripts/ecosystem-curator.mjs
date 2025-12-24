@@ -13,6 +13,7 @@ const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://ollama.com/api';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'glm-4.6:cloud';
 const ORG = 'jbcom';
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const TARGET_REPO = process.env.TARGET_REPO;
@@ -100,7 +101,7 @@ async function ollamaApi(messages) {
   const res = await fetch(`${OLLAMA_API_URL}/api/chat`, {
     method: 'POST',
     body: JSON.stringify({
-      model: "glm-4.6:cloud",
+      model: OLLAMA_MODEL,
       messages: messages,
       stream: false
     }),
@@ -120,8 +121,19 @@ async function discoverRepos() {
     const repo = await ghApi(`/repos/${ORG}/${TARGET_REPO}`);
     return [repo];
   }
-  const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100`);
-  return repos.filter(r => !r.archived && !r.disabled);
+
+  const allRepos = [];
+  let page = 1;
+  while (true) {
+    const repos = await ghApi(`/orgs/${ORG}/repos?per_page=100&page=${page++}`);
+    if (!Array.isArray(repos) || repos.length === 0) {
+      break;
+    }
+    allRepos.push(...repos);
+    if (repos.length < 100) break;
+  }
+  
+  return allRepos.filter(r => !r.archived && !r.disabled);
 }
 
 async function triageIssue(repo, issue) {
@@ -129,20 +141,20 @@ async function triageIssue(repo, issue) {
   
   // Logic to determine if complex or quick fix
   // For now, let's use labels or keywords.
-  const labels = issue.labels.map(l => l.name.toLowerCase());
-  const isComplex = labels.includes('complex') || labels.includes('epic') || issue.body?.length > 1000;
+  const labels = issue.labels?.map(l => l.name.toLowerCase()) || [];
+  const isComplex = labels.includes('complex') || labels.includes('epic') || (issue.body?.length || 0) > 1000;
   const isQuestion = labels.includes('question') || issue.title.endsWith('?');
 
   if (isQuestion) {
     console.log(`    -> Resolving question with Ollama`);
     const response = await ollamaApi([
       { role: "system", content: "You are an expert maintainer for the jbcom ecosystem. Answer the following issue/question concisely." },
-      { role: "user", content: `Issue: ${issue.title}\n\n${issue.body}` }
+      { role: "user", content: `Issue: ${issue.title}\n\n${issue.body || 'No description provided.'}` }
     ]);
     
     await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues/${issue.number}/comments`, {
       method: 'POST',
-      body: JSON.stringify({ body: `🤖 **Curator Response (Ollama)**:\n\n${response.message.content}` })
+      body: JSON.stringify({ body: `🤖 **Curator Response (Ollama)**:\n\n${response.message?.content || 'Error generating response.'}` })
     });
     stats.ollama_resolutions++;
   } else if (isComplex) {
@@ -152,7 +164,7 @@ async function triageIssue(repo, issue) {
         method: 'POST',
         body: JSON.stringify({
           repository: { url: repo.html_url },
-          task: { description: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}` },
+          task: { description: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body || ''}` },
           workMode: "AUTO_CREATE_PR"
         })
       });
@@ -167,7 +179,7 @@ async function triageIssue(repo, issue) {
       await cursorApi('/v0/agents', {
         method: 'POST',
         body: JSON.stringify({
-          prompt: { text: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}` },
+          prompt: { text: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body || ''}` },
           source: { repository: `${repo.owner.login}/${repo.name}`, ref: repo.default_branch },
           target: { autoCreatePr: true, branchName: `fix/issue-${issue.number}` }
         })
@@ -184,58 +196,65 @@ async function triageIssue(repo, issue) {
 async function processPR(repo, pr) {
   console.log(`  - Processing PR #${pr.number}: ${pr.title}`);
 
-  const checks = await ghApi(`/repos/${repo.owner.login}/${repo.name}/commits/${pr.head.sha}/check-runs`);
-  const reviews = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/reviews`);
-  
-  const allPassing = checks.check_runs?.length > 0 && checks.check_runs.every(c => 
-    c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'neutral' || c.conclusion === 'skipped')
-  );
-  const hasFailedCI = checks.check_runs?.some(c => c.status === 'completed' && c.conclusion === 'failure');
-  const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
-  const isApproved = reviews.some(r => r.state === 'APPROVED');
+  try {
+    const checks = await ghApi(`/repos/${repo.owner.login}/${repo.name}/commits/${pr.head.sha}/check-runs`);
+    const reviews = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/reviews`);
+    
+    const allPassing = checks.check_runs?.length > 0 && checks.check_runs.every(c => 
+      c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'neutral' || c.conclusion === 'skipped')
+    );
+    const hasFailedCI = checks.check_runs?.some(c => c.status === 'completed' && c.conclusion === 'failure');
+    const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
+    const isApproved = reviews.some(r => r.state === 'APPROVED');
 
-  if (hasFailedCI) {
-    console.log(`    -> CI Failed. Spawning agent to fix.`);
-    await cursorApi('/v0/agents', {
-      method: 'POST',
-      body: JSON.stringify({
-        prompt: { text: `Fix CI failures in PR #${pr.number}: ${pr.title}` },
-        source: { repository: `${repo.owner.login}/${repo.name}`, ref: pr.head.ref },
-        target: { autoCreatePr: false } // Push to existing branch
-      })
-    });
-    stats.cursor_agents_spawned++;
-  } else if (hasChangesRequested) {
-    console.log(`    -> Changes requested. Spawning agent to address.`);
-    const lastReview = reviews.filter(r => r.state === 'CHANGES_REQUESTED').pop();
-    await cursorApi('/v0/agents', {
-      method: 'POST',
-      body: JSON.stringify({
-        prompt: { text: `Address review comments in PR #${pr.number}:\n\n${lastReview.body}` },
-        source: { repository: `${repo.owner.login}/${repo.name}`, ref: pr.head.ref },
-        target: { autoCreatePr: false }
-      })
-    });
-    stats.cursor_agents_spawned++;
-  } else if (allPassing && isApproved && pr.mergeable_state === 'clean') {
-    console.log(`    -> Ready to merge. Auto-merging.`);
-    await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/merge`, {
-      method: 'PUT',
-      body: JSON.stringify({ merge_method: 'squash' })
-    });
-    stats.merged_prs++;
-  } else if (pr.user.login.includes('bot') || pr.user.login.includes('agent')) {
-    // If it's an agent's PR and it's stuck, maybe ask Ollama for advice
-    console.log(`    -> Agent PR stuck. Asking Ollama for advice.`);
-    const response = await ollamaApi([
-      { role: "system", content: "You are an expert maintainer. A bot/agent PR is stuck. Analyze and suggest next steps." },
-      { role: "user", content: `PR: ${pr.title}\nState: ${pr.mergeable_state}\nLabels: ${pr.labels.map(l => l.name).join(', ')}` }
-    ]);
-    await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues/${pr.number}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ body: `🤖 **Curator Advice (Ollama)**:\n\n${response.message.content}` })
-    });
-    stats.ollama_resolutions++;
+    if (hasFailedCI) {
+      console.log(`    -> CI Failed. Spawning agent to fix.`);
+      await cursorApi('/v0/agents', {
+        method: 'POST',
+        body: JSON.stringify({
+          prompt: { text: `Fix CI failures in PR #${pr.number}: ${pr.title}` },
+          source: { repository: `${repo.owner.login}/${repo.name}`, ref: pr.head.ref },
+          target: { autoCreatePr: false } // Push to existing branch
+        })
+      });
+      stats.cursor_agents_spawned++;
+    } else if (hasChangesRequested) {
+      console.log(`    -> Changes requested. Spawning agent to address.`);
+      const lastReview = reviews.filter(r => r.state === 'CHANGES_REQUESTED').pop();
+      if (lastReview) {
+        await cursorApi('/v0/agents', {
+          method: 'POST',
+          body: JSON.stringify({
+            prompt: { text: `Address review comments in PR #${pr.number}:\n\n${lastReview.body || 'No comment body provided.'}` },
+            source: { repository: `${repo.owner.login}/${repo.name}`, ref: pr.head.ref },
+            target: { autoCreatePr: false }
+          })
+        });
+        stats.cursor_agents_spawned++;
+      }
+    } else if (allPassing && isApproved && pr.mergeable_state === 'clean') {
+      console.log(`    -> Ready to merge. Auto-merging.`);
+      await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/merge`, {
+        method: 'PUT',
+        body: JSON.stringify({ merge_method: 'squash' })
+      });
+      stats.merged_prs++;
+    } else if (pr.user?.login && (pr.user.login.includes('bot') || pr.user.login.includes('agent'))) {
+      // If it's an agent's PR and it's stuck, maybe ask Ollama for advice
+      console.log(`    -> Agent PR stuck. Asking Ollama for advice.`);
+      const response = await ollamaApi([
+        { role: "system", content: "You are an expert maintainer. A bot/agent PR is stuck. Analyze and suggest next steps." },
+        { role: "user", content: `PR: ${pr.title}\nState: ${pr.mergeable_state}\nLabels: ${pr.labels?.map(l => l.name).join(', ') || 'none'}` }
+      ]);
+      await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues/${pr.number}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body: `🤖 **Curator Advice (Ollama)**:\n\n${response.message?.content || 'No advice generated.'}` })
+      });
+      stats.ollama_resolutions++;
+    }
+  } catch (e) {
+    console.error(`    Error processing PR #${pr.number}: ${e.message}`);
+    stats.errors.push(`PR error for ${repo.name}#${pr.number}: ${e.message}`);
   }
 
   stats.prs_processed++;
@@ -247,7 +266,8 @@ async function manageAgents() {
   // Check Cursor Agents
   try {
     const agents = await cursorApi('/v0/agents');
-    console.log(`  Found ${agents.length || 0} active Cursor agents`);
+    console.log(`  Found ${Array.isArray(agents) ? agents.length : 0} active Cursor agents`);
+    // TODO: Add active management/cleanup logic for stalled agents
   } catch (e) {
     console.error(`  Failed to list Cursor agents: ${e.message}`);
   }
@@ -256,7 +276,9 @@ async function manageAgents() {
   try {
     const sessionsData = await julesApi('/sessions');
     for (const session of sessionsData.sessions || []) {
-      const sessionId = session.name.split('/')[1];
+      const sessionId = session.name?.split('/').pop();
+      if (!sessionId) continue;
+
       const details = await julesApi(`/sessions/${sessionId}`);
       
       if (details.state === 'PROPOSED_PLAN') {
@@ -270,8 +292,12 @@ async function manageAgents() {
 }
 
 async function main() {
-  if (!GITHUB_TOKEN || !CURSOR_API_KEY || !GOOGLE_JULES_API_KEY) {
-    console.error('Missing required environment variables');
+  // Explicit API key validation at start
+  const requiredEnv = ['GITHUB_TOKEN', 'CURSOR_API_KEY', 'GOOGLE_JULES_API_KEY'];
+  const missing = requiredEnv.filter(name => !process.env[name]);
+  
+  if (missing.length > 0) {
+    console.error(`❌ Missing required environment variables: ${missing.join(', ')}`);
     process.exit(1);
   }
 
@@ -282,21 +308,40 @@ async function main() {
     for (const repo of repos) {
       console.log(`\n📦 Repository: ${repo.full_name}`);
       
-      const issues = await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues?state=open`);
-      for (const issue of issues) {
-        // Skip if issue has an assignee or is already being processed by an agent
-        const labels = issue.labels.map(l => l.name.toLowerCase());
-        if (issue.assignee || labels.includes('in-progress') || labels.includes('jules') || labels.includes('cursor')) {
-          continue;
+      // Paginated issues fetch
+      let issuePage = 1;
+      while (true) {
+        const issues = await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues?state=open&page=${issuePage++}&per_page=100`);
+        if (!Array.isArray(issues) || issues.length === 0) break;
+
+        for (const issue of issues) {
+          try {
+            // Skip if issue has an assignee or is already being processed by an agent
+            const labels = issue.labels?.map(l => l.name.toLowerCase()) || [];
+            if (issue.assignee || labels.includes('in-progress') || labels.includes('jules') || labels.includes('cursor')) {
+              continue;
+            }
+            if (!issue.pull_request) {
+              await triageIssue(repo, issue);
+            }
+          } catch (e) {
+            console.error(`    Error triaging issue #${issue.number}: ${e.message}`);
+            stats.errors.push(`Issue error for ${repo.name}#${issue.number}: ${e.message}`);
+          }
         }
-        if (!issue.pull_request) {
-          await triageIssue(repo, issue);
-        }
+        if (issues.length < 100) break;
       }
 
-      const prs = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls?state=open`);
-      for (const pr of prs) {
-        await processPR(repo, pr);
+      // Paginated PRs fetch
+      let prPage = 1;
+      while (true) {
+        const prs = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls?state=open&page=${prPage++}&per_page=100`);
+        if (!Array.isArray(prs) || prs.length === 0) break;
+
+        for (const pr of prs) {
+          await processPR(repo, pr);
+        }
+        if (prs.length < 100) break;
       }
     }
 
