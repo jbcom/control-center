@@ -93,7 +93,7 @@ jobs:
               # Look for existing shellcheck ignores in actionlint
               if grep -q "actionlint" .github/workflows/ci.yml; then
                 if grep -q -- "-ignore 'SC[0-9]\{4\}'" .github/workflows/ci.yml; then
-                  sed -i "s/-ignore 'SC\([0-9]\{4\}\)'/& -ignore 'SC2016'/g" .github/workflows/ci.yml
+                  sed -i "s/-ignore 'SC\([0-9]\{4\}\)'/& -ignore 'SC2016'/" .github/workflows/ci.yml
                   echo "Added SC2016 ignore to ci.yml"
                 else
                   # Fallback: add after actionlint if no ignores exist
