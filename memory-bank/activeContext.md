@@ -39,3 +39,8 @@ Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all secu
 ---
 
 ## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED
+
+## Security Cleanup (2025-12-24)
+- 🚨 **CRITICAL**: Removed exposed `JULES_GITHUB_TOKEN` from issue #432.
+- Updated issue #432 body with security incident warning and instructions for manual secret rotation.
+- Confirmed token revocation (as per user instruction).

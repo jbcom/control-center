@@ -374,3 +374,10 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-24 (Security Cleanup)
+
+### Completed
+- [x] Edit issue #432 to remove exposed token.
+- [x] Add security incident warning to issue #432.
+- [x] Document secret rotation steps in issue #432.
