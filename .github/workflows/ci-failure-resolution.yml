@@ -19,6 +19,7 @@ jobs:
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.head_branch != 'main') ||
       (github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'failure' && github.event.check_suite.head_branch != 'main')
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     
     steps:
       - name: Determine branch
@@ -148,17 +149,17 @@ jobs:
             # Commit changes
             git add -A
             COMMIT_MSG=$(cat <<'EOF'
-            fix(ci): auto-resolve CI failures
-            
-            Shellcheck errors detected: ${{ steps.logs.outputs.shellcheck_errors }}
-            
-            Applied automatic fixes:
-            - SC2016: Added to actionlint ignore (single quotes intentional)
-            - Permissions: Added missing workflow permissions
-            
-            Applied by: CI Failure Resolution workflow
-            Triggered by: Run #${{ steps.branch.outputs.run_id }}
-            EOF
+fix(ci): auto-resolve CI failures
+
+Shellcheck errors detected: ${{ steps.logs.outputs.shellcheck_errors }}
+
+Applied automatic fixes:
+- SC2016: Added to actionlint ignore (single quotes intentional)
+- Permissions: Added missing workflow permissions
+
+Applied by: CI Failure Resolution workflow
+Triggered by: Run #${{ steps.branch.outputs.run_id }}
+EOF
             )
             git commit -m "$COMMIT_MSG"
             
