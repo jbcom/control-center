@@ -12,7 +12,8 @@ import { writeFile } from 'fs/promises';
 const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
-const OLLAMA_API_URL = process.env.OLLAMA_API_URL || 'https://ollama.jbcom.dev';
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
+const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 const ORG = 'jbcom';
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const TARGET_REPO = process.env.TARGET_REPO;
@@ -121,7 +122,7 @@ async function ollamaApi(messages) {
     console.log(`    [DRY RUN] ollamaApi: chat request`);
     return { message: { content: "Dry run response" } };
   }
-  const res = await fetch(`${OLLAMA_API_URL}/api/chat`, {
+  const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: 'POST',
     body: JSON.stringify({
       model: "glm-4.6:cloud",

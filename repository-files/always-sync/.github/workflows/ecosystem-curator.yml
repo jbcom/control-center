@@ -38,7 +38,8 @@ jobs:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}
-          OLLAMA_API_URL: ${{ secrets.OLLAMA_API_URL }}
+          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
           TARGET_REPO: ${{ github.event.inputs.target_repo }}
         run: |

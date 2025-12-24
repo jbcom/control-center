@@ -72,7 +72,8 @@ jobs:
         id: sage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OLLAMA_API_URL: ${{ secrets.OLLAMA_API_URL }}
+          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL || 'glm-4.6:cloud' }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
