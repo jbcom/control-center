@@ -43,7 +43,7 @@ jobs:
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           ref: ${{ steps.branch.outputs.ref }}
           fetch-depth: 0

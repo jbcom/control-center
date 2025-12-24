@@ -43,11 +43,10 @@ jobs:
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           ref: ${{ steps.branch.outputs.ref }}
           fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Download failure logs
         id: logs
@@ -84,7 +83,7 @@ jobs:
         run: |
           for f in .github/workflows/*.yml; do
             if ! grep -q "^permissions:" "$f"; then
-              awk '/^jobs:/{print "permissions:\n  contents: read\n"}{print}' "$f" > tmp && mv tmp "$f"
+              awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
             fi
           done
 
