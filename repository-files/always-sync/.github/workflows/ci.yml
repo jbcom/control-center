@@ -8,13 +8,13 @@ on:
 
 permissions:
   contents: read
-  pull-requests: write
-  actions: read
 
 jobs:
   lint-workflows:
     name: Lint Workflows
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # actions/checkout v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -42,6 +42,8 @@ jobs:
   validate-expressions:
     name: Validate Workflow Expressions
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # actions/checkout v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -144,6 +146,8 @@ jobs:
   validate-repo-config:
     name: Validate Repo Configuration
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # actions/checkout v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -227,6 +231,8 @@ jobs:
   validate-repository-files:
     name: Validate Repository Files
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # actions/checkout v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -270,6 +276,8 @@ jobs:
   dry-run-generate-tests:
     name: Dry Run - Generate Tests Workflow
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       # actions/checkout v6.0.1
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -357,6 +365,9 @@ jobs:
     needs: [lint-workflows, validate-expressions, validate-repo-config, validate-repository-files, dry-run-generate-tests]
     runs-on: ubuntu-latest
     if: always()
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Check results
         run: |

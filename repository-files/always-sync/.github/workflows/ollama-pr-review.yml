@@ -22,11 +22,7 @@ on:
     types: [completed]
 
 permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  checks: read
-  security-events: write  # For Copilot autofix API access
+  contents: read
 
 env:
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
@@ -42,6 +38,10 @@ jobs:
     name: Initial Code Review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     outputs:
       pr_number: ${{ github.event.pull_request.number }}
       recommendation: ${{ steps.review.outputs.recommendation }}
@@ -57,11 +57,10 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-          # Use CI_GITHUB_TOKEN to allow commits to trigger workflows
           token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Get PR diff
@@ -193,7 +192,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.review.outputs.auto_apply == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: auto-apply safe improvements (Ollama)"
           branch: ${{ github.head_ref }}
@@ -231,7 +230,7 @@ jobs:
             -f body="$BODY" -f event="$EVENT" || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
 
       - name: Upload review artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ollama-review
           path: /tmp/review.json
@@ -246,14 +245,16 @@ jobs:
     needs: initial-review
     if: needs.initial-review.outputs.recommendation == 'request_changes'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-          # Use CI_GITHUB_TOKEN to allow commits to trigger workflows
           token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Checkout PR branch
@@ -262,7 +263,7 @@ jobs:
         run: git checkout "$HEAD_REF"
 
       - name: Download review artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: ollama-review
           path: /tmp
@@ -384,7 +385,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.resolve.outputs.fix_count != '0'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: self-resolve review issues (Ollama)"
           branch: ${{ github.head_ref }}
@@ -444,10 +445,14 @@ jobs:
     needs: initial-review
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      security-events: write
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -514,8 +519,6 @@ jobs:
               }
             ]
           }
-          
-          AUTOFIX SUGGESTIONS:
           EOF
           
           cat /tmp/autofixes.json >> /tmp/prompt.txt
@@ -608,6 +611,10 @@ jobs:
        github.event.issue.pull_request &&
        contains(fromJSON('["github-actions[bot]","gemini-code-assist[bot]","copilot[bot]","amazon-q-developer[bot]","coderabbitai[bot]","cursor[bot]","github-advanced-security[bot]"]'), github.event.comment.user.login))
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     
     steps:
       - name: Check required secrets
@@ -620,7 +627,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           # Use CI_GITHUB_TOKEN to allow commits to trigger workflows
@@ -700,8 +707,8 @@ jobs:
           echo "📊 Found $FEEDBACK_COUNT feedback items to process"
 
       - name: Analyze and generate fixes
-        if: steps.feedback.outputs.count != '0'
         id: analyze
+        if: steps.feedback.outputs.count != '0'
         env:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -735,8 +742,6 @@ jobs:
             ],
             "summary": "overall summary of actions taken"
           }
-          
-          AI FEEDBACK:
           EOF
           
           cat /tmp/all_feedback.json >> /tmp/prompt.txt
@@ -774,7 +779,7 @@ jobs:
           echo "fix_count=$FIX_COUNT" >> $GITHUB_OUTPUT
 
       - name: Apply fixes
-        if: steps.analyze.outputs.fix_count != '0'
+        if: steps.analyze.outputs.fix_count != '0' && steps.analyze.outputs.fix_count != ''
         run: |
           jq -c '.fixes[] | select(.action == "fix" and .safe_to_apply == true)' /tmp/fixes.json | while read -r fix; do
             FILE=$(echo "$fix" | jq -r '.file')
@@ -797,7 +802,8 @@ jobs:
           done
 
       - name: Commit fixes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        if: steps.analyze.outputs.fix_count != '0' && steps.analyze.outputs.fix_count != ''
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: resolve AI feedback (automated)"
           branch: ${{ steps.pr.outputs.head_ref }}
@@ -837,6 +843,10 @@ jobs:
     name: Check Merge Readiness
     if: github.event_name == 'check_suite' && github.event.check_suite.conclusion == 'success'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      checks: read
     
     steps:
       - name: Get associated PRs
