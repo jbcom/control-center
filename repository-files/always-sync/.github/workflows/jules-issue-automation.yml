@@ -35,9 +35,11 @@ jobs:
 
       - name: Parse Task from Comment
         id: parse_task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          # Remove the /jules command and trim whitespace
-          TASK=$(echo "${{ github.event.comment.body }}" | sed 's|/jules||' | xargs)
+          # COMMENT_BODY is now an env var, not inline expansion
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '\\`$(){}[]<>;&|' | head -c 1000 | xargs)
           echo "task<<EOF" >> $GITHUB_OUTPUT
           echo "$TASK" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -109,5 +111,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BODY="⚠️ **Action Required:** The `GOOGLE_JULES_API_KEY` secret is not configured for this repository. Please add it to enable the `/jules` command."
+          BODY="⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured for this repository. Please add it to enable the '/jules' command."
           gh issue comment ${{ github.event.issue.number }} --body "$BODY"

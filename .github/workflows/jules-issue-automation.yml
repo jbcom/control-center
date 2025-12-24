@@ -22,9 +22,6 @@ jobs:
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
             echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
             echo "available=false" >> $GITHUB_OUTPUT
-          elif [[ ! "$GOOGLE_JULES_API_KEY" =~ ^[A-Za-z0-9_-]{30,}$ ]]; then
-            echo "::error::GOOGLE_JULES_API_KEY format is invalid."
-            echo "available=false" >> $GITHUB_OUTPUT
           else
             echo "available=true" >> $GITHUB_OUTPUT
           fi
@@ -38,12 +35,11 @@ jobs:
 
       - name: Parse Task from Comment
         id: parse_task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          # Remove the /jules command and trim whitespace
-          # Sanitize user input to prevent code injection
-          COMMENT_BODY="${{ github.event.comment.body }}"
-          # Remove any shell special characters and limit length
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '`$(){}[]<>;&|' | head -c 1000 | xargs)
+          # COMMENT_BODY is now an env var, not inline expansion
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '\\`$(){}[]<>;&|' | head -c 1000 | xargs)
           echo "task<<EOF" >> $GITHUB_OUTPUT
           echo "$TASK" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -76,7 +72,7 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
-          SESSION_RESPONSE=$(curl -s --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$JSON_PAYLOAD")
@@ -115,5 +111,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          BODY="⚠️ **Action Required:** The `GOOGLE_JULES_API_KEY` secret is not configured for this repository. Please add it to enable the `/jules` command."
+          BODY="⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured for this repository. Please add it to enable the '/jules' command."
           gh issue comment ${{ github.event.issue.number }} --body "$BODY"
