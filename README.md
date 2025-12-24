@@ -20,6 +20,12 @@ This repository has been archived. All functionality has been migrated to:
 - **File sync workflow** creates PRs to sync files to repos
 - **No more custom scripts** - everything is YAML-based
 
+## Domain Standard
+
+A new standard for allocating dedicated domains to project ecosystems has been documented. See [`docs/DOMAIN-STANDARD.md`](docs/DOMAIN-STANDARD.md) for the full standard.
+
+The `repo-config.json` schema has been updated to support an optional `domain` property for each ecosystem, and a new `docs.yml` workflow is available to automate documentation deployment with GitHub Pages.
+
 ## Historical Reference
 
 This repo is kept as read-only for historical reference. Do not fork or clone.
