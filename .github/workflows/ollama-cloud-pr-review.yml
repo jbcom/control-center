@@ -45,6 +45,9 @@ jobs:
     outputs:
       pr_number: ${{ github.event.pull_request.number }}
       recommendation: ${{ steps.review.outputs.recommendation }}
+      score: ${{ steps.review.outputs.score }}
+      issues_count: ${{ steps.review.outputs.issues_count }}
+      summary: ${{ steps.review.outputs.summary }}
     
     steps:
       - name: Check required secrets
@@ -163,6 +166,10 @@ jobs:
           
           echo "recommendation=$(jq -r '.recommendation' /tmp/review.json)" >> $GITHUB_OUTPUT
           echo "auto_apply=$(jq -r '.auto_apply' /tmp/review.json)" >> $GITHUB_OUTPUT
+          echo "score=$(jq -r '.score' /tmp/review.json)" >> $GITHUB_OUTPUT
+          echo "issues_count=$(jq '.issues | length' /tmp/review.json)" >> $GITHUB_OUTPUT
+          SUMMARY=$(jq -r '.summary' /tmp/review.json | head -c 300)
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
 
       - name: Apply safe fixes
         if: steps.review.outputs.auto_apply == 'true'
@@ -435,6 +442,75 @@ jobs:
             else
               echo "No blocking reviews found to dismiss"
             fi
+          fi
+
+  # ============================================
+  # Delegate to Jules - For complex changes
+  # ============================================
+  delegate-to-jules:
+    name: Delegate Complex Tasks to Jules
+    needs: initial-review
+    if: needs.initial-review.outputs.score < 5 && needs.initial-review.outputs.issues_count > 5
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Check for GOOGLE_JULES_API_KEY
+        id: check_secret
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Jules session
+        if: steps.check_secret.outputs.available == 'true'
+        env:
+          JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          PR_NUMBER: ${{ needs.initial-review.outputs.pr_number }}
+          SUMMARY: ${{ needs.initial-review.outputs.summary }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          JSON_PAYLOAD=$(jq -n \
+            --arg prompt "Fix issues identified in PR #$PR_NUMBER: $SUMMARY" \
+            --arg source "sources/github/${{ github.repository }}" \
+            --arg branch "${{ github.head_ref }}" \
+            --arg title "Jules: Fix PR #$PR_NUMBER issues" \
+            '{
+              "prompt": $prompt,
+              "sourceContext": {
+                "source": $source,
+                "githubRepoContext": {
+                  "startingBranch": $branch
+                }
+              },
+              "automationMode": "AUTO_CREATE_PR",
+              "title": $title
+            }')
+
+          SESSION_RESPONSE=$(curl -s -f --max-time 30 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$JSON_PAYLOAD")
+
+          if [[ $? -ne 0 ]]; then
+            echo "::error::Failed to create Jules session."
+            gh pr comment "$PR_NUMBER" --body "⚠️ Tried to delegate to Jules, but failed to create a session."
+            exit 1
+          fi
+
+          SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
+
+          if [[ -n "$SESSION_URL" ]]; then
+            gh pr comment "$PR_NUMBER" --body "🤖 This PR has significant issues and has been delegated to Google Jules for a more in-depth fix. Track progress: $SESSION_URL"
+          else
+            echo "::error::Failed to parse session URL from Jules API response."
+            gh pr comment "$PR_NUMBER" --body "⚠️ Tried to delegate to Jules, but failed to create a session (could not parse response)."
           fi
 
   # ============================================
