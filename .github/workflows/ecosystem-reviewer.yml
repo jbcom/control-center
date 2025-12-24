@@ -1,14 +1,10 @@
 name: Ecosystem Reviewer
 
-# Per-PR lifecycle using @agentic/control for AI-powered reviews
+# Per-PR AI-powered code review using Ollama
 
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-  pull_request_review:
-    types: [submitted]
-  pull_request_review_comment:
-    types: [created]
 
 permissions:
   contents: read
@@ -18,35 +14,74 @@ permissions:
 jobs:
   review:
     name: AI Code Review
-    if: github.event_name == 'pull_request'
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
 
-      - name: AI Review
-        uses: jbcom/nodejs-agentic-control/actions/agentic-pr-review@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-          base: ${{ github.base_ref }}
-          head: ${{ github.head_ref }}
-
-  process-feedback:
-    name: Process AI Feedback
-    if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Process Feedback
+      - name: Get PR Diff
+        id: diff
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never | head -c 30000)
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: AI Review
+        id: review
+        env:
           OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+          PR_DIFF: ${{ steps.diff.outputs.diff }}
         run: |
-          npm install -g @agentic/control@latest
-          agentic-control triage review-feedback --pr ${{ github.event.pull_request.number || github.event.issue.number }}
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "⚠️ OLLAMA_API_KEY not set, skipping review"
+            echo "review=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          PROMPT="Review this code diff for a pull request. Focus on:
+          1. Potential bugs or issues
+          2. Security concerns
+          3. Code quality and best practices
+          4. Suggestions for improvement
+          
+          Be concise. If the code looks good, say so briefly.
+          
+          Diff:
+          $PR_DIFF"
+          
+          RESPONSE=$(curl -s -X POST "${OLLAMA_HOST}/api/chat" \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg model "$OLLAMA_MODEL" --arg prompt "$PROMPT" '{
+              model: $model,
+              messages: [{role: "user", content: $prompt}],
+              stream: false
+            }')" | jq -r '.message.content // "Review unavailable"')
+          
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post Review Comment
+        if: steps.review.outputs.review != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+        run: |
+          COMMENT="## 🤖 AI Code Review
+
+          $REVIEW_RESPONSE
+          
+          ---
+          *Reviewed by Ollama ($OLLAMA_MODEL)*"
+          
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
