@@ -59,6 +59,7 @@ jobs:
         with:
           ref: ${{ steps.branch.outputs.sha }}
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Download failure logs
         id: logs
