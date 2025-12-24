@@ -141,7 +141,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repo-config.json is valid JSON
         run: |

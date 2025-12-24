@@ -95,10 +95,6 @@ jobs:
             gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
             exit 1
           fi
-            # Post error message to issue
-            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
-            exit 1
-          fi
 
           echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
 
