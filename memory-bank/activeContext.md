@@ -1,23 +1,16 @@
 # Active Context - jbcom Control Center
 
-## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
+## Current Status: ecosystem-curator.yml action SHAs corrected
 
-Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
+The `ecosystem-curator.yml` workflow was using incorrect SHAs for `actions/checkout` and `actions/setup-node`. These have been updated in both the local workflow and the `repository-files` template.
 
 ### What Was Fixed/Added
-1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
-2. ✅ **Security Hardening**:
-    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
-    - Implemented `persist-credentials: false` for untrusted checkouts.
-    - Added `contents: write` permissions where necessary for auto-resolution.
-3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ci-failure-resolution.yml` to fulfill the promised automated fix functionality.
-4. ✅ **Orchestrator Safety**: Enhanced `cursor-jules-orchestrator.mjs` with safety checks for risky files (executables/secrets) before merging.
-5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
+1. ✅ **Correct Action SHAs**: Updated `actions/checkout@v4` and `actions/setup-node@v4` to their canonical SHAs in `ecosystem-curator.yml`.
+2. ✅ **Centralized Fix**: Updated `fix_shas.py` to use the correct `actions/checkout` SHA to prevent future regressions.
 
 ### Changes Made
-- Updated workflows: `ci.yml`, `ci-failure-resolution.yml`, `ollama-cloud-pr-review.yml`, `jules-issue-automation.yml`.
-- Updated orchestrator script: `scripts/cursor-jules-orchestrator.mjs`.
-- Updated repository-files templates.
+- Updated workflows: `.github/workflows/ecosystem-curator.yml`, `repository-files/always-sync/.github/workflows/ecosystem-curator.yml`.
+- Updated scripts: `fix_shas.py`.
 
 ---
 

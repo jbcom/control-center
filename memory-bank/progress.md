@@ -374,3 +374,10 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-24 (Ecosystem Curator SHA Fix)
+
+### Completed
+- [x] Update SHAs in `.github/workflows/ecosystem-curator.yml`
+- [x] Update SHAs in `repository-files/always-sync/.github/workflows/ecosystem-curator.yml`
+- [x] Update `fix_shas.py` with correct `actions/checkout` SHA

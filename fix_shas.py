@@ -2,7 +2,7 @@ import os
 import re
 
 replacements = {
-    r'actions/checkout@[0-9a-f]{40,}': 'actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8',
+    r'actions/checkout@[0-9a-f]{40,}': 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683',
     r'actions/setup-python@[0-9a-f]{40,}': 'actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548',
     r'actions/github-script@[0-9a-f]{40,}': 'actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd',
     r'actions/upload-artifact@[0-9a-f]{40,}': 'actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f',
