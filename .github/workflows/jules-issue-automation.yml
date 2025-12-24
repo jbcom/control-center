@@ -39,7 +39,8 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           # COMMENT_BODY is now an env var, not inline expansion
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '\\`$(){}[]<>;&|' | head -c 1000 | xargs)
+          # Remove only the command and trim whitespace, preserve most content
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | sed 's|[[:space:]]*/jules[[:space:]]*||' | head -c 1000 | xargs)
           echo "task<<EOF" >> $GITHUB_OUTPUT
           echo "$TASK" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -72,10 +73,18 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
-          SESSION_RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          SESSION_RESPONSE=$(curl -s -f -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD")
+            -d "$JSON_PAYLOAD" 2>&1)
+          CURL_EXIT_CODE=$?
+
+          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
+            echo "::error::Failed to reach Jules API. curl exit code: $CURL_EXIT_CODE"
+            # Post error message to issue
+            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Unable to connect to Jules service. The service may be temporarily unavailable. Please try again later."
+            exit 1
+          fi
 
           SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
 
