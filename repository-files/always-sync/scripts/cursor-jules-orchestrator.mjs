@@ -13,7 +13,7 @@
  * - CURSOR_GITHUB_TOKEN: GitHub token for API access
  */
 
-const JULES_API_KEY = process.env.JULES_API_KEY;
+const JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY || process.env.JULES_API_KEY;
 const GITHUB_TOKEN = process.env.CURSOR_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 
 if (!JULES_API_KEY) {

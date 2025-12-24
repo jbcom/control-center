@@ -84,7 +84,7 @@ Created new Rust ecosystem with:
 ## Command Used
 
 ```bash
-export GITHUB_TOKEN=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
+export GITHUB_TOKEN="ghp_..."
 gh repo list jbcom --limit 100 --json name,isArchived,visibility
 ```
 

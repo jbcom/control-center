@@ -11,7 +11,7 @@ Standardized secret naming across the codebase to support the Ecosystem Curator 
 
 ### Manual Actions Required
 The following secrets MUST be added to the repository by an administrator (agent lacks `gh secret set` permissions):
-- `JULES_GITHUB_TOKEN`: `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`
+- `JULES_GITHUB_TOKEN`: (Obtain from GitHub settings - PAT with repo access)
 - `OLLAMA_API_URL`: `https://ollama.com/api`
 - `CURSOR_API_KEY`: (Obtain from Cursor team/dashboard)
 - `GOOGLE_JULES_API_KEY`: (Obtain from Google AI Studio)
