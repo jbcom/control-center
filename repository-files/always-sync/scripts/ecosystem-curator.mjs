@@ -121,7 +121,7 @@ async function ollamaApi(messages) {
     console.log(`    [DRY RUN] ollamaApi: chat request`);
     return { message: { content: "Dry run response" } };
   }
-  const res = await fetch(`${OLLAMA_API_URL}/api/chat`, {
+  const res = await fetch(`${OLLAMA_API_URL}/chat`, {
     method: 'POST',
     body: JSON.stringify({
       model: "glm-4.6:cloud",
