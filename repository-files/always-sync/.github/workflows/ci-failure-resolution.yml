@@ -35,7 +35,10 @@ jobs:
       - name: Validate PR branch
         run: |
           # Ensure this is a PR branch, not an arbitrary branch
-          PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null || echo "")
+          if ! PR_NUM=$(gh pr list --head "${{ steps.branch.outputs.ref }}" --json number --jq '.[0].number' 2>/dev/null); then
+            echo "Error: Failed to query PR information"
+            exit 1
+          fi
           if [ -z "$PR_NUM" ]; then
             echo "Branch ${{ steps.branch.outputs.ref }} is not associated with a PR. Skipping."
             exit 0
@@ -75,7 +78,13 @@ jobs:
         if: steps.logs.outputs.has_sc2016 == 'true'
         run: |
           if [ -f ".github/workflows/ci.yml" ]; then
-            sed -i "s/-ignore 'SC2129'/-ignore 'SC2129' -ignore 'SC2016'/" .github/workflows/ci.yml
+            # Check if the pattern exists before modifying
+            if grep -q "-ignore 'SC2129'" .github/workflows/ci.yml; then
+              sed -i "s/-ignore 'SC2129'/-ignore 'SC2129' -ignore 'SC2016'/" .github/workflows/ci.yml
+              echo "Added SC2016 ignore to ci.yml"
+            else
+              echo "SC2129 pattern not found in ci.yml, skipping"
+            fi
           fi
 
       - name: Fix missing permissions
@@ -83,7 +92,14 @@ jobs:
         run: |
           for f in .github/workflows/*.yml; do
             if ! grep -q "^permissions:" "$f"; then
-              awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
+              # Check if file has 'jobs:' section
+              if grep -q "^jobs:" "$f"; then
+                # Insert permissions after the 'on:' section, before 'jobs:'
+                awk '/^jobs:/{print "permissions:\n  contents: read"}1' "$f" > tmp && mv tmp "$f"
+                echo "Added permissions to $f"
+              else
+                echo "Warning: $f has no 'jobs:' section, skipping"
+              fi
             fi
           done
 
