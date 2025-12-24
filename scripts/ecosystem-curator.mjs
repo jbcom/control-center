@@ -3,31 +3,29 @@
 /**
  * Ecosystem Curator
  * 
- * Nightly autonomous orchestration workflow that triages issues and processes PRs
- * across all repositories in the jbcom organization.
+ * Nightly autonomous orchestration using @agentic/control for:
+ * - Cursor Cloud Agent management (via CursorAPI)
+ * - Issue triage
+ * - PR processing
  * 
- * Uses:
- * - Cursor Background Composer API (https://cursor.com)
- * - Google Jules API (https://jules.googleapis.com)
- * - Ollama Cloud API
+ * @see https://github.com/jbcom/nodejs-agentic-control
  */
 
 import { writeFile } from 'fs/promises';
-import { randomUUID } from 'crypto';
 
-const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
+// Environment
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 
-// Managed organizations - control-center manages both
 const ORGANIZATIONS = ['jbcom', 'strata-game-library'];
 const DRY_RUN = process.env.DRY_RUN === 'true';
-const TARGET_REPO = process.env.TARGET_REPO;
 const TARGET_ORG = process.env.TARGET_ORG;
+const TARGET_REPO = process.env.TARGET_REPO;
 
-// Stats for the report
+// Stats
 const stats = {
   repos_scanned: 0,
   issues_triaged: 0,
@@ -41,449 +39,379 @@ const stats = {
 };
 
 // ============================================
+// Dynamic imports for @agentic/control
+// ============================================
+let CursorAPI = null;
+
+async function loadAgenticControl() {
+  try {
+    const fleet = await import('@agentic/control/fleet');
+    CursorAPI = fleet.CursorAPI;
+    console.log('✅ Loaded @agentic/control/fleet');
+    return true;
+  } catch (e) {
+    console.warn(`⚠️  @agentic/control not available: ${e.message}`);
+    console.warn('   Falling back to direct API calls');
+    return false;
+  }
+}
+
+// ============================================
+// Cursor API (fallback if @agentic/control not available)
+// ============================================
+const CURSOR_BASE_URL = 'https://api.cursor.com/v0';
+
+async function cursorRequest(endpoint, method = 'GET', body = null) {
+  if (!CURSOR_API_KEY) throw new Error('CURSOR_API_KEY not set');
+  if (DRY_RUN && method !== 'GET') {
+    console.log(`    [DRY RUN] Cursor: ${method} ${endpoint}`);
+    return { id: 'dry-run', state: 'pending' };
+  }
+  
+  const res = await fetch(`${CURSOR_BASE_URL}${endpoint}`, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${CURSOR_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(`Cursor API ${res.status}: ${JSON.stringify(error)}`);
+  }
+  
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+// ============================================
 // GitHub API
 // ============================================
 async function ghApi(endpoint, options = {}) {
   if (DRY_RUN && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method)) {
-    console.log(`    [DRY RUN] ghApi: ${options.method} ${endpoint}`);
+    console.log(`    [DRY RUN] GitHub: ${options.method} ${endpoint}`);
     return { dry_run: true };
   }
 
-  const fetchPage = async (url) => {
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        'Authorization': `token ${GITHUB_TOKEN}`,
-        'Accept': 'application/vnd.github+json',
-        'User-Agent': 'jbcom-ecosystem-curator',
-        ...options.headers
-      }
-    });
-    if (!res.ok) {
-      const error = await res.json().catch(() => ({ message: res.statusText }));
-      throw new Error(`GitHub API Error (${res.status}) on ${url}: ${JSON.stringify(error)}`);
+  const url = `https://api.github.com${endpoint}`;
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      'Authorization': `token ${GITHUB_TOKEN}`,
+      'Accept': 'application/vnd.github+json',
+      ...options.headers
     }
-    const link = res.headers.get('link');
-    const data = await res.json();
-    return { data, link };
-  };
-
-  let url = `https://api.github.com${endpoint}`;
-  if (options.allPages) {
-    let allData = [];
-    let currentUrl = url;
-    if (!currentUrl.includes('per_page=')) {
-      currentUrl += (currentUrl.includes('?') ? '&' : '?') + 'per_page=100';
-    }
-    while (currentUrl) {
-      const { data, link } = await fetchPage(currentUrl);
-      allData = allData.concat(data);
-      const nextMatch = link?.match(/<([^>]+)>; rel="next"/);
-      currentUrl = nextMatch ? nextMatch[1] : null;
-    }
-    return allData;
+  });
+  
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(`GitHub API ${res.status}: ${JSON.stringify(error)}`);
   }
-
-  const { data } = await fetchPage(url);
-  return data;
+  
+  return res.json();
 }
 
 // ============================================
 // Jules API
 // ============================================
 async function julesApi(endpoint, options = {}) {
-  if (DRY_RUN && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method)) {
-    console.log(`    [DRY RUN] julesApi: ${options.method} ${endpoint}`);
-    return { dry_run: true };
+  if (!GOOGLE_JULES_API_KEY) throw new Error('GOOGLE_JULES_API_KEY not set');
+  if (DRY_RUN && options.method === 'POST') {
+    console.log(`    [DRY RUN] Jules: POST ${endpoint}`);
+    return { name: 'sessions/dry-run' };
   }
+  
   const res = await fetch(`https://jules.googleapis.com/v1alpha${endpoint}`, {
     ...options,
     headers: {
       'X-Goog-Api-Key': GOOGLE_JULES_API_KEY,
       'Content-Type': 'application/json',
-      ...options.headers
     }
   });
+  
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(`Jules API Error (${res.status}) on ${endpoint}: ${JSON.stringify(error)}`);
-  }
-  return res.json();
-}
-
-// ============================================
-// Cursor Background Composer API
-// Based on: https://github.com/mjdierkes/cursor-background-agent-api
-// ============================================
-function getCursorHeaders() {
-  if (!CURSOR_SESSION_TOKEN) {
-    throw new Error('CURSOR_SESSION_TOKEN not set');
-  }
-  return {
-    'Accept': '*/*',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Content-Type': 'application/json',
-    'Cookie': `WorkosCursorSessionToken=${CURSOR_SESSION_TOKEN}`,
-    'Origin': 'https://cursor.com',
-    'Referer': 'https://cursor.com/agents',
-    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'
-  };
-}
-
-function buildCursorPayload(repositoryUrl, taskDescription, branch = 'main') {
-  const bcId = `bc-${randomUUID()}`;
-  const cleanUrl = repositoryUrl.replace(/^https?:\/\//, '').replace(/\.git$/, '');
-  const devcontainerUrl = repositoryUrl.replace(/\.git$/, '');
-
-  return {
-    snapshotNameOrId: cleanUrl,
-    devcontainerStartingPoint: { url: devcontainerUrl, ref: branch },
-    modelDetails: { modelName: 'claude-4-sonnet-thinking', maxMode: true },
-    repositoryInfo: {},
-    snapshotWorkspaceRootPath: '/workspace',
-    autoBranch: true,
-    returnImmediately: true,
-    repoUrl: cleanUrl,
-    conversationHistory: [{
-      text: taskDescription,
-      type: 'MESSAGE_TYPE_HUMAN',
-      richText: JSON.stringify({
-        root: {
-          children: [{
-            children: [{ detail: 0, format: 0, mode: 'normal', style: '', text: taskDescription, type: 'text', version: 1 }],
-            direction: 'ltr', format: '', indent: 0, type: 'paragraph', version: 1, textFormat: 0, textStyle: ''
-          }],
-          direction: 'ltr', format: '', indent: 0, type: 'root', version: 1
-        }
-      })
-    }],
-    source: 'BACKGROUND_COMPOSER_SOURCE_WEBSITE',
-    bcId: bcId,
-    addInitialMessageToResponses: true
-  };
-}
-
-async function cursorCreateComposer(repositoryUrl, taskDescription, branch = 'main') {
-  if (DRY_RUN) {
-    console.log(`    [DRY RUN] cursorCreateComposer: ${taskDescription.substring(0, 50)}...`);
-    return { dry_run: true, bcId: 'dry-run-id' };
-  }
-  
-  const payload = buildCursorPayload(repositoryUrl, taskDescription, branch);
-  const res = await fetch('https://cursor.com/api/auth/startBackgroundComposerFromSnapshot', {
-    method: 'POST',
-    headers: getCursorHeaders(),
-    body: JSON.stringify(payload)
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Cursor API ${res.status}: ${text}`);
-  }
-  
-  const data = await res.json();
-  return { bcId: payload.bcId, ...data };
-}
-
-async function cursorListComposers(n = 100) {
-  const res = await fetch('https://cursor.com/api/background-composer/list', {
-    method: 'POST',
-    headers: getCursorHeaders(),
-    body: JSON.stringify({ n, include_status: true })
-  });
-  
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Cursor API ${res.status}: ${text}`);
+    throw new Error(`Jules API ${res.status}: ${JSON.stringify(error)}`);
   }
   
   return res.json();
 }
 
 // ============================================
-// Ollama API
+// Ollama API  
 // ============================================
-async function ollamaApi(messages) {
+async function ollamaChat(messages) {
   if (DRY_RUN) {
-    console.log(`    [DRY RUN] ollamaApi: chat request`);
-    return { message: { content: "Dry run response" } };
+    console.log(`    [DRY RUN] Ollama chat`);
+    return { message: { content: 'Dry run response' } };
   }
+  
   const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
     method: 'POST',
-    body: JSON.stringify({
-      model: "glm-4.6:cloud",
-      messages: messages,
-      stream: false
-    }),
     headers: {
       'Authorization': `Bearer ${OLLAMA_API_KEY}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'glm-4.6:cloud',
+      messages,
+      stream: false
+    })
+  });
+  
+  if (!res.ok) throw new Error(`Ollama API ${res.status}`);
+  return res.json();
+}
+
+// ============================================
+// Agent Management
+// ============================================
+let cursorApi = null;
+
+async function initCursor() {
+  if (!CURSOR_API_KEY) {
+    console.warn('⚠️  CURSOR_API_KEY not set - Cursor agents disabled');
+    return false;
+  }
+  
+  if (CursorAPI) {
+    try {
+      cursorApi = new CursorAPI({ apiKey: CURSOR_API_KEY });
+      console.log('✅ Initialized CursorAPI from @agentic/control');
+      return true;
+    } catch (e) {
+      console.warn(`⚠️  CursorAPI init failed: ${e.message}`);
+    }
+  }
+  
+  console.log('ℹ️  Using direct Cursor API calls');
+  return true;
+}
+
+async function spawnCursorAgent(repository, task, options = {}) {
+  if (cursorApi) {
+    const result = await cursorApi.launchAgent({
+      prompt: { text: task },
+      source: { repository, ref: options.ref },
+      target: {
+        autoCreatePr: options.autoCreatePr ?? true,
+        branchName: options.branchName,
+        openAsCursorGithubApp: true,
+      }
+    });
+    if (!result.success) throw new Error(result.error);
+    return result.data;
+  }
+  
+  // Fallback to direct API
+  return cursorRequest('/agents', 'POST', {
+    prompt: { text: task },
+    source: { repository, ref: options.ref },
+    target: {
+      autoCreatePr: options.autoCreatePr ?? true,
+      branchName: options.branchName,
+      openAsCursorGithubApp: true,
     }
   });
-  if (!res.ok) {
-    const error = await res.json().catch(() => ({ message: res.statusText }));
-    throw new Error(`Ollama API Error (${res.status}): ${JSON.stringify(error)}`);
+}
+
+async function listCursorAgents() {
+  if (cursorApi) {
+    const result = await cursorApi.listAgents();
+    return result.success ? result.data : [];
   }
-  return res.json();
+  const data = await cursorRequest('/agents');
+  return data?.agents || [];
 }
 
 // ============================================
 // Core Logic
 // ============================================
 async function discoverRepos() {
-  const orgsToScan = TARGET_ORG ? [TARGET_ORG] : ORGANIZATIONS;
-  console.log(`🔍 Discovering repositories in: ${orgsToScan.join(', ')}`);
+  const orgs = TARGET_ORG ? [TARGET_ORG] : ORGANIZATIONS;
+  console.log(`🔍 Discovering repos in: ${orgs.join(', ')}`);
   
   if (TARGET_REPO) {
-    console.log(`   Filtering for target repository: ${TARGET_REPO}`);
-    // Try to find the repo in any of the orgs
-    for (const org of orgsToScan) {
+    for (const org of orgs) {
       try {
-        const repo = await ghApi(`/repos/${org}/${TARGET_REPO}`);
-        return [repo];
-      } catch (e) {
-        // Try next org
-      }
+        return [await ghApi(`/repos/${org}/${TARGET_REPO}`)];
+      } catch {}
     }
-    console.error(`   Could not find ${TARGET_REPO} in any organization`);
     return [];
   }
   
-  let allRepos = [];
-  for (const org of orgsToScan) {
-    console.log(`   Scanning ${org}...`);
+  let repos = [];
+  for (const org of orgs) {
     try {
-      const repos = await ghApi(`/orgs/${org}/repos`, { allPages: true });
-      const activeRepos = repos.filter(r => !r.archived && !r.disabled);
-      console.log(`   Found ${activeRepos.length} active repos in ${org}`);
-      allRepos = allRepos.concat(activeRepos);
+      const orgRepos = await ghApi(`/orgs/${org}/repos?per_page=100`);
+      repos = repos.concat(orgRepos.filter(r => !r.archived));
+      console.log(`   ${org}: ${orgRepos.filter(r => !r.archived).length} repos`);
     } catch (e) {
-      console.error(`   Error scanning ${org}: ${e.message}`);
-      stats.errors.push(`Org scan error for ${org}: ${e.message}`);
+      stats.errors.push(`${org}: ${e.message}`);
     }
   }
-  
-  return allRepos;
+  return repos;
 }
 
 async function triageIssue(repo, issue) {
-  console.log(`  - Triaging issue #${issue.number}: ${issue.title}`);
+  console.log(`  📋 Issue #${issue.number}: ${issue.title.substring(0, 50)}`);
   
   const labels = issue.labels.map(l => l.name.toLowerCase());
-  const isComplex = labels.includes('complex') || labels.includes('epic') || issue.body?.length > 1000;
+  const isComplex = labels.includes('complex') || labels.includes('epic') || (issue.body?.length || 0) > 1000;
   const isQuestion = labels.includes('question') || issue.title.endsWith('?');
-
-  if (isQuestion) {
-    console.log(`    -> Resolving question with Ollama`);
-    const response = await ollamaApi([
-      { role: "system", content: "You are an expert maintainer for the jbcom ecosystem. Answer the following issue/question concisely." },
-      { role: "user", content: `Issue: ${issue.title}\n\n${issue.body}` }
-    ]);
-    
-    await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues/${issue.number}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ body: `🤖 **Curator Response (Ollama)**:\n\n${response.message.content}` })
-    });
-    stats.ollama_resolutions++;
-  } else if (isComplex) {
-    console.log(`    -> Creating Jules session`);
+  
+  if (isQuestion && OLLAMA_API_KEY) {
+    try {
+      const response = await ollamaChat([
+        { role: 'system', content: 'You are a helpful maintainer. Answer concisely.' },
+        { role: 'user', content: `Issue: ${issue.title}\n\n${issue.body}` }
+      ]);
+      await ghApi(`/repos/${repo.full_name}/issues/${issue.number}/comments`, {
+        method: 'POST',
+        body: JSON.stringify({ body: `🤖 **Curator Response:**\n\n${response.message.content}` })
+      });
+      stats.ollama_resolutions++;
+    } catch (e) {
+      console.error(`     Ollama error: ${e.message}`);
+    }
+  } else if (isComplex && GOOGLE_JULES_API_KEY) {
     try {
       await julesApi('/sessions', {
         method: 'POST',
         body: JSON.stringify({
           prompt: `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body}`,
           sourceContext: {
-            source: `sources/github/${repo.owner.login}/${repo.name}`,
+            source: `sources/github/${repo.full_name}`,
             githubRepoContext: { startingBranch: repo.default_branch }
           },
-          automationMode: "AUTO_CREATE_PR"
+          automationMode: 'AUTO_CREATE_PR'
         })
       });
       stats.jules_sessions_created++;
+      console.log('     → Jules session created');
     } catch (e) {
-      console.error(`      Failed to create Jules session: ${e.message}`);
-      stats.errors.push(`Jules error for ${repo.name}#${issue.number}: ${e.message}`);
+      console.error(`     Jules error: ${e.message}`);
+      stats.errors.push(`Jules: ${e.message}`);
     }
-  } else {
-    console.log(`    -> Spawning Cursor Background Composer`);
+  } else if (CURSOR_API_KEY) {
     try {
-      const repoUrl = `https://github.com/${repo.owner.login}/${repo.name}`;
-      const task = `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body || 'No description provided.'}`;
-      await cursorCreateComposer(repoUrl, task, repo.default_branch);
+      await spawnCursorAgent(repo.full_name, `Fix issue #${issue.number}: ${issue.title}\n\n${issue.body || ''}`, {
+        ref: repo.default_branch,
+        branchName: `fix/issue-${issue.number}`
+      });
       stats.cursor_agents_spawned++;
+      console.log('     → Cursor agent spawned');
     } catch (e) {
-      console.error(`      Failed to spawn Cursor agent: ${e.message}`);
-      stats.errors.push(`Cursor error for ${repo.name}#${issue.number}: ${e.message}`);
+      console.error(`     Cursor error: ${e.message}`);
+      stats.errors.push(`Cursor: ${e.message}`);
     }
   }
+  
   stats.issues_triaged++;
 }
 
 async function processPR(repo, pr) {
-  console.log(`  - Processing PR #${pr.number}: ${pr.title}`);
-
-  const checks = await ghApi(`/repos/${repo.owner.login}/${repo.name}/commits/${pr.head.sha}/check-runs`);
-  const reviews = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/reviews`);
+  console.log(`  🔀 PR #${pr.number}: ${pr.title.substring(0, 50)}`);
   
-  const allPassing = checks.check_runs?.length > 0 && checks.check_runs.every(c => 
-    c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'neutral' || c.conclusion === 'skipped')
+  const [checks, reviews] = await Promise.all([
+    ghApi(`/repos/${repo.full_name}/commits/${pr.head.sha}/check-runs`),
+    ghApi(`/repos/${repo.full_name}/pulls/${pr.number}/reviews`)
+  ]);
+  
+  const allPass = checks.check_runs?.every(c => 
+    c.status === 'completed' && ['success', 'neutral', 'skipped'].includes(c.conclusion)
   );
-  const hasFailedCI = checks.check_runs?.some(c => c.status === 'completed' && c.conclusion === 'failure');
-  const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
+  const hasFailure = checks.check_runs?.some(c => c.conclusion === 'failure');
   const isApproved = reviews.some(r => r.state === 'APPROVED');
-
-  const repoUrl = `https://github.com/${repo.owner.login}/${repo.name}`;
-
-  if (hasFailedCI) {
-    console.log(`    -> CI Failed. Spawning Cursor to fix.`);
-    try {
-      await cursorCreateComposer(repoUrl, `Fix CI failures in PR #${pr.number}: ${pr.title}`, pr.head.ref);
-      stats.cursor_agents_spawned++;
-    } catch (e) {
-      console.error(`      Failed to spawn Cursor: ${e.message}`);
-      stats.errors.push(`Cursor CI fix error for ${repo.name}#${pr.number}: ${e.message}`);
-    }
-  } else if (hasChangesRequested) {
-    console.log(`    -> Changes requested. Spawning Cursor to address.`);
-    const lastReview = reviews.filter(r => r.state === 'CHANGES_REQUESTED').pop();
-    try {
-      await cursorCreateComposer(repoUrl, `Address review comments in PR #${pr.number}:\n\n${lastReview.body}`, pr.head.ref);
-      stats.cursor_agents_spawned++;
-    } catch (e) {
-      console.error(`      Failed to spawn Cursor: ${e.message}`);
-      stats.errors.push(`Cursor review fix error for ${repo.name}#${pr.number}: ${e.message}`);
-    }
-  } else if (allPassing && isApproved && pr.mergeable_state === 'clean') {
-    console.log(`    -> Ready to merge. Auto-merging.`);
-    await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls/${pr.number}/merge`, {
-      method: 'PUT',
-      body: JSON.stringify({ merge_method: 'squash' })
-    });
-    stats.merged_prs++;
-  } else if (pr.user.login.includes('bot') || pr.user.login.includes('agent')) {
-    console.log(`    -> Agent PR stuck. Asking Ollama for advice.`);
-    const response = await ollamaApi([
-      { role: "system", content: "You are an expert maintainer. A bot/agent PR is stuck. Analyze and suggest next steps." },
-      { role: "user", content: `PR: ${pr.title}\nState: ${pr.mergeable_state}\nLabels: ${pr.labels.map(l => l.name).join(', ')}` }
-    ]);
-    await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues/${pr.number}/comments`, {
-      method: 'POST',
-      body: JSON.stringify({ body: `🤖 **Curator Advice (Ollama)**:\n\n${response.message.content}` })
-    });
-    stats.ollama_resolutions++;
-  }
-
-  stats.prs_processed++;
-}
-
-async function manageAgents() {
-  console.log(`🤖 Managing existing agents and sessions...`);
+  const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
   
-  // Check Cursor Composers
-  if (CURSOR_SESSION_TOKEN) {
+  if (hasFailure && CURSOR_API_KEY) {
     try {
-      const composers = await cursorListComposers(50);
-      const active = composers.filter(c => c.status === 'running' || c.status === 'pending');
-      console.log(`  Found ${active.length} active Cursor composers (of ${composers.length} total)`);
+      await spawnCursorAgent(repo.full_name, `Fix CI in PR #${pr.number}: ${pr.title}`, {
+        ref: pr.head.ref,
+        autoCreatePr: false
+      });
+      stats.cursor_agents_spawned++;
+      console.log('     → Cursor agent fixing CI');
     } catch (e) {
-      console.error(`  Failed to list Cursor composers: ${e.message}`);
+      console.error(`     Cursor error: ${e.message}`);
+    }
+  } else if (allPass && isApproved && !hasChangesRequested && pr.mergeable_state === 'clean') {
+    try {
+      await ghApi(`/repos/${repo.full_name}/pulls/${pr.number}/merge`, {
+        method: 'PUT',
+        body: JSON.stringify({ merge_method: 'squash' })
+      });
+      stats.merged_prs++;
+      console.log('     → Merged!');
+    } catch (e) {
+      console.error(`     Merge error: ${e.message}`);
     }
   }
-
-  // Check Jules Sessions
-  if (GOOGLE_JULES_API_KEY) {
-    try {
-      const sessionsData = await julesApi('/sessions');
-      for (const session of sessionsData.sessions || []) {
-        const sessionId = session.name.split('/')[1];
-        const details = await julesApi(`/sessions/${sessionId}`);
-        
-        if (details.state === 'PROPOSED_PLAN') {
-          console.log(`  -> Auto-approving Jules plan for session ${sessionId}`);
-          await julesApi(`/sessions/${sessionId}:approvePlan`, { method: 'POST' });
-        }
-      }
-    } catch (e) {
-      console.error(`  Failed to manage Jules sessions: ${e.message}`);
-    }
-  }
+  
+  stats.prs_processed++;
 }
 
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
   console.log('║                    ECOSYSTEM CURATOR                              ║');
-  console.log('╚══════════════════════════════════════════════════════════════════╝');
-  console.log('');
-  console.log(`Time: ${new Date().toISOString()}`);
-  console.log(`Dry Run: ${DRY_RUN}`);
-  console.log(`Target: ${TARGET_REPO || 'All repos'}`);
-  console.log('');
-
-  // API Key Validation
-  const missingVars = [];
-  if (!GITHUB_TOKEN) missingVars.push('GITHUB_TOKEN');
-  if (!CURSOR_SESSION_TOKEN) console.warn('⚠️  CURSOR_SESSION_TOKEN not set - Cursor agents disabled');
-  if (!GOOGLE_JULES_API_KEY) console.warn('⚠️  GOOGLE_JULES_API_KEY not set - Jules sessions disabled');
-  if (!OLLAMA_API_KEY) console.warn('⚠️  OLLAMA_API_KEY not set - Ollama responses disabled');
+  console.log('║              Powered by @agentic/control                          ║');
+  console.log('╚══════════════════════════════════════════════════════════════════╝\n');
   
-  if (missingVars.length > 0) {
-    console.error(`❌ Critical Error: Missing required environment variables: ${missingVars.join(', ')}`);
+  console.log(`Time: ${new Date().toISOString()}`);
+  console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}`);
+  console.log(`Target: ${TARGET_ORG || 'all orgs'} / ${TARGET_REPO || 'all repos'}\n`);
+  
+  if (!GITHUB_TOKEN) {
+    console.error('❌ GITHUB_TOKEN required');
     process.exit(1);
   }
-
-  try {
-    const repos = await discoverRepos();
-    stats.repos_scanned = repos.length;
-    console.log(`Found ${repos.length} repositories to process`);
-
-    for (const repo of repos) {
-      console.log(`\n📦 Repository: ${repo.full_name}`);
-      
-      try {
-        const issues = await ghApi(`/repos/${repo.owner.login}/${repo.name}/issues?state=open`, { allPages: true });
-        for (const issue of issues) {
-          const labels = issue.labels?.map(l => l.name.toLowerCase()) || [];
-          if (issue.assignee || labels.includes('in-progress') || labels.includes('jules') || labels.includes('cursor')) {
-            continue;
-          }
-          if (!issue.pull_request) {
-            await triageIssue(repo, issue).catch(e => {
-              console.error(`      Error triaging issue #${issue.number}: ${e.message}`);
-              stats.errors.push(`Triage error for ${repo.name}#${issue.number}: ${e.message}`);
-            });
-          }
-        }
-
-        const prs = await ghApi(`/repos/${repo.owner.login}/${repo.name}/pulls?state=open`, { allPages: true });
-        for (const pr of prs) {
-          await processPR(repo, pr).catch(e => {
-            console.error(`      Error processing PR #${pr.number}: ${e.message}`);
-            stats.errors.push(`PR error for ${repo.name}#${pr.number}: ${e.message}`);
-          });
-        }
-      } catch (e) {
-        console.error(`    Error processing repository ${repo.full_name}: ${e.message}`);
-        stats.errors.push(`Repo error for ${repo.full_name}: ${e.message}`);
-      }
-    }
-
-    await manageAgents();
-
-    // Write report
-    await writeFile('curator-report.json', JSON.stringify(stats, null, 2));
+  
+  // Load @agentic/control if available
+  await loadAgenticControl();
+  await initCursor();
+  
+  const repos = await discoverRepos();
+  stats.repos_scanned = repos.length;
+  
+  for (const repo of repos) {
+    console.log(`\n📦 ${repo.full_name}`);
     
-    console.log('\n═══════════════════════════════════════════════════════════════════');
-    console.log('                          CURATOR REPORT                            ');
-    console.log('═══════════════════════════════════════════════════════════════════');
-    console.log(JSON.stringify(stats, null, 2));
-    console.log('\n✅ Ecosystem Curator finished successfully');
-
-  } catch (e) {
-    console.error('Fatal Error:', e);
-    stats.errors.push(e.message);
-    await writeFile('curator-report.json', JSON.stringify(stats, null, 2));
-    process.exit(1);
+    try {
+      // Process issues
+      const issues = await ghApi(`/repos/${repo.full_name}/issues?state=open&per_page=50`);
+      for (const issue of issues.filter(i => !i.pull_request && !i.assignee)) {
+        await triageIssue(repo, issue);
+      }
+      
+      // Process PRs
+      const prs = await ghApi(`/repos/${repo.full_name}/pulls?state=open&per_page=50`);
+      for (const pr of prs) {
+        await processPR(repo, pr);
+      }
+    } catch (e) {
+      console.error(`   Error: ${e.message}`);
+      stats.errors.push(`${repo.full_name}: ${e.message}`);
+    }
   }
+  
+  // Fleet status
+  if (CURSOR_API_KEY) {
+    try {
+      const agents = await listCursorAgents();
+      console.log(`\n🤖 Cursor Fleet: ${agents.length} agents`);
+    } catch {}
+  }
+  
+  // Report
+  await writeFile('curator-report.json', JSON.stringify(stats, null, 2));
+  console.log('\n' + JSON.stringify(stats, null, 2));
+  console.log('\n✅ Curator complete');
 }
 
-main();
+main().catch(e => {
+  console.error('Fatal:', e);
+  process.exit(1);
+});

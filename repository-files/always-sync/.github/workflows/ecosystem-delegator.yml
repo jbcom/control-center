@@ -1,14 +1,9 @@
 name: Ecosystem Delegator
 
-# Unified issue/task delegation to AI agents:
-# - /jules - Delegate to Google Jules (complex refactors, multi-file changes)
-# - /cursor - Delegate to Cursor Background Composer (debugging, quick fixes)
-# - /sage - Invoke Ecosystem Sage for advice (handled by ecosystem-sage.yml)
-#
-# Uses:
-# - Cursor Background Composer API (https://cursor.com)
-#   Based on: https://github.com/mjdierkes/cursor-background-agent-api
-# - Google Jules API (https://jules.googleapis.com)
+# Issue delegation using @agentic/control
+# /jules - Delegate to Google Jules
+# /cursor - Delegate to Cursor Cloud Agent
+# /sage - Ask the Sage
 
 on:
   issue_comment:
@@ -19,295 +14,40 @@ permissions:
   issues: write
   pull-requests: write
 
-env:
-  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
-  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-
 jobs:
-  # ============================================
-  # Delegate to Jules (complex work)
-  # ============================================
-  delegate-to-jules:
-    name: Delegate to Jules
-    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/jules')
+  triage:
+    name: Triage and Delegate
+    if: |
+      github.event.issue.pull_request == null && 
+      (contains(github.event.comment.body, '/jules') || 
+       contains(github.event.comment.body, '/cursor') ||
+       contains(github.event.comment.body, '/sage'))
     runs-on: ubuntu-latest
-
     steps:
-      - name: Check for GOOGLE_JULES_API_KEY
-        id: check_secret
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Issue Triage
+        uses: jbcom/nodejs-agentic-control/actions/agentic-issue-triage@main
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          issue_number: ${{ github.event.issue.number }}
+          model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+
+      - name: Delegate to Agent
         env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-        run: |
-          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            echo "::warning::GOOGLE_JULES_API_KEY not set. Cannot delegate to Jules."
-            echo "available=false" >> $GITHUB_OUTPUT
-          else
-            echo "available=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Post Initial Acknowledgement
-        if: steps.check_secret.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Delegating to Google Jules for complex work..."
-
-      - name: Parse Task from Comment
-        id: parse_task
-        env:
           COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | sed 's|[[:space:]]*/jules[[:space:]]*||' | head -c 1000 | xargs)
-          echo "task<<EOF" >> $GITHUB_OUTPUT
-          echo "$TASK" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Create Jules Session
-        if: steps.check_secret.outputs.available == 'true'
-        id: jules
-        env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}
-          REPO_FULL_NAME: ${{ github.repository }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          TASK: ${{ steps.parse_task.outputs.task }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
+          REPO: ${{ github.repository }}
         run: |
-          JSON_PAYLOAD=$(jq -n \
-            --arg task "$TASK" \
-            --arg repo "$REPO_FULL_NAME" \
-            --arg branch "$DEFAULT_BRANCH" \
-            --arg issue "$ISSUE_NUMBER" \
-            '{
-              prompt: ("Fix issue #" + $issue + ": " + $task),
-              sourceContext: {
-                source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                githubRepoContext: {
-                  startingBranch: $branch
-                }
-              },
-              automationMode: "AUTO_CREATE_PR"
-            }')
-
-          SESSION_RESPONSE=$(curl -s -f --max-time 30 --retry 3 -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" 2>/dev/null)
-          CURL_EXIT_CODE=$?
-
-          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
-            echo "::error::Failed to reach Jules API"
-            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Unable to connect to Jules service. Please try again later."
-            exit 1
-          fi
-
-          SESSION_NAME=$(echo "$SESSION_RESPONSE" | jq -r '.name // empty')
-          if [[ -z "$SESSION_NAME" ]]; then
-            ERROR_MSG=$(echo "$SESSION_RESPONSE" | jq -r '.error.message // "Unknown error"')
-            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Failed to create Jules session: $ERROR_MSG"
-            exit 1
-          fi
-
-          SESSION_URL="https://jules.google.com/session/${SESSION_NAME##*/}"
-          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
-          echo "session_name=$SESSION_NAME" >> $GITHUB_OUTPUT
-
-      - name: Post Session URL
-        if: steps.check_secret.outputs.available == 'true' && steps.jules.outputs.session_url != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          SESSION_URL: ${{ steps.jules.outputs.session_url }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          Delegated to Google's AI software engineer, **Jules**.
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue, write the code, and submit a PR."
-
-      - name: Post Secret Not Available Message
-        if: steps.check_secret.outputs.available == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured. Please add it to enable '/jules'."
-
-  # ============================================
-  # Delegate to Cursor Background Composer
-  # Uses session token, not API key
-  # Based on: https://github.com/mjdierkes/cursor-background-agent-api
-  # ============================================
-  delegate-to-cursor:
-    name: Delegate to Cursor
-    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/cursor')
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check for CURSOR_SESSION_TOKEN
-        id: check_secret
-        env:
-          CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
-        run: |
-          if [[ -z "$CURSOR_SESSION_TOKEN" ]]; then
-            echo "::warning::CURSOR_SESSION_TOKEN not set. Cannot delegate to Cursor."
-            echo "available=false" >> $GITHUB_OUTPUT
-          else
-            echo "available=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Post Initial Acknowledgement
-        if: steps.check_secret.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "⚡ Received '/cursor' command. Spawning Cursor Background Composer..."
-
-      - name: Parse Task from Comment
-        id: parse_task
-        env:
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          TASK=$(echo "$COMMENT_BODY" | sed 's|^/cursor[[:space:]]*||' | sed 's|[[:space:]]*/cursor[[:space:]]*||' | head -c 2000 | xargs)
-          echo "task<<EOF" >> $GITHUB_OUTPUT
-          echo "$TASK" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Spawn Cursor Background Composer
-        if: steps.check_secret.outputs.available == 'true'
-        id: cursor
-        env:
-          CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
-          REPO_FULL_NAME: ${{ github.repository }}
-          REPO_URL: ${{ github.event.repository.clone_url }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-          TASK: ${{ steps.parse_task.outputs.task }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          # Generate unique composer ID
-          BC_ID="bc-$(uuidgen | tr '[:upper:]' '[:lower:]')"
+          npm install -g @agentic/control@latest
           
-          # Clean repository URL for payload
-          CLEAN_URL=$(echo "$REPO_URL" | sed 's|^https://||' | sed 's|\.git$||')
-          DEV_URL=$(echo "$REPO_URL" | sed 's|\.git$||')
-          TASK_TEXT="Fix issue #$ISSUE_NUMBER: $TASK"
-          
-          # Build the Cursor Background Composer payload
-          # Based on: https://github.com/mjdierkes/cursor-background-agent-api
-          JSON_PAYLOAD=$(jq -n \
-            --arg bcId "$BC_ID" \
-            --arg cleanUrl "$CLEAN_URL" \
-            --arg devUrl "$DEV_URL" \
-            --arg branch "$DEFAULT_BRANCH" \
-            --arg task "$TASK_TEXT" \
-            '{
-              snapshotNameOrId: $cleanUrl,
-              devcontainerStartingPoint: {
-                url: $devUrl,
-                ref: $branch
-              },
-              modelDetails: {
-                modelName: "claude-4-sonnet-thinking",
-                maxMode: true
-              },
-              repositoryInfo: {},
-              snapshotWorkspaceRootPath: "/workspace",
-              autoBranch: true,
-              returnImmediately: true,
-              repoUrl: $cleanUrl,
-              conversationHistory: [{
-                text: $task,
-                type: "MESSAGE_TYPE_HUMAN",
-                richText: ({
-                  root: {
-                    children: [{
-                      children: [{
-                        detail: 0,
-                        format: 0,
-                        mode: "normal",
-                        style: "",
-                        text: $task,
-                        type: "text",
-                        version: 1
-                      }],
-                      direction: "ltr",
-                      format: "",
-                      indent: 0,
-                      type: "paragraph",
-                      version: 1,
-                      textFormat: 0,
-                      textStyle: ""
-                    }],
-                    direction: "ltr",
-                    format: "",
-                    indent: 0,
-                    type: "root",
-                    version: 1
-                  }
-                } | tostring)
-              }],
-              source: "BACKGROUND_COMPOSER_SOURCE_WEBSITE",
-              bcId: $bcId,
-              addInitialMessageToResponses: true
-            }')
-
-          COMPOSER_RESPONSE=$(curl -s -f --max-time 60 -X POST "https://cursor.com/api/auth/startBackgroundComposerFromSnapshot" \
-            -H "Accept: */*" \
-            -H "Content-Type: application/json" \
-            -H "Cookie: WorkosCursorSessionToken=$CURSOR_SESSION_TOKEN" \
-            -H "Origin: https://cursor.com" \
-            -H "Referer: https://cursor.com/agents" \
-            -H "User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36" \
-            -d "$JSON_PAYLOAD" 2>/dev/null)
-          CURL_EXIT_CODE=$?
-
-          if [[ $CURL_EXIT_CODE -ne 0 ]]; then
-            echo "::error::Failed to reach Cursor API"
-            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Unable to spawn Cursor Background Composer. Please try again later."
-            exit 1
+          if echo "$COMMENT_BODY" | grep -q "/cursor"; then
+            agentic-control fleet spawn --repo "$REPO" --issue "$ISSUE_NUMBER"
+          elif echo "$COMMENT_BODY" | grep -q "/jules"; then
+            # Jules delegation handled separately
+            echo "Jules delegation requested"
           fi
-
-          # Check for errors in response
-          ERROR_MSG=$(echo "$COMPOSER_RESPONSE" | jq -r '.error // empty')
-          if [[ -n "$ERROR_MSG" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "🔴 **Error:** Failed to create Cursor composer: $ERROR_MSG"
-            exit 1
-          fi
-
-          echo "bc_id=$BC_ID" >> $GITHUB_OUTPUT
-
-      - name: Post Composer ID
-        if: steps.check_secret.outputs.available == 'true' && steps.cursor.outputs.bc_id != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-          BC_ID: ${{ steps.cursor.outputs.bc_id }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "## ⚡ Cursor Background Composer Created
-
-          Delegated to **Cursor Background Composer**.
-
-          🆔 **Composer ID:** \`$BC_ID\`
-          🔗 **Monitor:** [cursor.com/agents](https://cursor.com/agents)
-
-          The composer will analyze the issue and create a PR with fixes.
-
-          The **Ecosystem Harvester** will monitor progress and merge when ready."
-
-      - name: Post Secret Not Available Message
-        if: steps.check_secret.outputs.available == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          ISSUE_NUMBER: ${{ github.event.issue.number }}
-        run: |
-          gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Action Required:** The 'CURSOR_SESSION_TOKEN' secret is not configured. Please add it to enable '/cursor'.
-          
-          To get your session token:
-          1. Log in to [cursor.com](https://cursor.com)
-          2. Open browser DevTools → Application → Cookies
-          3. Copy the value of \`WorkosCursorSessionToken\`
-          4. Add it as a repository/organization secret named \`CURSOR_SESSION_TOKEN\`"
