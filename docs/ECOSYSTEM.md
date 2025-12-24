@@ -49,6 +49,7 @@ The **Ecosystem** is a unified family of GitHub Actions workflows powered by `@a
 | `ecosystem-harvester` | Agent monitoring | Every 15 min | Direct fleet API |
 | `ecosystem-sage` | On-call advisor | On-demand | Ollama |
 | `org-infrastructure` | Repo creation | Weekly | Direct GitHub API |
+| `org-apps-audit` | App installation check | Weekly | Direct GitHub API |
 
 ## Organization Infrastructure
 
@@ -84,6 +85,36 @@ The `org-infrastructure` workflow idempotently creates these repos and spawns Ju
   with:
     github_token: ${{ secrets.GITHUB_TOKEN }}
     run_id: ${{ github.event.workflow_run.id }}
+```
+
+## Required GitHub Apps
+
+Each organization needs these apps installed for full automation:
+
+| App | Priority | Purpose |
+|-----|----------|---------|
+| **Google Jules** | Critical | AI code generation, async refactoring |
+| **Cursor** | Critical | AI code assistant, background agents |
+| **Claude** | High | AI assistant, code review |
+| **Gemini Code Assist** | High | AI code review |
+| **Amazon Q Developer** | High | AI code review |
+| **Renovate** | High | Automated dependency updates |
+| **Settings** | Medium | Repository settings sync |
+
+### Why Manual Installation?
+
+GitHub requires OAuth consent for app installations - there's no API to programmatically install apps. Each app must be installed manually on each organization.
+
+### Audit Workflow
+
+The `org-apps-audit` workflow runs weekly to check installations and creates issues for missing apps.
+
+```bash
+# Manual check
+gh workflow run org-apps-audit.yml --repo jbcom/control-center
+
+# CLI check
+gh api /orgs/strata-game-library/installations --jq '.installations[].app_slug'
 ```
 
 ## Required Secrets
