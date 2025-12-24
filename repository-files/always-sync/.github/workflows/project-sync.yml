@@ -75,7 +75,7 @@ jobs:
       # actions/add-to-project v1.0.2
       - name: Add to Roadmap Project
         if: steps.issue.outputs.add_roadmap == 'true'
-        uses: actions/add-to-project@32da07cbb30091816ce54192caf97979d0812456
+        uses: actions/add-to-project@244f685bbc3b7adfa8466e08b698b5577571133e
         with:
           project-url: https://github.com/orgs/jbcom/projects/8
           github-token: ${{ secrets.CI_GITHUB_TOKEN }}

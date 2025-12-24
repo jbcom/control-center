@@ -59,7 +59,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -196,7 +196,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.review.outputs.auto_apply == 'true'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: auto-apply safe improvements (Ollama)"
           branch: ${{ github.head_ref }}
@@ -240,7 +240,7 @@ jobs:
             -f body="$BODY" -f event="$EVENT" || gh pr comment "$PR_NUMBER" --body "$BODY"
 
       - name: Upload review artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: ollama-review
           path: /tmp/review.json
@@ -258,7 +258,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -271,7 +271,7 @@ jobs:
         run: git checkout "$HEAD_REF"
 
       - name: Download review artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
           name: ollama-review
           path: /tmp
@@ -394,7 +394,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.resolve.outputs.fix_count != '0'
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: self-resolve review issues (Ollama)"
           branch: ${{ github.head_ref }}
@@ -458,7 +458,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -634,7 +634,7 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0
           # Use CI_GITHUB_TOKEN to allow commits to trigger workflows
@@ -812,7 +812,7 @@ jobs:
           done
 
       - name: Commit fixes
-        uses: stefanzweifel/git-auto-commit-action@v5
+        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
         with:
           commit_message: "fix: resolve AI feedback (automated)"
           branch: ${{ steps.pr.outputs.head_ref }}
@@ -989,7 +989,7 @@ jobs:
             --arg repo "$REPO_FULL_NAME" \
             --arg branch "$HEAD_REF" \
             '{
-              prompt: "The code review score is low (\($score)/10) with \($issues) issues. Please help fix this PR. Original PR body:\n\n\($body)",
+              prompt: ("The code review score is low (" + $score + "/10) with " + $issues + " issues. Please help fix this PR. Original PR body:\n\n" + $body),
               sourceContext: {
                 source: "github",
                 githubRepoContext: {

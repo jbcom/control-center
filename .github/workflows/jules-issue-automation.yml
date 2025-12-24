@@ -63,8 +63,9 @@ jobs:
             --arg task "$TASK" \
             --arg repo "$REPO_FULL_NAME" \
             --arg branch "$DEFAULT_BRANCH" \
+            --arg prompt_prefix "Please address the following issue:\n\n" \
             '{
-              prompt: "Please address the following issue:\n\n\($task)",
+              prompt: ($prompt_prefix + $task),
               sourceContext: {
                 source: "github",
                 githubRepoContext: {
