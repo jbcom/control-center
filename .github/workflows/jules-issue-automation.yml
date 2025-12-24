@@ -73,10 +73,11 @@ jobs:
               automationMode: "AUTO_CREATE_PR"
             }')
 
+          # Capture response without logging it
           SESSION_RESPONSE=$(curl -s -f -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$JSON_PAYLOAD" 2>&1)
+            -d "$JSON_PAYLOAD" 2>/dev/null)
           CURL_EXIT_CODE=$?
 
           if [[ $CURL_EXIT_CODE -ne 0 ]]; then
@@ -89,7 +90,11 @@ jobs:
           SESSION_URL=$(echo "$SESSION_RESPONSE" | jq -r '.sessionUrl // empty')
 
           if [[ -z "$SESSION_URL" ]]; then
-            echo "::error::Failed to create Jules session. Response: $SESSION_RESPONSE"
+            echo "::error::Failed to create Jules session. Check API key and permissions."
+            # Post error message to issue
+            gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
+            exit 1
+          fi
             # Post error message to issue
             gh issue comment ${{ github.event.issue.number }} --body "🔴 **Error:** Failed to create a Jules session. Please check the workflow logs for details."
             exit 1

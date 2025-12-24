@@ -39,7 +39,7 @@ jobs:
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           # COMMENT_BODY is now an env var, not inline expansion
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules||' | tr -d '\\`$(){}[]<>;&|' | head -c 1000 | xargs)
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | sed 's|[[:space:]]*/jules[[:space:]]*||' | head -c 1000 | xargs)
           echo "task<<EOF" >> $GITHUB_OUTPUT
           echo "$TASK" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
