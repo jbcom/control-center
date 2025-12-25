@@ -75,7 +75,8 @@ ISSUE → Task Router (Ollama) → [Ollama | Jules | Cursor] → PR → AI Revie
 | **Ollama** | Quick fixes, code review, routing | GLM-4.6 Cloud |
 | **Google Jules** | Async refactoring, multi-file changes | REST v1alpha |
 | **Cursor Cloud** | Long-running background processes | REST v0 |
-| **AI Reviewers** | PR quality gates | Gemini, Copilot, Q |
+| **Gemini** | PR quality review | `/gemini review` |
+| **Amazon Q** | Security review | `/q review` |
 
 ### Task Routing Matrix
 
@@ -203,16 +204,16 @@ Make `vendor-connectors` CLI fully operational for managing Jules sessions.
 ## Session 6: Ecosystem-Wide Agent Coordination (2025-12-25)
 
 ### Strategy
-Instead of using CLI for Cursor agents (API auth issues), use GitHub mentions directly on PRs.
+Instead of using CLI for Cursor agents (API auth issues), use commands directly on issues and PRs.
 
 ### Commands Used
 
 ```bash
-# For Cursor Cloud Agent PRs
+# For Cursor Cloud Agent (PR comments)
 gh pr comment <PR> --body "@cursor Rebase onto main, resolve conflicts, ensure CI passes, then merge."
 
-# For Jules PRs
-gh pr comment <PR> --body "@jules Rebase onto main, resolve conflicts, ensure CI passes, then merge."
+# For Jules (Issue comments)
+gh issue comment <ISSUE> --body "/jules Please implement feature X"
 ```
 
 ### PRs Dispatched To
