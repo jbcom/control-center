@@ -555,6 +555,21 @@
         "logging",
         "core"
       ]
+    },
+    "arcade-cabinet": {
+      "organization": "arcade-cabinet",
+      "files": {
+        "always": [
+          "always-sync",
+          "python"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "rivers-of-reckoning"
+      ]
     }
   },
   "organizations": {
@@ -563,13 +578,15 @@
       "jbcom",
       "strata-game-library",
       "agentic-dev-library",
-      "extended-data-library"
+      "extended-data-library",
+      "arcade-cabinet"
     ],
     "domains": {
       "jbcom": "jonbogaty.com",
       "strata-game-library": "strata.game",
       "agentic-dev-library": "agentic.dev",
-      "extended-data-library": "extendeddata.dev"
+      "extended-data-library": "extendeddata.dev",
+      "arcade-cabinet": "arcade-cabinet.org"
     }
   }
 }
