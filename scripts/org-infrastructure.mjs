@@ -151,14 +151,14 @@ async function ensureDocsRepo(org, config) {
 async function spawnJulesForDocs(org, config) {
   if (!GOOGLE_JULES_API_KEY) {
     console.log(`  ⚠️ GOOGLE_JULES_API_KEY not set - skipping Jules for ${org}`);
-    return;
+    return { success: false, skipped: true };
   }
-  
+
   if (DRY_RUN) {
     console.log(`  [DRY RUN] Would spawn Jules for ${org}.github.io docs`);
-    return;
+    return { success: true, dry_run: true };
   }
-  
+
   const prompt = `Create a modern documentation site for ${config.branding.name}.
 
 REQUIREMENTS:
@@ -202,12 +202,19 @@ Create a complete, production-ready documentation site.`;
     if (res.ok) {
       const data = await res.json();
       console.log(`  ✓ Jules session created for ${org} docs: ${data.name}`);
-      return data;
+      return { success: true, data };
+    } else if (res.status === 404) {
+      console.error(`  ❌ CRITICAL: Jules API returned 404 for ${org}.`);
+      console.error(`     This almost certainly means the 'Google Jules' GitHub App is not installed.`);
+      console.error(`     Please install it from: https://github.com/apps/google-jules`);
+      return { success: false, missing_app: true };
     } else {
       console.error(`  Jules error: ${res.status}`);
+      return { success: false, error: res.status };
     }
   } catch (e) {
     console.error(`  Jules error: ${e.message}`);
+    return { success: false, error: e.message };
   }
 }
 
@@ -227,10 +234,11 @@ async function main() {
     orgs_processed: 0,
     github_repos_created: 0,
     docs_repos_created: 0,
-    jules_sessions: 0,
+    jules_sessions_spawned: 0,
+    jules_installs_missing: [],
     errors: []
   };
-  
+
   for (const [org, config] of Object.entries(ORGANIZATIONS)) {
     console.log(`\n📦 Organization: ${org}`);
     console.log(`   Domain: ${config.domain}`);
@@ -242,16 +250,18 @@ async function main() {
       
       // Ensure docs repo
       const docsResult = await ensureDocsRepo(org, config);
-      if (docsResult.created) {
-        results.docs_repos_created++;
-        
-        // Spawn Jules to build docs site
-        if (docsResult.needs_docs) {
-          await spawnJulesForDocs(org, config);
-          results.jules_sessions++;
+      if (docsResult.created) results.docs_repos_created++;
+
+      // Spawn Jules to build docs site if needed
+      if (docsResult.needs_docs) {
+        const julesResult = await spawnJulesForDocs(org, config);
+        if (julesResult.success) {
+          results.jules_sessions_spawned++;
+        } else if (julesResult.missing_app) {
+          results.jules_installs_missing.push(org);
         }
       }
-      
+
       results.orgs_processed++;
     } catch (e) {
       console.error(`   Error: ${e.message}`);
