@@ -157,6 +157,9 @@ main() {
      log_error "No GitHub token found in GH_TOKEN or GITHUB_TOKEN environment variables."
      exit 1
   fi
+  
+  # For CI environments, we may need to set the token explicitly for the current process
+  export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
 
   if ! gh auth status &>/dev/null; then
     log_error "Not authenticated with GitHub CLI. Please check your token."
