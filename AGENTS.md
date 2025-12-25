@@ -91,11 +91,11 @@ ISSUE → Task Router (Ollama) → [Ollama | Jules | Cursor] → PR → AI Revie
 
 | Secret | Purpose |
 |--------|---------|
-| `GITHUB_TOKEN` | Repository access |
-| `CURSOR_API_KEY` | Cursor Cloud Agent API |
-| `GOOGLE_JULES_API_KEY` | Jules API (API key auth) |
-| `JULES_GITHUB_TOKEN` | Jules GitHub operations |
-| `OLLAMA_API_KEY` | Ollama Cloud API |
+| `${GITHUB_TOKEN}` | Repository access |
+| `${CURSOR_API_KEY}` | Cursor Cloud Agent API |
+| `${GOOGLE_JULES_API_KEY}` | Jules API (API key auth) |
+| `${JULES_GITHUB_TOKEN}` | Jules GitHub operations |
+| `${OLLAMA_API_KEY}` | Ollama Cloud API |
 
 ## Agent Communication
 
