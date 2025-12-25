@@ -16,6 +16,10 @@ jobs:
     name: AI Code Review
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
+    outputs:
+      summary: ${{ steps.review.outputs.summary }}
+      score: ${{ steps.review.outputs.score }}
+      issues_count: ${{ steps.review.outputs.issues_count }}
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -66,9 +70,18 @@ jobs:
               stream: false
             }')" | jq -r '.message.content // "Review unavailable"')
           
+          ISSUES_COUNT=$(echo "$RESPONSE" | grep -c '^-')
+          SCORE=$((10 - ISSUES_COUNT))
+          if ((SCORE < 0)); then SCORE=0; fi
+
+          SUMMARY=$(echo "$RESPONSE" | head -n 5)
+
           echo "response<<EOF" >> $GITHUB_OUTPUT
           echo "$RESPONSE" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "issues_count=$ISSUES_COUNT" >> $GITHUB_OUTPUT
 
       - name: Post Review Comment
         if: steps.review.outputs.review != 'skipped'
@@ -85,3 +98,55 @@ jobs:
           *Reviewed by Ollama ($OLLAMA_MODEL)*"
           
           gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+  delegate-to-jules:
+    name: Delegate Complex Tasks to Jules
+    needs: review
+    if: needs.review.outputs.issues_count > 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Jules session
+        id: jules
+        env:
+          JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          SUMMARY: ${{ needs.review.outputs.summary }}
+        run: |
+          set -eo pipefail
+          JSON_PAYLOAD=$(jq -n \
+            --arg prompt "Fix issues identified in PR #${{ github.event.pull_request.number }}: $SUMMARY" \
+            --arg source "sources/github/${{ github.repository }}" \
+            --arg branch "${{ github.head_ref }}" \
+            --arg title "Jules: Fix PR #${{ github.event.pull_request.number }} issues" \
+            '{
+              "prompt": $prompt,
+              "sourceContext": {
+                "source": $source,
+                "githubRepoContext": {
+                  "startingBranch": $branch
+                }
+              },
+              "automationMode": "AUTO_CREATE_PR",
+              "title": $title
+            }')
+
+          RESPONSE=$(curl -s -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
+            -H "X-Goog-Api-Key: $JULES_API_KEY" \
+            -H 'Content-Type: application/json' \
+            -d "$JSON_PAYLOAD")
+
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+
+      - name: Post Session Link
+        if: steps.jules.outputs.session_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "## 🤖 Task Delegated to Jules
+
+          This PR has been automatically delegated to Google Jules for further fixes.
+
+          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**"
