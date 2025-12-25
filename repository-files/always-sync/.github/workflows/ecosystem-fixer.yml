@@ -1,10 +1,8 @@
 name: Ecosystem Fixer
 
-# CI failure auto-resolution using @agentic/control
-
 on:
   workflow_run:
-    workflows: ["CI"]
+    workflows: ["CI", "Build", "Test", "Lint"]
     types: [completed]
     branches-ignore: [main]
 
@@ -19,14 +17,10 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          ref: ${{ github.event.workflow_run.head_branch }}
-          fetch-depth: 0
-
-      - name: CI Resolution
-        uses: jbcom/nodejs-agentic-control/actions/agentic-ci-resolution@main
+      - name: Auto-resolve CI Failure
+        uses: jbcom/agentic-control/actions/ci-resolution@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          run_id: ${{ github.event.workflow_run.id }}
+          workflow_run_id: ${{ github.event.workflow_run.id }}
+          branch: ${{ github.event.workflow_run.head_branch }}
+          google_jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
