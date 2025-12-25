@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel Curriculum Schema",
+  "description": "Defines the structure for the educational curriculum, including years, cartridges, and lessons.",
+  "type": "object",
+  "properties": {
+    "curriculum": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/year"
+      }
+    }
+  },
+  "definitions": {
+    "year": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "description": "The academic year, e.g., 1 for Year 1."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title for the year, e.g., 'The Basics of Game Loops'."
+        },
+        "cartridges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/cartridge"
+          }
+        }
+      },
+      "required": ["year", "title", "cartridges"]
+    },
+    "cartridge": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the cartridge."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the cartridge, e.g., 'Pong Masterclass'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of what the cartridge teaches."
+        },
+        "lessons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/lesson"
+          }
+        }
+      },
+      "required": ["id", "title", "lessons"]
+    },
+    "lesson": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the lesson."
+        },
+        "title": {
+          "type": "string"
+        },
+        "learningObjectives": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "challenges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/challenge"
+          }
+        }
+      },
+      "required": ["id", "title", "learningObjectives", "challenges"]
+    },
+    "challenge": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "title": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["easy", "medium", "hard"]
+        }
+      },
+      "required": ["id", "title", "description", "difficulty"]
+    }
+  }
+}

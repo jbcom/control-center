@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel Progress Schema",
+  "description": "Defines the structure for tracking user progress, including XP, levels, and achievements.",
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "The unique identifier for the user."
+    },
+    "xp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total experience points earned by the user."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The user's current level, derived from their XP."
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/achievement"
+      }
+    }
+  },
+  "required": ["userId", "xp", "level", "achievements"],
+  "definitions": {
+    "achievement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the achievement, e.g., 'PONG_MASTER'."
+        },
+        "name": {
+          "type": "string",
+          "description": "The display name of the achievement, e.g., 'Pong Master'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of how to earn the achievement."
+        },
+        "unlocked": {
+          "type": "boolean",
+          "description": "Whether the user has unlocked this achievement."
+        },
+        "unlockedTimestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the achievement was unlocked."
+        }
+      },
+      "required": ["id", "name", "description", "unlocked"]
+    }
+  }
+}
