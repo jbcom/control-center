@@ -111,7 +111,7 @@ ISSUE → Task Router (Ollama) → [Ollama | Jules | Cursor] → PR → AI Revie
 ### Jules Session Management
 ```bash
 # Set API key
-export JULES_API_KEY="your-key"
+export JULES_API_KEY="$JULES_API_KEY"
 
 # List sessions
 python -c "

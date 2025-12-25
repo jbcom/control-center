@@ -246,6 +246,8 @@ Each repository should have:
 - `CLAUDE.md` - Claude/AI assistant guidance
 - `memory-bank/activeContext.md` - Current state
 - `memory-bank/progress.md` - Session history
+- `memory-bank/ECOSYSTEM-SESSION-*.md` - Comprehensive session docs
+- `docs/ECOSYSTEM.md` - Workflow documentation
 
 ### 2. CI/CD Patterns
 
