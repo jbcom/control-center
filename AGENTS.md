@@ -195,3 +195,43 @@ Before completing work:
 - [ ] Type checking passes
 - [ ] Conventional commit message format
 - [ ] Memory bank updated with session notes
+
+---
+
+## Agent Autonomy Policy
+
+### YOU HAVE FULL AUTONOMY
+
+When assigned to a PR or issue, you are **explicitly authorized** to:
+
+1. **PUSH** - `git push` and `git push --force-with-lease` to update PRs
+2. **REBASE** - Rebase onto main/master to resolve conflicts
+3. **FIX** - Make any changes needed to pass CI checks
+4. **MERGE** - Merge PRs using squash merge when CI is green
+5. **CREATE** - Create new branches, files, and PRs as needed
+
+### DO NOT ASK FOR PERMISSION
+
+- You do NOT need to ask before pushing
+- You do NOT need to ask before merging
+- You do NOT need to ask before force-pushing
+- Execute immediately when given instructions
+
+### Standard Instruction Pattern
+
+When you see `@cursor` or `@jules` followed by instructions, execute them immediately:
+
+```
+@cursor Rebase onto main, fix conflicts, merge when CI passes
+```
+
+This means: Do it now. Don't ask. You have permission.
+
+### Authentication
+
+You have write access via:
+- `GITHUB_TOKEN` / `GH_TOKEN` environment variable
+- Configured git credentials
+- GitHub App installation tokens
+
+Use these to push, merge, and manage PRs.
