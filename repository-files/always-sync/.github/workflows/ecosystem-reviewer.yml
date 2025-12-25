@@ -1,13 +1,11 @@
 name: Ecosystem Reviewer
 
-# Per-PR lifecycle using @agentic/control for AI-powered reviews
+# Per-PR AI-powered code review using Ollama
 
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-  pull_request_review:
-    types: [submitted]
-  pull_request_review_comment:
+  issue_comment:
     types: [created]
 
 permissions:
@@ -18,7 +16,7 @@ permissions:
 jobs:
   review:
     name: AI Code Review
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -26,27 +24,150 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: AI Review
-        uses: jbcom/nodejs-agentic-control/actions/agentic-pr-review@main
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-          base: ${{ github.base_ref }}
-          head: ${{ github.head_ref }}
-
-  process-feedback:
-    name: Process AI Feedback
-    if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Process Feedback
+      - name: Get PR Diff
+        id: diff
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never | head -c 30000)
+          echo "diff<<EOF" >> $GITHUB_OUTPUT
+          echo "$DIFF" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: AI Review
+        id: review
+        env:
           OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+          PR_DIFF: ${{ steps.diff.outputs.diff }}
         run: |
-          npm install -g @agentic/control@latest
-          agentic-control triage review-feedback --pr ${{ github.event.pull_request.number || github.event.issue.number }}
+          if [[ -z "$OLLAMA_API_KEY" ]]; then
+            echo "⚠️ OLLAMA_API_KEY not set, skipping review"
+            echo "review=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          PROMPT="Review this code diff for a pull request. Focus on:
+          1. Potential bugs or issues
+          2. Security concerns
+          3. Code quality and best practices
+          4. Suggestions for improvement
+
+          Be concise. If the code looks good, say so briefly.
+
+          Diff:
+          $PR_DIFF"
+
+          RESPONSE=$(curl -s -X POST "${OLLAMA_HOST}/api/chat" \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg model "$OLLAMA_MODEL" --arg prompt "$PROMPT" '{
+              model: $model,
+              messages: [{role: "user", content: $prompt}],
+              stream: false
+            }')" | jq -r '.message.content // "Review unavailable"')
+
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post Review Comment
+        if: steps.review.outputs.review != 'skipped'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
+          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+        run: |
+          COMMENT="## 🤖 AI Code Review
+
+          $REVIEW_RESPONSE
+
+          ---
+          *Reviewed by Ollama ($OLLAMA_MODEL)*"
+
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+  delegate-to-jules:
+    name: Delegate to Jules
+    if: |
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
+      startsWith(github.event.comment.body, '/jules')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Extract Prompt
+        id: prompt
+        run: |
+          PROMPT=$(echo "${{ github.event.comment.body }}" | sed -n 's|^/jules ||p')
+          echo "prompt<<EOF" >> $GITHUB_OUTPUT
+          echo "$PROMPT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Get PR Branch
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BRANCH=$(gh pr view ${{ github.event.issue.number }} --json headRefName -q .headRefName)
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+
+      - name: Create Jules Session
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          JULES_PROMPT: ${{ steps.prompt.outputs.prompt }}
+          REPO_FULL_NAME: ${{ github.repository }}
+          PR_BRANCH: ${{ steps.pr.outputs.branch }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "⚠️ GOOGLE_JULES_API_KEY not set, skipping Jules session"
+            echo "session=skipped" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg prompt "$JULES_PROMPT" --arg repo "$REPO_FULL_NAME" --arg branch "$PR_BRANCH" '{
+              prompt: $prompt,
+              sourceContext: {
+                source: "sources/github/" + $repo,
+                githubRepoContext: { startingBranch: $branch }
+              },
+              automationMode: "AUTO_APPLY_CHANGES"
+            }')")
+
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // "unknown"')
+          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+          echo "response<<EOF" >> $GITHUB_OUTPUT
+          echo "$RESPONSE" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post Session Comment
+        if: steps.jules.outputs.session_id != 'unknown'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SESSION_ID: ${{ steps.jules.outputs.session_id }}
+        run: |
+          COMMENT="✅ Jules session `${SESSION_ID}` created.
+
+          I will now begin working on this PR. You can track my progress in the session details."
+
+          gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
+
+      - name: Handle API Error
+        if: steps.jules.outputs.session_id == 'unknown'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          JULES_RESPONSE: ${{ steps.jules.outputs.response }}
+        run: |
+          COMMENT="❌ Failed to create Jules session.
+
+          **API Response:**
+          \`\`\`json
+          $JULES_RESPONSE
+          \`\`\`"
+
+          gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
+          exit 1
