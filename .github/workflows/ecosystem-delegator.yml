@@ -42,8 +42,10 @@ jobs:
 
       - name: Parse Task
         id: task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          TASK=$(echo "${{ github.event.comment.body }}" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
           echo "task=$TASK" >> $GITHUB_OUTPUT
 
       - name: Create Jules Session
@@ -119,8 +121,10 @@ jobs:
 
       - name: Parse Task
         id: task
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          TASK=$(echo "${{ github.event.comment.body }}" | sed 's|/cursor[[:space:]]*||' | head -c 2000)
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/cursor[[:space:]]*||' | head -c 2000)
           echo "task=$TASK" >> $GITHUB_OUTPUT
 
       - name: Spawn Cursor Agent
@@ -177,8 +181,9 @@ jobs:
       - name: Trigger Sage
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          QUERY=$(echo "${{ github.event.comment.body }}" | sed 's|/sage[[:space:]]*||')
+          QUERY=$(echo "$COMMENT_BODY" | sed 's|/sage[[:space:]]*||')
           gh workflow run ecosystem-sage.yml \
             -f query="$QUERY" \
             -f context_type="issue" \
