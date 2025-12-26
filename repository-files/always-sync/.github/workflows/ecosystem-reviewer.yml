@@ -1,19 +1,12 @@
 name: Ecosystem Reviewer
 
-# Per-PR AI-powered code review using Ollama
-
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
-env:
-  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
-  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 jobs:
   review:
@@ -21,70 +14,10 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Review PR
+        uses: jbcom/agentic-pr-review@v1
         with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
-          persist-credentials: true
-
-      - name: Get PR Diff
-        id: diff
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never | head -c 30000)
-          echo "diff<<EOF" >> $GITHUB_OUTPUT
-          echo "$DIFF" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: AI Review
-        id: review
-        env:
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-          PR_DIFF: ${{ steps.diff.outputs.diff }}
-        run: |
-          if [[ -z "$OLLAMA_API_KEY" ]]; then
-            echo "⚠️ OLLAMA_API_KEY not set, skipping review"
-            echo "review=skipped" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          PROMPT="Review this code diff for a pull request. Focus on:
-          1. Potential bugs or issues
-          2. Security concerns
-          3. Code quality and best practices
-          4. Suggestions for improvement
-          
-          Be concise. If the code looks good, say so briefly.
-          
-          Diff:
-          $PR_DIFF"
-          
-          RESPONSE=$(curl -s -X POST "${OLLAMA_HOST}/api/chat" \
-            -H "Authorization: Bearer $OLLAMA_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg model "$OLLAMA_MODEL" --arg prompt "$PROMPT" '{
-              model: $model,
-              messages: [{role: "user", content: $prompt}],
-              stream: false
-            }')" | jq -r '.message.content // "Review unavailable"')
-          
-          echo "response<<EOF" >> $GITHUB_OUTPUT
-          echo "$RESPONSE" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
-
-      - name: Post Review Comment
-        if: steps.review.outputs.review != 'skipped'
-        env:
-          GH_TOKEN: ${{ github.token }}
-          REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
-        run: |
-          COMMENT="## 🤖 AI Code Review
-
-          $REVIEW_RESPONSE
-          
-          ---
-          *Reviewed by Ollama ($OLLAMA_MODEL)*"
-          
-          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
+          ollama_host: ${{ vars.OLLAMA_HOST }}
+          ollama_model: ${{ vars.OLLAMA_MODEL }}
