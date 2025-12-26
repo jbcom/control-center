@@ -42,7 +42,6 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      workflows: write
     outputs:
       pr_number: ${{ github.event.pull_request.number }}
       recommendation: ${{ steps.review.outputs.recommendation }}
@@ -249,7 +248,6 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
-      workflows: write
     
     steps:
       - name: Checkout repository
@@ -451,7 +449,6 @@ jobs:
       contents: write
       pull-requests: write
       security-events: write
-      workflows: write
     
     steps:
       - name: Checkout repository
@@ -618,7 +615,6 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-      workflows: write
     
     steps:
       - name: Check required secrets

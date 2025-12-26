@@ -11,7 +11,6 @@ permissions:
   pull-requests: write
   actions: read
   security-events: read
-  workflows: write
 
 jobs:
   resolve-ci-failures:
