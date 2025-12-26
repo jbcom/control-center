@@ -147,7 +147,7 @@ jobs:
             -d "$(jq -n \
               --arg task "$TASK" \
               --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.pull_request.head.ref }}" \
+              --arg branch "${{ github.event.pull_request.head.sha }}" \
               '{
                 prompt: $task,
                 sourceContext: {
