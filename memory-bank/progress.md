@@ -384,3 +384,17 @@ Documentation work was completed directly by bc-fcfe779a instead.
 
 ### In Progress
 - [ ] Add missing secrets to GitHub repository (requires human/admin action).
+
+## Session: 2025-12-26 (CI Fixes & Secret Standardization)
+
+### Completed
+- [x] Analyzed CI failures in PR #456 (git authentication errors).
+- [x] Updated all workflow files to use `github.token` for more reliable authentication.
+- [x] Fixed `ollama-cloud-pr-review.yml` checkout authentication and permissions.
+- [x] Integrated `OLLAMA_API_URL` into relevant workflows.
+- [x] Synchronized all fixes to template workflows in `repository-files/always-sync/`.
+- [x] Updated `CLAUDE.md` with detailed token documentation.
+- [x] Committed and pushed fixes to PR branch.
+
+### In Progress
+- [ ] Verification of green CI on PR #456.
