@@ -20,7 +20,7 @@ jobs:
       - name: Auto-resolve CI Failure
         uses: jbcom/agentic-ci-resolution@v1
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
           workflow_run_id: ${{ github.event.workflow_run.id }}
           branch: ${{ github.event.workflow_run.head_branch }}
