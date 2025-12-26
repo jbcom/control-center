@@ -17,6 +17,8 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies
+        run: npm install -g @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
       - name: Auto-resolve CI Failure
         uses: agentic-dev-library/control/actions/agentic-ci-resolution@main
         with:

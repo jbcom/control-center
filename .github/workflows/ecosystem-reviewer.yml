@@ -18,6 +18,8 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
+      - name: Install dependencies
+        run: npm install -g @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
       - name: Review PR
         uses: agentic-dev-library/control/actions/agentic-pr-review@main
         with:
