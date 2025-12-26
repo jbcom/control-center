@@ -1,7 +1,6 @@
 name: Ecosystem Delegator
 
 # Issue delegation using @agentic/control
-# /jules - Delegate to Google Jules
 # /cursor - Delegate to Cursor Cloud Agent
 # /sage - Ask the Sage
 
@@ -19,8 +18,7 @@ jobs:
     name: Triage and Delegate
     if: |
       github.event.issue.pull_request == null && 
-      (contains(github.event.comment.body, '/jules') || 
-       contains(github.event.comment.body, '/cursor') ||
+      (contains(github.event.comment.body, '/cursor') ||
        contains(github.event.comment.body, '/sage'))
     runs-on: ubuntu-latest
     steps:
@@ -38,7 +36,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           COMMENT_BODY: ${{ github.event.comment.body }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
@@ -47,7 +44,4 @@ jobs:
           
           if echo "$COMMENT_BODY" | grep -q "/cursor"; then
             agentic-control fleet spawn --repo "$REPO" --issue "$ISSUE_NUMBER"
-          elif echo "$COMMENT_BODY" | grep -q "/jules"; then
-            # Jules delegation handled separately
-            echo "Jules delegation requested"
           fi
