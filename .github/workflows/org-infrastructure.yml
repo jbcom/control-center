@@ -38,7 +38,7 @@ jobs:
 
       - name: Run Infrastructure Setup
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
           SPAWN_JULES: ${{ inputs.spawn_jules }}

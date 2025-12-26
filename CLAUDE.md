@@ -37,8 +37,14 @@ A unified GitHub token is used for all operations:
 
 | Variable | Use Case |
 |----------|----------|
-| `GITHUB_TOKEN` | All GitHub API operations (gh CLI) |
-| `CI_GITHUB_TOKEN` | Same token, used in CI workflows |
+| `GITHUB_TOKEN` | Default token for GitHub Actions and general API access |
+| `CI_GITHUB_TOKEN` | Legacy PAT for triggering workflows (being replaced by JULES_GITHUB_TOKEN) |
+| `JULES_GITHUB_TOKEN` | Primary PAT for Jules and Ecosystem Curator workflows |
+| `CURSOR_GITHUB_TOKEN` | GitHub token for Cursor agent operations |
+| `CURSOR_API_KEY` | Cursor Cloud Agent API key |
+| `GOOGLE_JULES_API_KEY` | Google Jules API key (standardized) |
+| `OLLAMA_API_URL` | Ollama Cloud API URL (standardized) |
+| `OLLAMA_API_KEY` | Ollama Cloud API key |
 
 ```bash
 # All repos use the same token - gh CLI auto-uses GITHUB_TOKEN
@@ -105,8 +111,8 @@ The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration
 
 ### API Endpoints
 
-- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_TOKEN`)
-- **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_API_KEY`)
+- **Cursor Cloud Agent**: `https://api.cursor.com/v0/agents` (Requires `CURSOR_API_KEY`)
+- **Google Jules**: `https://jules.googleapis.com/v1alpha/sessions` (Requires `GOOGLE_JULES_API_KEY`)
 
 ## Session Start/End Protocol
 
@@ -183,15 +189,16 @@ Defined in `repo-config.json`:
 ### Environment Variables
 
 Cloud agents have access to:
-- `JULES_API_KEY` - Google Jules API for async code changes
+- `GOOGLE_JULES_API_KEY` - Google Jules API for async code changes
 - `CURSOR_GITHUB_TOKEN` - GitHub API for repo operations
+- `CURSOR_API_KEY` - Cursor API for agent operations
 
 ### Jules API Usage
 
 ```bash
 # Create session
 curl -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
-  -H "X-Goog-Api-Key: $JULES_API_KEY" \
+  -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
   -d '{
     "prompt": "Task description",
     "sourceContext": {
