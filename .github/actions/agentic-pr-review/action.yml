@@ -1,0 +1,56 @@
+name: 'Agentic PR Review'
+description: 'AI-powered code review and feedback for Pull Requests'
+author: 'Jon Bogaty'
+branding:
+  icon: 'search'
+  color: 'blue'
+
+inputs:
+  github_token:
+    description: 'GitHub token for API access'
+    required: true
+  model:
+    description: 'AI model to use for review'
+    required: false
+  base:
+    description: 'Base ref for diff'
+    required: false
+    default: 'main'
+  head:
+    description: 'Head ref for diff'
+    required: false
+    default: 'HEAD'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Run PR Review
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_BASE: ${{ inputs.base }}
+        INPUT_HEAD: ${{ inputs.head }}
+      run: |
+        declare -a ARGS
+        if [ -n "$INPUT_MODEL" ]; then
+          ARGS+=("--model" "$INPUT_MODEL")
+        fi
+        if [ -n "$INPUT_BASE" ]; then
+          ARGS+=("--base" "$INPUT_BASE")
+        fi
+        if [ -n "$INPUT_HEAD" ]; then
+          ARGS+=("--head" "$INPUT_HEAD")
+        fi
+        
+        # Install peer dependencies first
+        npm install -g agentic-control@1.1.0 @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
+        
+        # Use safe array for argument passing
+        agentic triage review "${ARGS[@]}"

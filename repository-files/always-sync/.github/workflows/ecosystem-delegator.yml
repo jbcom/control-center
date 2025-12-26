@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delegate Issue Command
-        uses: agentic-dev-library/control/actions/agentic-issue-triage@main
+        uses: ./.github/actions/agentic-issue-triage
         with:
           github_token: ${{ github.token }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
