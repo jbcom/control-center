@@ -63,6 +63,7 @@ runs:
         
         # Fetch base branch to ensure git diff works
         git fetch origin "${INPUT_BASE:-main}" --depth=1
+        git branch "${INPUT_BASE:-main}" FETCH_HEAD || true
         
         # Use safe array for argument passing
         agentic triage review "${ARGS[@]}"
