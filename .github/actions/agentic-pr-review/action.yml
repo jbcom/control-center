@@ -48,7 +48,6 @@ runs:
         INPUT_HEAD: ${{ inputs.head }}
         OLLAMA_API_KEY: ${{ inputs.ollama_api_key }}
         OLLAMA_HOST: ${{ inputs.ollama_host }}
-        AGENTIC_PROVIDER: ollama
       run: |
         declare -a ARGS
         if [ -n "$INPUT_MODEL" ]; then
