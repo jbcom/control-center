@@ -53,21 +53,31 @@ group:
       jbcom/python-extended-data-types
       jbcom/python-lifecyclelogging
       jbcom/python-vendor-connectors
+      jbcom/jbcom.github.io
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
-      jbcom/nodejs-strata
-      jbcom/nodejs-strata-capacitor-plugin
-      jbcom/nodejs-strata-react-native-plugin
-      jbcom/nodejs-strata-examples
-      jbcom/nodejs-strata-presets
-      jbcom/nodejs-strata-shaders
       jbcom/nodejs-otterfall
-      jbcom/nodejs-rivermarsh
       jbcom/nodejs-pixels-pygame-palace
-      jbcom/jbcom.github.io
+      jbcom/nodejs-rivermarsh
       jbcom/go-secretsync
       jbcom/rust-cosmic-cults
       jbcom/rust-agentic-game-generator
+      strata-game-library/core
+      strata-game-library/examples
+      strata-game-library/shaders
+      strata-game-library/presets
+      strata-game-library/typescript-tutor
+      strata-game-library/capacitor-plugin
+      strata-game-library/react-native-plugin
+      agentic-dev-library/control
+      agentic-dev-library/triage
+      agentic-dev-library/crew
+      agentic-dev-library/game-generator
+      extended-data-library/vendor-connectors
+      extended-data-library/inputs
+      extended-data-library/logging
+      extended-data-library/core
+      arcade-cabinet/rivers-of-reckoning
 
   # ============================================================================
   # Documentation scaffold - only for repos that need docs
@@ -86,12 +96,20 @@ group:
       jbcom/python-vendor-connectors
       jbcom/nodejs-agentic-control
       jbcom/nodejs-agentic-triage
-      jbcom/nodejs-strata
-      jbcom/nodejs-strata-capacitor-plugin
-      jbcom/nodejs-strata-react-native-plugin
-      jbcom/nodejs-strata-examples
-      jbcom/nodejs-strata-presets
-      jbcom/nodejs-strata-shaders
+      jbcom/nodejs-otterfall
+      jbcom/nodejs-pixels-pygame-palace
+      jbcom/nodejs-rivermarsh
       jbcom/go-secretsync
       jbcom/rust-cosmic-cults
       jbcom/rust-agentic-game-generator
+      strata-game-library/core
+      strata-game-library/examples
+      strata-game-library/shaders
+      strata-game-library/presets
+      strata-game-library/typescript-tutor
+      strata-game-library/capacitor-plugin
+      strata-game-library/react-native-plugin
+      agentic-dev-library/control
+      agentic-dev-library/triage
+      agentic-dev-library/crew
+      agentic-dev-library/game-generator
