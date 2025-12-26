@@ -1,52 +1,31 @@
 name: Ecosystem Reviewer
 
-# Per-PR lifecycle using @agentic/control for AI-powered reviews
-
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
-  pull_request_review:
-    types: [submitted]
-  pull_request_review_comment:
-    types: [created]
+
+env:
+  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 jobs:
   review:
     name: AI Code Review
-    if: github.event_name == 'pull_request'
+    if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: AI Review
-        uses: jbcom/nodejs-agentic-control/actions/agentic-pr-review@main
+      - name: Review PR
+        uses: ./.github/actions/agentic-pr-review
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-          base: ${{ github.base_ref }}
-          head: ${{ github.head_ref }}
-
-  process-feedback:
-    name: Process AI Feedback
-    if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Process Feedback
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-        run: |
-          npm install -g @agentic/control@latest
-          agentic-control triage review-feedback --pr ${{ github.event.pull_request.number || github.event.issue.number }}
+          github_token: ${{ github.token }}
+          model: ${{ env.OLLAMA_MODEL }}
+          ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
+          ollama_host: ${{ env.OLLAMA_HOST }}
+          jules_api_key: ${{ secrets.JULES_API_KEY || secrets.GOOGLE_JULES_API_KEY }}

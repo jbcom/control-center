@@ -59,20 +59,20 @@ jobs:
       response: ${{ steps.sage.outputs.response }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@v4 # v4
         with:
           fetch-depth: 0  # Full history for context
 
       - name: Setup Node.js
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v4
         with:
           node-version: '20'
 
       - name: Run Sage
         id: sage
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+          GITHUB_TOKEN: ${{ github.token }}
+          OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL || 'glm-4.6:cloud' }}
           CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
@@ -91,7 +91,7 @@ jobs:
       - name: Post Response
         if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           if [ -f sage-response.md ]; then
             RESPONSE=$(cat sage-response.md)

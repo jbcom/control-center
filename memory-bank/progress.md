@@ -1,5 +1,38 @@
 # Session Progress Log
 
+## Session: 2025-12-26 (Ecosystem Management & PR Consolidation)
+
+### What Was Done
+
+1. **Merged Strategic PRs**
+   - Merged PR #465: Explicitly export GH_TOKEN in `create-repos` (including robustness checks for `jq` and config files)
+   - Merged PR #470: Configure `agentic.dev` domain for @agentic ecosystem
+   - Merged PR #473: Migrate orchestrator workflows to @agentic packages and GitHub Marketplace Actions
+   - Merged PR #472: Create `.crew` dev layers for strata and professor-pixel
+
+2. **Fixed Ecosystem Workflows**
+   - Addressed linting failure in PR #468 (Jules integration phase 1) by fixing an untrusted expression in `ecosystem-reviewer.yml`
+   - Updated `sync-always.yml` and `sync-initial.yml` with the full list of correctly grouped repositories from `repo-config.json`
+   - Standardized `actions/checkout@v4` across all core and template workflows, removing problematic SHAs
+
+3. **Resolved Issues**
+   - Resolved Issue #430: Documented correct Cursor Cloud Agent API endpoints in `AGENTS.md`
+   - Cleaned up PR #454: Merged main into branch, updated sync configurations, and standardizing workflows
+
+### Final State
+
+| PR # | Title | Action |
+|------|-------|--------|
+| #465 | fix(sync): explicitly export GH_TOKEN in create-repos | ✅ MERGED |
+| #470 | feat(domain): configure agentic.dev for @agentic ecosystem | ✅ MERGED |
+| #473 | feat: migrate orchestrator workflows to @agentic Actions | ✅ MERGED |
+| #472 | feat: create .crew dev layers for strata and professor-pixel | ✅ MERGED |
+| #454 | Config ecosystem sync update | 🔄 READY |
+| #471 | feat: Add Google Jules integration to Ollama PR Orchestrator | 🔄 READY |
+| #468 | feat(orchestrator): implement phase 1 of jules integration | 🔄 READY |
+
+---
+
 ## Session: 2025-12-26 (Bulk Delegation: Jules Sessions for Ecosystem Work)
 
 Corresponds to issue [#428](https://github.com/jbcom/control-center/issues/428).
@@ -54,6 +87,17 @@ These repos hit rate limits and need sessions created later:
 | **Total Open PRs** | 139 |
 | **Jules Sessions Created** | 14 |
 | **Rate Limited** | 5 |
+
+---
+
+## Session: 2025-12-24 (Secret Standardization & CI fixes)
+
+### Completed
+- [x] Standardized API keys and secrets for Jules and Cursor
+- [x] Resolved git authentication issues in workflows by switching to `github.token`
+- [x] Updated all core workflows and template workflows in `repository-files/always-sync/`
+- [x] Enhanced `CLAUDE.md` with comprehensive token/secret documentation
+- [x] Granted `contents: write` permissions where automated commits are performed
 
 ---
 
@@ -143,291 +187,3 @@ These repos hit rate limits and need sessions created later:
 - Ecosystem management CLI (`scripts/ecosystem`)
 - 20 OSS submodules in `ecosystems/oss/`
 - Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
-
----
-
-## Session: 2025-12-08 (Repository Audit & Rivermarsh Integration)
-
-### What Was Done
-
-1. **Closed Stale/Invalid PRs**
-   - `jbcom-control-center#338` - Empty PR with 0 file changes (failed Dockerfile revert)
-   - `lifecyclelogging#47` - Stale sync PR from before SKIP_PR was enabled (used old cursor-rules/* paths)
-   - `python-terraform-bridge#3` - Stale sync PR from before SKIP_PR was enabled (used old cursor-rules/* paths)
-   - `vendor-connectors#19` - Superseded by #34 which takes opposite architectural approach
-
-2. **Added rivermarsh to managed repos**
-   - New React Three Fiber / Capacitor mobile 3D game
-   - Added to `.github/sync.yml` (Node.js/TypeScript rules)
-   - Updated `CLAUDE.md` target repos list
-
-3. **Reviewed All Open Items**
-   - Identified valid PRs and took action on each
-   - Documented issues #342 and #340 as part of ecosystem refactor epic
-   - Noted vendor-connectors#34 (AI tooling refactor) and agentic-control#9 (TypeScript-only) as active
-
-4. **Merged/Closed PRs after AI Review**
-   - `jbcom-control-center#345` - ✅ MERGED (all AI feedback addressed)
-   - `jbcom-control-center#343` - ❌ CLOSED (design doc blocked, example code issues)
-   - `jbcom-control-center#341` - ❌ CLOSED (memory bank superseded by this session)
-
-5. **Updated Project Tracking**
-   - Added 9 new items to "jbcom Ecosystem Integration" project
-   - Project now has 30 items (was 21)
-   - Added all rivermarsh PRs/issues
-
-### Key Findings
-
-- **PR #34 vs #19 conflict**: PR #19 created central `vendor_connectors.ai` package; PR #34 removes it entirely and moves tools to each connector. Closed #19 as superseded.
-- **PR #343 blocker clarification**: Was blocked by vendor-connectors#17 (AI sub-package), but #17 is now partially superseded by #34's approach. PR #343 closed as design doc - actual implementation will follow new architecture.
-- **Sync PRs created before SKIP_PR**: Two repos had stale sync PRs using old paths - closed as obsolete.
-- **Projects**: "jbcom Ecosystem Integration" now has 30 items (added rivermarsh + new PRs/issues).
-
-### Final PR Status
-
-| Repo | PR | Title | Action |
-|------|---|-------|--------|
-| jbcom-control-center | #345 | Fix test generation bug | ✅ MERGED |
-| jbcom-control-center | #343 | Setup agentic-crew repository | ❌ CLOSED |
-| jbcom-control-center | #341 | Clarify surface scope | ❌ CLOSED |
-| vendor-connectors | #34 | Move tools to connectors | 🔄 ACTIVE |
-| agentic-control | #9 | TypeScript only | 🔄 ACTIVE |
-
----
-
-## Session: 2025-12-07 (Sync Process Overhaul)
-
-### What Was Done
-
-1. **Changed sync to direct commits**
-   - Added `SKIP_PR: true` to `.github/workflows/sync.yml`
-   - Sync now pushes directly to main (no PRs for automated sync)
-   - Rationale: PRs don't make sense for agent-managed repos
-
-2. **Implemented tiered sync approach** in `.github/sync.yml`
-   - **Rules** (core/, workflows/, languages/): Always overwrite
-   - **Environment** (Dockerfile, environment.json): `replace: false` - initial only
-   - **Docs** (docs-templates/*): `replace: false` - seed then customize
-
-3. **Closed vault-secret-sync PR #4**
-   - Old sync was trying to overwrite their customized Dockerfile
-   - New approach respects downstream customizations
-
-### Context
-
-- PR #4 highlighted issue: syncing repo-specific files like Dockerfile
-- vault-secret-sync has its own Dockerfile with Go-specific setup
-- Central Dockerfile is a generic template, not authoritative for all repos
-
-### Key Insight
-
-Different file types have different sync semantics:
-- **Authoritative**: Rules must be consistent everywhere
-- **Seed**: Environment/docs are starting points, repos customize
-
----
-
-## Session: 2025-12-06 (Repository Reorganization)
-
-### What Was Done
-
-1. **Unified Sync Workflow Created**
-   - `.github/workflows/sync.yml`
-   - Combines secrets sync + file sync in one workflow
-   - Secrets sync: google/secrets-sync-action (daily schedule)
-   - File sync: BetaHuhn/repo-file-sync-action (on push to cursor-rules/**)
-   - Targets all jbcom public repos
-
-2. **Cursor Rules Centralized**
-   - Created `cursor-rules/` directory with:
-     - `core/` - Fundamentals, PR workflow, memory bank
-     - `languages/` - Python, TypeScript, Go standards
-     - `workflows/` - Releases, CI patterns
-     - `Dockerfile` - Universal dev environment (Python 3.13, Node 24, Go 1.24)
-     - `environment.json` - Cursor environment config
-
-4. **Sync Configuration Created**
-   - `.github/sync.yml` - Maps cursor-rules to target repos
-
-5. **Documentation Migrated from OSS Repo**
-   - `docs/RELEASE-PROCESS.md`
-   - `docs/OSS-MIGRATION-CLOSEOUT.md`
-
-### Context
-
-- Reviewed jbcom-oss-ecosystem PR #61 (migration to individual repos)
-- Reviewed jbcom/cursor-rules repo for DRYing
-- Decision: OSS ecosystem repo to be archived, control center is source of truth
-
-### For Next Session
-
-- [ ] Merge PR #61 in jbcom-oss-ecosystem
-- [ ] Archive jbcom-oss-ecosystem
-- [ ] Trigger sync workflows and verify
-- [ ] Optional: Clean up old .cursor/agents/ files
-
----
-
-## Session: 2025-12-02 (Fleet Delegation Session)
-
-### vault-secret-sync Fork Enhancement
-
-**Work Completed:**
-- [x] Created PR #1 in jbcom/vault-secret-sync fork
-- [x] Added Doppler store implementation (`stores/doppler/doppler.go`)
-- [x] Added AWS Identity Center store (`stores/awsidentitycenter/awsidentitycenter.go`)
-- [x] Added CI/CD workflows (ci.yml, release.yml, dependabot.yml)
-- [x] Updated Helm charts for jbcom registry
-- [x] Addressed initial AI review feedback (23 threads resolved)
-
-**CI Status at Handoff:**
-- Tests: ✅ Passing
-- Helm Lint: ✅ Passing
-- Lint: ⚠️ Pre-existing errcheck issues (not our code)
-- Docker Build: ⚠️ Needs fix (test execution in container)
-
-### Agent Delegation
-
-**Spawned Agents:**
-
-1. **vault-secret-sync Agent** (`bc-d68dcb7c-9938-45e3-afb4-3551a92a052e`)
-   - Repository: jbcom/vault-secret-sync
-   - Branch: feat/doppler-store-and-cicd
-   - Mission: Complete CI, publish Docker/Helm, merge PR #1
-   - URL: https://cursor.com/agents?id=bc-d68dcb7c-9938-45e3-afb4-3551a92a052e
-
-2. **cluster-ops Agent** (`bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c`)
-   - Repository: fsc-platform/cluster-ops
-   - Branch: proposal/vault-secret-sync
-   - Mission: Complete PR #154, integrate vault-secret-sync fork
-   - URL: https://cursor.com/agents?id=bc-a92c71bd-21d9-4955-8015-ac89eb5fdd8c
-
-### Handoff Protocol
-
-Both agents instructed to:
-- Request AI reviews (`/gemini review`, `/q review`)
-- Post `🚨 USER ACTION REQUIRED` comments when needing tokens/auth
-- Coordinate via PR comments
-
----
-
-## Session: 2025-12-02 (Earlier - Recovery)
-
-### Recovery of bc-e8225222-21ef-4fb0-b670-d12ae80e7ebb
-
-Used agentic-control triage to recover and analyze agent:
-
-```bash
-# Fixed model configuration first (was using invalid claude-4-opus)
-# Correct model: claude-sonnet-4-5-20250929
-
-# Analyzed the finished agent
-node packages/agentic-control/dist/cli.js triage analyze bc-e8225222-21ef-4fb0-b670-d12ae80e7ebb -o .cursor/recovery/bc-e8225222-report.md
-```
-
-### Completed Tasks
-- [x] Fixed model configuration in agentic.config.json and config.ts
-- [x] Documented how to fetch latest Anthropic models via API
-- [x] Recovered agent bc-e8225222 (14 completed tasks, 8 outstanding, 4 blockers)
-- [x] Updated README and environment-setup.md with model documentation
-- [x] Updated memory-bank with recovery context
-
-### Key Findings
-- Haiku 4.5 (`claude-haiku-4-5-20251001`) has structured output issues - avoid for triage
-- Use Sonnet 4.5 (`claude-sonnet-4-5-20250929`) as default for agentic-control
-- Agent bc-e8225222 created comprehensive secrets infrastructure proposal
-
-### How to Fetch Latest Models
-```bash
-curl -s "https://api.anthropic.com/v1/models" \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01" | jq '.data[] | {id, display_name}'
-```
-
----
-
-## Session: 2025-12-01
-
-### Recovery via Triage Tooling
-
-Used dogfooded triage capabilities to recover chronology:
-
-```bash
-# Analyzed FINISHED agents with triage
-node packages/agentic-control/dist/cli.js triage analyze bc-fcfe779a-... -o memory-bank/agent-fcfe779a-report.md
-node packages/agentic-control/dist/cli.js triage analyze bc-375d2d54-... -o memory-bank/agent-375d2d54-report.md
-
-# Created GitHub issues from outstanding tasks
-node packages/agentic-control/dist/cli.js triage analyze bc-fcfe779a-... --create-issues
-```
-
-### Completed Tasks
-- [x] Recovered chronology using triage analyze (NOT manual parsing)
-- [x] Created GitHub issues #302, #303 from outstanding tasks
-- [x] Updated memory-bank with triage-generated reports
-- [x] Verified main CI is green
-
-### CI/CD Fix (from earlier)
-- [x] Fixed PyPI publishing - switched from broken OIDC to PYPI_TOKEN
-- [x] PR #300 merged successfully
-
-## Agent Chronology (Last 24 Hours)
-
-### bc-fcfe779a-4443-4e88-8f2f-819f6f0e0c1d (FINISHED)
-**Role**: Primary unification agent
-**Completed**: 10 major tasks (see agent-fcfe779a-report.md)
-**Key output**: agentic-control v1.0.0, FSC absorption, unified CI/CD
-
-### bc-375d2d54-2e78-48c2-bd94-0753e5909987 (FINISHED)
-**Role**: FSC configuration agent
-**Completed**: 7 major tasks (see agent-375d2d54-report.md)
-**Key output**: 10 specialized agents, smart router, fleet orchestration
-
-### EXPIRED Agents (Deleted - cannot retrieve)
-- bc-2d3938df-ae68-4080-9966-28aa79439c10
-- bc-ebf6dca4-876a-4052-b161-aea50520e1b4
-- bc-c34f7797-fe9e-4057-a667-317c6a9ad60a
-
-These agents were spawned by bc-fcfe779a but errored during handoff attempts.
-Documentation work was completed directly by bc-fcfe779a instead.
-
----
-*Log maintained via agentic-control tooling*
-
-## Session: 2025-12-23 (Dependabot Configuration Fix)
-
-### Completed
-- [x] Rename `.github/dependabot.yamy` to `.github/dependabot.yml`
-- [x] Configure Dependabot for `github-actions` and `docker` in Control Center
-- [x] Implement grouping for major and minor updates to reduce noise
-- [x] Update shared Dependabot template for all managed repositories
-- [x] Staged changes for commit in `feat/dependabot` branch
-
-## Session: 2025-12-24
-
-### Completed
-- [x] Address security vulnerabilities in CI failure resolution workflow
-- [x] Improve robustness of CI auto-fix logic
-- [x] Address AI review feedback from Amazon Q, Gemini, and Ollama
-- [x] Update orchestrator script with safety checks and approval verification
-- [x] Verify CI passes (CodeQL analysis success)
-
-### In Progress
-- [ ] Merge PR #426 (blocked by pending review dismissal)
-
-## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
-
-### Completed
-- [x] Authenticate `gh` with provided token.
-- [x] Move PR #421 to ready for review.
-- [x] Pin all GitHub Actions in #426 and #421 to latest SHAs.
-- [x] Add input validation for branch names and session IDs to prevent command injection.
-- [x] Implement auto-commit and push logic in `ecosystem-fixer.yml`.
-- [x] Add safety checks for secrets and executables in `ecosystem-harvester.mjs`.
-- [x] Resolve 15+ review threads via GraphQL mutations.
-- [x] Fix corrupted action hashes (doubled SHAs).
-- [x] Verify zero open CodeQL alerts on PR branches.
-
-### In Progress
-- [ ] Wait for CI to pass green on PR #426 and #421.
-- [ ] Merge PRs once green.
