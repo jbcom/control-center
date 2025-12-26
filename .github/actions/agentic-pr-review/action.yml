@@ -20,6 +20,15 @@ inputs:
     description: 'Head ref for diff'
     required: false
     default: 'HEAD'
+  ollama_api_key:
+    description: 'Ollama API key (deprecated, use GH_TOKEN)'
+    required: false
+  ollama_host:
+    description: 'Ollama host (deprecated)'
+    required: false
+  ollama_model:
+    description: 'Ollama model (deprecated, use model)'
+    required: false
 
 runs:
   using: 'composite'

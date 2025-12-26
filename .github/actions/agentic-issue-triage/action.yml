@@ -19,6 +19,18 @@ inputs:
   api_key:
     description: 'The API key for the model.'
     required: false
+  cursor_api_key:
+    description: 'Cursor API key'
+    required: false
+  comment_body:
+    description: 'Comment body'
+    required: false
+  repository:
+    description: 'Repository'
+    required: false
+  default_branch:
+    description: 'Default branch'
+    required: false
 
 outputs:
   triage_summary:

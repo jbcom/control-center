@@ -19,6 +19,15 @@ inputs:
     description: 'Maximum number of resolution iterations'
     required: false
     default: '5'
+  jules_api_key:
+    description: 'Jules API key'
+    required: false
+  workflow_run_id:
+    description: 'Workflow run ID'
+    required: false
+  branch:
+    description: 'Branch name'
+    required: false
 
 runs:
   using: 'composite'
