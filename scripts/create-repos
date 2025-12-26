@@ -18,7 +18,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 CONFIG_FILE="${REPO_ROOT}/repo-config.json"
-GITHUB_ORG="${GITHUB_ORG:-jbcom}"
+DEFAULT_ORG="jbcom"
 
 # Options
 DRY_RUN=false
@@ -72,13 +72,13 @@ done
 # =============================================================================
 
 repo_exists() {
-  local repo="$1"
-  gh repo view "${GITHUB_ORG}/${repo}" &>/dev/null
+  local org="$1"
+  local repo="$2"
+  gh repo view "${org}/${repo}" &>/dev/null
 }
 
 get_repo_description() {
   local repo="$1"
-  local ecosystem="$2"
   
   # Try to get description from repo-config.json first
   local config_desc
@@ -107,32 +107,32 @@ get_repo_description() {
 }
 
 create_repo() {
-  local repo="$1"
-  local ecosystem="$2"
+  local org="$1"
+  local repo="$2"
   local description
-  description=$(get_repo_description "$repo" "$ecosystem")
+  description=$(get_repo_description "$repo")
   
-  if repo_exists "$repo"; then
-    log_verbose "Repository ${GITHUB_ORG}/${repo} already exists"
+  if repo_exists "$org" "$repo"; then
+    log_verbose "Repository ${org}/${repo} already exists"
     return 0
   fi
   
-  log_info "Creating repository: ${GITHUB_ORG}/${repo}"
+  log_info "Creating repository: ${org}/${repo}"
   log_verbose "  Description: $description"
   
   if [[ "$DRY_RUN" == "true" ]]; then
-    log_warn "[DRY RUN] Would create: ${GITHUB_ORG}/${repo}"
+    log_warn "[DRY RUN] Would create: ${org}/${repo}"
     return 0
   fi
   
   # Create public repository with standard settings
-  if gh repo create "${GITHUB_ORG}/${repo}" \
+  if gh repo create "${org}/${repo}" \
     --public \
     --description "$description" \
     --add-readme; then
-    log_ok "Created: ${GITHUB_ORG}/${repo}"
+    log_ok "Created: ${org}/${repo}"
   else
-    log_error "Failed to create: ${GITHUB_ORG}/${repo}"
+    log_error "Failed to create: ${org}/${repo}"
     return 1
   fi
 }
@@ -143,7 +143,6 @@ create_repo() {
 
 main() {
   log_info "=== Idempotent Repository Creation ==="
-  log_info "Organization: $GITHUB_ORG"
   [[ "$DRY_RUN" == "true" ]] && log_warn "DRY RUN MODE - no changes will be made"
   echo ""
   
@@ -152,8 +151,20 @@ main() {
     log_error "GitHub CLI (gh) is not installed. Please install it first."
     exit 1
   fi
+  
+  # Ensure GH_TOKEN is set for gh auth status to work in CI
+  if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
+    log_error "No GitHub token found in GH_TOKEN or GITHUB_TOKEN environment variables."
+    exit 1
+  fi
+  # For CI environments, we may need to set the token explicitly for the current process
+  export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+
+  # For CI environments, we may need to set the token explicitly for the current process
+  export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+
   if ! gh auth status &>/dev/null; then
-    log_error "Not authenticated with GitHub CLI. Run 'gh auth login' first."
+    log_error "Not authenticated with GitHub CLI. Please check your token."
     exit 1
   fi
   
@@ -173,6 +184,11 @@ main() {
   for ecosystem in $ecosystems; do
     log_info "Processing ecosystem: $ecosystem"
     
+    # Get organization for this ecosystem, default to jbcom
+    local org
+    org=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].organization // \"$DEFAULT_ORG\"" "$CONFIG_FILE")
+    log_verbose "  Organization: $org"
+
     local repos
     repos=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].repos[]" "$CONFIG_FILE" 2>/dev/null || echo "")
     
@@ -183,11 +199,11 @@ main() {
     
     for repo in $repos; do
       total=$((total + 1))
-      if repo_exists "$repo"; then
+      if repo_exists "$org" "$repo"; then
         skipped=$((skipped + 1))
-        log_verbose "  ✓ $repo (exists)"
+        log_verbose "  ✓ $org/$repo (exists)"
       else
-        if create_repo "$repo" "$ecosystem"; then
+        if create_repo "$org" "$repo"; then
           created=$((created + 1))
         else
           failed=$((failed + 1))

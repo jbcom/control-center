@@ -1,9 +1,18 @@
-# Repository settings - Control ecosystem
-# Inherits from organization .github repository
-# No language-specific overrides (configuration repository)
+# These settings are synced to GitHub by https://github.com/probot/settings
+# You can override organization-wide settings by defining them in this file
 
-# Inherit all settings from organization .github repository
-_extends: .github
+# The settings in this file will be applied to all repositories in the organization
+# You can override these settings in a repository's .github/settings.yml file
 
-# Control repositories use organization defaults
-# No language-specific linters required
+repository:
+  # See https://docs.github.com/en/rest/reference/repos#update-a-repository for all available settings
+  name: 'control-center'
+  # description: 'Managed by settings app'
+  homepage: 'https://agentic.dev'
+  topics: 'agentic, ai, control-center'
+
+pages:
+  cname: 'agentic.dev'
+  source:
+    branch: main
+    path: /docs

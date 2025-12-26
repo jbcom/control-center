@@ -16,7 +16,23 @@
         "run"
       ],
       "type": "stdio"
+    },
+    "21st-magic": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@21st-dev/magic-mcp"
+      ],
+      "env": {
+        "API_KEY": "${input:21st_dev_api_key}"
+      }
     }
   },
-  "inputs": []
+  "inputs": [
+    {
+      "id": "21st_dev_api_key",
+      "type": "secret",
+      "description": "API key for 21st.dev Magic MCP"
+    }
+  ]
 }

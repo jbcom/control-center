@@ -12,7 +12,7 @@ name: Ecosystem Sync
 # TROUBLESHOOTING:
 # - If you see 'repository not found' errors:
 #   1. Verify the repository exists in repo-config.json
-#   2. Ensure JBCOM_TOKEN has write access to the repository
+#   2. Ensure CI_GITHUB_TOKEN has write access to the repository
 
 on:
   workflow_dispatch:
@@ -79,7 +79,7 @@ jobs:
 
       - name: Create missing repositories
         env:
-          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
             ./scripts/create-repos --dry-run --verbose
@@ -116,7 +116,7 @@ jobs:
           # Skip LFS to avoid issues with repos that have broken LFS objects
           GIT_LFS_SKIP_SMUDGE: "1"
         with:
-          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync-initial.yml
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
           SKIP_PR: true
@@ -168,7 +168,7 @@ jobs:
           # Skip LFS to avoid issues with repos that have broken LFS objects
           GIT_LFS_SKIP_SMUDGE: "1"
         with:
-          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync-always.yml
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
           SKIP_PR: true
@@ -257,4 +257,4 @@ jobs:
       - name: Sync issues to projects
         run: ./scripts/sync-projects --verbose
         env:
-          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}

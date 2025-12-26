@@ -1,24 +1,41 @@
 # Active Context - jbcom Control Center
 
-## Current Status: CI FIXES AND SECRET STANDARDIZATION COMPLETE
+## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
 
-Standardized secret naming across the codebase and fixed systemic CI failures in the Ollama PR Orchestrator.
+Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
 
 ### What Was Fixed/Added
-1. ✅ **CI Auth Fixed**: Updated all workflows to use `github.token` instead of `secrets.GITHUB_TOKEN`, resolving git authentication errors in draft PRs and bot-triggered runs.
-2. ✅ **Permissions Hardening**: Added `contents: write` permissions to jobs performing automated commits (e.g., in `ollama-cloud-pr-review.yml`).
-3. ✅ **Secret Standardization Usage**: Updated `ollama-cloud-pr-review.yml` to utilize the new `OLLAMA_API_URL` secret.
-4. ✅ **Template Synchronization**: Propagated all CI and secret fixes to the templates in `repository-files/always-sync/` to ensure managed repositories receive the improved workflows.
-5. ✅ **Doc Update**: Comprehensive update to `CLAUDE.md` documentation for all tokens and API keys.
+1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
+2. ✅ **Security Hardening**:
+    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
+    - Implemented `persist-credentials: false` for untrusted checkouts.
+    - Added `contents: write` permissions where necessary for auto-resolution.
+3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ecosystem-fixer.yml` to fulfill the promised automated fix functionality.
+4. ✅ **Orchestrator Safety**: Enhanced `ecosystem-harvester.mjs` with safety checks for risky files (executables/secrets) before merging.
+5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
 
-### Manual Actions Required
-The following secrets still MUST be added to the repository by an administrator (if not already done):
-- `JULES_GITHUB_TOKEN`: `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`
-- `OLLAMA_API_URL`: `https://ollama.com/api`
-- `CURSOR_API_KEY`: (Obtain from Cursor team/dashboard)
-- `GOOGLE_JULES_API_KEY`: (Obtain from Google AI Studio)
+### Changes Made
+- Updated workflows: `ci.yml`, `ecosystem-fixer.yml`, `ecosystem-reviewer.yml`, `ecosystem-delegator.yml`.
+- Updated orchestrator script: `scripts/ecosystem-harvester.mjs`.
+- Updated repository-files templates.
+
+---
+
+## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
+
+### Task
+Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all security criteria are met.
+
+### Final State
+- PR #426 and #421 updated with security fixes and pinned actions.
+- CodeQL alerts on PR branches resolved.
+- CI workflows triggered and pending.
 
 ### For Next Agent
-- Verify CI passes green on PR #456.
-- Run `./scripts/sync-secrets --all` once secrets are added to propagate them.
-- Monitor `Ollama PR Orchestrator` for successful automated feedback resolution.
+- Merge PR #426 and #421 once CI passes green.
+- Monitor for any new AI feedback from Gemini or Amazon Q.
+- Verify that auto-resolution triggers correctly on next CI failure.
+
+---
+
+## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED

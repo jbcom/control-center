@@ -31,7 +31,7 @@
           "dependencies": ["python-lifecyclelogging", "python-extended-data-types"],
           "consumers": [],
           "pypi_name": "agentic-crew",
-          "doc_url": "https://github.com/jbcom/python-agentic-crew#readme"
+          "doc_url": "https://crew.agentic.dev"
         },
         "python-vendor-connectors": {
           "description": "API connectors for external vendors",
@@ -98,21 +98,72 @@
           "dependencies": [],
           "consumers": ["nodejs-agentic-triage"],
           "npm_name": "agentic-control",
-          "doc_url": "https://github.com/jbcom/nodejs-agentic-control#readme"
+          "doc_url": "https://control.agentic.dev"
         },
         "nodejs-agentic-triage": {
           "description": "AI-powered GitHub triage CLI",
           "dependencies": ["nodejs-agentic-control"],
           "consumers": [],
           "npm_name": "agentic-triage",
-          "doc_url": "https://github.com/jbcom/nodejs-agentic-triage#readme"
+          "doc_url": "https://triage.agentic.dev"
         },
         "nodejs-strata": {
           "description": "Procedural 3D graphics for React Three Fiber",
           "dependencies": [],
-          "consumers": ["nodejs-rivermarsh", "nodejs-otter-river-rush"],
-          "npm_name": "@jbcom/strata",
-          "doc_url": "https://github.com/jbcom/nodejs-strata#readme"
+          "consumers": [
+            "nodejs-strata-shaders",
+            "nodejs-strata-presets",
+            "nodejs-strata-examples",
+            "nodejs-strata-typescript-tutor",
+            "nodejs-strata-react-native-plugin",
+            "nodejs-strata-capacitor-plugin",
+            "nodejs-rivermarsh",
+            "nodejs-otter-river-rush"
+          ],
+          "npm_name": "@strata/core",
+          "doc_url": "https://strata.game/docs"
+        },
+        "nodejs-strata-shaders": {
+          "description": "GLSL shader collection for Strata 3D",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/shaders",
+          "doc_url": "https://shaders.strata.game"
+        },
+        "nodejs-strata-presets": {
+          "description": "Preset configurations for Strata 3D",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/presets",
+          "doc_url": "https://presets.strata.game"
+        },
+        "nodejs-strata-examples": {
+          "description": "Interactive examples for Strata 3D",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/examples",
+          "doc_url": "https://examples.strata.game"
+        },
+        "nodejs-strata-typescript-tutor": {
+          "description": "Professor Pixel educational platform",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/studio",
+          "doc_url": "https://learn.strata.game"
+        },
+        "nodejs-strata-react-native-plugin": {
+          "description": "React Native support for Strata 3D",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/react-native",
+          "doc_url": "https://react-native.strata.game"
+        },
+        "nodejs-strata-capacitor-plugin": {
+          "description": "Capacitor support for Strata 3D",
+          "dependencies": ["nodejs-strata"],
+          "consumers": [],
+          "npm_name": "@strata/capacitor",
+          "doc_url": "https://capacitor.strata.game"
         },
         "nodejs-rivermarsh": {
           "description": "Mobile-first 3D exploration game",
