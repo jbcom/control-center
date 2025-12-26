@@ -35,7 +35,7 @@ jobs:
       - name: Check if auto-merge eligible
         id: check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_ACTOR: ${{ github.actor }}
@@ -111,7 +111,7 @@ jobs:
       - name: Wait for CI checks
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "Waiting for CI checks to complete..."
@@ -162,7 +162,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REASON: ${{ steps.check.outputs.reason }}
         run: |
@@ -177,7 +177,7 @@ jobs:
       - name: Add comment
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REASON: ${{ steps.check.outputs.reason }}
         run: |

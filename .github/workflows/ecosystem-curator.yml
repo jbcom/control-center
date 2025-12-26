@@ -34,7 +34,7 @@ jobs:
 
       - name: Run Curator
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}

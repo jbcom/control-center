@@ -37,8 +37,14 @@ A unified GitHub token is used for all operations:
 
 | Variable | Use Case |
 |----------|----------|
-| `GITHUB_TOKEN` | All GitHub API operations (gh CLI) |
-| `CI_GITHUB_TOKEN` | Same token, used in CI workflows |
+| `GITHUB_TOKEN` | Default token for GitHub Actions and general API access |
+| `CI_GITHUB_TOKEN` | Legacy PAT for triggering workflows (being replaced by JULES_GITHUB_TOKEN) |
+| `JULES_GITHUB_TOKEN` | Primary PAT for Jules and Ecosystem Curator workflows |
+| `CURSOR_GITHUB_TOKEN` | GitHub token for Cursor agent operations |
+| `CURSOR_API_KEY` | Cursor Cloud Agent API key |
+| `GOOGLE_JULES_API_KEY` | Google Jules API key (standardized) |
+| `OLLAMA_API_URL` | Ollama Cloud API URL (standardized) |
+| `OLLAMA_API_KEY` | Ollama Cloud API key |
 
 ```bash
 # All repos use the same token - gh CLI auto-uses GITHUB_TOKEN

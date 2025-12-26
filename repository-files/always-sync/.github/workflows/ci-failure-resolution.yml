@@ -46,7 +46,7 @@ jobs:
       - name: Validate PR branch
         id: pr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           HEAD_BRANCH: ${{ steps.branch.outputs.ref }}
         run: |
           # Ensure this is a PR branch, not an arbitrary branch
@@ -70,7 +70,7 @@ jobs:
         id: logs
         if: steps.branch.outputs.run_id != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           RUN_ID: ${{ steps.branch.outputs.run_id }}
         run: |
           gh run view "$RUN_ID" --log-failed > failure.log 2>&1 || true
@@ -82,7 +82,7 @@ jobs:
       - name: Check code scanning alerts
         id: alerts
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           ALERTS=$(gh api repos/${{ github.repository }}/code-scanning/alerts --jq '[.[] | select(.state=="open")] | length' 2>/dev/null || echo "0")
           echo "alert_count=$ALERTS" >> $GITHUB_OUTPUT
@@ -124,7 +124,7 @@ jobs:
       - name: Flag untrusted checkout
         if: steps.alerts.outputs.has_untrusted_checkout == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUM: ${{ steps.pr.outputs.pr_number }}
         run: |
           if [ -n "$PR_NUM" ]; then
@@ -135,7 +135,7 @@ jobs:
         id: push
         if: steps.pr.outputs.pr_number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           REF: ${{ steps.branch.outputs.ref }}
         run: |
           if ! git diff --quiet; then
@@ -166,7 +166,7 @@ jobs:
       - name: Comment PR with status
         if: steps.pr.outputs.pr_number != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUM: ${{ steps.pr.outputs.pr_number }}
           PUSHED: ${{ steps.push.outputs.pushed }}
         run: |

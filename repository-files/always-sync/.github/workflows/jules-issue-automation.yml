@@ -32,7 +32,7 @@ jobs:
       - name: Post Initial Acknowledgement
         if: steps.check_secret.outputs.available == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating a session to work on this issue..."
@@ -105,7 +105,7 @@ jobs:
       - name: Post Session URL as Reply
         if: steps.check_secret.outputs.available == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           SESSION_URL=${{ steps.jules.outputs.session_url }}
@@ -124,7 +124,7 @@ jobs:
       - name: Post Secret Not Available Message
         if: steps.check_secret.outputs.available == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           BODY="⚠️ **Action Required:** The 'GOOGLE_JULES_API_KEY' secret is not configured for this repository. Please add it to enable the '/jules' command."
