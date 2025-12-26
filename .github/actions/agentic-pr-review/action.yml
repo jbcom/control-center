@@ -48,6 +48,7 @@ runs:
         INPUT_HEAD: ${{ inputs.head }}
         OLLAMA_API_KEY: ${{ inputs.ollama_api_key }}
         OLLAMA_HOST: ${{ inputs.ollama_host }}
+        AGENTIC_PROVIDER: ollama
       run: |
         declare -a ARGS
         if [ -n "$INPUT_MODEL" ]; then
@@ -66,6 +67,9 @@ runs:
         # Fetch base branch to ensure git diff works
         git fetch origin "${INPUT_BASE:-main}"
         git branch "${INPUT_BASE:-main}" FETCH_HEAD || true
+        
+        # Create config file to force provider
+        echo '{"triage": {"provider": "ollama"}}' > agentic.config.json
         
         # Use safe array for argument passing
         agentic triage review "${ARGS[@]}"
