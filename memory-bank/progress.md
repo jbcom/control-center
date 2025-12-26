@@ -431,3 +431,13 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-26 (CI Fix for Jules Integration)
+
+### Completed
+- [x] Analyzed CI failure logs for PR #461 (Lint Workflows failure).
+- [x] Fixed script injection vulnerabilities by using env vars for `github.event.comment.body`.
+- [x] Fixed ShellCheck style issues (SC2006) by replacing backticks with proper syntax and heredocs.
+- [x] Synchronized fixes between local workflows and repository-files templates.
+- [x] Verified workflow validity with `actionlint`.
+- [x] Committed fixes to `cursor/jules-integration-for-ci-f51d`.
