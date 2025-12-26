@@ -36,7 +36,7 @@ jobs:
       - name: Acknowledge
         if: steps.check.outputs.available == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating Jules session..."
 
@@ -79,7 +79,7 @@ jobs:
       - name: Post Session Link
         if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
 
@@ -90,7 +90,7 @@ jobs:
       - name: Post API Key Missing
         if: steps.check.outputs.available == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured."
 
@@ -115,7 +115,7 @@ jobs:
       - name: Acknowledge
         if: steps.check.outputs.available == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "⚡ Received '/cursor' command. Spawning Cursor agent..."
 
@@ -152,7 +152,7 @@ jobs:
       - name: Post Agent Link
         if: steps.check.outputs.available == 'true' && steps.cursor.outputs.agent_id != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "## ⚡ Cursor Agent Spawned
 
@@ -164,7 +164,7 @@ jobs:
       - name: Post API Key Missing
         if: steps.check.outputs.available == 'false'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           gh issue comment ${{ github.event.issue.number }} --body "⚠️ CURSOR_API_KEY not configured."
 
@@ -180,7 +180,7 @@ jobs:
 
       - name: Trigger Sage
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           QUERY=$(echo "$COMMENT_BODY" | sed 's|/sage[[:space:]]*||')

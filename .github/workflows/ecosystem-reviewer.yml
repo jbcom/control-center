@@ -6,6 +6,10 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+env:
+  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+
 permissions:
   contents: read
   pull-requests: write
@@ -21,11 +25,13 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
+          persist-credentials: true
 
       - name: Get PR Diff
         id: diff
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never | head -c 30000)
           echo "diff<<EOF" >> $GITHUB_OUTPUT
@@ -35,9 +41,7 @@ jobs:
       - name: AI Review
         id: review
         env:
-          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
           PR_DIFF: ${{ steps.diff.outputs.diff }}
         run: |
           if [[ -z "$OLLAMA_API_KEY" ]]; then
@@ -73,9 +77,8 @@ jobs:
       - name: Post Review Comment
         if: steps.review.outputs.review != 'skipped'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
-          OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
         run: |
           COMMENT="## 🤖 AI Code Review
 

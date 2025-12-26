@@ -30,13 +30,13 @@ jobs:
       - name: Issue Triage
         uses: jbcom/nodejs-agentic-control/actions/agentic-issue-triage@main
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           issue_number: ${{ github.event.issue.number }}
           model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
       - name: Delegate to Agent
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           COMMENT_BODY: ${{ github.event.comment.body }}

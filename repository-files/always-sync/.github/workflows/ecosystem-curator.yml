@@ -40,7 +40,7 @@ jobs:
       - name: Fleet Status
         uses: jbcom/nodejs-agentic-control/actions/agentic-orchestrator@main
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           command: summary
 
       - name: Run Curator Script
@@ -48,7 +48,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
+          OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
           TARGET_ORG: ${{ inputs.target_org }}

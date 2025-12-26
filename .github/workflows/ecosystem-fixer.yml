@@ -28,7 +28,7 @@ jobs:
       - name: Get Failure Logs
         id: logs
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           LOGS=$(gh run view ${{ github.event.workflow_run.id }} --log-failed 2>&1 | tail -100)
           echo "logs<<EOF" >> $GITHUB_OUTPUT

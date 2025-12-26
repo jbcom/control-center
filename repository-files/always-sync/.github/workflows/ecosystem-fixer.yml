@@ -28,5 +28,5 @@ jobs:
       - name: CI Resolution
         uses: jbcom/nodejs-agentic-control/actions/agentic-ci-resolution@main
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           run_id: ${{ github.event.workflow_run.id }}
