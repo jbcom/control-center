@@ -17,6 +17,7 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Auto-resolve CI Failure
         uses: ./.github/actions/agentic-ci-resolution
         with:
