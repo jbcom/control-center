@@ -19,7 +19,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Review PR
-        uses: jbcom/agentic-pr-review@v1
+        uses: agentic-dev-library/control/actions/agentic-pr-review@main
         with:
           github_token: ${{ github.token }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Auto-resolve CI Failure
-        uses: jbcom/agentic-ci-resolution@v1
+        uses: agentic-dev-library/control/actions/agentic-ci-resolution@main
         with:
           github_token: ${{ github.token }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
