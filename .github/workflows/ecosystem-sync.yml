@@ -80,8 +80,9 @@ jobs:
       - name: Create missing repositories
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          if [[ "$DRY_RUN" == "true" ]]; then
             ./scripts/create-repos --dry-run --verbose
           else
             ./scripts/create-repos --verbose
@@ -208,11 +209,12 @@ jobs:
           PHASE0_RESULT: ${{ needs.phase-0-create-repos.result }}
           PHASE1_RESULT: ${{ needs.phase-1-initial.result }}
           PHASE2_RESULT: ${{ needs.phase-2-always.result }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
           echo "## 🔄 Ecosystem Sync Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          if [[ "$DRY_RUN" == "true" ]]; then
             echo "**Mode:** 🔍 Dry run (no changes made)" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Mode:** ⚡ Direct push to main" >> $GITHUB_STEP_SUMMARY

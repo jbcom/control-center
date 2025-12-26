@@ -30,8 +30,9 @@ jobs:
         id: diff
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          DIFF=$(gh pr diff ${{ github.event.pull_request.number }} --color=never | head -c 30000)
+          DIFF=$(gh pr diff "$PR_NUMBER" --color=never | head -c 30000)
           echo "diff<<EOF" >> $GITHUB_OUTPUT
           echo "$DIFF" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -89,15 +90,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REVIEW_RESPONSE: ${{ steps.review.outputs.response }}
           OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           COMMENT="## 🤖 AI Code Review
-
+    
           $REVIEW_RESPONSE
           
           ---
           *Reviewed by Ollama ($OLLAMA_MODEL)*"
           
-          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+          gh pr comment "$PR_NUMBER" --body "$COMMENT"
 
   delegate-to-jules:
     name: Delegate Complex Tasks to Jules
@@ -110,13 +112,16 @@ jobs:
         env:
           JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           SUMMARY: ${{ needs.review.outputs.summary }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          REPOSITORY: ${{ github.repository }}
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -eo pipefail
           JSON_PAYLOAD=$(jq -n \
-            --arg prompt "Fix issues identified in PR #${{ github.event.pull_request.number }}: $SUMMARY" \
-            --arg source "sources/github/${{ github.repository }}" \
-            --arg branch "${{ github.head_ref }}" \
-            --arg title "Jules: Fix PR #${{ github.event.pull_request.number }} issues" \
+            --arg prompt "Fix issues identified in PR #$PR_NUMBER: $SUMMARY" \
+            --arg source "sources/github/$REPOSITORY" \
+            --arg branch "$HEAD_REF" \
+            --arg title "Jules: Fix PR #$PR_NUMBER issues" \
             '{
               "prompt": $prompt,
               "sourceContext": {
@@ -144,9 +149,11 @@ jobs:
         if: steps.jules.outputs.session_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "## 🤖 Task Delegated to Jules
-
+          gh pr comment "$PR_NUMBER" --body "## 🤖 Task Delegated to Jules
+    
           This PR has been automatically delegated to Google Jules for further fixes.
-
-          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**"
+    
+          ➡️ **[Monitor Session]($SESSION_URL)**"

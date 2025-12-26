@@ -127,6 +127,7 @@ jobs:
           [ "$VAL" != "false" ] && R="true" || R="false"
           test_pattern "null != false → true (auto_fix unset should run)" "true" "$R" || FAILURES=$((FAILURES+1))
           
+          # Test: != false pattern (for auto_fix_tests with default=true)
           VAL="true"
           [ "$VAL" != "false" ] && R="true" || R="false"
           test_pattern "true != false → true (auto_fix=true should run)" "true" "$R" || FAILURES=$((FAILURES+1))
@@ -369,6 +370,12 @@ jobs:
       pull-requests: write
     steps:
       - name: Check results
+        env:
+          LINT_RESULT: ${{ needs.lint-workflows.result }}
+          EXPRESSIONS_RESULT: ${{ needs.validate-expressions.result }}
+          REPO_CONFIG_RESULT: ${{ needs.validate-repo-config.result }}
+          REPO_FILES_RESULT: ${{ needs.validate-repository-files.result }}
+          GENERATE_TESTS_RESULT: ${{ needs.dry-run-generate-tests.result }}
         run: |
           # shellcheck disable=SC2086
           {
@@ -376,19 +383,19 @@ jobs:
             echo ""
             echo "| Check | Status |"
             echo "|-------|--------|"
-            echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Repo Config | ${{ needs.validate-repo-config.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |"
-            echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |"
+            echo "| Lint Workflows | $([ "$LINT_RESULT" == "success" ] && echo "✅" || echo "❌") |"
+            echo "| Validate Expressions | $([ "$EXPRESSIONS_RESULT" == "success" ] && echo "✅" || echo "❌") |"
+            echo "| Validate Repo Config | $([ "$REPO_CONFIG_RESULT" == "success" ] && echo "✅" || echo "❌") |"
+            echo "| Validate Repo Files | $([ "$REPO_FILES_RESULT" == "success" ] && echo "✅" || echo "❌") |"
+            echo "| Dry Run Generate Tests | $([ "$GENERATE_TESTS_RESULT" == "success" ] && echo "✅" || echo "❌") |"
           } >> "$GITHUB_STEP_SUMMARY"
           
           # Fail if any job failed
-          if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
-             [ "${{ needs.validate-expressions.result }}" != "success" ] || \
-             [ "${{ needs.validate-repo-config.result }}" != "success" ] || \
-             [ "${{ needs.validate-repository-files.result }}" != "success" ] || \
-             [ "${{ needs.dry-run-generate-tests.result }}" != "success" ]; then
+          if [ "$LINT_RESULT" != "success" ] || \
+             [ "$EXPRESSIONS_RESULT" != "success" ] || \
+             [ "$REPO_CONFIG_RESULT" != "success" ] || \
+             [ "$REPO_FILES_RESULT" != "success" ] || \
+             [ "$GENERATE_TESTS_RESULT" != "success" ]; then
             echo ""
             echo "❌ CI failed - one or more checks did not pass"
             exit 1

@@ -32,8 +32,9 @@ jobs:
         if: steps.check.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating Jules session..."
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
 
       - name: Parse Task
         id: task
@@ -48,15 +49,19 @@ jobs:
         id: jules
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TASK_DESC: ${{ steps.task.outputs.task }}
+          REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           set -eo pipefail
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "Fix issue #${{ github.event.issue.number }}: ${{ steps.task.outputs.task }}" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.repository.default_branch }}" \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK_DESC" \
+              --arg repo "$REPOSITORY" \
+              --arg branch "$DEFAULT_BRANCH" \
               '{
                 prompt: $task,
                 sourceContext: {
@@ -76,10 +81,12 @@ jobs:
         if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
+          gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
-          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
+          ➡️ **[Monitor Session]($SESSION_URL)**
 
           Jules will analyze the issue and create a PR."
 
@@ -87,5 +94,6 @@ jobs:
         if: steps.check.outputs.available == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured."
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured."

@@ -29,8 +29,9 @@ jobs:
         id: logs
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.event.workflow_run.id }}
         run: |
-          LOGS=$(gh run view ${{ github.event.workflow_run.id }} --log-failed 2>&1 | tail -100)
+          LOGS=$(gh run view "$RUN_ID" --log-failed 2>&1 | tail -100)
           echo "logs<<EOF" >> $GITHUB_OUTPUT
           echo "$LOGS" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -50,35 +51,31 @@ jobs:
         if: steps.check.outputs.jules == 'true'
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          FAILURE_LOGS: ${{ steps.logs.outputs.logs }}
+          REPOSITORY: ${{ github.repository }}
         run: |
-          TASK="CI workflow failed on branch ${{ github.event.workflow_run.head_branch }}.
+          set -eo pipefail
+          JSON_PAYLOAD=$(jq -n \
+            --arg branch "$HEAD_BRANCH" \
+            --arg logs "$FAILURE_LOGS" \
+            --arg repo "$REPOSITORY" \
+            '
+            {
+              "prompt": ("CI workflow failed on branch " + $branch + ".\n\nError logs:\n" + $logs + "\n\nPlease analyze the errors and fix them. Common issues:\n- TypeScript type errors\n- ESLint/Biome linting failures\n- Missing dependencies\n- Test failures\n\nFix the issues and commit the changes."),
+              "sourceContext": {
+                "source": ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                "githubRepoContext": {
+                  "startingBranch": $branch
+                }
+              },
+              "automationMode": "INTERACTIVE"
+            }')
 
-          Error logs:
-          ${{ steps.logs.outputs.logs }}
-
-          Please analyze the errors and fix them. Common issues:
-          - TypeScript type errors
-          - ESLint/Biome linting failures
-          - Missing dependencies
-          - Test failures
-          
-          Fix the issues and commit the changes."
-          
           curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "$TASK" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.workflow_run.head_branch }}" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "INTERACTIVE"
-              }')"
+            -d "$JSON_PAYLOAD"
 
       - name: Report No Auto-fix
         if: steps.check.outputs.jules == 'false'

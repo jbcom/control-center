@@ -37,8 +37,9 @@ jobs:
         if: steps.check.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚡ Received '/cursor' command. Spawning Cursor agent..."
+          gh issue comment "$ISSUE_NUMBER" --body "⚡ Received '/cursor' command. Spawning Cursor agent..."
 
       - name: Parse Task
         id: task
@@ -53,14 +54,18 @@ jobs:
         id: cursor
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          TASK_DESC: ${{ steps.task.outputs.task }}
+          REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
         run: |
           RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
             -H "Authorization: Bearer $CURSOR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "Fix issue #${{ github.event.issue.number }}: ${{ steps.task.outputs.task }}" \
-              --arg repo "https://github.com/${{ github.repository }}" \
-              --arg branch "${{ github.event.repository.default_branch }}" \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK_DESC" \
+              --arg repo "https://github.com/$REPOSITORY" \
+              --arg branch "$DEFAULT_BRANCH" \
               '{
                 prompt: { text: $task },
                 source: { repository: $repo, ref: $branch },
@@ -74,10 +79,12 @@ jobs:
         if: steps.check.outputs.available == 'true' && steps.cursor.outputs.agent_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          AGENT_ID: ${{ steps.cursor.outputs.agent_id }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "## ⚡ Cursor Agent Spawned
+          gh issue comment "$ISSUE_NUMBER" --body "## ⚡ Cursor Agent Spawned
 
-          🆔 **Agent ID:** \`${{ steps.cursor.outputs.agent_id }}\`
+          🆔 **Agent ID:** \`$AGENT_ID\`
           🔗 **Monitor:** [cursor.com/agents](https://cursor.com/agents)
           
           The agent will analyze the issue and create a PR."
@@ -86,8 +93,9 @@ jobs:
         if: steps.check.outputs.available == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚠️ CURSOR_API_KEY not configured."
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ CURSOR_API_KEY not configured."
 
   invoke-sage:
     name: Invoke Sage
@@ -103,11 +111,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           COMMENT_BODY: ${{ github.event.comment.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
           QUERY=$(echo "$COMMENT_BODY" | sed 's|/sage[[:space:]]*||')
           gh workflow run ecosystem-sage.yml \
             -f query="$QUERY" \
             -f context_type="issue" \
-            -f context_id="${{ github.event.issue.number }}"
+            -f context_id="$ISSUE_NUMBER"
           
-          gh issue comment ${{ github.event.issue.number }} --body "🧙 Sage workflow triggered. Response coming soon..."
+          gh issue comment "$ISSUE_NUMBER" --body "🧙 Sage workflow triggered. Response coming soon..."

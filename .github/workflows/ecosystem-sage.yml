@@ -92,12 +92,15 @@ jobs:
         if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           if [ -f sage-response.md ]; then
             RESPONSE=$(cat sage-response.md)
-            if [ "${{ github.event_name }}" == "issue_comment" ]; then
-              gh issue comment ${{ github.event.issue.number }} --body "$RESPONSE"
+            if [ "$EVENT_NAME" == "issue_comment" ]; then
+              gh issue comment "$ISSUE_NUMBER" --body "$RESPONSE"
             else
-              gh pr comment ${{ github.event.pull_request.number }} --body "$RESPONSE"
+              gh pr comment "$PR_NUMBER" --body "$RESPONSE"
             fi
           fi
