@@ -21,7 +21,7 @@ const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // Managed organizations
-const ORGANIZATIONS = ['jbcom', 'strata-game-library'];
+const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
 
 const stats = {
   cursor_composers_checked: 0,
