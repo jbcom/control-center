@@ -19,6 +19,9 @@ inputs:
   api_key:
     description: 'The API key for the model.'
     required: false
+  jules_api_key:
+    description: 'Jules API key'
+    required: false
   cursor_api_key:
     description: 'Cursor API key'
     required: false

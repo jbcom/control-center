@@ -28,6 +28,9 @@ inputs:
   branch:
     description: 'Branch name'
     required: false
+  repository:
+    description: 'Repository name'
+    required: false
 
 runs:
   using: 'composite'
