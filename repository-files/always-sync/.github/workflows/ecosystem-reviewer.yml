@@ -28,3 +28,4 @@ jobs:
           model: ${{ env.OLLAMA_MODEL }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
           ollama_host: ${{ env.OLLAMA_HOST }}
+          jules_api_key: ${{ secrets.JULES_API_KEY || secrets.GOOGLE_JULES_API_KEY }}

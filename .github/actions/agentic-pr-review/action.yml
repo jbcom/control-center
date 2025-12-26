@@ -29,6 +29,9 @@ inputs:
   ollama_model:
     description: 'Ollama model (deprecated, use model)'
     required: false
+  jules_api_key:
+    description: 'Google Jules API key'
+    required: false
 
 runs:
   using: 'composite'
@@ -48,6 +51,7 @@ runs:
         INPUT_HEAD: ${{ inputs.head }}
         OLLAMA_API_KEY: ${{ inputs.ollama_api_key }}
         OLLAMA_HOST: ${{ inputs.ollama_host }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
       run: |
         declare -a ARGS
         if [ -n "$INPUT_MODEL" ]; then
@@ -67,12 +71,23 @@ runs:
         git fetch origin "${INPUT_BASE:-main}"
         git branch "${INPUT_BASE:-main}" FETCH_HEAD || true
         
-        # Create config file to force provider
-        echo '{"triage": {"provider": "openai"}}' > agentic.config.json
-        
-        # Use safe array for argument passing
-        # Map OLLAMA env vars to OPENAI env vars to trick agentic-control 1.1.0
-        export OPENAI_API_KEY="${OLLAMA_API_KEY}"
-        export OPENAI_BASE_URL="${OLLAMA_HOST%/}/v1"
+        # Determine provider and configure
+        if [ -n "$OLLAMA_HOST" ]; then
+          echo '{"triage": {"provider": "openai"}}' > agentic.config.json
+          export OPENAI_API_KEY="${OLLAMA_API_KEY:-sk-no-key-required}"
+          # Normalize URL: remove /v1 if present, then ensure exactly one /v1 at the end
+          CLEAN_HOST="${OLLAMA_HOST%/}"
+          CLEAN_HOST="${CLEAN_HOST%/v1}"
+          export OPENAI_BASE_URL="${CLEAN_HOST}/v1"
+          echo "Using Ollama via OpenAI shim at ${OPENAI_BASE_URL}"
+        elif [ -n "$JULES_API_KEY" ]; then
+          echo '{"triage": {"provider": "google"}}' > agentic.config.json
+          export GOOGLE_GENERATIVE_AI_API_KEY="$JULES_API_KEY"
+          echo "Using Google provider with Jules key"
+          # If model is default Ollama model, switch to Gemini
+          if [[ "$INPUT_MODEL" == "glm-4.6:cloud" ]] || [ -z "$INPUT_MODEL" ]; then
+             ARGS=("--model" "gemini-1.5-pro")
+          fi
+        fi
         
         agentic triage review "${ARGS[@]}"
