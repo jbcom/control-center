@@ -61,5 +61,8 @@ runs:
         # Install peer dependencies first
         npm install -g agentic-control@1.1.0 @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
         
+        # Fetch base branch to ensure git diff works
+        git fetch origin "${INPUT_BASE:-main}" --depth=1
+        
         # Use safe array for argument passing
         agentic triage review "${ARGS[@]}"
