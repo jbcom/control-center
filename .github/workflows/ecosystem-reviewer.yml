@@ -25,6 +25,6 @@ jobs:
         uses: ./.github/actions/agentic-pr-review
         with:
           github_token: ${{ github.token }}
+          model: ${{ env.OLLAMA_MODEL }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
           ollama_host: ${{ env.OLLAMA_HOST }}
-          ollama_model: ${{ env.OLLAMA_MODEL }}

@@ -45,6 +45,8 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
       run: |
         PR_NUM="${{ inputs.pr_number }}"
         if [ -z "$PR_NUM" ] || [ "$PR_NUM" = "null" ]; then
