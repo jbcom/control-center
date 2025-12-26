@@ -16,8 +16,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Install actionlint
         run: |
@@ -34,9 +34,8 @@ jobs:
       - name: Lint all workflows
         run: |
           echo "Linting all workflow files..."
-          # Ignore SC2086 (double quote to prevent globbing) - common in GHA workflows
-          # where variables like $GITHUB_STEP_SUMMARY are known-safe
-          actionlint -ignore 'SC2086' -ignore 'SC2129' -ignore 'SC2016' -color
+          # Ignore SC2086, SC2129, SC2016, SC2001 (style)
+          actionlint -ignore 'SC2086' -ignore 'SC2129' -ignore 'SC2016' -ignore 'SC2001' -color
           echo "✅ All workflows pass linting"
 
   validate-expressions:
@@ -45,8 +44,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check for dangerous input comparison patterns
         run: |
@@ -149,8 +148,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repo-config.json is valid JSON
         run: |
@@ -234,8 +233,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Check repository-files structure
         run: |
@@ -279,8 +278,8 @@ jobs:
     permissions:
       contents: read
     steps:
-      # actions/checkout v4.2.2
-      - uses: actions/checkout@v4
+      # actions/checkout v6.0.1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       # actions/setup-python v6.1.0
       - name: Set up Python
