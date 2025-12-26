@@ -1,10 +1,54 @@
 # Active Context - jbcom Control Center
 
-## Current Status: AGENTIC-CONTROL v3.0.0 MERGED AND ADOPTED
+## Current Status: WORKFLOW REPOSITORY AUDIT COMPLETE
 
-PR #32 merged to `agentic-dev-library/control`. Control center workflows updated to use fixed package.
+Ecosystem workflows centralized to control-center only. All repos cleaned up.
 
-### Session: 2025-12-26 (Full PR Lifecycle - Fix through Adoption)
+### Session: 2025-12-26 (Workflow Repository Audit)
+
+#### Completed Steps
+
+1. ✅ **Audited All Repositories** across 5 organizations (31 repos total)
+   - jbcom (4 repos)
+   - strata-game-library (9 repos)
+   - agentic-dev-library (6 repos)
+   - extended-data-library (6 repos)
+   - arcade-cabinet (12 repos)
+
+2. ✅ **Removed Ecosystem Workflows from All Repos** (except control-center)
+   - ecosystem-curator.yml, ecosystem-delegator.yml, ecosystem-fixer.yml
+   - ecosystem-harvester.yml, ecosystem-reviewer.yml, ecosystem-sage.yml
+
+3. ✅ **Removed Redundant Workflows** (now handled by ecosystem workflows)
+   - nightly-improve.yml → ecosystem-curator
+   - project-sync.yml → ecosystem-harvester
+   - auto-assign.yml → ecosystem-harvester
+   - auto-merge.yml → ecosystem-harvester
+   - ollama-pr-review.yml, pr-review.yml, claude-code.yml → ecosystem-reviewer
+
+4. ✅ **Updated always-sync to Prevent Re-syncing**
+   - Removed 14 workflows from `repository-files/always-sync/.github/workflows/`
+   - Removed 3 ecosystem scripts from `repository-files/always-sync/scripts/`
+   - Only `ci.yml` remains for sync
+
+5. ✅ **Merged arcade-cabinet Cleanup PRs**
+   - arcade-cabinet/rivermarsh PR #95
+   - arcade-cabinet/rivermarsh-legacy PR #25
+   - arcade-cabinet/cosmic-cults PR #39
+   - arcade-cabinet/rivers-of-reckoning-legacy PR #14
+
+#### Final State
+- **Control-center**: Has all ecosystem workflows (curator, delegator, fixer, harvester, reviewer, sage, sync)
+- **Code repos**: Only CI/CD workflows (ci.yml, deploy.yml, release.yml, etc.)
+- **Docs repos**: Only docs-building workflows (deploy.yml)
+
+### For Next Agent
+- Review staged changes on `cursor/workflow-repository-audit-e3dc` branch
+- Commit and push the repository-files cleanup
+
+---
+
+### Previous Session: 2025-12-26 (Full PR Lifecycle - Fix through Adoption)
 
 #### Completed Steps
 
