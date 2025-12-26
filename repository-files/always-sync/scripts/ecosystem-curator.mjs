@@ -245,7 +245,8 @@ async function manageAgents() {
   
   // Check Cursor Agents
   try {
-    const agents = await cursorApi('/agents');
+    const agentsData = await cursorApi('/agents');
+    const agents = agentsData.agents || (Array.isArray(agentsData) ? agentsData : []);
     console.log(`  Found ${agents.length || 0} active Cursor agents`);
   } catch (e) {
     console.error(`  Failed to list Cursor agents: ${e.message}`);

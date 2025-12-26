@@ -50,14 +50,14 @@ async function cursorApi(endpoint, options = {}) {
   return res.json();
 }
 
-async function spawnCursorAgent(repo, task, branch = 'main') {
+async function spawnCursorAgent(repo, task, branch = 'main', autoCreatePr = true) {
   console.log(`🚀 Spawning Cursor agent for ${repo}...`);
   return cursorApi('/agents', {
     method: 'POST',
     body: JSON.stringify({
       prompt: { text: task },
       source: { repository: repo, ref: branch },
-      target: { autoCreatePr: true }
+      target: { autoCreatePr: autoCreatePr }
     })
   });
 }
@@ -148,7 +148,7 @@ async function orchestrate() {
     sessionsData = await listSessions();
     if (CURSOR_API_KEY) {
       const agentsData = await cursorApi('/agents');
-      activeAgents = agentsData.agents || [];
+      activeAgents = agentsData.agents || (Array.isArray(agentsData) ? agentsData : []);
       console.log(`Found ${activeAgents.length} active Cursor agents`);
     }
   } catch (err) {
@@ -211,7 +211,7 @@ async function orchestrate() {
                   console.log(`  ℹ️ Cursor agent already running for PR #${prNum}`);
                 } else {
                   try {
-                    await spawnCursorAgent(`${owner}/${repo}`, `Fix CI failures in PR #${prNum}: ${status.pr.title}`, status.pr.head.ref);
+                    await spawnCursorAgent(`${owner}/${repo}`, `Fix CI failures in PR #${prNum}: ${status.pr.title}`, status.pr.head.ref, false);
                   } catch (err) {
                     console.error(`  ❌ Failed to spawn Cursor agent:`, err.message);
                   }

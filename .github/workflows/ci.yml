@@ -17,7 +17,7 @@ jobs:
       contents: read
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Install actionlint
         run: |
@@ -46,7 +46,7 @@ jobs:
       contents: read
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Check for dangerous input comparison patterns
         run: |
@@ -150,7 +150,7 @@ jobs:
       contents: read
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Check repo-config.json is valid JSON
         run: |
@@ -235,7 +235,7 @@ jobs:
       contents: read
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - name: Check repository-files structure
         run: |
@@ -280,11 +280,11 @@ jobs:
       contents: read
     steps:
       # actions/checkout v6.0.1
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       # actions/setup-python v6.1.0
       - name: Set up Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        uses: actions/setup-python@f67772396d47d85717b3a165f3d7907706243007
         with:
           python-version: "3.12"
 

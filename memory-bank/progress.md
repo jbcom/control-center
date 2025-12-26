@@ -383,3 +383,13 @@ Documentation work was completed directly by bc-fcfe779a instead.
 - [x] Implemented auto-fix spawning logic in orchestrator for failed Jules PRs.
 - [x] Standardized Cursor API calls across `ecosystem-curator.mjs` and orchestrator.
 - [x] Documented all Cursor Cloud Agent API endpoints in `CLAUDE.md`.
+
+## Session: 2025-12-26 (CI Fix for PR #460)
+
+### Completed
+- [x] Fixed CI checkout failure in `ollama-cloud-pr-review.yml` by updating `actions/checkout` to latest stable SHA and fixing token fallback.
+- [x] Updated all GitHub Actions across the repository to their latest stable SHAs via `fix_shas.py`.
+- [x] Standardized Cursor API response handling across `curator` and `orchestrator` to handle both object and array formats.
+- [x] Fixed `orchestrator` logic to use `autoCreatePr: false` when spawning agents to fix existing PRs.
+- [x] Verified syntax and linter status of modified scripts.
+

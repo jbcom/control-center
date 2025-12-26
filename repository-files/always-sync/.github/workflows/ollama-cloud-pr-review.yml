@@ -57,11 +57,11 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
 
       - name: Get PR diff
         env:
@@ -192,7 +192,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.review.outputs.auto_apply == 'true'
-        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        uses: stefanzweifel/git-auto-commit-action@e348103e9026cc0eee72306bc60bb5d27e1393a8
         with:
           commit_message: "fix: auto-apply safe improvements (Ollama)"
           branch: ${{ github.head_ref }}
@@ -230,7 +230,7 @@ jobs:
             -f body="$BODY" -f event="$EVENT" || gh pr comment ${{ github.event.pull_request.number }} --body "$BODY"
 
       - name: Upload review artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@4ced58f8451302828c3cc5978436b107e382ff58
         with:
           name: ollama-review
           path: /tmp/review.json
@@ -251,11 +251,11 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
 
       - name: Checkout PR branch
         env:
@@ -263,7 +263,7 @@ jobs:
         run: git checkout "$HEAD_REF"
 
       - name: Download review artifact
-        uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        uses: actions/download-artifact@cc203385981b70ca67e1cc392babf913a2f280ad
         with:
           name: ollama-review
           path: /tmp
@@ -385,7 +385,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.resolve.outputs.fix_count != '0'
-        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        uses: stefanzweifel/git-auto-commit-action@e348103e9026cc0eee72306bc60bb5d27e1393a8
         with:
           commit_message: "fix: self-resolve review issues (Ollama)"
           branch: ${{ github.head_ref }}
@@ -452,11 +452,11 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
-          token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
 
       - name: Checkout PR branch
         env:
@@ -627,11 +627,11 @@ jobs:
           fi
 
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
           fetch-depth: 0
           # Use CI_GITHUB_TOKEN to allow commits to trigger workflows
-          token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
 
       - name: Get PR number
         id: pr
@@ -803,7 +803,7 @@ jobs:
 
       - name: Commit fixes
         if: steps.analyze.outputs.fix_count != '0' && steps.analyze.outputs.fix_count != ''
-        uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9
+        uses: stefanzweifel/git-auto-commit-action@e348103e9026cc0eee72306bc60bb5d27e1393a8
         with:
           commit_message: "fix: resolve AI feedback (automated)"
           branch: ${{ steps.pr.outputs.head_ref }}

@@ -55,6 +55,16 @@ The correct Cursor Cloud Agent API endpoints have been discovered and documented
 2. **Curator Update**: `scripts/ecosystem-curator.mjs` and its template have been updated to use the correct `/v0` endpoints and `Bearer` authentication.
 3. **Documentation**: `CLAUDE.md` now contains the full list of Cursor Cloud Agent endpoints.
 
+## Update: CI Fixed in PR #460
+The CI checkout failures in `ollama-cloud-pr-review.yml` were resolved by updating `actions/checkout` to the latest v4 SHA and fixing the token fallback logic.
+
+### Changes Made
+1. **Pinned Actions**: Updated all GitHub Actions in workflows to their latest stable SHAs via `fix_shas.py`.
+2. **Checkout Token**: Fixed `ollama-cloud-pr-review.yml` to use `${{ secrets.CI_GITHUB_TOKEN || github.token }}` for more reliable checkout.
+3. **API Consistency**: Standardized Cursor API response handling across all scripts to handle both object (`{ agents: [] }`) and array responses safely.
+4. **Orchestrator Logic**: Updated `spawnCursorAgent` to correctly use `autoCreatePr: false` when fixing existing PR branches.
+
 ## For Next Agent
-- Verify that the orchestrator correctly spawns agents during real failures.
-- Monitor `ecosystem-curator` nightly runs for any authentication issues with the new `Bearer` token format.
+- Verify that CI passes green on PR #460.
+- Merge PR #460 once green.
+- Monitor `ecosystem-curator` nightly runs with the updated API logic.
