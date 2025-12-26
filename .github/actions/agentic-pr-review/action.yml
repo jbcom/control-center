@@ -57,7 +57,7 @@ runs:
         INPUT_HEAD: ${{ inputs.head }}
         OLLAMA_API_KEY: ${{ inputs.ollama_api_key }}
         OLLAMA_HOST: ${{ inputs.ollama_host }}
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
       run: |
         set +e  # Don't exit on errors, we handle them
         
@@ -74,11 +74,51 @@ runs:
         head -c 50000 /tmp/pr_diff.txt > /tmp/pr_diff_preview.txt
         DIFF_PREVIEW=$(cat /tmp/pr_diff_preview.txt)
         
-        # Determine which API to use
+        # Try agentic-control first (now with fixed Ollama v3.0.0 support)
         if [ -n "$OLLAMA_HOST" ] && [ -n "$OLLAMA_API_KEY" ]; then
-          echo "Using Ollama API at $OLLAMA_HOST"
+          echo "Using agentic-control with Ollama (ai-sdk-ollama v3.0.0)"
           
-          # Direct Ollama API call (more reliable than agentic-control)
+          # Install agentic-control with Ollama provider
+          npm install -g agentic-control@latest ai-sdk-ollama@^3.0.0 2>/dev/null || {
+            echo "Failed to install agentic-control, falling back to curl"
+            FALLBACK=true
+          }
+          
+          if [ -z "$FALLBACK" ]; then
+            # Configure agentic-control for Ollama
+            echo '{"triage": {"provider": "ollama"}}' > agentic.config.json
+            
+            # Run agentic-control review (now with reliable structured output)
+            REVIEW_OUTPUT=$(agentic triage review \
+              --model "${INPUT_MODEL:-qwen3-coder:480b-cloud}" \
+              --diff-file /tmp/pr_diff_preview.txt 2>&1) || REVIEW_OUTPUT=""
+            
+            if [ -n "$REVIEW_OUTPUT" ] && ! echo "$REVIEW_OUTPUT" | grep -q "No object generated"; then
+              echo "=== Code Review (agentic-control) ==="
+              echo "$REVIEW_OUTPUT"
+              
+              # Count suggestions
+              SUGGESTION_COUNT=$(echo "$REVIEW_OUTPUT" | grep -c -E '🔴|🟠|🟡|⚪|critical|high|medium|low' || echo "0")
+              echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
+              
+              # Post review as PR comment
+              PR_NUM=$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
+              if [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ]; then
+                BODY="## 🤖 AI Code Review (agentic-control)
+
+        $REVIEW_OUTPUT
+
+        ---
+        <sub>Reviewed by agentic-control using ${INPUT_MODEL:-qwen3-coder:480b-cloud}</sub>"
+                
+                gh pr comment "$PR_NUM" --body "$BODY" 2>/dev/null || echo "Could not post comment"
+              fi
+              exit 0
+            fi
+            echo "agentic-control returned empty, falling back to curl"
+          fi
+          
+          # Fallback to direct Ollama API call
           PROMPT="You are an expert code reviewer. Review this diff and provide:
         1. A brief summary of changes
         2. Any issues found (bugs, security, performance)
@@ -109,7 +149,7 @@ runs:
           if [ -n "$RESPONSE" ]; then
             REVIEW=$(echo "$RESPONSE" | jq -r '.message.content // empty')
             if [ -n "$REVIEW" ]; then
-              echo "=== Code Review ==="
+              echo "=== Code Review (curl fallback) ==="
               echo "$REVIEW"
               
               # Count suggestions
@@ -136,12 +176,11 @@ runs:
           echo "suggestion_count=0" >> $GITHUB_OUTPUT
           exit 0
           
-        elif [ -n "$JULES_API_KEY" ]; then
-          echo "Using Google API (Jules key)"
-          # Fallback to agentic-control with Google
-          npm install -g agentic-control@1.1.0 @ai-sdk/google 2>/dev/null || true
+        elif [ -n "$GOOGLE_JULES_API_KEY" ]; then
+          echo "Using agentic-control with Google (Jules API key)"
+          npm install -g agentic-control@latest @ai-sdk/google 2>/dev/null || true
           echo '{"triage": {"provider": "google"}}' > agentic.config.json
-          export GOOGLE_API_KEY="$JULES_API_KEY"
+          export GOOGLE_API_KEY="$GOOGLE_JULES_API_KEY"
           
           REVIEW_OUTPUT=$(agentic triage review --model gemini-1.5-pro 2>&1) || true
           echo "$REVIEW_OUTPUT"
@@ -150,7 +189,7 @@ runs:
           echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
           exit 0
         else
-          echo "⚠️ No AI provider configured (need OLLAMA_API_KEY or JULES_API_KEY)"
+          echo "⚠️ No AI provider configured (need OLLAMA_API_KEY or GOOGLE_JULES_API_KEY)"
           echo "suggestion_count=0" >> $GITHUB_OUTPUT
           exit 0
         fi
