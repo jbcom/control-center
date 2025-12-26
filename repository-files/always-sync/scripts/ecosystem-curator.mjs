@@ -20,7 +20,7 @@ const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 
-const ORGANIZATIONS = ['jbcom', 'strata-game-library'];
+const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
 const DRY_RUN = process.env.DRY_RUN === 'true';
 const TARGET_ORG = process.env.TARGET_ORG;
 const TARGET_REPO = process.env.TARGET_REPO;
