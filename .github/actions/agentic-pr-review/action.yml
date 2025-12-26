@@ -68,7 +68,6 @@ runs:
         npm install -g agentic-control@1.1.0 @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
         
         # Patch agentic-control to allow 'ollama' provider if it's missing from validation
-        # Find where it's installed
         AGENTIC_PATH=$(npm root -g)/agentic-control
         VALIDATION_FILE="$AGENTIC_PATH/dist/core/validation.js"
         if [ -f "$VALIDATION_FILE" ]; then
@@ -84,13 +83,14 @@ runs:
         if [ -n "$OLLAMA_HOST" ]; then
           echo '{"triage": {"provider": "ollama"}}' > agentic.config.json
           export OLLAMA_API_KEY="${OLLAMA_API_KEY}"
-          export OLLAMA_HOST="${OLLAMA_HOST}"
+          # Strip trailing slash and /api because ai-sdk-ollama appends it
+          CLEAN_HOST="${OLLAMA_HOST%/}"
+          CLEAN_HOST="${CLEAN_HOST%/api}"
+          export OLLAMA_HOST="${CLEAN_HOST}"
           echo "Using Ollama provider at ${OLLAMA_HOST}"
         elif [ -n "$JULES_API_KEY" ]; then
-          # Fallback to Google if Jules key is provided (though we saw it might need OAuth)
           echo '{"triage": {"provider": "google"}}' > agentic.config.json
           export GOOGLE_API_KEY="$JULES_API_KEY"
-          # If model is default Ollama model, switch to Gemini
           if [[ "$INPUT_MODEL" == "glm-4.6:cloud" ]] || [ -z "$INPUT_MODEL" ]; then
              ARGS=("--model" "gemini-1.5-pro")
           fi
