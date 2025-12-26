@@ -1,0 +1,70 @@
+name: 'Agentic Issue Triage'
+description: 'Triage a GitHub issue using an AI agent.'
+author: 'jbcom/agentic-control'
+branding:
+  icon: 'alert-circle'
+  color: 'orange'
+
+inputs:
+  github_token:
+    description: 'The GitHub token to use for authentication.'
+    required: true
+  issue_number:
+    description: 'The number of the issue to triage.'
+    required: true
+  model:
+    description: 'The Ollama model to use for the triage.'
+    required: false
+    default: 'llama3'
+  api_key:
+    description: 'The API key for the model.'
+    required: false
+  jules_api_key:
+    description: 'Jules API key'
+    required: false
+  cursor_api_key:
+    description: 'Cursor API key'
+    required: false
+  comment_body:
+    description: 'Comment body'
+    required: false
+  repository:
+    description: 'Repository'
+    required: false
+  default_branch:
+    description: 'Default branch'
+    required: false
+
+outputs:
+  triage_summary:
+    description: 'A summary of the triage.'
+  labels:
+    description: 'The labels suggested by the agent.'
+  assignee:
+    description: 'The assignee suggested by the agent.'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Run issue triage
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
+        CURSOR_API_KEY: ${{ inputs.cursor_api_key }}
+      run: |
+        # Install peer dependencies first
+        npm install -g agentic-control@1.1.0 @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
+        
+        agentic issue-triage \
+          --issue-number "${{ inputs.issue_number }}" \
+          --model "${{ inputs.model }}" \
+          --api-key "${{ inputs.api_key }}" \
+          --github-token "${{ inputs.github_token }}"
