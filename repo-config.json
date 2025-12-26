@@ -298,6 +298,14 @@
         "react-native": "nodejs-strata-react-native-plugin",
         "capacitor": "nodejs-strata-capacitor-plugin"
       }
+    },
+    "agentic.dev": {
+      "apex": "control-center",
+      "subdomains": {
+        "triage": "nodejs-agentic-triage",
+        "control": "nodejs-agentic-control",
+        "crew": "python-agentic-crew"
+      }
     }
   },
   "repository_overrides": {
@@ -375,12 +383,12 @@
         ]
       },
       "repos": [
+        "jbcom.github.io",
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
         "nodejs-otterfall",
-        "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
-        "jbcom.github.io"
+        "nodejs-rivermarsh"
       ],
       "repo_overrides": {
         "nodejs-agentic-triage": {
