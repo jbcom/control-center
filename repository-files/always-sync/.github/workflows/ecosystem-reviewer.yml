@@ -98,8 +98,10 @@ jobs:
     steps:
       - name: Extract Prompt
         id: prompt
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
-          PROMPT=$(echo "${{ github.event.comment.body }}" | sed -n 's|^/jules ||p')
+          PROMPT=$(echo "$COMMENT_BODY" | sed -n 's|^/jules ||p')
           echo "prompt<<EOF" >> $GITHUB_OUTPUT
           echo "$PROMPT" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -150,9 +152,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SESSION_ID: ${{ steps.jules.outputs.session_id }}
         run: |
-          COMMENT="✅ Jules session `${SESSION_ID}` created.
+          COMMENT=$(cat <<EOF
+          ✅ Jules session \`${SESSION_ID}\` created.
 
-          I will now begin working on this PR. You can track my progress in the session details."
+          I will now begin working on this PR. You can track my progress in the session details.
+          EOF
+          )
 
           gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
 
@@ -162,12 +167,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           JULES_RESPONSE: ${{ steps.jules.outputs.response }}
         run: |
-          COMMENT="❌ Failed to create Jules session.
+          COMMENT=$(cat <<EOF
+          ❌ Failed to create Jules session.
 
           **API Response:**
           \`\`\`json
-          $JULES_RESPONSE
-          \`\`\`"
+          ${JULES_RESPONSE}
+          \`\`\`
+          EOF
+          )
 
           gh pr comment ${{ github.event.issue.number }} --body "$COMMENT"
           exit 1
