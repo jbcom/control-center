@@ -154,9 +154,12 @@ main() {
   
   # Ensure GH_TOKEN is set for gh auth status to work in CI
   if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
-     log_error "No GitHub token found in GH_TOKEN or GITHUB_TOKEN environment variables."
-     exit 1
+    log_error "No GitHub token found in GH_TOKEN or GITHUB_TOKEN environment variables."
+    exit 1
   fi
+  # For CI environments, we may need to set the token explicitly for the current process
+  export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
+
   # For CI environments, we may need to set the token explicitly for the current process
   export GH_TOKEN="${GH_TOKEN:-$GITHUB_TOKEN}"
 
