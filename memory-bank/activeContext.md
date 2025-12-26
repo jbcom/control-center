@@ -1,41 +1,26 @@
 # Active Context - jbcom Control Center
 
-## Current Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
+## Current Status: JULES INTEGRATION PHASE 1 COMPLETE - CI STABILIZED
 
-Two major PRs (#426 and #421) have been significantly improved and are awaiting final CI checks before merge.
+Successfully fixed CI issues related to `agentic-control` and Google Jules integration. Merged PR #454, PR #471, and the major integration PR #468. Standardized local action syncing across the ecosystem.
 
-### What Was Fixed/Added
-1. ✅ **Pin Actions to SHA**: All GitHub Actions in PRs #426 and #421 have been pinned to the latest exact SHAs (e.g., actions/checkout@v6.0.1, actions/setup-python@v6.1.0).
-2. ✅ **Security Hardening**:
-    - Fixed critical command injection vulnerabilities by adding input validation for branch names and session IDs.
-    - Implemented `persist-credentials: false` for untrusted checkouts.
-    - Added `contents: write` permissions where necessary for auto-resolution.
-3. ✅ **Auto-Resolution Logic**: Implemented full auto-commit and push logic in `ecosystem-fixer.yml` to fulfill the promised automated fix functionality.
-4. ✅ **Orchestrator Safety**: Enhanced `ecosystem-harvester.mjs` with safety checks for risky files (executables/secrets) before merging.
-5. ✅ **Cleaned Corrupted Hashes**: Fixed several instances of doubled action hashes (e.g., `@sha[0]sha`) introduced during automated feedback resolution.
+## Recent Accomplishments
 
-### Changes Made
-- Updated workflows: `ci.yml`, `ecosystem-fixer.yml`, `ecosystem-reviewer.yml`, `ecosystem-delegator.yml`.
-- Updated orchestrator script: `scripts/ecosystem-harvester.mjs`.
-- Updated repository-files templates.
+- **CI Stabilization**: Patched `agentic-control` at runtime in actions to support `ollama` provider. Fixed host normalization for Ollama and API key mapping for Google.
+- **Jules Integration (Phase 1)**: Integrated Jules session creation for both PR reviews (when suggestion count > 5) and issue triage (via `/jules` command).
+- **Ecosystem Sync Improvements**: Moved local composite actions (`agentic-pr-review`, `agentic-issue-triage`, `agentic-ci-resolution`) to `repository-files/always-sync/.github/actions/` to ensure they are available in all managed repositories.
+- **PR Cleanup**: Merged all ready-to-merge PRs, resolving conflicts in the process.
 
----
+## For Next Agent
 
-## Session: 2025-12-24 (CI Failure Resolution and Security Hardening)
+- **Audit Ecosystem**: Run `./scripts/sync-files --all --push` to propagate the new actions to all repositories.
+- **Monitor Jules Sessions**: Check for PRs created by Jules in response to the new automation.
+- **Standardize Checkout**: Review `ecosystem-sync.yml` and other workflows for `actions/checkout@v2` or `v3` and upgrade to `v4` with `fetch-depth: 0`.
+- **Expand Issue Triage**: Enhance `agentic-issue-triage` to handle more commands or use a more capable model for automated labeling.
 
-### Task
-Address AI feedback on PR #426 and #421, pin actions to SHA, and ensure all security criteria are met.
-
-### Final State
-- PR #426 and #421 updated with security fixes and pinned actions.
-- CodeQL alerts on PR branches resolved.
-- CI workflows triggered and pending.
-
-### For Next Agent
-- Merge PR #426 and #421 once CI passes green.
-- Monitor for any new AI feedback from Gemini or Amazon Q.
-- Verify that auto-resolution triggers correctly on next CI failure.
-
----
-
-## Previous Status: AGENT ORCHESTRATION SYSTEM MERGED
+## Key Files
+- `.github/actions/agentic-pr-review/action.yml`: Robust PR review logic.
+- `.github/actions/agentic-issue-triage/action.yml`: Issue delegation to Jules/Cursor.
+- `repository-files/always-sync/.github/actions/`: Source of truth for synced actions.
+- `.github/workflows/ecosystem-reviewer.yml`: PR review & Jules delegation workflow.
+- `.github/workflows/ecosystem-delegator.yml`: Issue command delegation workflow.
