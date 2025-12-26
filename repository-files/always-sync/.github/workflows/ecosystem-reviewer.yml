@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize, ready_for_review]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -13,79 +13,11 @@ jobs:
     name: AI Code Review
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    outputs:
-      score: ${{ steps.review_step.outputs.score }}
-      issues_count: ${{ steps.review_step.outputs.issues_count }}
-      summary: ${{ steps.review_step.outputs.summary }}
     steps:
       - name: Review PR
-        id: review_step
         uses: jbcom/agentic-pr-review@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
           ollama_host: ${{ vars.OLLAMA_HOST }}
-          ollama_model: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
-
-  delegate-to-jules:
-    name: Delegate Complex Tasks to Jules
-    needs: review
-    if: needs.review.outputs.score < 5 && needs.review.outputs.issues_count > 5
-    runs-on: ubuntu-latest
-    steps:
-      - name: Post comment
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "🤖 High issue count detected. Delegating to @google-jules for a deeper refactoring session."
-      - name: Create Jules session
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-        run: |
-          RESPONSE=$(curl -s -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
-            -H "X-Goog-Api-Key: $JULES_API_KEY" \
-            -H 'Content-Type: application/json' \
-            -d "$(jq -n \
-              --arg prompt "Fix issues identified in PR #${{ github.event.pull_request.number }}: ${{ needs.review.outputs.summary }}" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.head_ref }}" \
-              '{
-                "prompt": $prompt,
-                "sourceContext": {
-                  "source": ("sources/github/" + $repo),
-                  "githubRepoContext": {
-                    "startingBranch": $branch
-                  }
-                },
-                "automationMode": "AUTO_CREATE_PR",
-                "title": "Jules: Fix PR #${{ github.event.pull_request.number }} issues"
-              }')")
-
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
-
-          if [[ -n "$SESSION_ID" ]]; then
-            gh pr comment ${{ github.event.pull_request.number }} --body "✅ Jules session created: $SESSION_URL"
-          else
-            gh pr comment ${{ github.event.pull_request.number }} --body "❌ Failed to create Jules session."
-            echo "Failed response: $RESPONSE"
-            exit 1
-          fi
-
-  process-feedback:
-    name: Process AI Feedback
-    if: github.event_name == 'pull_request_review' || github.event_name == 'pull_request_review_comment'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Process Feedback
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
-          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
-        run: |
-          npm install -g @agentic/control@latest
-          agentic-control triage review-feedback --pr ${{ github.event.pull_request.number || github.event.issue.number }}
+          ollama_model: ${{ vars.OLLAMA_MODEL }}
