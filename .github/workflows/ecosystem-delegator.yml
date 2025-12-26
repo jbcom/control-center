@@ -1,10 +1,5 @@
 name: Ecosystem Delegator
 
-# Issue delegation to AI agents
-# /jules - Delegate to Google Jules
-# /cursor - Delegate to Cursor Cloud Agent
-# /sage - Ask the Sage
-
 on:
   issue_comment:
     types: [created]
@@ -13,180 +8,21 @@ permissions:
   contents: read
   issues: write
   pull-requests: write
+  actions: write
 
 jobs:
-  delegate-jules:
-    name: Delegate to Jules
-    if: |
-      github.event.issue.pull_request == null && 
-      contains(github.event.comment.body, '/jules')
+  delegate-command:
+    name: Delegate Command
+    if: github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     steps:
-      - name: Check for API Key
-        id: check
-        env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-        run: |
-          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            echo "available=false" >> $GITHUB_OUTPUT
-          else
-            echo "available=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Acknowledge
-        if: steps.check.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating Jules session..."
-
-      - name: Parse Task
-        id: task
-        env:
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          echo "task=$TASK" >> $GITHUB_OUTPUT
-
-      - name: Create Jules Session
-        if: steps.check.outputs.available == 'true'
-        id: jules
-        env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-        run: |
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "Fix issue #${{ github.event.issue.number }}: ${{ steps.task.outputs.task }}" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.repository.default_branch }}" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')")
-          
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
-          
-          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
-          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
-
-      - name: Post Session Link
-        if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
-          
-          Jules will analyze the issue and create a PR."
-
-      - name: Post API Key Missing
-        if: steps.check.outputs.available == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured."
-
-  delegate-cursor:
-    name: Delegate to Cursor
-    if: |
-      github.event.issue.pull_request == null && 
-      contains(github.event.comment.body, '/cursor')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check for API Key
-        id: check
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        run: |
-          if [[ -z "$CURSOR_API_KEY" ]]; then
-            echo "available=false" >> $GITHUB_OUTPUT
-          else
-            echo "available=true" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Acknowledge
-        if: steps.check.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚡ Received '/cursor' command. Spawning Cursor agent..."
-
-      - name: Parse Task
-        id: task
-        env:
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/cursor[[:space:]]*||' | head -c 2000)
-          echo "task=$TASK" >> $GITHUB_OUTPUT
-
-      - name: Spawn Cursor Agent
-        if: steps.check.outputs.available == 'true'
-        id: cursor
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-        run: |
-          RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
-            -H "Authorization: Bearer $CURSOR_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "Fix issue #${{ github.event.issue.number }}: ${{ steps.task.outputs.task }}" \
-              --arg repo "https://github.com/${{ github.repository }}" \
-              --arg branch "${{ github.event.repository.default_branch }}" \
-              '{
-                prompt: { text: $task },
-                source: { repository: $repo, ref: $branch },
-                target: { autoCreatePr: true, openAsCursorGithubApp: true }
-              }')")
-          
-          AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          echo "agent_id=$AGENT_ID" >> $GITHUB_OUTPUT
-
-      - name: Post Agent Link
-        if: steps.check.outputs.available == 'true' && steps.cursor.outputs.agent_id != ''
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "## ⚡ Cursor Agent Spawned
-
-          🆔 **Agent ID:** \`${{ steps.cursor.outputs.agent_id }}\`
-          🔗 **Monitor:** [cursor.com/agents](https://cursor.com/agents)
-          
-          The agent will analyze the issue and create a PR."
-
-      - name: Post API Key Missing
-        if: steps.check.outputs.available == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚠️ CURSOR_API_KEY not configured."
-
-  invoke-sage:
-    name: Invoke Sage
-    if: |
-      github.event.issue.pull_request == null && 
-      contains(github.event.comment.body, '/sage')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-
-      - name: Trigger Sage
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          COMMENT_BODY: ${{ github.event.comment.body }}
-        run: |
-          QUERY=$(echo "$COMMENT_BODY" | sed 's|/sage[[:space:]]*||')
-          gh workflow run ecosystem-sage.yml \
-            -f query="$QUERY" \
-            -f context_type="issue" \
-            -f context_id="${{ github.event.issue.number }}"
-          
-          gh issue comment ${{ github.event.issue.number }} --body "🧙 Sage workflow triggered. Response coming soon..."
+      - name: Delegate Issue Command
+        uses: jbcom/agentic-issue-triage@v1
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          cursor_api_key: ${{ secrets.CURSOR_API_KEY }}
+          comment_body: ${{ github.event.comment.body }}
+          issue_number: ${{ github.event.issue.number }}
+          repository: ${{ github.repository }}
+          default_branch: ${{ github.event.repository.default_branch }}
