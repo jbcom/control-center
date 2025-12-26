@@ -22,7 +22,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v4
+        uses: actions/checkout@v4 # v4
 
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v4
@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Harvester
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
           CURSOR_SESSION_TOKEN: ${{ secrets.CURSOR_SESSION_TOKEN }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           JULES_GITHUB_TOKEN: ${{ secrets.JULES_GITHUB_TOKEN }}

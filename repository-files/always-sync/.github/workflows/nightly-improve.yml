@@ -61,9 +61,8 @@ jobs:
       improvement_needed: ${{ steps.summary.outputs.improvement_needed }}
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -111,7 +110,7 @@ jobs:
       - name: Get coverage data from Coveralls
         id: coveralls
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           REPO="${{ github.repository }}"
           
@@ -260,12 +259,11 @@ jobs:
       commit_sha: ${{ steps.commit.outputs.sha }}
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
 
       - name: Setup nightly branch
         run: |
@@ -474,18 +472,17 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.NIGHTLY_BRANCH }}
           fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ github.token }}
 
       - name: Create or update PR
         id: pr
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           LANGUAGE: ${{ needs.analyze.outputs.language }}
           COVERAGE: ${{ needs.analyze.outputs.coverage_pct }}
           TARGET: ${{ env.COVERAGE_TARGET }}
@@ -577,7 +574,7 @@ jobs:
 
       - name: Request AI reviews
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           PR_NUM="${{ steps.pr.outputs.pr_number }}"
           
@@ -595,7 +592,7 @@ jobs:
 
       - name: Output PR info
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           PR_URL=$(gh pr view --json url -q '.url' 2>/dev/null || echo "")
           

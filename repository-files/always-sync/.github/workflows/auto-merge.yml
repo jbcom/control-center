@@ -28,14 +28,13 @@ jobs:
       github.event_name == 'pull_request_review'
 
     steps:
-      # actions/checkout v6.0.1 (pinned for security)
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
 
       - name: Check if auto-merge eligible
         id: check
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_ACTOR: ${{ github.actor }}
@@ -111,7 +110,7 @@ jobs:
       - name: Wait for CI checks
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           echo "Waiting for CI checks to complete..."
@@ -162,7 +161,7 @@ jobs:
       - name: Enable auto-merge
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REASON: ${{ steps.check.outputs.reason }}
         run: |
@@ -177,7 +176,7 @@ jobs:
       - name: Add comment
         if: steps.check.outputs.eligible == 'true'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           REASON: ${{ steps.check.outputs.reason }}
         run: |

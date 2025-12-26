@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
 
+env:
+  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+
 permissions:
   contents: read
   pull-requests: write
@@ -14,10 +18,14 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - name: Review PR
-        uses: jbcom/agentic-pr-review@v1
+      - uses: actions/checkout@v4
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Review PR
+        uses: ./.github/actions/agentic-pr-review
+        with:
+          github_token: ${{ github.token }}
+          model: ${{ env.OLLAMA_MODEL }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
-          ollama_host: ${{ vars.OLLAMA_HOST }}
-          ollama_model: ${{ vars.OLLAMA_MODEL }}
+          ollama_host: ${{ env.OLLAMA_HOST }}
+          jules_api_key: ${{ secrets.JULES_API_KEY || secrets.GOOGLE_JULES_API_KEY }}

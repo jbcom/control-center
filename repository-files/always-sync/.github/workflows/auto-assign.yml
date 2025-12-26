@@ -32,7 +32,7 @@ jobs:
         if: github.event_name == 'issues'
         uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ github.token }}
           assignees: copilot
           numOfAssignee: 1
       
@@ -41,7 +41,7 @@ jobs:
         if: github.event_name == 'pull_request'
         uses: pozil/auto-assign-issue@39c06395cbac76e79afc4ad4e5c5c6db6ecfdd2e
         with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          repo-token: ${{ github.token }}
           assignees: copilot
           numOfAssignee: 1
           

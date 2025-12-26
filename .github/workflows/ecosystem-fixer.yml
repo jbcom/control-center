@@ -17,10 +17,11 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Auto-resolve CI Failure
-        uses: jbcom/agentic-ci-resolution@v1
+        uses: ./.github/actions/agentic-ci-resolution
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
           workflow_run_id: ${{ github.event.workflow_run.id }}
           branch: ${{ github.event.workflow_run.head_branch }}

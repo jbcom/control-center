@@ -16,10 +16,11 @@ jobs:
     if: github.event.issue.pull_request == null
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - name: Delegate Issue Command
-        uses: jbcom/agentic-issue-triage@v1
+        uses: ./.github/actions/agentic-issue-triage
         with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_token: ${{ github.token }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
           cursor_api_key: ${{ secrets.CURSOR_API_KEY }}
           comment_body: ${{ github.event.comment.body }}
