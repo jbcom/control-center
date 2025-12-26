@@ -74,6 +74,7 @@ runs:
         # Determine provider and configure
         if [ -n "$JULES_API_KEY" ]; then
           echo '{"triage": {"provider": "google"}}' > agentic.config.json
+          export GOOGLE_API_KEY="$JULES_API_KEY"
           export GOOGLE_GENERATIVE_AI_API_KEY="$JULES_API_KEY"
           echo "Using Google provider with Jules key"
           # Force a known good Gemini model if using Google provider
