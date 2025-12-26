@@ -431,3 +431,28 @@ Documentation work was completed directly by bc-fcfe779a instead.
 ### In Progress
 - [ ] Wait for CI to pass green on PR #426 and #421.
 - [ ] Merge PRs once green.
+
+## Session: 2025-12-24 (Secret Standardization)
+
+### Completed
+- [x] Updated `scripts/sync-secrets` to include `JULES_GITHUB_TOKEN`, `CURSOR_API_KEY`, `GOOGLE_JULES_API_KEY`, and `OLLAMA_API_URL`.
+- [x] Standardized secret names across `CLAUDE.md`, `scripts/cursor-jules-orchestrator.mjs`, and `scripts/sync-secrets`.
+- [x] Verified `scripts/ecosystem-curator.mjs` correctly uses the new secret names.
+
+### In Progress
+- [ ] Add missing secrets to GitHub repository (requires human/admin action).
+
+## Session: 2025-12-26 (CI Fixes & Secret Standardization)
+
+### Completed
+- [x] Analyzed CI failures in PR #456 (git authentication errors).
+- [x] Updated all workflow files to use `github.token` for more reliable authentication.
+- [x] Fixed `ollama-cloud-pr-review.yml` checkout authentication and permissions.
+- [x] Integrated `OLLAMA_API_URL` into relevant workflows.
+- [x] Synchronized all fixes to template workflows in `repository-files/always-sync/`.
+- [x] Updated `CLAUDE.md` with detailed token documentation.
+- [x] Committed and pushed fixes to PR branch.
+
+### In Progress
+- [ ] Verification of green CI on PR #456.
+# CI Trigger
