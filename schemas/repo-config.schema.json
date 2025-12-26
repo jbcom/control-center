@@ -23,6 +23,10 @@
             "repos": {
               "type": "array",
               "items": {"type": "string"}
+            },
+            "domain": {
+              "type": "string",
+              "format": "hostname"
             }
           }
         }

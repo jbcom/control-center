@@ -274,11 +274,36 @@
     ]
   },
   "repository_descriptions": {
-    "nodejs-strata-presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
-    "nodejs-strata-shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
-    "nodejs-strata-examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
-    "nodejs-strata-capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
-    "nodejs-strata-react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
+    "strata-game-library/core": "Procedural 3D graphics library for React Three Fiber - terrain, water, vegetation, sky, volumetrics",
+    "strata-game-library/examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
+    "strata-game-library/shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
+    "strata-game-library/presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
+    "strata-game-library/typescript-tutor": "Professor Pixels educational game platform - interactive lessons for learning game development",
+    "strata-game-library/capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
+    "strata-game-library/react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
+  },
+  "domains": {
+    "strata.game": {
+      "apex": "nodejs-strata",
+      "subdomains": {
+        "docs": "jbcom.github.io",
+        "guides": "jbcom.github.io",
+        "api": "jbcom.github.io",
+        "workshop": "nodejs-strata-typescript-tutor",
+        "learn": "nodejs-strata-typescript-tutor",
+        "arcade": "nodejs-strata-examples",
+        "shaders": "nodejs-strata-shaders",
+        "presets": "nodejs-strata-presets",
+        "examples": "nodejs-strata-examples",
+        "react-native": "nodejs-strata-react-native-plugin",
+        "capacitor": "nodejs-strata-capacitor-plugin"
+      }
+    }
+  },
+  "repository_overrides": {
+    "nodejs-strata": {
+      "homepage": "https://strata.game"
+    }
   },
   "ecosystems": {
     "python": {
@@ -299,6 +324,13 @@
         "python-lifecyclelogging",
         "python-vendor-connectors"
       ],
+      "repo_overrides": {
+        "python-agentic-crew": {
+          "pages": {
+            "cname": "crew.agentic.dev"
+          }
+        }
+      },
       "ruleset_overrides": {
         "prs": {
           "rules": [
@@ -343,20 +375,25 @@
         ]
       },
       "repos": [
-        "jbcom.github.io",
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
         "nodejs-otterfall",
-        "nodejs-pixels-pygame-palace",
         "nodejs-rivermarsh",
-        "nodejs-strata",
-        "nodejs-strata-capacitor-plugin",
-        "nodejs-strata-examples",
-        "nodejs-strata-presets",
-        "nodejs-strata-react-native-plugin",
-        "nodejs-strata-shaders",
-        "nodejs-strata-typescript-tutor"
-      ]
+        "nodejs-pixels-pygame-palace",
+        "jbcom.github.io"
+      ],
+      "repo_overrides": {
+        "nodejs-agentic-triage": {
+          "pages": {
+            "cname": "triage.agentic.dev"
+          }
+        },
+        "nodejs-agentic-control": {
+          "pages": {
+            "cname": "control.agentic.dev"
+          }
+        }
+      }
     },
     "go": {
       "files": {
@@ -461,6 +498,95 @@
         ".github"
       ],
       "_comment": "Control center and org config - no file sync, just project tracking"
+    },
+    "strata": {
+      "organization": "strata-game-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "nodejs"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "core",
+        "examples",
+        "shaders",
+        "presets",
+        "typescript-tutor",
+        "capacitor-plugin",
+        "react-native-plugin"
+      ]
+    },
+    "agentic": {
+      "organization": "agentic-dev-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "nodejs"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "control",
+        "triage",
+        "crew",
+        "game-generator"
+      ]
+    },
+    "extended-data": {
+      "organization": "extended-data-library",
+      "files": {
+        "always": [
+          "always-sync",
+          "python"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "vendor-connectors",
+        "inputs",
+        "logging",
+        "core"
+      ]
+    },
+    "arcade-cabinet": {
+      "organization": "arcade-cabinet",
+      "files": {
+        "always": [
+          "always-sync",
+          "python"
+        ],
+        "initial": [
+          "initial-only"
+        ]
+      },
+      "repos": [
+        "rivers-of-reckoning"
+      ]
+    }
+  },
+  "organizations": {
+    "primary": "jbcom",
+    "managed": [
+      "jbcom",
+      "strata-game-library",
+      "agentic-dev-library",
+      "extended-data-library",
+      "arcade-cabinet"
+    ],
+    "domains": {
+      "jbcom": "jonbogaty.com",
+      "strata-game-library": "strata.game",
+      "agentic-dev-library": "agentic.dev",
+      "extended-data-library": "extendeddata.dev",
+      "arcade-cabinet": "arcade-cabinet.org"
     }
   }
 }

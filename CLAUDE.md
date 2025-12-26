@@ -68,7 +68,7 @@ All repo settings are defined in `repo-config.json`:
 ./scripts/sync-secrets --all
 
 # Orchestrate agents
-./scripts/cursor-jules-orchestrator.mjs jbcom/jbcom-control-center cursor:agent-id:123
+./scripts/ecosystem-harvester.mjs jbcom/jbcom-control-center cursor:agent-id:123
 
 # Preview without making changes
 ./scripts/sync-files --dry-run --all
@@ -77,7 +77,7 @@ All repo settings are defined in `repo-config.json`:
 
 ## Agent Orchestration
 
-The `scripts/cursor-jules-orchestrator.mjs` script manages multi-agent workflows.
+The `scripts/ecosystem-harvester.mjs` script manages multi-agent workflows.
 
 ### Ecosystem Curator
 
@@ -205,7 +205,7 @@ curl -X POST 'https://jules.googleapis.com/v1alpha/sessions' \
 ### Orchestrator Script
 
 ```bash
-node scripts/cursor-jules-orchestrator.mjs
+node scripts/ecosystem-harvester.mjs
 ```
 
 ### Task Routing
@@ -217,3 +217,28 @@ node scripts/cursor-jules-orchestrator.mjs
 | CI failure resolution | Cursor (direct) |
 | Documentation | Jules |
 | Complex debugging | Cursor (direct) |
+
+## Cursor Background Composer API
+
+The ecosystem uses Cursor's Background Composer API for AI-assisted coding tasks.
+
+**Authentication**: Session token via `WorkosCursorSessionToken` cookie
+
+**API Reference**: https://github.com/mjdierkes/cursor-background-agent-api
+
+### Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/auth/startBackgroundComposerFromSnapshot` | POST | Create a new background composer |
+| `/api/background-composer/list` | POST | List all composers |
+| `/api/background-composer/get-detailed-composer` | POST | Get composer details |
+| `/api/background-composer/open-pr` | POST | Create PR from composer |
+| `/api/background-composer/pause` | POST | Pause a running composer |
+
+### Getting the Session Token
+
+1. Log in to [cursor.com](https://cursor.com)
+2. Open browser DevTools → Application → Cookies
+3. Copy the value of `WorkosCursorSessionToken`
+4. Set as `CURSOR_SESSION_TOKEN` secret

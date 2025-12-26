@@ -68,6 +68,37 @@ get_all_repos() {
   jq -r '.ecosystems | to_entries[] | .value.repos[]' "$CONFIG_FILE"
 }
 
+get_ecosystem_domain() {
+  local ecosystem="$1"
+  jq -r ".ecosystems.${ecosystem}.domain // \"\"" "$CONFIG_FILE"
+}
+
+sync_templated_workflows() {
+  local repo="$1"
+  local ecosystem="$2"
+  local target_path="$3"
+
+  local domain
+  domain=$(get_ecosystem_domain "$ecosystem")
+
+  if [[ -n "$domain" ]]; then
+    local template_path="${FILES_ROOT}/templates/.github/workflows/docs.yml"
+    if [[ -f "$template_path" ]]; then
+      local dest_path="${target_path}/.github/workflows/docs.yml"
+      local cname="${repo}.${domain}"
+
+      if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+        log_info "  → templating docs.yml with cname: $cname"
+      fi
+
+      if [[ "$DRY_RUN" != "true" ]]; then
+        mkdir -p "$(dirname "$dest_path")"
+        sed "s/DOCS_CNAME_PLACEHOLDER/${cname}/g" "$template_path" > "$dest_path"
+      fi
+    fi
+  fi
+}
+
 sync_repo() {
   local repo="$1"
   local ecosystem
@@ -119,6 +150,9 @@ sync_repo() {
     # Use --ignore-existing to not overwrite
     rsync $rsync_opts --ignore-existing "${FILES_ROOT}/initial-only/" "${target_path}/" 2>/dev/null || true
   fi
+
+  # Sync templated workflows
+  sync_templated_workflows "$repo" "$ecosystem" "$target_path"
   
   # Check if there are changes
   if [[ "$DRY_RUN" != "true" ]]; then
