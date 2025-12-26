@@ -72,7 +72,13 @@ runs:
         git branch "${INPUT_BASE:-main}" FETCH_HEAD || true
         
         # Determine provider and configure
-        if [ -n "$OLLAMA_HOST" ]; then
+        if [ -n "$JULES_API_KEY" ]; then
+          echo '{"triage": {"provider": "google"}}' > agentic.config.json
+          export GOOGLE_GENERATIVE_AI_API_KEY="$JULES_API_KEY"
+          echo "Using Google provider with Jules key"
+          # Force a known good Gemini model if using Google provider
+          ARGS=("--model" "gemini-1.5-pro")
+        elif [ -n "$OLLAMA_HOST" ]; then
           echo '{"triage": {"provider": "openai"}}' > agentic.config.json
           export OPENAI_API_KEY="${OLLAMA_API_KEY:-sk-no-key-required}"
           # Normalize URL: remove /v1 if present, then ensure exactly one /v1 at the end
@@ -80,14 +86,6 @@ runs:
           CLEAN_HOST="${CLEAN_HOST%/v1}"
           export OPENAI_BASE_URL="${CLEAN_HOST}/v1"
           echo "Using Ollama via OpenAI shim at ${OPENAI_BASE_URL}"
-        elif [ -n "$JULES_API_KEY" ]; then
-          echo '{"triage": {"provider": "google"}}' > agentic.config.json
-          export GOOGLE_GENERATIVE_AI_API_KEY="$JULES_API_KEY"
-          echo "Using Google provider with Jules key"
-          # If model is default Ollama model, switch to Gemini
-          if [[ "$INPUT_MODEL" == "glm-4.6:cloud" ]] || [ -z "$INPUT_MODEL" ]; then
-             ARGS=("--model" "gemini-1.5-pro")
-          fi
         fi
         
         agentic triage review "${ARGS[@]}"
