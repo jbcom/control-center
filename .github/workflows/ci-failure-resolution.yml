@@ -61,10 +61,11 @@ jobs:
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
 
       - name: Checkout PR branch
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           ref: ${{ steps.branch.outputs.sha }}
           fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
 
       - name: Download failure logs
         id: logs
