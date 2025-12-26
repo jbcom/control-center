@@ -61,9 +61,8 @@ jobs:
       improvement_needed: ${{ steps.summary.outputs.improvement_needed }}
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -260,9 +259,8 @@ jobs:
       commit_sha: ${{ steps.commit.outputs.sha }}
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
           token: ${{ github.token }}
@@ -474,9 +472,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # actions/checkout v6.0.1
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@v4
         with:
           ref: ${{ env.NIGHTLY_BRANCH }}
           fetch-depth: 0
