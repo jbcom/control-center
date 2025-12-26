@@ -1,57 +1,61 @@
 # Active Context - jbcom Control Center
 
-## Current Status: ECOSYSTEM WORKFLOWS FULLY OPERATIONAL
+## Current Status: AGENTIC-CONTROL FIXED FOR OLLAMA v3.0.0
 
-All ecosystem workflows have been cleaned up and synced across all 4 organizations (17 repos).
+Fixed `agentic-control` package to properly use `ai-sdk-ollama` v3.0.0 with automatic JSON repair and vendor-connectors MCP integration.
 
-### Session: 2025-12-26 (Ollama PR Orchestrator Cleanup)
+### Session: 2025-12-26 (agentic-control Ollama v3.0.0 Fix)
 
 #### Problem
-- strata-game-library/core PR #119 was failing due to broken `ollama-pr-review.yml` workflow
-- Old deprecated workflows scattered across all repos causing CI failures
-- Token authentication issues in old workflows
+- `agentic-control` was using `ai-sdk-ollama ^2.0.0` which had parsing issues
+- `generateObject()` would fail with "No object generated: could not parse the response"
+- No vendor-connectors MCP integration for Jules/Cursor
 
 #### What Was Fixed
-1. ✅ **Removed 38 Old Workflow Files** across 17 repos:
-   - `ollama-pr-review.yml` (14 repos)
-   - `pr-review.yml` (8 repos)
-   - `claude-code.yml` (9 repos)
-   - `triage.yml` (3 repos)
-   - `reusable-triage.yml` (1 repo)
 
-2. ✅ **Synced Ecosystem Workflows** to all repos:
-   - `ecosystem-reviewer.yml` (AI code review with Ollama)
-   - `ecosystem-curator.yml` (nightly triage)
-   - `ecosystem-harvester.yml` (PR monitoring)
-   - `ecosystem-sage.yml` (on-call advisor)
-   - `ecosystem-fixer.yml` (CI auto-resolution)
-   - `ecosystem-delegator.yml` (agent delegation)
+1. ✅ **Upgraded ai-sdk-ollama to v3.0.0**
+   - PR: https://github.com/agentic-dev-library/control/pull/32
+   - v3.0.0 has built-in automatic JSON repair for 14+ types of malformed JSON
+   - Auto-detection of structured outputs for `generateObject()`
+   - Reliable object generation with retries
 
-3. ✅ **Synced Actions** to all repos:
-   - `.github/actions/agentic-pr-review` (with direct Ollama API fallback)
-   - `.github/actions/agentic-ci-resolution`
-   - `.github/actions/agentic-issue-triage`
+2. ✅ **Configured reliableObjectGeneration**
+   - Updated `providers.ts` with new v3.0.0 configuration
+   - Enabled automatic JSON repair by default
+   - Set maxRetries: 3 for object generation
 
-4. ✅ **Synced Scripts** to all repos:
-   - `scripts/ecosystem-curator.mjs`
-   - `scripts/ecosystem-harvester.mjs`
-   - `scripts/ecosystem-sage.mjs`
+3. ✅ **Added vendor-connectors MCP Server**
+   - Added to `mcp-clients.ts` as default MCP server
+   - Provides unified access to Jules, Cursor, GitHub, Slack, Vault, Zoom APIs
+   - Uses `python -m vendor_connectors.mcp` command
+   - Passes through all relevant API keys (GOOGLE_JULES_API_KEY, CURSOR_API_KEY, OLLAMA_API_KEY)
 
-5. ✅ **Fixed Ollama Integration**:
-   - Updated `agentic-pr-review` action to use direct Ollama API calls
-   - Bypasses buggy `agentic-control@1.1.0` npm package
-   - PR #119 review now produces real output
+#### ai-sdk-ollama v3.0.0 Features
+- **Automatic JSON repair**: Fixes trailing commas, single quotes, unquoted keys, Python constants, comments, markdown code blocks, and more
+- **Auto-detection**: `generateObject()` automatically enables `structuredOutputs: true`
+- **Enhanced tool calling**: Guaranteed complete responses
+- **Web search tools**: Built-in web search and fetch tools via Ollama Cloud
+
+### For Next Agent
+- Merge PR #32 after AI review passes
+- Publish agentic-control v1.2.0 with the fix
+- Update ecosystem workflows to use fixed package instead of direct Ollama API calls
+
+---
+
+## Previous Session: 2025-12-26 (Ollama PR Orchestrator Cleanup)
+
+#### What Was Fixed
+1. ✅ **Removed 38 Old Workflow Files** across 17 repos
+2. ✅ **Synced Ecosystem Workflows** to all repos
+3. ✅ **Synced Actions** with direct Ollama API fallback
+4. ✅ **Fixed Ollama Integration** in `agentic-pr-review` action
 
 #### Organizations Cleaned
 - jbcom (2 repos)
 - strata-game-library (7 repos)
 - agentic-dev-library (4 repos)
 - extended-data-library (4 repos)
-
-### For Next Agent
-- Configure `GOOGLE_JULES_API_KEY` at org level for Jules delegation
-- Monitor ecosystem workflows for any remaining issues
-- Consider publishing fixed `agentic-control` package
 
 ---
 
