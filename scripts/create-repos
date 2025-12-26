@@ -151,6 +151,16 @@ main() {
     log_error "GitHub CLI (gh) is not installed. Please install it first."
     exit 1
   fi
+
+  # Check for other dependencies and config file
+  if ! command -v jq &>/dev/null; then
+    log_error "jq is not installed. Please install it first."
+    exit 1
+  fi
+  if [[ ! -f "$CONFIG_FILE" ]]; then
+    log_error "Configuration file not found: $CONFIG_FILE"
+    exit 1
+  fi
   
   # Ensure GH_TOKEN is set for gh auth status to work in CI
   if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
