@@ -69,7 +69,11 @@ runs:
         git branch "${INPUT_BASE:-main}" FETCH_HEAD || true
         
         # Create config file to force provider
-        echo '{"triage": {"provider": "ollama"}}' > agentic.config.json
+        echo '{"triage": {"provider": "openai"}}' > agentic.config.json
         
         # Use safe array for argument passing
+        # Map OLLAMA env vars to OPENAI env vars to trick agentic-control 1.1.0
+        export OPENAI_API_KEY="${OLLAMA_API_KEY}"
+        export OPENAI_BASE_URL="${OLLAMA_HOST%/}/v1"
+        
         agentic triage review "${ARGS[@]}"
