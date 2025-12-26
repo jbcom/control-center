@@ -383,12 +383,12 @@
         ]
       },
       "repos": [
+        "jbcom.github.io",
         "nodejs-agentic-control",
         "nodejs-agentic-triage",
         "nodejs-otterfall",
-        "nodejs-rivermarsh",
         "nodejs-pixels-pygame-palace",
-        "jbcom.github.io"
+        "nodejs-rivermarsh"
       ],
       "repo_overrides": {
         "nodejs-agentic-triage": {
