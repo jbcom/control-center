@@ -1,4 +1,4 @@
-name: Ecosystem Reviewer
+name: Ollama Cloud PR Review
 
 on:
   pull_request:
@@ -82,7 +82,7 @@ jobs:
             -d "$(jq -n \
               --arg task "$TASK" \
               --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.pull_request.head.sha }}" \
+              --arg branch "${{ github.event.pull_request.head.ref }}" \
               '{
                 prompt: $task,
                 sourceContext: {
