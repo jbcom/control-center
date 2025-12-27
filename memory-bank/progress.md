@@ -187,3 +187,12 @@ These repos hit rate limits and need sessions created later:
 - Ecosystem management CLI (`scripts/ecosystem`)
 - 20 OSS submodules in `ecosystems/oss/`
 - Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
+
+## Session: 2025-12-27
+
+### Completed
+- [x] Added `nodejs-strata-typescript-tutor` to `repo-config.json` nodejs ecosystem
+- [x] Added missing `nodejs-strata-*` repos (`nodejs-strata`, `nodejs-strata-capacitor-plugin`, `nodejs-strata-examples`, `nodejs-strata-presets`, `nodejs-strata-react-native-plugin`, `nodejs-strata-shaders`) to `repo-config.json` nodejs ecosystem
+- [x] Updated `repos_list.txt` with the new repositories
+- [x] Updated `.github/sync-always.yml` and `.github/sync-initial.yml` to include the new repositories in sync groups
+- [x] Updated `agentic.config.json` with the new repositories in `managedRepos`
