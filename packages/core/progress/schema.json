@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel User Progress",
+  "description": "Schema for tracking a user's progress through the curriculum, including XP, level, and achievements.",
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "A unique identifier for the user."
+    },
+    "xp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The total experience points the user has accumulated."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The user's current level, calculated based on their XP."
+    },
+    "completedLessons": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "description": "A list of unique lesson identifiers that the user has completed."
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/achievement"
+      },
+      "description": "A list of achievements the user has unlocked."
+    }
+  },
+  "required": ["userId", "xp", "level", "completedLessons", "achievements"],
+  "definitions": {
+    "achievement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the achievement, e.g., 'first-game-completed'."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the achievement, e.g., 'First Game Completed'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of how to unlock the achievement."
+        },
+        "unlockedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the achievement was unlocked."
+        }
+      },
+      "required": ["id", "name", "description", "unlockedAt"]
+    }
+  }
+}

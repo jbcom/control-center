@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel Unified Curriculum",
+  "description": "Schema for defining the structure of the educational curriculum, including years, modules, lessons, and cartridges.",
+  "type": "object",
+  "properties": {
+    "curriculum": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/year"
+      }
+    }
+  },
+  "definitions": {
+    "year": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "description": "The academic year, e.g., 1, 2, 3.",
+          "minimum": 1
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the year, e.g., 'Year 1: Arcade Fundamentals'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief overview of the year's curriculum."
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/module"
+          }
+        }
+      },
+      "required": ["year", "title", "description", "modules"]
+    },
+    "module": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the module."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the module, e.g., 'Introduction to Pygame'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A summary of what the module covers."
+        },
+        "lessons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/lesson"
+          }
+        }
+      },
+      "required": ["id", "title", "lessons"]
+    },
+    "lesson": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the lesson."
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["concept", "exercise", "project", "challenge"],
+          "description": "The type of the lesson."
+        },
+        "content": {
+          "type": "string",
+          "description": "The main content of the lesson in Markdown format."
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Experience points awarded for completing the lesson."
+        },
+        "cartridge": {
+          "$ref": "#/definitions/cartridge"
+        }
+      },
+      "required": ["id", "title", "type", "content", "xp"]
+    },
+    "cartridge": {
+      "type": "object",
+      "description": "A self-contained, runnable lesson or game.",
+      "properties": {
+        "engine": {
+          "type": "string",
+          "enum": ["pygame", "godot", "bevy"],
+          "description": "The game engine used for the cartridge."
+        },
+        "entrypoint": {
+          "type": "string",
+          "description": "The main file to run for the cartridge, e.g., 'main.py'."
+        },
+        "files": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "A map of filenames to their content for the cartridge."
+        }
+      },
+      "required": ["engine", "entrypoint", "files"]
+    }
+  }
+}
