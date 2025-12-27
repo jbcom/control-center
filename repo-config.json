@@ -505,6 +505,13 @@
         "control-center",
         ".github"
       ],
+      "repo_overrides": {
+        "control-center": {
+          "pages": {
+            "cname": "agentic.dev"
+          }
+        }
+      },
       "_comment": "Control center and org config - no file sync, just project tracking"
     },
     "strata": {
