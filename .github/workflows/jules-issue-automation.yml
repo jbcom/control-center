@@ -1,42 +1,16 @@
-name: Ecosystem Reviewer
+name: Jules Issue Automation
 
 on:
-  pull_request:
-    types: [opened, synchronize, ready_for_review]
-
-env:
-  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
-  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+  issue_comment:
+    types: [created]
 
 permissions:
   contents: read
-  pull-requests: write
+  issues: write
 
 jobs:
-  review:
-    name: AI Code Review
-    if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
-    outputs:
-      suggestion_count: ${{ steps.review.outputs.suggestion_count }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Review PR
-        id: review
-        uses: ./.github/actions/agentic-pr-review
-        with:
-          github_token: ${{ github.token }}
-          model: ${{ env.OLLAMA_MODEL }}
-          ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
-          ollama_host: ${{ env.OLLAMA_HOST }}
-          jules_api_key: ${{ secrets.JULES_API_KEY || secrets.GOOGLE_JULES_API_KEY }}
-
   delegate-to-jules:
-    name: Delegate to Jules
-    needs: review
-    if: needs.review.outputs.suggestion_count > 5
+    if: github.event.issue.pull_request == null && contains(github.event.comment.body, '/jules')
     runs-on: ubuntu-latest
     steps:
       - name: Check for API Key
@@ -55,24 +29,35 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "🤖 Found ${{ needs.review.outputs.suggestion_count }} suggestions. Delegating to Jules for a more in-depth refactor..."
+          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received request to delegate to Jules. Creating session..."
+
+      - name: Get Default Branch
+        id: get_branch
+        if: steps.check.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          DEFAULT_BRANCH=$(gh repo view $REPO --json defaultBranchRef --jq .defaultBranchRef.name)
+          echo "branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Jules Session
         if: steps.check.outputs.available == 'true'
         id: jules
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
+          # Extract the prompt after the /jules command
+          PROMPT=$(echo "$COMMENT_BODY" | sed 's|/jules||' | xargs)
+
           TASK=$(cat <<EOM
-          Refactor pull request #${PR_NUMBER}: $PR_TITLE
+          Address issue #${ISSUE_NUMBER}: $ISSUE_TITLE
 
-          The following is the PR description:
-          $PR_BODY
-
-          The PR has been flagged for having multiple issues. Please perform a comprehensive refactoring.
+          The user provided the following instructions:
+          $PROMPT
           EOM
           )
 
@@ -82,8 +67,8 @@ jobs:
             -d "$(jq -n \
               --arg task "$TASK" \
               --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.head_ref }}" \
-              --arg title "Jules: Fix PR #${PR_NUMBER} issues" \
+              --arg branch "${{ steps.get_branch.outputs.branch }}" \
+              --arg title "Jules: Address issue #${ISSUE_NUMBER}" \
               '{
                 prompt: $task,
                 sourceContext: {
@@ -105,15 +90,15 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "## 🤖 Jules Session Created
+          gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
 
           ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
 
-          Jules will analyze the PR and create a new PR with the suggested refactoring."
+          Jules will analyze the issue and create a new PR with the suggested fix."
 
       - name: Post API Key Missing
         if: steps.check.outputs.available == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+          gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
