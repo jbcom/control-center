@@ -187,3 +187,11 @@ These repos hit rate limits and need sessions created later:
 - Ecosystem management CLI (`scripts/ecosystem`)
 - 20 OSS submodules in `ecosystems/oss/`
 - Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
+
+## Session: 2025-12-27
+
+### Completed
+- [x] Audited codebase for secret usage and standard values
+- [x] Identified `OLLAMA_API_URL` as `https://ollama.com/api`
+- [x] Documented the need for `CURSOR_API_KEY` and `GOOGLE_JULES_API_KEY`
+- [x] Attempted automated secret configuration (blocked by permissions)

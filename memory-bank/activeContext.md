@@ -105,3 +105,25 @@ Ecosystem workflows centralized to control-center only. All repos cleaned up.
 ---
 
 ## Previous Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
+
+## Session: 2025-12-27 (Issue #433: Missing Secrets)
+
+### Current Status
+Identified missing secrets for Ecosystem Curator. Attempted to set secrets but encountered 403 permission issues. Documented values for user to set manually.
+
+### Identified Values
+- **JULES_GITHUB_TOKEN**: `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` (Provided by user)
+- **OLLAMA_API_URL**: `https://ollama.com/api` (Standard for Ollama Cloud)
+- **CURSOR_API_KEY**: Required from Cursor settings (e.g., `sk-...`)
+- **GOOGLE_JULES_API_KEY**: Required from Google Cloud Console for Jules API
+
+### Blockers
+- `GITHUB_TOKEN` in the current environment lacks permissions to manage secrets via `gh secret set`.
+
+### For Next Agent / User
+- Manually set the following secrets in `jbcom/control-center`:
+  - `JULES_GITHUB_TOKEN`
+  - `OLLAMA_API_URL`
+  - `CURSOR_API_KEY`
+  - `GOOGLE_JULES_API_KEY`
+- Run `./scripts/sync-secrets --all` once secrets are set to propagate them across the ecosystem.
