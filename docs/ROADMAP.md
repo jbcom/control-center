@@ -52,7 +52,7 @@ This has been rebalanced, and this issue defines milestone phases to ensure all 
 
 | Issue | Repo | Description |
 |-------|------|-------------|
-| #349 | jbcom-control-center | Game Dev Ecosystem Integration |
+| #349 | jbcom-control-center | [Game Dev Ecosystem Integration](GAME-DEV-ECOSYSTEM-INTEGRATION.md) |
 | #179-184 | strata | EPICs (Materials, Biomes, Creatures, etc.) |
 | #70-71 | otter-river-rush | strata + agentic-crew |
 | #6 | otterfall | agentic-crew integration |
