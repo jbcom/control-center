@@ -68,18 +68,27 @@ jobs:
   claude-review:
     name: Claude Review
     needs: ollama-review
-    if: |
-      needs.ollama-review.outputs.needs_escalation == 'true' && 
-      secrets.ANTHROPIC_API_KEY != ''
+    if: needs.ollama-review.outputs.needs_escalation == 'true'
     runs-on: ubuntu-latest
     outputs:
       critical_issues: ${{ steps.claude.outputs.critical_issues }}
     steps:
+      - name: Check API Key
+        id: check-key
+        run: |
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v4
+        if: steps.check-key.outputs.available == 'true'
         with:
           fetch-depth: 0
 
       - name: Claude Code Review
+        if: steps.check-key.outputs.available == 'true'
         id: claude
         uses: anthropics/claude-code-action@beta
         with:
@@ -124,14 +133,18 @@ jobs:
         id: jules
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
         run: |
           RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "Refactor PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.pull_request.head.ref }}" \
+              --arg task "Refactor PR #${PR_NUMBER}: ${PR_TITLE}" \
+              --arg repo "$REPO" \
+              --arg branch "$PR_BRANCH" \
               '{
                 prompt: $task,
                 sourceContext: {

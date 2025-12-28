@@ -21,7 +21,7 @@ jobs:
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
     outputs:
-      fixed: ${{ steps.agentic.outputs.fixed }}
+      result: ${{ steps.agentic.outcome }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,7 +42,7 @@ jobs:
   claude-fallback:
     name: Claude CI Fix
     needs: fix
-    if: failure() || needs.fix.outputs.fixed != 'true'
+    if: always() && needs.fix.outputs.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
