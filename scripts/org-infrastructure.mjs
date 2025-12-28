@@ -203,8 +203,16 @@ Create a complete, production-ready documentation site.`;
       const data = await res.json();
       console.log(`  ✓ Jules session created for ${org} docs: ${data.name}`);
       return data;
+    } else if (res.status === 404) {
+      console.error(`
+  ❌ Jules error 404: Not Found
+     This usually means the 'Google Jules' GitHub App is not installed on the '${org}' organization.
+     Please install it here and re-run the script:
+     ➡️ https://github.com/apps/google-jules
+`);
     } else {
-      console.error(`  Jules error: ${res.status}`);
+      const errorBody = await res.text();
+      console.error(`  Jules error: ${res.status}\n  ${errorBody}`);
     }
   } catch (e) {
     console.error(`  Jules error: ${e.message}`);
