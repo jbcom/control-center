@@ -1,0 +1,447 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Ecosystem Orchestrator
+
+on:
+  # Native triggers
+  push:
+    branches: [main]
+    paths:
+      - 'repository-files/**'
+      - 'repo-config.json'
+      - '.github/sync-always.yml'
+      - '.github/sync-initial.yml'
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: '0 2 * * *' # Nightly Curator
+    - cron: '0 3 * * *' # Nightly Sync
+
+  # Reusable workflow for enterprise automation
+  workflow_call:
+    inputs:
+      action:
+        description: 'Action to perform: review, delegate'
+        required: true
+        type: string
+      repository:
+        description: 'Target repository (owner/repo)'
+        required: true
+        type: string
+      pr_number:
+        description: '[Review] PR number to review'
+        required: false
+        type: string
+      model_tier:
+        description: '[Review] Model tier to use'
+        required: false
+        default: 'ollama'
+        type: string
+      issue_number:
+        description: '[Delegate] Issue number'
+        required: false
+        type: string
+      comment_body:
+        description: '[Delegate] The comment that triggered delegation'
+        required: false
+        type: string
+      issue_title:
+        description: '[Delegate] Issue title'
+        required: false
+        type: string
+      issue_body:
+        description: '[Delegate] Issue body'
+        required: false
+        type: string
+      default_branch:
+        description: '[Delegate] Default branch of target repo'
+        required: false
+        type: string
+    secrets:
+      CI_GITHUB_TOKEN:
+        required: true
+      ANTHROPIC_API_KEY:
+        required: false
+      GOOGLE_JULES_API_KEY:
+        required: false
+      OLLAMA_API_KEY:
+        required: false
+      CURSOR_API_KEY:
+        required: false
+
+  # Manual trigger for on-call
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to perform'
+        required: true
+        type: choice
+        options:
+          - sync
+          - review
+          - delegate
+          - curate
+      repository:
+        description: 'Target repository (e.g., jbcom/nodejs-strata)'
+        required: false
+        type: string
+      pr_number:
+        description: '[Review] PR number to review'
+        required: false
+        type: string
+      issue_number:
+        description: '[Delegate] Issue number to delegate'
+        required: false
+        type: string
+      comment_body:
+        description: '[Delegate] Command for issue (e.g., /jules fix this)'
+        required: false
+        type: string
+      issue_title:
+        description: '[Delegate] Issue title'
+        required: false
+        type: string
+      issue_body:
+        description: '[Delegate] Issue body'
+        required: false
+        type: string
+      model_tier:
+        description: '[Review] AI Model tier'
+        required: false
+        default: 'ollama'
+        type: string
+      sync_type:
+        description: '[Sync] Which sync to run'
+        required: false
+        default: 'both'
+        type: choice
+        options: [both, always-only, initial-only]
+      dry_run:
+        description: '[Sync/Curate] Dry run mode'
+        required: false
+        default: false
+        type: boolean
+      target_org:
+        description: '[Curate] Target organization (empty = all)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+env:
+  # Correctly handle context for all trigger types
+  TARGET_REPO: ${{ github.event.inputs.repository || inputs.repository || github.repository }}
+  TARGET_PR: ${{ github.event.inputs.pr_number || inputs.pr_number || github.event.pull_request.number || github.event.issue.number }}
+  TARGET_ISSUE: ${{ github.event.inputs.issue_number || inputs.issue_number || github.event.issue.number }}
+  COMMENT_BODY: ${{ github.event.inputs.comment_body || inputs.comment_body || github.event.comment.body }}
+  ISSUE_TITLE: ${{ github.event.inputs.issue_title || inputs.issue_title || github.event.issue.title }}
+  ISSUE_BODY: ${{ github.event.inputs.issue_body || inputs.issue_body || github.event.issue.body }}
+
+  OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+
+jobs:
+  # =============================================================================
+  # SYNC WORKFLOW
+  # =============================================================================
+  sync_validate:
+    name: 🔍 Sync - Validate Config
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          ./scripts/validate-config
+          ./scripts/check-symlinks
+
+  sync_create_repos:
+    name: 🆕 Sync - Create Repos
+    needs: sync_validate
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create missing repositories
+        env:
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+        run: |
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            ./scripts/create-repos --dry-run --verbose
+          else
+            ./scripts/create-repos --verbose
+          fi
+
+  sync_initial:
+    name: 📦 Sync - Initial Files
+    needs: sync_create_repos
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
+      ) && github.event.inputs.sync_type != 'always-only'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
+          CONFIG_PATH: .github/sync-initial.yml
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
+          SKIP_PR: true
+
+  sync_always:
+    name: 🔄 Sync - Always Sync Files
+    needs: sync_initial
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
+      ) && github.event.inputs.sync_type != 'initial-only'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
+          CONFIG_PATH: .github/sync-always.yml
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
+          SKIP_PR: true
+
+  sync_projects:
+    name: 📋 Sync - GitHub Projects
+    needs: sync_always
+    if: |
+      always() && (
+        github.event_name == 'push' ||
+        (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
+      ) && github.event.inputs.dry_run != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/sync-projects --verbose
+        env:
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+
+  # =============================================================================
+  # REVIEW WORKFLOW
+  # =============================================================================
+  review_ollama:
+    name: 🤖 Review - Ollama
+    if: |
+      (github.event_name == 'pull_request' && !github.event.pull_request.draft) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'review' && (github.event.inputs.model_tier == 'ollama' || github.event.inputs.model_tier == 'all')) ||
+      (github.event_name == 'workflow_call' && inputs.action == 'review' && (inputs.model_tier == 'ollama' || inputs.model_tier == 'all'))
+    runs-on: ubuntu-latest
+    outputs:
+      suggestion_count: ${{ steps.review.outputs.suggestion_count }}
+      needs_escalation: ${{ steps.check.outputs.needs_escalation }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
+      - id: review
+        uses: jbcom/control-center/.github/actions/agentic-pr-review@main
+        with:
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          model: ${{ env.OLLAMA_MODEL }}
+          ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
+          ollama_host: ${{ env.OLLAMA_HOST }}
+          jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      - id: check
+        env: { GH_TOKEN: '${{ secrets.CI_GITHUB_TOKEN }}' }
+        run: |
+          SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
+          ADDITIONS=$(gh pr view ${{ env.TARGET_PR }} --repo ${{ env.TARGET_REPO }} --json additions --jq '.additions')
+          if [[ "$SUGGESTIONS" -gt 5 ]] || [[ "$ADDITIONS" -gt 500 ]] || [[ -z "$SUGGESTIONS" ]]; then
+            echo "needs_escalation=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_escalation=false" >> $GITHUB_OUTPUT
+          fi
+
+  review_claude:
+    name: 🧐 Review - Claude
+    needs: review_ollama
+    if: |
+      always() && (
+        needs.review_ollama.outputs.needs_escalation == 'true' ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'review' && github.event.inputs.model_tier == 'claude') ||
+        (github.event_name == 'workflow_call' && inputs.action == 'review' && inputs.model_tier == 'claude')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          direct_prompt: 'Review PR #${{ env.TARGET_PR }} in ${{ env.TARGET_REPO }}. Focus on security, bugs, performance, and error handling.'
+
+  review_jules:
+    name: 🔧 Review - Jules Refactor
+    needs: [review_ollama, review_claude]
+    if: |
+      always() && (
+        (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
+        (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'review' && github.event.inputs.model_tier == 'jules') ||
+        (github.event_name == 'workflow_call' && inputs.action == 'review' && inputs.model_tier == 'jules')
+      )
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for API Key
+        id: check
+        run: |
+          if [[ -z "${{ secrets.GOOGLE_JULES_API_KEY }}" ]]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Create Jules Session
+        if: steps.check.outputs.available == 'true'
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          PR_NUMBER: ${{ env.TARGET_PR }}
+          REPO: ${{ env.TARGET_REPO }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR_DATA=$(gh pr view $PR_NUMBER --repo $REPO --json title,headRefName)
+          PR_TITLE=$(echo "$PR_DATA" | jq -r .title)
+          PR_BRANCH=$(echo "$PR_DATA" | jq -r .headRefName)
+          RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg task "Refactor PR #${PR_NUMBER}: ${PR_TITLE}" \
+              --arg repo "$REPO" \
+              --arg branch "$PR_BRANCH" \
+              '{
+                prompt: $task,
+                sourceContext: {
+                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  githubRepoContext: { startingBranch: $branch }
+                },
+                automationMode: "AUTO_CREATE_PR"
+              }')" 2>/dev/null) || true
+          if [ -n "$RESPONSE" ]; then
+            SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
+            echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+          fi
+      - name: Post Jules Link
+        if: steps.jules.outputs.session_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ env.TARGET_PR }} --repo ${{ env.TARGET_REPO }} --body \
+            "🔧 **Jules refactoring session started**: https://jules.google.com/session/${{ steps.jules.outputs.session_id }}"
+
+  review_claude_interactive:
+    name: 💬 Review - Claude PR Comment
+    if: github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+  # =============================================================================
+  # DELEGATE WORKFLOW
+  # =============================================================================
+  delegate_command:
+    name: 🗣️ Delegate - Jules/Cursor
+    if: |
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delegate' && (contains(github.event.inputs.comment_body, '/jules') || contains(github.event.inputs.comment_body, '/cursor'))) ||
+      (github.event_name == 'workflow_call' && inputs.action == 'delegate' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor')))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jbcom/control-center/.github/actions/agentic-issue-triage@main
+        with:
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          cursor_api_key: ${{ secrets.CURSOR_API_KEY }}
+          comment_body: ${{ env.COMMENT_BODY }}
+          issue_number: ${{ env.TARGET_ISSUE }}
+          repository: ${{ env.TARGET_REPO }}
+          default_branch: ${{ github.event.inputs.default_branch || inputs.default_branch || github.event.repository.default_branch || 'main' }}
+
+  delegate_claude:
+    name: 🗣️ Delegate - Claude Issue
+    if: |
+      (github.event_name == 'issue_comment' && !github.event.issue.pull_request && contains(github.event.comment.body, '@claude')) ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delegate' && contains(github.event.inputs.comment_body, '@claude')) ||
+      (github.event_name == 'workflow_call' && inputs.action == 'delegate' && contains(inputs.comment_body, '@claude'))
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          direct_prompt: |
+            Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
+            Title: ${{ env.ISSUE_TITLE }}
+            Description:
+            ${{ env.ISSUE_BODY }}
+            ---
+            Triggering comment: ${{ env.COMMENT_BODY }}
+            ---
+            Analyze the issue and either:
+            1. Answer the question if it's a question
+            2. Implement a fix if it's a bug
+            3. Implement the feature if it's a feature request
+            Create a PR with your changes.
+
+  # =============================================================================
+  # CURATOR WORKFLOW
+  # =============================================================================
+  curate:
+    name: '🌟 Curate - Nightly Orchestration'
+    if: |
+      (github.event_name == 'schedule' && github.event.schedule == '0 2 * * *') ||
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'curate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - name: Run Curator Script
+        env:
+          CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          OLLAMA_HOST: ${{ env.OLLAMA_HOST }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+          TARGET_ORG: ${{ github.event.inputs.target_org }}
+        run: node scripts/ecosystem-curator.mjs
+      - name: Post Summary
+        if: always()
+        run: |
+          if [ -f curator-report.json ]; then
+            echo "### Ecosystem Curator Summary 🤖" >> $GITHUB_STEP_SUMMARY
+            echo '```json' >> $GITHUB_STEP_SUMMARY
+            cat curator-report.json >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          fi
