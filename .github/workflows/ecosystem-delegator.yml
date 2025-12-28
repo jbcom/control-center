@@ -32,6 +32,11 @@ on:
         description: 'Repository owner/name'
         required: true
         type: string
+      default_branch:
+        description: 'Default branch of the target repository'
+        required: false
+        default: 'main'
+        type: string
     secrets:
       CI_GITHUB_TOKEN:
         required: true
@@ -64,6 +69,10 @@ on:
       repository:
         description: 'Repository'
         required: true
+        type: string
+      default_branch:
+        description: 'Default branch of the target repository'
+        default: 'main'
         type: string
 
 env:

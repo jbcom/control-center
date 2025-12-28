@@ -91,7 +91,8 @@ jobs:
   claude-fallback:
     name: Claude CI Fix
     needs: fix
-    if: always() && needs.fix.outputs.result != 'success'
+    # Only run if the fix job actually ran (not skipped) and didn't succeed
+    if: always() && needs.fix.result != 'skipped' && needs.fix.outputs.result != 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

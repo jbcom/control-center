@@ -24,7 +24,7 @@ on:
         required: true
         type: string
       model_tier:
-        description: 'Model tier to use (ollama, claude, jules)'
+        description: 'Model tier to use (ollama, claude, jules, all)'
         required: false
         default: 'ollama'
         type: string
@@ -50,7 +50,7 @@ on:
         required: true
         type: string
       model_tier:
-        description: 'Model tier (ollama, claude, jules)'
+        description: 'Model tier (ollama, claude, jules, all)'
         default: 'ollama'
         type: string
 
