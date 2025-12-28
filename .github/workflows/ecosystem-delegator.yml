@@ -57,6 +57,7 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
           prompt: |
             Issue #${{ github.event.issue.number }}: ${{ github.event.issue.title }}
             
