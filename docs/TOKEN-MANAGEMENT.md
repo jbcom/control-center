@@ -12,6 +12,19 @@ The control center uses a unified GitHub token for all operations:
 | `GOOGLE_JULES_API_KEY` | Auth for Google Jules sessions |
 | `JULES_GITHUB_TOKEN` | GitHub token for Jules to access repositories |
 | `OLLAMA_API_URL` | URL for Ollama Cloud API (GLM 4.6) |
+| `CURSOR_SESSION_TOKEN` | Session token for Cursor Background Composer API |
+
+## Secret Setup
+
+Due to permission limitations, some secrets must be set manually by a repository administrator:
+
+| Secret | Value/Source |
+|--------|--------------|
+| `JULES_GITHUB_TOKEN` | GitHub PAT with `repo` and `workflow` scopes |
+| `CURSOR_API_KEY` | API key from Cursor Settings |
+| `GOOGLE_JULES_API_KEY` | API key from Google Cloud Console (Jules API) |
+| `OLLAMA_API_URL` | `https://ollama.com/api` |
+| `CURSOR_SESSION_TOKEN` | `WorkosCursorSessionToken` cookie from cursor.com |
 
 ## Configuration
 
