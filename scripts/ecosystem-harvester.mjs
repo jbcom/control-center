@@ -15,8 +15,8 @@
 
 import { writeFileSync } from 'fs';
 
-// Use JULES_GITHUB_TOKEN for cross-org operations, fallback to GITHUB_TOKEN
-const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+// CI_GITHUB_TOKEN is root admin token for all ecosystem operations
+const GITHUB_TOKEN = process.env.CI_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';

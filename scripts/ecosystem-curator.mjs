@@ -13,8 +13,8 @@
 
 import { writeFile } from 'fs/promises';
 
-// Environment - use elevated token for cross-org operations
-const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
+// CI_GITHUB_TOKEN is root admin token for all ecosystem operations
+const GITHUB_TOKEN = process.env.CI_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
