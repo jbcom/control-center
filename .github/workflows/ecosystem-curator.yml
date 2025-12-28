@@ -39,16 +39,15 @@ jobs:
 
       - name: Run Curator Script
         env:
-          GITHUB_TOKEN: ${{ github.token }}
+          CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
           TARGET_ORG: ${{ inputs.target_org }}
-        run: |
-          # Run curator script directly (no npm package dependency)
-          node scripts/ecosystem-curator.mjs
+        run: node scripts/ecosystem-curator.mjs
 
       - name: Post Summary
         if: always()

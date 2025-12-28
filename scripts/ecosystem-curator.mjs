@@ -238,10 +238,35 @@ async function listCursorAgents() {
 }
 
 // ============================================
-// Core Logic
+// Core Logic - Self-Discovery
 // ============================================
+async function discoverOrganizations() {
+  const orgs = [];
+  
+  try {
+    // Get all orgs the token has access to
+    const userOrgs = await ghApi('/user/orgs?per_page=100');
+    for (const org of userOrgs) {
+      orgs.push(org.login);
+    }
+  } catch (e) {
+    console.log(`   Org discovery error: ${e.message}`);
+  }
+  
+  // Also check authenticated user's repos
+  try {
+    const user = await ghApi('/user');
+    if (user.login) orgs.push(user.login);
+  } catch (e) {
+    // App token, not user token
+  }
+  
+  return orgs;
+}
+
 async function discoverRepos() {
-  const orgs = TARGET_ORG ? [TARGET_ORG] : ORGANIZATIONS;
+  // Self-discover orgs unless TARGET_ORG specified
+  const orgs = TARGET_ORG ? [TARGET_ORG] : await discoverOrganizations();
   console.log(`🔍 Discovering repos in: ${orgs.join(', ')}`);
   
   if (TARGET_REPO) {
@@ -256,11 +281,19 @@ async function discoverRepos() {
   let repos = [];
   for (const org of orgs) {
     try {
+      // Try as org first
       const orgRepos = await ghApi(`/orgs/${org}/repos?per_page=100`);
       repos = repos.concat(orgRepos.filter(r => !r.archived));
       console.log(`   ${org}: ${orgRepos.filter(r => !r.archived).length} repos`);
     } catch (e) {
-      stats.errors.push(`${org}: ${e.message}`);
+      // Try as user
+      try {
+        const userRepos = await ghApi(`/users/${org}/repos?per_page=100`);
+        repos = repos.concat(userRepos.filter(r => !r.archived && !r.fork));
+        console.log(`   ${org}: ${userRepos.filter(r => !r.archived && !r.fork).length} repos`);
+      } catch (e2) {
+        stats.errors.push(`${org}: ${e2.message}`);
+      }
     }
   }
   return repos;
@@ -326,17 +359,36 @@ async function triageIssue(repo, issue) {
 async function processPR(repo, pr) {
   console.log(`  🔀 PR #${pr.number}: ${pr.title.substring(0, 50)}`);
   
+  const prAuthor = pr.user?.login || '';
+  const isBotPR = BOT_AUTHORS.some(bot => prAuthor.toLowerCase().includes(bot.toLowerCase()));
+  console.log(`     Author: ${prAuthor} (bot: ${isBotPR})`);
+  
   const [checks, reviews] = await Promise.all([
     ghApi(`/repos/${repo.full_name}/commits/${pr.head.sha}/check-runs`),
     ghApi(`/repos/${repo.full_name}/pulls/${pr.number}/reviews`)
   ]);
   
-  const allPass = checks.check_runs?.every(c => 
+  const allPass = checks.check_runs?.length > 0 && checks.check_runs.every(c => 
     c.status === 'completed' && ['success', 'neutral', 'skipped'].includes(c.conclusion)
   );
   const hasFailure = checks.check_runs?.some(c => c.conclusion === 'failure');
+  const hasInProgress = checks.check_runs?.some(c => c.status === 'in_progress' || c.status === 'queued');
   const isApproved = reviews.some(r => r.state === 'APPROVED');
   const hasChangesRequested = reviews.some(r => r.state === 'CHANGES_REQUESTED');
+  
+  // Skip if checks still running or PR is draft
+  if (hasInProgress || pr.draft) {
+    console.log('     ⏳ Checks running or draft, skipping');
+    stats.prs_processed++;
+    return;
+  }
+  
+  // Skip if blocked
+  if (hasChangesRequested) {
+    console.log('     ❌ Changes requested, skipping');
+    stats.prs_processed++;
+    return;
+  }
   
   if (hasFailure && CURSOR_API_KEY) {
     try {
@@ -349,14 +401,18 @@ async function processPR(repo, pr) {
     } catch (e) {
       console.error(`     Cursor error: ${e.message}`);
     }
-  } else if (allPass && isApproved && !hasChangesRequested && pr.mergeable_state === 'clean') {
+  } else if (allPass && (isBotPR || isApproved) && pr.mergeable !== false) {
+    // AUTO-MERGE: Bot PRs with passing CI OR approved human PRs
     try {
       await ghApi(`/repos/${repo.full_name}/pulls/${pr.number}/merge`, {
         method: 'PUT',
-        body: JSON.stringify({ merge_method: 'squash' })
+        body: JSON.stringify({ 
+          merge_method: 'squash',
+          commit_title: pr.title
+        })
       });
       stats.merged_prs++;
-      console.log('     → Merged!');
+      console.log(`     ✅ Merged! (bot=${isBotPR}, approved=${isApproved})`);
     } catch (e) {
       console.error(`     Merge error: ${e.message}`);
     }
