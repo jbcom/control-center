@@ -1,61 +1,132 @@
 name: Ecosystem Reviewer
 
+# Tiered AI Review Pipeline:
+# 1. Ollama (fast, cheap) → quick review
+# 2. Claude (escalation) → complex PRs or many issues  
+# 3. Jules (refactor) → when code changes needed
+
 on:
   pull_request:
     types: [opened, synchronize, ready_for_review]
+  # Also handle @claude mentions in PR comments
+  issue_comment:
+    types: [created]
 
 env:
   OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
+  issues: write
 
 jobs:
-  review:
-    name: AI Code Review
-    if: github.event.pull_request.draft == false
+  # ============================================
+  # TIER 1: Ollama Quick Review
+  # ============================================
+  ollama-review:
+    name: Ollama Review
+    if: github.event_name == 'pull_request' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     outputs:
       suggestion_count: ${{ steps.review.outputs.suggestion_count }}
+      needs_escalation: ${{ steps.check.outputs.needs_escalation }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          
       - name: Review PR
         id: review
         uses: ./.github/actions/agentic-pr-review
         with:
-          github_token: ${{ github.token }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           model: ${{ env.OLLAMA_MODEL }}
           ollama_api_key: ${{ secrets.OLLAMA_API_KEY }}
           ollama_host: ${{ env.OLLAMA_HOST }}
-          jules_api_key: ${{ secrets.JULES_API_KEY || secrets.GOOGLE_JULES_API_KEY }}
+          jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
 
-  delegate-to-jules:
-    name: Delegate to Jules
-    needs: review
-    if: needs.review.outputs.suggestion_count > 5
+      - name: Check if escalation needed
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
+          ADDITIONS=$(gh pr view ${{ github.event.pull_request.number }} --json additions --jq '.additions')
+          
+          # Escalate if: >5 suggestions OR >500 lines changed OR Ollama failed
+          if [[ "$SUGGESTIONS" -gt 5 ]] || [[ "$ADDITIONS" -gt 500 ]] || [[ -z "$SUGGESTIONS" ]]; then
+            echo "needs_escalation=true" >> $GITHUB_OUTPUT
+          else
+            echo "needs_escalation=false" >> $GITHUB_OUTPUT
+          fi
+
+  # ============================================
+  # TIER 2: Claude Escalation (complex PRs)
+  # ============================================
+  claude-review:
+    name: Claude Review
+    needs: ollama-review
+    if: needs.ollama-review.outputs.needs_escalation == 'true'
+    runs-on: ubuntu-latest
+    outputs:
+      critical_issues: ${{ steps.claude.outputs.critical_issues }}
+    steps:
+      - name: Check API Key
+        id: check-key
+        run: |
+          if [ -n "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "available=true" >> $GITHUB_OUTPUT
+          else
+            echo "available=false" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.check-key.outputs.available == 'true'
+        with:
+          fetch-depth: 0
+
+      - name: Claude Code Review
+        if: steps.check-key.outputs.available == 'true'
+        id: claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          track_progress: true
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
+          prompt: |
+            Review this PR thoroughly. Focus on:
+            - Security issues (tokens, secrets, injection)
+            - Logic errors and bugs
+            - Performance problems
+            - Missing error handling
+            
+            If no critical issues, APPROVE the PR.
+            Post inline comments for specific issues.
+          claude_args: |
+            --allowedTools "Read,Glob,Grep,LS,Bash(git diff:*),Bash(gh:*)"
+
+  # ============================================
+  # TIER 3: Jules Refactor (when code changes needed)
+  # ============================================
+  jules-refactor:
+    name: Jules Refactor
+    needs: [ollama-review, claude-review]
+    if: |
+      always() &&
+      needs.ollama-review.outputs.suggestion_count > 10
     runs-on: ubuntu-latest
     steps:
       - name: Check for API Key
         id: check
-        env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
         run: |
-          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+          if [[ -z "${{ secrets.GOOGLE_JULES_API_KEY }}" ]]; then
             echo "available=false" >> $GITHUB_OUTPUT
           else
             echo "available=true" >> $GITHUB_OUTPUT
           fi
-
-      - name: Acknowledge
-        if: steps.check.outputs.available == 'true'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "🤖 Found ${{ needs.review.outputs.suggestion_count }} suggestions. Delegating to Jules for a more in-depth refactor..."
 
       - name: Create Jules Session
         if: steps.check.outputs.available == 'true'
@@ -64,25 +135,16 @@ jobs:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_TITLE: ${{ github.event.pull_request.title }}
-          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+          REPO: ${{ github.repository }}
         run: |
-          TASK=$(cat <<EOM
-          Refactor pull request #${PR_NUMBER}: $PR_TITLE
-
-          The following is the PR description:
-          $PR_BODY
-
-          The PR has been flagged for having multiple issues. Please perform a comprehensive refactoring.
-          EOM
-          )
-
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "$TASK" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.pull_request.head.sha }}" \
+              --arg task "Refactor PR #${PR_NUMBER}: ${PR_TITLE}" \
+              --arg repo "$REPO" \
+              --arg branch "$PR_BRANCH" \
               '{
                 prompt: $task,
                 sourceContext: {
@@ -90,28 +152,41 @@ jobs:
                   githubRepoContext: { startingBranch: $branch }
                 },
                 automationMode: "AUTO_CREATE_PR"
-              }')")
+              }')" 2>/dev/null) || true
+          
+          if [ -n "$RESPONSE" ]; then
+            SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
+            echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+          fi
 
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
-
-          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
-          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
-
-      - name: Post Session Link
-        if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
+      - name: Post Jules Link
+        if: steps.jules.outputs.session_id != ''
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "## 🤖 Jules Session Created
+          gh pr comment ${{ github.event.pull_request.number }} --body \
+            "🔧 **Jules refactoring session started**: https://jules.google.com/session/${{ steps.jules.outputs.session_id }}"
 
-          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
+  # ============================================
+  # INTERACTIVE: @claude mentions
+  # ============================================
+  claude-interactive:
+    name: Claude Interactive
+    if: |
+      github.event_name == 'issue_comment' && 
+      github.event.issue.pull_request &&
+      contains(github.event.comment.body, '@claude')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-          Jules will analyze the PR and create a new PR with the suggested refactoring."
-
-      - name: Post API Key Missing
-        if: steps.check.outputs.available == 'false'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh pr comment ${{ github.event.pull_request.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+      - name: Run Claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
+          claude_args: |
+            --allowedTools "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(node:*),Bash(npm:*)"
