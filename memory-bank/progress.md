@@ -88,6 +88,16 @@ These repos hit rate limits and need sessions created later:
 | **Jules Sessions Created** | 14 |
 | **Rate Limited** | 5 |
 
+### Follow-up Actions
+
+The creation of these Jules sessions has been noted. Per standard operating procedures outlined in `AGENTS.md`, the ecosystem's automated workflows will now take over:
+- The `ecosystem-harvester` workflow will monitor these sessions for the creation of new Pull Requests.
+- The `ecosystem-reviewer` workflow will manage the review, feedback, and auto-fix cycle for incoming PRs.
+- Rate-limited sessions will be retried at a later time as resources become available.
+- Long-running or complex tasks may be escalated to Cursor Cloud Agents if necessary.
+
+This concludes the manual tracking for issue #428. The process is now under automated management.
+
 ---
 
 ## Session: 2025-12-24 (Secret Standardization & CI fixes)
