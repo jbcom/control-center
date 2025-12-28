@@ -134,12 +134,13 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Run Claude on Issue
-        uses: anthropics/claude-code-action@161409cbadcdd475a4ec92d96b7a52498ffc743f # v1.0.27
+        uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
-          prompt: |
+          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(node:*),Bash(npm:*)"
+          direct_prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
             
             Title: ${{ env.ISSUE_TITLE }}
@@ -159,5 +160,3 @@ jobs:
             3. Implement the feature if it's a feature request
             
             Create a PR with your changes.
-          claude_args: |
-            --allowedTools "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(node:*),Bash(npm:*)"
