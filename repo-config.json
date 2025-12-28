@@ -334,6 +334,7 @@
       ],
       "repo_overrides": {
         "python-agentic-crew": {
+          "_comment": "CNAME for python-agentic-crew",
           "pages": {
             "cname": "crew.agentic.dev"
           }
@@ -392,11 +393,13 @@
       ],
       "repo_overrides": {
         "nodejs-agentic-triage": {
+          "_comment": "CNAME for nodejs-agentic-triage",
           "pages": {
             "cname": "triage.agentic.dev"
           }
         },
         "nodejs-agentic-control": {
+          "_comment": "CNAME for nodejs-agentic-control",
           "pages": {
             "cname": "control.agentic.dev"
           }

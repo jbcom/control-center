@@ -258,23 +258,29 @@ configure_actions() {
   fi
 }
 
+get_cname() {
+  local repo="$1"
+  local ecosystem="$2"
+  jq -r ".ecosystems.${ecosystem}.repo_overrides.${repo}.pages.cname // \"\"" "$CONFIG_FILE"
+}
+
 configure_pages() {
   local repo="$1"
   local ecosystem="$2"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   local pages_enabled
   pages_enabled=$(get_feature 'has_pages' "$ecosystem")
-  
+
   if [[ "$pages_enabled" != "true" ]]; then
     log_verbose "    Pages disabled for this ecosystem"
     return 0
   fi
-  
+
   # Check if pages already exists
   local pages_status
   pages_status=$(gh api "repos/${full_repo}/pages" --jq '.status' 2>/dev/null || echo "none")
-  
+
   if [[ "$pages_status" == "none" ]] || [[ -z "$pages_status" ]]; then
     if [[ "$DRY_RUN" == "true" ]]; then
       log_info "    [DRY RUN] Would enable GitHub Pages (workflow build)"
@@ -292,7 +298,7 @@ configure_pages() {
             path: $path
           }
         }')
-      
+
       if gh api "repos/${full_repo}/pages" -X POST --input - <<< "$pages_payload" >/dev/null 2>&1; then
         log_ok "    GitHub Pages enabled"
       else
@@ -301,11 +307,29 @@ configure_pages() {
     fi
   else
     log_verbose "    Pages already configured (status: $pages_status)"
-    
-    # Ensure HTTPS is enforced
-    if [[ "$(get_pages_setting 'https_enforced')" == "true" ]]; then
-      if [[ "$DRY_RUN" != "true" ]]; then
-        gh api "repos/${full_repo}/pages" -X PUT -f https_enforced=true >/dev/null 2>&1 || true
+  fi
+
+  # Determine if an update to pages settings is needed
+  local cname
+  cname=$(get_cname "$repo" "$ecosystem")
+  local https_enforced
+  https_enforced=$(get_pages_setting 'https_enforced')
+
+  if [[ -n "$cname" || "$https_enforced" == "true" ]]; then
+    # Prepare arguments for the API call
+    local update_args=()
+    [[ -n "$cname" ]] && update_args+=(-f "cname=$cname")
+    [[ "$https_enforced" == "true" ]] && update_args+=(-f "https_enforced=true")
+
+    if [[ "$DRY_RUN" == "true" ]]; then
+      log_info "    [DRY RUN] Would update pages settings:"
+      [[ -n "$cname" ]] && log_info "      - Set CNAME to $cname"
+      [[ "$https_enforced" == "true" ]] && log_info "      - Enforce HTTPS"
+    else
+      if gh api "repos/${full_repo}/pages" -X PUT "${update_args[@]}" >/dev/null 2>&1; then
+        log_ok "    Pages settings updated."
+      else
+        log_warn "    Failed to update pages settings."
       fi
     fi
   fi
