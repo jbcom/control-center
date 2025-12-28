@@ -24,7 +24,7 @@ on:
         type: number
     secrets:
       CI_GITHUB_TOKEN:
-        required: false
+        required: true
         description: 'GitHub token for cross-repository operations'
       OLLAMA_API_KEY:
         required: false
