@@ -21,21 +21,15 @@ const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
-// All managed organizations (from repo-config.json)
-const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library', 'arcade-cabinet'];
-
 // Bot authors that get auto-merge treatment (no human approval needed)
 const BOT_AUTHORS = [
-  'google-labs-jules[bot]',
   'google-labs-jules',
-  'copilot-swe-agent[bot]', 
-  'copilot-swe-agent',
-  'dependabot[bot]',
+  'copilot-swe-agent', 
   'dependabot',
-  'renovate[bot]',
   'renovate',
-  'github-actions[bot]',
-  'github-actions'
+  'github-actions',
+  'cursor',
+  'claude'
 ];
 
 const stats = {
@@ -246,13 +240,54 @@ async function harvestJulesSessions() {
 }
 
 // ============================================================================
+// Self-Discovery: Find all orgs and repos the token can access
+// ============================================================================
+
+async function discoverOrganizations() {
+  console.log('\n🔍 Discovering organizations...');
+  const orgs = [];
+  
+  try {
+    // Get all orgs the authenticated user/app has access to
+    const userOrgs = await ghApi('/user/orgs?per_page=100');
+    for (const org of userOrgs) {
+      orgs.push(org.login);
+      console.log(`   Found org: ${org.login}`);
+    }
+  } catch (e) {
+    console.log(`   Error discovering orgs: ${e.message}`);
+  }
+  
+  // Also check user's own repos
+  try {
+    const user = await ghApi('/user');
+    if (user.login) {
+      orgs.push(user.login);
+      console.log(`   Found user: ${user.login}`);
+    }
+  } catch (e) {
+    // Token might be app token, not user token
+  }
+  
+  return orgs;
+}
+
+// ============================================================================
 // PR Processing
 // ============================================================================
 
 async function processPRs() {
   console.log('\n📋 Processing Open PRs...');
   
-  for (const org of ORGANIZATIONS) {
+  // Self-discover what we have access to
+  const orgs = await discoverOrganizations();
+  
+  if (orgs.length === 0) {
+    console.log('   ⚠️ No organizations discovered - check token permissions');
+    return;
+  }
+  
+  for (const org of orgs) {
     console.log(`   Scanning ${org}...`);
     try {
       const repos = await ghApi(`/orgs/${org}/repos?per_page=100`);
@@ -265,8 +300,19 @@ async function processPRs() {
         }
       }
     } catch (e) {
-      console.log(`   Error listing PRs for ${org}: ${e.message}`);
-      stats.errors.push(`PR list error for ${org}: ${e.message}`);
+      // Might be a user, not an org
+      try {
+        const repos = await ghApi(`/users/${org}/repos?per_page=100`);
+        for (const repo of repos.filter(r => !r.archived && !r.fork)) {
+          const prs = await ghApi(`/repos/${org}/${repo.name}/pulls?state=open&per_page=50`);
+          for (const pr of prs) {
+            await processPR(org, repo.name, pr);
+          }
+        }
+      } catch (e2) {
+        console.log(`   Error listing PRs for ${org}: ${e2.message}`);
+        stats.errors.push(`PR list error for ${org}: ${e2.message}`);
+      }
     }
   }
 }
