@@ -59,13 +59,14 @@ control-center/
 | `ecosystem-reviewer` | PR events | Per-PR lifecycle: review, feedback, fixes |
 | `ecosystem-fixer` | CI failure | Auto-resolve CI failures |
 | `ecosystem-delegator` | `/jules`, `/cursor` | Delegate issues to AI agents |
+| `jules-completion-handler` | `repository_dispatch` | Handles completion of Jules sessions |
 
 ## Available AI Agents
 
 | Agent | Trigger | Use Case |
 |-------|---------|----------|
 | **Cursor Cloud** | `@cursor` in PR/issue | Long-running tasks, full IDE context |
-| **Google Jules** | `/jules` in issue | Async refactoring, multi-file changes |
+| **Google Jules** | `/jules` in issue, or automatically by `ecosystem-reviewer` if a PR has >5 suggestions | Async refactoring, multi-file changes |
 | **Ollama** | Automatic | Code review, routing, quick fixes |
 | **Gemini** | `/gemini review` | PR quality review |
 | **Amazon Q** | `/q review` | Security review |

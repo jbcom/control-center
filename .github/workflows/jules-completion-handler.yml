@@ -1,0 +1,23 @@
+name: Jules Completion Handler
+
+on:
+  repository_dispatch:
+    types: [jules-session-complete]
+
+jobs:
+  handle-completion:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Completion Comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER=${{ github.event.client_payload.issue_number }}
+          PR_NUMBER=${{ github.event.client_payload.pr_number }}
+          PR_URL=${{ github.event.client_payload.pr_url }}
+
+          if [[ -n "$ISSUE_NUMBER" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "✅ Jules has completed its work. See the new PR: $PR_URL"
+          elif [[ -n "$PR_NUMBER" ]]; then
+            gh pr comment "$PR_NUMBER" --body "✅ Jules has completed its work. See the new PR: $PR_URL"
+          fi

@@ -85,10 +85,12 @@ runs:
               --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
               --arg repo "$REPOSITORY" \
               --arg branch "$DEFAULT_BRANCH" \
+              --arg issue_number "$ISSUE_NUMBER" \
               '{
+                title: ("Jules: Fix issue #" + $issue_number),
                 prompt: $task,
                 sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  source: ("sources/github/" + $repo),
                   githubRepoContext: { startingBranch: $branch }
                 },
                 automationMode: "AUTO_CREATE_PR"

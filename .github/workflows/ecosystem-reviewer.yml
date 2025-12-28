@@ -82,11 +82,13 @@ jobs:
             -d "$(jq -n \
               --arg task "$TASK" \
               --arg repo "${{ github.repository }}" \
-              --arg branch "${{ github.event.pull_request.head.sha }}" \
+              --arg branch "${{ github.head_ref }}" \
+              --arg pr_number "${{ github.event.pull_request.number }}" \
               '{
+                title: ("Jules: Fix PR #" + $pr_number + " issues"),
                 prompt: $task,
                 sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  source: ("sources/github/" + $repo),
                   githubRepoContext: { startingBranch: $branch }
                 },
                 automationMode: "AUTO_CREATE_PR"
