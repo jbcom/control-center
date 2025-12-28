@@ -38,13 +38,15 @@ Defines 4 milestone phases:
 - **M3: Game Integration** - Professor Pixel unification
 - **M4: Ecosystem Maturity** - Polish and documentation
 
-### 2. #395 - Purify agentic-control, create .crew dev layers
-**Repo:** control-center | **Priority:** P0
+### 2. #395 - Purify agentic-control, create .crew dev layers ✅
+**Repo:** control-center | **Priority:** P0 | **Status:** ✅ Complete
 
 Critical architecture decision:
 - agentic-control = PURE control primitives
 - Game AI work moves to `.crew` layers in strata/professor-pixel
 - Unblocks all downstream integration
+
+**Resolution:** Verified that all crew directories were successfully migrated to `strata/.crew` and `professor-pixels-arcade-academy/.crew`. The `agentic-control/python` directory has been deleted, and no lingering references remain. This migration is now complete.
 
 ### 3. #349 - Game Development Ecosystem Integration
 **Repo:** control-center | **Priority:** P1
