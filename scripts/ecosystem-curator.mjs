@@ -26,9 +26,11 @@ const TARGET_ORG = process.env.TARGET_ORG;
 const TARGET_REPO = process.env.TARGET_REPO;
 
 // Bot authors - auto-merge without human approval
+// Case-insensitive matching is used - see processPR()
 const BOT_AUTHORS = [
   'google-labs-jules',
-  'copilot-swe-agent', 
+  'copilot-swe-agent',
+  'Copilot',  // GitHub Copilot workspace agent
   'dependabot',
   'renovate',
   'github-actions',

@@ -22,9 +22,11 @@ const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
 // Bot authors that get auto-merge treatment (no human approval needed)
+// Case-insensitive matching is used - see processPR()
 const BOT_AUTHORS = [
   'google-labs-jules',
-  'copilot-swe-agent', 
+  'copilot-swe-agent',
+  'Copilot',  // GitHub Copilot workspace agent
   'dependabot',
   'renovate',
   'github-actions',
@@ -320,7 +322,8 @@ async function processPRs() {
 async function processPR(owner, repo, pr) {
   stats.prs_reviewed++;
   const prAuthor = pr.user?.login || '';
-  const isBotPR = BOT_AUTHORS.some(bot => prAuthor.includes(bot.replace('[bot]', '')));
+  const prAuthorLower = prAuthor.toLowerCase();
+  const isBotPR = BOT_AUTHORS.some(bot => prAuthorLower.includes(bot.replace('[bot]', '').toLowerCase()));
   
   console.log(`   ${owner}/${repo}#${pr.number}: ${pr.title.substring(0, 50)}...`);
   console.log(`     Author: ${prAuthor} (bot: ${isBotPR})`);
