@@ -4,6 +4,23 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 > **See also:** `AGENTS.md` for comprehensive agent instructions.
 
+## 🤖 AI Agent Commands
+
+Delegate work to AI agents by commenting on issues or PRs:
+
+| Command | Agent | What It Does |
+|---------|-------|--------------|
+| `/jules <task>` | Google Jules | Multi-file refactoring, auto-creates PR |
+| `/cursor <task>` | Cursor Cloud | Long-running autonomous tasks |
+| `@claude <task>` | Claude Code | Analysis, implementation, creates PR |
+| `@sage <question>` | Ollama | Quick answers and explanations |
+
+**Example:** `/jules Add comprehensive input validation to all API endpoints`
+
+> Requires control center workflow integration. See [jbcom/control-center](https://github.com/jbcom/control-center).
+
+---
+
 ## Quick Start
 
 ```bash

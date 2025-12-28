@@ -3,6 +3,26 @@
 > **Repository-specific instructions should be in `.github/copilot-instructions-local.md`**
 > This file provides common patterns. Local instructions take precedence.
 
+## 🤖 AI Agent Commands
+
+Use these commands in issue or PR comments to delegate work:
+
+| Command | Agent | Use For |
+|---------|-------|---------|
+| `/jules <task>` | Google Jules | Multi-file refactoring, auto-creates PR |
+| `/cursor <task>` | Cursor Cloud | Long-running tasks, complex debugging |
+| `@claude <task>` | Claude Code | Deep analysis, implementation, creates PR |
+| `@sage <question>` | Ollama | Quick answers, code explanations |
+
+**Example:**
+```markdown
+/jules Add input validation to the User model following existing patterns
+@claude The tests are failing - please analyze and fix
+@sage How should I handle pagination in this API?
+```
+
+---
+
 ## Before Starting Any Task
 
 1. **Read the issue/PR description completely**
