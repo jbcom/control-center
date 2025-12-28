@@ -20,6 +20,14 @@ on:
         description: 'Issue number'
         required: true
         type: number
+      issue_title:
+        description: 'Issue title'
+        required: false
+        type: string
+      issue_body:
+        description: 'Issue body/description'
+        required: false
+        type: string
       repository:
         description: 'Repository owner/name'
         required: true
@@ -45,6 +53,14 @@ on:
         description: 'Issue number'
         required: true
         type: number
+      issue_title:
+        description: 'Issue title'
+        required: false
+        type: string
+      issue_body:
+        description: 'Issue body/description'
+        required: false
+        type: string
       repository:
         description: 'Repository'
         required: true
@@ -53,6 +69,8 @@ on:
 env:
   TARGET_REPO: ${{ inputs.repository || github.repository }}
   TARGET_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+  ISSUE_TITLE: ${{ inputs.issue_title || github.event.issue.title }}
+  ISSUE_BODY: ${{ inputs.issue_body || github.event.issue.body }}
   COMMENT_BODY: ${{ inputs.comment_body || github.event.comment.body }}
 
 permissions:
@@ -115,12 +133,21 @@ jobs:
           prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
             
+            Title: ${{ env.ISSUE_TITLE }}
+            
+            Description:
+            ${{ env.ISSUE_BODY }}
+            
+            ---
+            
+            Triggering comment: ${{ env.COMMENT_BODY }}
+            
+            ---
+            
             Analyze the issue and either:
             1. Answer the question if it's a question
             2. Implement a fix if it's a bug
             3. Implement the feature if it's a feature request
-            
-            Command: ${{ env.COMMENT_BODY }}
             
             Create a PR with your changes.
           claude_args: |
