@@ -15,13 +15,28 @@
 
 import { writeFileSync } from 'fs';
 
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+// Use JULES_GITHUB_TOKEN for cross-org operations, fallback to GITHUB_TOKEN
+const GITHUB_TOKEN = process.env.JULES_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
-// Managed organizations
-const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
+// All managed organizations (from repo-config.json)
+const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library', 'arcade-cabinet'];
+
+// Bot authors that get auto-merge treatment (no human approval needed)
+const BOT_AUTHORS = [
+  'google-labs-jules[bot]',
+  'google-labs-jules',
+  'copilot-swe-agent[bot]', 
+  'copilot-swe-agent',
+  'dependabot[bot]',
+  'dependabot',
+  'renovate[bot]',
+  'renovate',
+  'github-actions[bot]',
+  'github-actions'
+];
 
 const stats = {
   cursor_composers_checked: 0,
@@ -258,7 +273,11 @@ async function processPRs() {
 
 async function processPR(owner, repo, pr) {
   stats.prs_reviewed++;
+  const prAuthor = pr.user?.login || '';
+  const isBotPR = BOT_AUTHORS.some(bot => prAuthor.includes(bot.replace('[bot]', '')));
+  
   console.log(`   ${owner}/${repo}#${pr.number}: ${pr.title.substring(0, 50)}...`);
+  console.log(`     Author: ${prAuthor} (bot: ${isBotPR})`);
   
   try {
     // Check CI status
@@ -269,34 +288,66 @@ async function processPR(owner, repo, pr) {
         ['success', 'neutral', 'skipped'].includes(c.conclusion)
       );
     
+    const hasFailure = checks.check_runs?.some(c => c.conclusion === 'failure');
+    const hasInProgress = checks.check_runs?.some(c => c.status === 'in_progress' || c.status === 'queued');
+    
     // Check for blocking reviews
     const reviews = await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/reviews`);
     const hasBlocker = reviews.some(r => r.state === 'CHANGES_REQUESTED');
     const isApproved = reviews.some(r => r.state === 'APPROVED');
     
-    // Determine action
-    if (allChecksPass && isApproved && !hasBlocker && pr.mergeable !== false && !pr.draft) {
-      console.log(`     🚀 Ready to merge!`);
+    // Skip if checks still running
+    if (hasInProgress) {
+      console.log(`     ⏳ Checks still running, skipping`);
+      return;
+    }
+    
+    // Skip drafts
+    if (pr.draft) {
+      console.log(`     📝 Draft PR, skipping`);
+      return;
+    }
+    
+    // Skip if blocked by review
+    if (hasBlocker) {
+      console.log(`     ❌ Has CHANGES_REQUESTED, skipping merge`);
+      return;
+    }
+    
+    // AUTO-MERGE: Bot PRs with passing CI (no approval required)
+    // Also merge human PRs that have approval
+    const canMerge = allChecksPass && !hasBlocker && pr.mergeable !== false && !pr.draft;
+    const shouldMerge = canMerge && (isBotPR || isApproved);
+    
+    if (shouldMerge) {
+      console.log(`     🚀 Ready to merge! (bot=${isBotPR}, approved=${isApproved})`);
       if (!DRY_RUN) {
         try {
           await ghApi(`/repos/${owner}/${repo}/pulls/${pr.number}/merge`, {
             method: 'PUT',
-            body: JSON.stringify({ merge_method: 'squash' })
+            body: JSON.stringify({ 
+              merge_method: 'squash',
+              commit_title: pr.title,
+              commit_message: `Merged by Ecosystem Harvester\n\nPR: #${pr.number}\nAuthor: ${prAuthor}`
+            })
           });
           console.log(`     ✅ Merged!`);
           stats.prs_merged++;
         } catch (e) {
           console.log(`     Merge failed: ${e.message}`);
+          stats.errors.push(`Merge ${owner}/${repo}#${pr.number}: ${e.message}`);
         }
       } else {
         console.log(`     [DRY RUN] Would merge`);
       }
-    } else if (allChecksPass && !isApproved && !hasBlocker) {
-      // Request reviews from AI reviewers
-      console.log(`     📝 CI passing, requesting reviews`);
+    } else if (hasFailure) {
+      console.log(`     ❌ CI failed, needs fix`);
+      // Could spawn Cursor agent here to fix CI
+    } else if (allChecksPass && !isApproved && !isBotPR) {
+      // Human PR with passing CI but no approval - request review
+      console.log(`     📝 Human PR, CI passing, requesting reviews`);
       if (!DRY_RUN) {
         try {
-          // Request Gemini review
           await ghApi(`/repos/${owner}/${repo}/issues/${pr.number}/comments`, {
             method: 'POST',
             body: JSON.stringify({ body: '@gemini-code-assist Please review this PR.' })
@@ -306,9 +357,12 @@ async function processPR(owner, repo, pr) {
           // Ignore comment errors
         }
       }
+    } else if (!allChecksPass && !hasFailure && !hasInProgress) {
+      console.log(`     ⚠️ No checks ran or checks incomplete`);
     }
   } catch (e) {
     console.log(`     Error: ${e.message}`);
+    stats.errors.push(`Process ${owner}/${repo}#${pr.number}: ${e.message}`);
   }
 }
 
