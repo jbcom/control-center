@@ -45,6 +45,7 @@ A unified GitHub token is used for all operations:
 | `GOOGLE_JULES_API_KEY` | Google Jules API key (standardized) |
 | `OLLAMA_API_URL` | Ollama Cloud API URL (standardized) |
 | `OLLAMA_API_KEY` | Ollama Cloud API key |
+| `CURSOR_SESSION_TOKEN` | Cursor Background Composer Session Token |
 
 ```bash
 # All repos use the same token - gh CLI auto-uses GITHUB_TOKEN

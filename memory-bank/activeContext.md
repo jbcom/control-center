@@ -1,10 +1,41 @@
 # Active Context - jbcom Control Center
 
-## Current Status: WORKFLOW REPOSITORY AUDIT COMPLETE
+## Current Status: ECOSYSTEM CURATOR SECRETS DOCUMENTED
 
-Ecosystem workflows centralized to control-center only. All repos cleaned up.
+Standardized documentation for Ecosystem Curator secrets and established manual setup protocol due to permission limitations.
 
-### Session: 2025-12-26 (Workflow Repository Audit)
+### Session: 2025-12-28 (Issue #433: Curator Secrets)
+
+#### Completed Steps
+
+1. ✅ **Audited Secret Requirements** for `ecosystem-curator.yml`
+   - Identified missing secrets: `JULES_GITHUB_TOKEN`, `CURSOR_API_KEY`, `GOOGLE_JULES_API_KEY`, `OLLAMA_API_URL`, `CURSOR_SESSION_TOKEN`.
+
+2. ✅ **Updated Documentation**
+   - `docs/TOKEN-MANAGEMENT.md`: Added descriptions and manual setup guide.
+   - `AGENTS.md`: Added secret configuration details.
+   - `CLAUDE.md`: Standardized secret list.
+
+3. ✅ **Enhanced Sync Tooling**
+   - `scripts/sync-secrets`: Added support for `CURSOR_SESSION_TOKEN`.
+
+4. ✅ **Addressed Permission Blockers**
+   - Confirmed `GITHUB_TOKEN` lacks `secrets` scope for `gh` CLI.
+   - Documented manual setup requirements for repository administrators.
+
+#### Final State
+- **Documentation**: Comprehensive guide for token management and secret setup.
+- **Tooling**: Sync scripts ready for all ecosystem secrets.
+- **Workflow**: `ecosystem-curator.yml` added to control-center (via previous agent).
+
+### For Next Agent
+- Verify repository administrators have manually added the required secrets.
+- Run `./scripts/sync-secrets --status` to confirm availability once set.
+- Monitor first run of `ecosystem-curator.yml`.
+
+---
+
+### Previous Session: 2025-12-26 (Workflow Repository Audit)
 
 #### Completed Steps
 
@@ -74,7 +105,7 @@ Ecosystem workflows centralized to control-center only. All repos cleaned up.
 
 5. ✅ **Updated Control Center Workflows**
    - `.github/actions/agentic-pr-review/action.yml` now uses agentic-control@latest
-   - Falls back to direct curl if agentic-control fails
+   - Falls back to direct cursor/curl if agentic-control fails
    - Uses GOOGLE_JULES_API_KEY consistently
 
 #### Known Issues (Pre-existing)

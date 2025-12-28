@@ -96,6 +96,17 @@ ISSUE → Task Router (Ollama) → [Ollama | Jules | Cursor] → PR → AI Revie
 | `${GOOGLE_JULES_API_KEY}` | Jules API (API key auth) |
 | `${JULES_GITHUB_TOKEN}` | Jules GitHub operations |
 | `${OLLAMA_API_KEY}` | Ollama Cloud API |
+| `${CURSOR_SESSION_TOKEN}` | Cursor Background Composer Session Token |
+
+## Secret Setup (Manual)
+
+The following secrets must be configured in the repository settings by an admin:
+
+- **JULES_GITHUB_TOKEN**: PAT with repository access for Jules.
+- **CURSOR_API_KEY**: API key for Cursor Cloud Agent operations.
+- **GOOGLE_JULES_API_KEY**: API key for Google Jules sessions.
+- **OLLAMA_API_URL**: Set to `https://ollama.com/api`.
+- **CURSOR_SESSION_TOKEN**: From `WorkosCursorSessionToken` cookie.
 
 ## Agent Communication
 
