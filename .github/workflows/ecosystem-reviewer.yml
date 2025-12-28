@@ -86,6 +86,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           track_progress: true
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
           prompt: |
             Review this PR thoroughly. Focus on:
             - Security issues (tokens, secrets, injection)
