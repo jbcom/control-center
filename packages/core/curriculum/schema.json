@@ -1,0 +1,89 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel Curriculum Schema",
+  "description": "Defines the structure for the educational content in the Professor Pixel platform.",
+  "type": "object",
+  "properties": {
+    "curriculum": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/year"
+      }
+    }
+  },
+  "definitions": {
+    "year": {
+      "type": "object",
+      "properties": {
+        "year": {
+          "type": "integer",
+          "description": "The academic year, e.g., 1 for the first year."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the year's curriculum, e.g., 'Year 1: Arcade Classics'."
+        },
+        "cartridges": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/cartridge"
+          }
+        }
+      },
+      "required": ["year", "title", "cartridges"]
+    },
+    "cartridge": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the cartridge."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the cartridge, e.g., 'Pong Masterclass'."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief overview of what the cartridge teaches."
+        },
+        "lessons": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/lesson"
+          }
+        }
+      },
+      "required": ["id", "title", "description", "lessons"]
+    },
+    "lesson": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "format": "uuid",
+          "description": "A unique identifier for the lesson."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the lesson."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["concept", "coding", "challenge"],
+          "description": "The type of the lesson."
+        },
+        "content": {
+          "type": "string",
+          "description": "The main content of the lesson, can be markdown."
+        },
+        "xp": {
+          "type": "integer",
+          "description": "Experience points awarded for completing the lesson."
+        }
+      },
+      "required": ["id", "title", "type", "content", "xp"]
+    }
+  }
+}

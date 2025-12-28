@@ -1,0 +1,62 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Professor Pixel User Progress Schema",
+  "description": "Defines the structure for tracking a user's progress, including experience points (XP), levels, and achievements.",
+  "type": "object",
+  "properties": {
+    "userId": {
+      "type": "string",
+      "description": "The unique identifier for the user."
+    },
+    "level": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "The user's current level."
+    },
+    "xp": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "The user's total experience points."
+    },
+    "achievements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/achievement"
+      }
+    },
+    "completedLessons": {
+        "type": "array",
+        "items": {
+            "type": "string",
+            "format": "uuid"
+        },
+        "description": "A list of unique identifiers for completed lessons."
+    }
+  },
+  "required": ["userId", "level", "xp", "achievements", "completedLessons"],
+  "definitions": {
+    "achievement": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "A unique identifier for the achievement, e.g., 'pong-champion'."
+        },
+        "name": {
+          "type": "string",
+          "description": "The display name of the achievement."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of how to earn the achievement."
+        },
+        "dateEarned": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date and time the achievement was earned."
+        }
+      },
+      "required": ["id", "name", "description", "dateEarned"]
+    }
+  }
+}
