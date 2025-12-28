@@ -80,7 +80,7 @@ jobs:
       suggestion_count: ${{ steps.review.outputs.suggestion_count }}
       needs_escalation: ${{ steps.check.outputs.needs_escalation }}
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
@@ -136,7 +136,7 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         if: steps.check-key.outputs.available == 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
@@ -240,7 +240,7 @@ jobs:
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0

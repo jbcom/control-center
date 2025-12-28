@@ -54,7 +54,7 @@ jobs:
     name: 🔍 Validate Configuration
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Validate all configs
         run: |
@@ -75,7 +75,7 @@ jobs:
     needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Create missing repositories
         env:
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event.inputs.sync_type != 'always-only'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Initial file sync (create missing only)
         id: sync
@@ -159,7 +159,7 @@ jobs:
       github.event.inputs.sync_type != 'initial-only' &&
       (needs.phase-1-initial.result == 'success' || needs.phase-1-initial.result == 'skipped')
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Always file sync (overwrite)
         id: sync
@@ -252,7 +252,7 @@ jobs:
     runs-on: ubuntu-latest
     if: always() && github.event.inputs.dry_run != 'true'
     steps:
-      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
 
       - name: Sync issues to projects
         run: ./scripts/sync-projects --verbose
