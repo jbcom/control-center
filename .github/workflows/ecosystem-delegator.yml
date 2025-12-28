@@ -114,7 +114,7 @@ jobs:
           comment_body: ${{ env.COMMENT_BODY }}
           issue_number: ${{ env.TARGET_ISSUE }}
           repository: ${{ env.TARGET_REPO }}
-          default_branch: ${{ github.event.repository.default_branch || 'main' }}
+          default_branch: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}
 
   # ============================================
   # Claude delegation (@claude in issues)

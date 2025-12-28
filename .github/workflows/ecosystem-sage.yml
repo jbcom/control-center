@@ -76,7 +76,7 @@ jobs:
         with:
           repository: ${{ inputs.context_repo || github.repository }}
           fetch-depth: 0  # Full history for context
-          token: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,7 +86,7 @@ jobs:
       - name: Run Sage
         id: sage
         env:
-          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_MODEL: ${{ secrets.OLLAMA_MODEL || 'glm-4.6:cloud' }}
@@ -106,7 +106,7 @@ jobs:
       - name: Post Response
         if: github.event_name == 'issue_comment' || github.event_name == 'pull_request_review_comment'
         env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || github.token }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           if [ -f sage-response.md ]; then
             RESPONSE=$(cat sage-response.md)
