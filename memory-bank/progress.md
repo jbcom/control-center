@@ -187,3 +187,10 @@ These repos hit rate limits and need sessions created later:
 - Ecosystem management CLI (`scripts/ecosystem`)
 - 20 OSS submodules in `ecosystems/oss/`
 - Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
+
+## Session: 2025-12-28
+
+### Completed
+- [x] Identified `actionlint` failure in PR #487 due to untrusted `github.head_ref` in inline script.
+- [x] Fixed script injection vulnerabilities in `.github/workflows/ecosystem-reviewer.yml` and `.github/workflows/jules-issue-automation.yml` by passing context variables through environment variables.
+- [x] Verified workflow files with `actionlint` locally.

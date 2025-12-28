@@ -28,8 +28,9 @@ jobs:
         if: steps.check.outputs.available == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received request to delegate to Jules. Creating session..."
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received request to delegate to Jules. Creating session..."
 
       - name: Get Default Branch
         id: get_branch
@@ -38,7 +39,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
-          DEFAULT_BRANCH=$(gh repo view $REPO --json defaultBranchRef --jq .defaultBranchRef.name)
+          DEFAULT_BRANCH=$(gh repo view "$REPO" --json defaultBranchRef --jq .defaultBranchRef.name)
           echo "branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
 
       - name: Create Jules Session
@@ -49,6 +50,8 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.issue.number }}
           ISSUE_TITLE: ${{ github.event.issue.title }}
           COMMENT_BODY: ${{ github.event.comment.body }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.get_branch.outputs.branch }}
         run: |
           # Extract the prompt after the /jules command
           PROMPT=$(echo "$COMMENT_BODY" | sed 's|/jules||' | xargs)
@@ -66,8 +69,8 @@ jobs:
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --arg task "$TASK" \
-              --arg repo "${{ github.repository }}" \
-              --arg branch "${{ steps.get_branch.outputs.branch }}" \
+              --arg repo "$REPO" \
+              --arg branch "$BRANCH" \
               --arg title "Jules: Address issue #${ISSUE_NUMBER}" \
               '{
                 prompt: $task,
@@ -89,10 +92,12 @@ jobs:
         if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          SESSION_URL: ${{ steps.jules.outputs.session_url }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
+          gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
-          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
+          ➡️ **[Monitor Session]($SESSION_URL)**
 
           Jules will analyze the issue and create a new PR with the suggested fix."
 
@@ -100,5 +105,6 @@ jobs:
         if: steps.check.outputs.available == 'false'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
         run: |
-          gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+          gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."

@@ -105,3 +105,13 @@ Ecosystem workflows centralized to control-center only. All repos cleaned up.
 ---
 
 ## Previous Status: CI FAILURE AUTO-RESOLUTION AND JULES INTEGRATION READY
+
+## Session: 2025-12-28 (Fix CI in PR #487)
+
+### Current Status: CI FIXES APPLIED
+
+Fixed script injection vulnerabilities in GitHub Actions workflows introduced in PR #487.
+
+### For Next Agent
+- Verify that CI passes on PR #487.
+- Merge PR #487 if all checks are green.
