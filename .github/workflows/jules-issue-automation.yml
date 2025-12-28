@@ -1,0 +1,93 @@
+name: Jules Issue Automation
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  delegate-to-jules:
+    name: Delegate to Jules
+    if: "contains(github.event.comment.body, '/jules')"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for API Key
+        id: check
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+        run: |
+          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+            echo "available=false" >> $GITHUB_OUTPUT
+          else
+            echo "available=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Acknowledge
+        if: steps.check.outputs.available == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "🤖 Received '/jules' command. Creating Jules session..."
+
+      - name: Create Jules Session
+        if: steps.check.outputs.available == 'true'
+        id: jules
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          REPOSITORY: ${{ github.repository }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+
+          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
+              --arg repo "$REPOSITORY" \
+              --arg branch "$DEFAULT_BRANCH" \
+              '{
+                prompt: $task,
+                sourceContext: {
+                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  githubRepoContext: { startingBranch: $branch }
+                },
+                automationMode: "AUTO_CREATE_PR"
+              }')")
+
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+
+          echo "session_url=$SESSION_URL" >> $GITHUB_OUTPUT
+          echo "session_id=$SESSION_ID" >> $GITHUB_OUTPUT
+
+      - name: Post Session Link
+        if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "## 🤖 Jules Session Created
+
+          ➡️ **[Monitor Session](${{ steps.jules.outputs.session_url }})**
+
+          Jules will analyze the issue and create a PR."
+
+      - name: Post Failure Comment
+        if: steps.check.outputs.available == 'true' && steps.jules.outputs.session_id == ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "❌ Failed to create Jules session. Please check logs."
+
+      - name: Post API Key Missing
+        if: steps.check.outputs.available == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue comment ${{ github.event.issue.number }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
