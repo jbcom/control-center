@@ -28,7 +28,8 @@ const TARGET_REPO = process.env.TARGET_REPO;
 // Bot authors - auto-merge without human approval
 const BOT_AUTHORS = [
   'google-labs-jules',
-  'copilot-swe-agent', 
+  'copilot-swe-agent',
+  'copilot',  // GitHub Copilot workspace agent
   'dependabot',
   'renovate',
   'github-actions',

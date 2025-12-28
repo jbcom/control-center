@@ -24,7 +24,8 @@ const DRY_RUN = process.env.DRY_RUN === 'true';
 // Bot authors that get auto-merge treatment (no human approval needed)
 const BOT_AUTHORS = [
   'google-labs-jules',
-  'copilot-swe-agent', 
+  'copilot-swe-agent',
+  'copilot',  // GitHub Copilot workspace agent
   'dependabot',
   'renovate',
   'github-actions',
