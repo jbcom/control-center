@@ -70,7 +70,7 @@ jobs:
     outputs:
       result: ${{ steps.agentic.outcome }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: ${{ env.TARGET_REPO }}
           ref: ${{ env.TARGET_BRANCH }}
@@ -95,7 +95,7 @@ jobs:
     if: always() && needs.fix.result != 'skipped' && needs.fix.outputs.result != 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: ${{ env.TARGET_REPO }}
           ref: ${{ env.TARGET_BRANCH }}
@@ -111,7 +111,7 @@ jobs:
           echo "log_file=/tmp/ci_failure.log" >> $GITHUB_OUTPUT
 
       - name: Claude Fix
-        uses: anthropics/claude-code-action@28f83620103c48a57093dcc2837eec89e036bb9f # beta
+        uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}

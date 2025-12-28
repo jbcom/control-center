@@ -80,7 +80,7 @@ jobs:
       suggestion_count: ${{ steps.review.outputs.suggestion_count }}
       needs_escalation: ${{ steps.check.outputs.needs_escalation }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
@@ -136,7 +136,7 @@ jobs:
             echo "available=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         if: steps.check-key.outputs.available == 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
@@ -146,7 +146,7 @@ jobs:
       - name: Claude Code Review
         if: steps.check-key.outputs.available == 'true'
         id: claude
-        uses: anthropics/claude-code-action@28f83620103c48a57093dcc2837eec89e036bb9f # beta
+        uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -240,14 +240,14 @@ jobs:
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Run Claude
-        uses: anthropics/claude-code-action@28f83620103c48a57093dcc2837eec89e036bb9f # beta
+        uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
