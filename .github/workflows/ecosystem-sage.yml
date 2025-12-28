@@ -7,7 +7,7 @@ on:
   pull_request_review_comment:
     types: [created]
   
-  # Can be called by other workflows
+  # Enterprise Reusable Workflow
   workflow_call:
     inputs:
       query:
@@ -22,6 +22,13 @@ on:
         description: 'Issue/PR number for context'
         required: false
         type: number
+    secrets:
+      OLLAMA_API_KEY:
+        required: false
+      GOOGLE_JULES_API_KEY:
+        required: false
+      CURSOR_SESSION_TOKEN:
+        required: false
     outputs:
       response:
         description: 'The Sage response'
@@ -38,6 +45,10 @@ on:
         description: 'Repository for context'
         required: false
         type: string
+      context_issue:
+        description: 'Issue/PR number'
+        required: false
+        type: number
 
 permissions:
   contents: read
@@ -52,21 +63,21 @@ jobs:
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'workflow_call' ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '@sage')) ||
-      (github.event_name == 'issue_comment' && contains(github.event.comment.body, '/sage')) ||
+      (github.event_name == 'issue_comment' && (contains(github.event.comment.body, '@sage') || contains(github.event.comment.body, '/sage'))) ||
       (github.event_name == 'pull_request_review_comment' && contains(github.event.comment.body, '@sage'))
     outputs:
       response: ${{ steps.sage.outputs.response }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4 # v4
+        uses: actions/checkout@v4
         with:
+          repository: ${{ inputs.context_repo || github.repository }}
           fetch-depth: 0  # Full history for context
 
       - name: Setup Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v4
+        uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Run Sage
         id: sage
@@ -80,8 +91,8 @@ jobs:
           # Event context
           EVENT_NAME: ${{ github.event_name }}
           COMMENT_BODY: ${{ github.event.comment.body }}
-          ISSUE_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-          REPO_FULL_NAME: ${{ github.repository }}
+          ISSUE_NUMBER: ${{ inputs.context_issue || github.event.issue.number || github.event.pull_request.number }}
+          REPO_FULL_NAME: ${{ inputs.context_repo || github.repository }}
           # Workflow inputs
           INPUT_QUERY: ${{ inputs.query }}
           INPUT_CONTEXT_REPO: ${{ inputs.context_repo }}
@@ -95,9 +106,12 @@ jobs:
         run: |
           if [ -f sage-response.md ]; then
             RESPONSE=$(cat sage-response.md)
+            ISSUE_NUM=${{ inputs.context_issue || github.event.issue.number || github.event.pull_request.number }}
+            REPO=${{ inputs.context_repo || github.repository }}
+            
             if [ "${{ github.event_name }}" == "issue_comment" ]; then
-              gh issue comment ${{ github.event.issue.number }} --body "$RESPONSE"
+              gh issue comment $ISSUE_NUM --repo $REPO --body "$RESPONSE"
             else
-              gh pr comment ${{ github.event.pull_request.number }} --body "$RESPONSE"
+              gh pr comment $ISSUE_NUM --repo $REPO --body "$RESPONSE"
             fi
           fi
