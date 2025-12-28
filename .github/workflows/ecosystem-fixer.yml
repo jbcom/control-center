@@ -1,5 +1,9 @@
 name: Ecosystem Fixer
 
+# CI Failure Resolution Pipeline:
+# 1. Try agentic-ci-resolution action (Jules/Cursor)
+# 2. Fallback to Claude if that fails
+
 on:
   workflow_run:
     workflows: ["CI", "Build", "Test", "Lint"]
@@ -16,9 +20,17 @@ jobs:
     name: Auto-resolve CI Failures
     if: github.event.workflow_run.conclusion == 'failure'
     runs-on: ubuntu-latest
+    outputs:
+      fixed: ${{ steps.agentic.outputs.fixed }}
     steps:
       - uses: actions/checkout@v4
-      - name: Auto-resolve CI Failure
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+          
+      - name: Agentic CI Resolution
+        id: agentic
+        continue-on-error: true
         uses: ./.github/actions/agentic-ci-resolution
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -26,3 +38,39 @@ jobs:
           workflow_run_id: ${{ github.event.workflow_run.id }}
           branch: ${{ github.event.workflow_run.head_branch }}
           repository: ${{ github.repository }}
+
+  claude-fallback:
+    name: Claude CI Fix
+    needs: fix
+    if: failure() || needs.fix.outputs.fixed != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_branch }}
+          fetch-depth: 0
+
+      - name: Get failure logs
+        id: logs
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          gh run view ${{ github.event.workflow_run.id }} --log-failed > /tmp/ci_failure.log 2>&1 || true
+          echo "log_file=/tmp/ci_failure.log" >> $GITHUB_OUTPUT
+
+      - name: Claude Fix
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          prompt: |
+            Fix the CI failure. The failure log is at /tmp/ci_failure.log
+            
+            1. Read the failure log
+            2. Identify the root cause
+            3. Fix the code
+            4. Commit and push
+            
+            Branch: ${{ github.event.workflow_run.head_branch }}
+          claude_args: |
+            --allowedTools "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(node:*),Bash(npm:*),Bash(cat:*)"
