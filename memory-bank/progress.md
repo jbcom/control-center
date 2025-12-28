@@ -383,3 +383,11 @@ Documentation work was completed directly by bc-fcfe779a instead.
 - [x] Implemented auto-fix spawning logic in orchestrator for failed Jules PRs.
 - [x] Standardized Cursor API calls across `ecosystem-curator.mjs` and orchestrator.
 - [x] Documented all Cursor Cloud Agent API endpoints in `CLAUDE.md`.
+
+## Session: 2025-12-28 (CI Fix for PR #484)
+### Completed
+- [x] Identified checkout authentication failures in PR #484 CI logs.
+- [x] Updated all workflows to use actions/checkout@v4 (11bd71901bbe5b1630ceea73d27597364c9af683).
+- [x] Fixed missing write permissions in ollama-cloud-pr-review.yml.
+- [x] Standardized token fallback in workflows.
+- [x] Committed fixes to the agent branch.

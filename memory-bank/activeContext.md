@@ -58,3 +58,11 @@ The correct Cursor Cloud Agent API endpoints have been discovered and documented
 ## For Next Agent
 - Verify that the orchestrator correctly spawns agents during real failures.
 - Monitor `ecosystem-curator` nightly runs for any authentication issues with the new `Bearer` token format.
+
+## Session: 2025-12-28 (CI Fix for PR #484)
+### Current Status: CI fixed locally and committed.
+Fixed the 'fatal: could not read Username' errors in the Ollama Cloud PR Review workflow by updating the actions/checkout version to a known-good SHA (v4) and correcting job permissions.
+
+### For Next Agent
+- Push the changes to the PR branch (`fix/issue-430`) or ensure they are integrated.
+- Verify that CI now passes for PR #484.
