@@ -187,3 +187,11 @@ These repos hit rate limits and need sessions created later:
 - Ecosystem management CLI (`scripts/ecosystem`)
 - 20 OSS submodules in `ecosystems/oss/`
 - Documentation (`TRIAGE-HUB.md`, `CONTROL-CENTER-ISSUES.md`)
+
+## Session: 2025-12-28 (CI Fix for Jules Integration)
+
+### Completed
+- [x] Fixed actionlint failure in `.github/workflows/ecosystem-delegator.yml` by removing redundant `jules_api_key` input.
+- [x] Resolved "potentially untrusted" script injection warning in `.github/workflows/ollama-cloud-pr-review.yml` by moving `github.event.pull_request.head.ref` to an environment variable.
+- [x] Standardized `jules-issue-automation.yml` to use environment variables for GitHub context.
+- [x] Synced all fixes to `repository-files/always-sync/` to ensure consistency across managed repositories.
