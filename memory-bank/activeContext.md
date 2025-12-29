@@ -4,6 +4,27 @@
 
 Standardized documentation for Ecosystem Curator secrets and established manual setup protocol due to permission limitations.
 
+### Session: 2025-12-29 (Issue #424: Add nodejs-strata-typescript-tutor to ecosystem)
+
+#### Completed Steps
+
+1. ✅ **Updated `repo-config.json`**
+   - Added `nodejs-strata-typescript-tutor` and other missing `nodejs-strata-*` repositories to the `nodejs` ecosystem.
+   - This ensures these repositories receive Dependabot, Ollama review, and Jules integration workflows.
+
+2. ✅ **Updated `repos_list.txt`**
+   - Synchronized the list of tracked repositories.
+
+#### Final State
+- **Config**: All `nodejs-strata` repositories are now part of the `nodejs` ecosystem sync.
+- **Consistency**: `repo-config.json` and `repos_list.txt` are in sync.
+
+#### For Next Agent
+- Monitor the next `repo-sync` run to ensure `nodejs-strata-typescript-tutor` receives the expected configuration and workflows.
+- Verify if any specific `repo_overrides` are needed for the newly added repositories.
+
+---
+
 ### Session: 2025-12-28 (Issue #433: Curator Secrets)
 
 #### Completed Steps
