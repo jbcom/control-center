@@ -34,7 +34,7 @@ Add these secrets to your repository (Settings → Secrets and variables → Act
 
 | Secret | Required | How to Get |
 |--------|----------|------------|
-| `CI_GITHUB_TOKEN` | **Always** | Create PAT with `repo`, `workflow` scopes |
+| `CI_GITHUB_TOKEN` | **Always** | Create PAT with `repo`, `workflow` scopes. **Required for cross-repo triggers.** |
 | `ANTHROPIC_API_KEY` | For Claude | From [console.anthropic.com](https://console.anthropic.com) |
 | `GOOGLE_JULES_API_KEY` | For Jules | From Google Cloud Console |
 | `OLLAMA_API_KEY` | For Ollama | From [ollama.com](https://ollama.com) |

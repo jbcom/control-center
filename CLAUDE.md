@@ -21,7 +21,7 @@ Configure these secrets in your repository (Settings → Secrets → Actions):
 
 | Secret | Required | Purpose |
 |--------|----------|---------|
-| `CI_GITHUB_TOKEN` | **Yes** | PAT with `repo`, `workflow` scopes for cross-repo operations |
+| `CI_GITHUB_TOKEN` | **Yes** | PAT with `repo`, `workflow` scopes. **Required for cross-repo reusable workflow triggers.** |
 | `ANTHROPIC_API_KEY` | For Claude | Claude Code API key |
 | `GOOGLE_JULES_API_KEY` | For Jules | Google Jules API key |
 | `OLLAMA_API_KEY` | For Ollama | Ollama Cloud API key |
