@@ -44,6 +44,12 @@ group:
       jbcom/nodejs-otterfall
       jbcom/nodejs-pixels-pygame-palace
       jbcom/nodejs-rivermarsh
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-examples
+      jbcom/nodejs-strata-presets
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-shaders
+      jbcom/nodejs-strata-typescript-tutor
       jbcom/go-secretsync
       jbcom/rust-cosmic-cults
       jbcom/rust-agentic-game-generator
@@ -102,6 +108,12 @@ group:
       jbcom/nodejs-otterfall
       jbcom/nodejs-pixels-pygame-palace
       jbcom/nodejs-rivermarsh
+      jbcom/nodejs-strata-capacitor-plugin
+      jbcom/nodejs-strata-examples
+      jbcom/nodejs-strata-presets
+      jbcom/nodejs-strata-react-native-plugin
+      jbcom/nodejs-strata-shaders
+      jbcom/nodejs-strata-typescript-tutor
       strata-game-library/core
       strata-game-library/examples
       strata-game-library/shaders
