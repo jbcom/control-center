@@ -35,7 +35,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
-          node-version: '22'
+          node-version: '22' # Use Node.js 22 for latest performance and feature improvements
 
       - name: Run Curator Script
         env:
@@ -43,7 +43,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+          OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           DRY_RUN: ${{ inputs.dry_run }}
           TARGET_ORG: ${{ inputs.target_org }}

@@ -139,7 +139,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
-          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(gh:*),Bash(node:*),Bash(npm:*)"
+          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh pr create),Bash(gh issue view),Bash(node:*),Bash(npm:*)"
           direct_prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
             
