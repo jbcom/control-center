@@ -37,6 +37,8 @@ on:
         required: false
       OLLAMA_API_KEY:
         required: false
+      OLLAMA_API_URL:
+        required: false
 
   # Manual/On-call trigger
   workflow_dispatch:
