@@ -219,17 +219,41 @@ Create a complete, production-ready documentation site.`;
   }
 }
 
+// Check for Jules app installation
+async function checkJulesInstallations() {
+  console.log('Jules Installation Status:');
+
+  for (const org of Object.keys(ORGANIZATIONS)) {
+    try {
+      const { installations = [] } = await ghApi(`/orgs/${org}/installations`);
+      const julesInstalled = installations.some(inst => inst.app_slug === 'google-jules');
+
+      if (julesInstalled) {
+        console.log(`  ✅ ${org}`);
+      } else {
+        console.log(`  ❌ ${org} - Missing`);
+      }
+    } catch (e) {
+      console.log(`  ⚠️ ${org} - Error checking status: ${e.message}`);
+    }
+  }
+
+  console.log(`\nInstall Jules at: https://github.com/apps/google-jules\n`);
+}
+
 async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
   console.log('║              ORGANIZATION INFRASTRUCTURE SETUP                    ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝\n');
   
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}\n`);
-  
+
   if (!GITHUB_TOKEN) {
     console.error('❌ GITHUB_TOKEN required');
     process.exit(1);
   }
+
+  await checkJulesInstallations();
   
   const results = {
     orgs_processed: 0,
