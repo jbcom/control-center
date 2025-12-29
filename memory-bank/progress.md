@@ -1,5 +1,25 @@
 # Session Progress Log
 
+## Session: 2025-12-29 (Issue #424: Ecosystem Sync)
+
+### What Was Done
+
+1. **Updated `repo-config.json`**
+   - Added `nodejs-strata-typescript-tutor` to the `nodejs` ecosystem.
+   - Also added `nodejs-strata`, `nodejs-strata-capacitor-plugin`, `nodejs-strata-examples`, `nodejs-strata-presets`, `nodejs-strata-react-native-plugin`, and `nodejs-strata-headers` to the `nodejs` ecosystem for consistency with documentation and user expectations.
+
+2. **Updated `repos_list.txt`**
+   - Added the same set of `nodejs-strata-*` repositories to the tracked list.
+
+3. **Fixed Workflow Lint Errors**
+   - Resolved `actionlint` errors in `ecosystem-sage.yml` and `ecosystem-reviewer.yml` by adding missing `OLLAMA_API_URL` secret to `workflow_call` declarations.
+
+### Final State
+- Repository configuration is now complete for the Strata Node.js ecosystem in the primary organization.
+- CI health improved by addressing workflow linting errors.
+
+---
+
 ## Session: 2025-12-26 (Ecosystem Management & PR Consolidation)
 
 ### What Was Done
