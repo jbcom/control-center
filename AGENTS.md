@@ -211,6 +211,7 @@ control-center/
 | `ecosystem-reviewer` | PR events | Per-PR lifecycle: review, feedback, fixes |
 | `ecosystem-fixer` | CI failure | Auto-resolve CI failures |
 | `ecosystem-delegator` | `/jules`, `/cursor` | Delegate issues to AI agents |
+| `jules-completion-handler` | Webhook | Posts Jules session results to PRs/issues |
 
 ## Available AI Agents
 
