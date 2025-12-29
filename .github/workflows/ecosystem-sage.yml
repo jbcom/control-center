@@ -28,6 +28,8 @@ on:
         description: 'GitHub token for cross-repository operations'
       OLLAMA_API_KEY:
         required: false
+      OLLAMA_API_URL:
+        required: false
       GOOGLE_JULES_API_KEY:
         required: false
       CURSOR_SESSION_TOKEN:
