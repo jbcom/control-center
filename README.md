@@ -24,6 +24,10 @@ This repository has been archived. All functionality has been migrated to:
 
 A new standard for allocating dedicated domains to project ecosystems has been documented. See [`docs/DOMAIN-STANDARD.md`](docs/DOMAIN-STANDARD.md) for the full standard.
 
+## Ecosystem Roadmap
+
+A balanced roadmap ensures all ecosystem areas get appropriate attention. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full roadmap.
+
 The `repo-config.json` schema has been updated to support an optional `domain` property for each ecosystem, and a new `docs.yml` workflow is available to automate documentation deployment with GitHub Pages.
 
 ## Historical Reference
