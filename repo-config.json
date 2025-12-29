@@ -274,13 +274,14 @@
     ]
   },
   "repository_descriptions": {
+    "strata-game-library/audio-synth": "Procedural audio synthesis for Strata 3D using Tone.js - SFX, music, and ambient sound generation",
+    "strata-game-library/capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
     "strata-game-library/core": "Procedural 3D graphics library for React Three Fiber - terrain, water, vegetation, sky, volumetrics",
     "strata-game-library/examples": "Example applications for Strata 3D - terrain, water, vegetation, sky, and volumetrics demos",
-    "strata-game-library/shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
     "strata-game-library/presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
-    "strata-game-library/typescript-tutor": "Professor Pixels educational game platform - interactive lessons for learning game development",
-    "strata-game-library/capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
     "strata-game-library/react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
+    "strata-game-library/shaders": "GLSL shader collection for Strata 3D - terrain, water, clouds, volumetric effects",
+    "strata-game-library/typescript-tutor": "Professor Pixels educational game platform - interactive lessons for learning game development",
     "arcade-cabinet/otter-river-rush": "High-performance 3D infinite runner game built with React Three Fiber and Miniplex ECS"
   },
   "domains": {
@@ -530,13 +531,14 @@
         ]
       },
       "repos": [
+        "audio-synth",
+        "capacitor-plugin",
         "core",
         "examples",
-        "shaders",
         "presets",
-        "typescript-tutor",
-        "capacitor-plugin",
-        "react-native-plugin"
+        "react-native-plugin",
+        "shaders",
+        "typescript-tutor"
       ]
     },
     "agentic": {
