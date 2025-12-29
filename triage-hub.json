@@ -120,7 +120,7 @@
             "nodejs-rivermarsh",
             "nodejs-otter-river-rush"
           ],
-          "npm_name": "@jbcom/strata",
+          "npm_name": "@strata/core",
           "doc_url": "https://strata.game/docs"
         },
         "nodejs-strata-shaders": {
