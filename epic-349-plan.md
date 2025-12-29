@@ -89,7 +89,7 @@ With **strata** launching as a procedural 3D graphics library and **agentic-crew
 
 ## Tracking
 
-- [ ] strata npm release
+- [x] strata npm release
 - [ ] agentic-crew PyPI release
 - [ ] rivermarsh strata integration (#2)
 - [ ] rivermarsh agentic-crew integration (#1)
