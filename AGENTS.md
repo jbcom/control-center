@@ -7,6 +7,7 @@
 - Ecosystem file synchronization
 - AI agent fleet management
 - Multi-organization infrastructure
+- **Reusable AI-powered workflows** callable from any repository
 
 ## Quick Start
 
@@ -18,6 +19,157 @@ cat memory-bank/activeContext.md
 gh pr list --state open
 gh issue list --state open
 ```
+
+---
+
+## 🚀 Using Control Center from Other Repositories
+
+Any repository can leverage the control center's AI capabilities by:
+1. **Calling reusable workflows** via `workflow_call`
+2. **Using AI triggers** in issue/PR comments
+
+### Step 1: Configure Required Secrets
+
+Add these secrets to your repository (Settings → Secrets and variables → Actions):
+
+| Secret | Required | How to Get |
+|--------|----------|------------|
+| `CI_GITHUB_TOKEN` | **Always** | Create PAT with `repo`, `workflow` scopes. **Required for cross-repo triggers.** |
+| `ANTHROPIC_API_KEY` | For Claude | From [console.anthropic.com](https://console.anthropic.com) |
+| `GOOGLE_JULES_API_KEY` | For Jules | From Google Cloud Console |
+| `OLLAMA_API_KEY` | For Ollama | From [ollama.com](https://ollama.com) |
+| `CURSOR_API_KEY` | For Cursor | From Cursor dashboard |
+
+### Step 2: Create Workflow Files
+
+Create these files in your repository's `.github/workflows/` directory:
+
+#### AI-Powered PR Review (`ai-review.yml`)
+```yaml
+name: AI Review
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+jobs:
+  review:
+    uses: jbcom/control-center/.github/workflows/ecosystem-reviewer.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      repository: ${{ github.repository }}
+      model_tier: 'ollama'  # ollama (fast), claude (thorough), jules (refactor), all
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+```
+
+#### Auto-Fix CI Failures (`ci-fixer.yml`)
+```yaml
+name: CI Fixer
+on:
+  workflow_run:
+    workflows: ["CI", "Build", "Test", "Lint"]
+    types: [completed]
+    branches-ignore: [main]
+
+jobs:
+  fix:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: jbcom/control-center/.github/workflows/ecosystem-fixer.yml@main
+    with:
+      run_id: ${{ github.event.workflow_run.id }}
+      repository: ${{ github.repository }}
+      branch: ${{ github.event.workflow_run.head_branch }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### AI Issue Delegation (`delegate.yml`)
+```yaml
+name: AI Delegation
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  delegate:
+    if: |
+      github.event.issue.pull_request == null &&
+      (contains(github.event.comment.body, '/jules') ||
+       contains(github.event.comment.body, '/cursor') ||
+       contains(github.event.comment.body, '@claude'))
+    uses: jbcom/control-center/.github/workflows/ecosystem-delegator.yml@main
+    with:
+      comment_body: ${{ github.event.comment.body }}
+      issue_number: ${{ github.event.issue.number }}
+      issue_title: ${{ github.event.issue.title }}
+      issue_body: ${{ github.event.issue.body }}
+      repository: ${{ github.repository }}
+      default_branch: ${{ github.event.repository.default_branch }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### Sage Q&A Advisor (`sage.yml`)
+```yaml
+name: Sage Advisor
+on:
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+jobs:
+  sage:
+    if: |
+      contains(github.event.comment.body, '@sage') ||
+      contains(github.event.comment.body, '/sage')
+    uses: jbcom/control-center/.github/workflows/ecosystem-sage.yml@main
+    with:
+      query: ${{ github.event.comment.body }}
+      context_repo: ${{ github.repository }}
+      context_issue: ${{ github.event.issue.number || github.event.pull_request.number }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+```
+
+### Step 3: Use AI Triggers
+
+Once configured, use these commands in issue or PR comments:
+
+| Command | Agent | What It Does |
+|---------|-------|--------------|
+| `/jules Implement feature X` | Google Jules | Creates a PR with the implementation |
+| `/cursor Fix the failing tests` | Cursor Cloud | Long-running fix with IDE context |
+| `@claude Analyze this bug` | Claude Code | Deep analysis, implements fix, creates PR |
+| `@sage How do I...?` | Ollama | Quick answer posted as comment |
+| `/sage Explain this code` | Ollama | Code explanation posted as comment |
+
+### Example Usage
+
+```markdown
+<!-- In an issue comment -->
+/jules Please add input validation to the User model.
+Check the existing patterns in models/base.py.
+
+<!-- In a PR comment -->
+@claude The tests are failing. Please analyze the error
+and fix the root cause.
+
+<!-- Quick question -->
+@sage What's the best way to handle async errors in this codebase?
+```
+
+---
 
 ## Ecosystem Scope
 

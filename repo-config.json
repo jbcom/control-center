@@ -280,7 +280,8 @@
     "strata-game-library/presets": "Preset configurations for Strata 3D - ready-to-use terrain, water, sky, and effect presets",
     "strata-game-library/typescript-tutor": "Professor Pixels educational game platform - interactive lessons for learning game development",
     "strata-game-library/capacitor-plugin": "Capacitor plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
-    "strata-game-library/react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games"
+    "strata-game-library/react-native-plugin": "React Native plugin for Strata 3D - cross-platform input, device detection, and haptics for mobile games",
+    "arcade-cabinet/otter-river-rush": "High-performance 3D infinite runner game built with React Three Fiber and Miniplex ECS"
   },
   "domains": {
     "strata.game": {
@@ -579,14 +580,15 @@
       "files": {
         "always": [
           "always-sync",
-          "python"
+          "nodejs"
         ],
         "initial": [
           "initial-only"
         ]
       },
       "repos": [
-        "rivers-of-reckoning"
+        "rivers-of-reckoning",
+        "otter-river-rush"
       ]
     }
   },

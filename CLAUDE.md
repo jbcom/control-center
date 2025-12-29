@@ -7,6 +7,139 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 jbcom Control Center is a unified hub that:
 1. **Manages all repository configuration** via shell scripts + gh CLI
 2. **Syncs files** to all managed repos (Cursor rules, workflows, etc.)
+3. **Provides reusable AI-powered workflows** that any repo can call
+
+---
+
+## 🚀 Using Control Center Workflows from Other Repos
+
+Any repository can leverage the control center's AI-powered workflows by calling them as reusable workflows.
+
+### Required Secrets
+
+Configure these secrets in your repository (Settings → Secrets → Actions):
+
+| Secret | Required | Purpose |
+|--------|----------|---------|
+| `CI_GITHUB_TOKEN` | **Yes** | PAT with `repo`, `workflow` scopes. **Required for cross-repo reusable workflow triggers.** |
+| `ANTHROPIC_API_KEY` | For Claude | Claude Code API key |
+| `GOOGLE_JULES_API_KEY` | For Jules | Google Jules API key |
+| `OLLAMA_API_KEY` | For Ollama | Ollama Cloud API key |
+| `CURSOR_API_KEY` | For Cursor | Cursor Cloud Agent API key |
+
+### Available Reusable Workflows
+
+#### 1. Ecosystem Reviewer (AI PR Review)
+
+```yaml
+# .github/workflows/ai-review.yml
+name: AI Review
+on:
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  review:
+    uses: jbcom/control-center/.github/workflows/ecosystem-reviewer.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      repository: ${{ github.repository }}
+      model_tier: 'ollama'  # Options: ollama, claude, jules, all
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+```
+
+#### 2. Ecosystem Fixer (Auto-fix CI Failures)
+
+```yaml
+# .github/workflows/ci-fixer.yml
+name: CI Fixer
+on:
+  workflow_run:
+    workflows: ["CI", "Build", "Test"]
+    types: [completed]
+
+jobs:
+  fix:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: jbcom/control-center/.github/workflows/ecosystem-fixer.yml@main
+    with:
+      run_id: ${{ github.event.workflow_run.id }}
+      repository: ${{ github.repository }}
+      branch: ${{ github.event.workflow_run.head_branch }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### 3. Ecosystem Delegator (Issue → AI Agent)
+
+```yaml
+# .github/workflows/delegate.yml
+name: AI Delegation
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  delegate:
+    if: |
+      contains(github.event.comment.body, '/jules') ||
+      contains(github.event.comment.body, '/cursor') ||
+      contains(github.event.comment.body, '@claude')
+    uses: jbcom/control-center/.github/workflows/ecosystem-delegator.yml@main
+    with:
+      comment_body: ${{ github.event.comment.body }}
+      issue_number: ${{ github.event.issue.number }}
+      issue_title: ${{ github.event.issue.title }}
+      issue_body: ${{ github.event.issue.body }}
+      repository: ${{ github.repository }}
+      default_branch: ${{ github.event.repository.default_branch }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+```
+
+#### 4. Ecosystem Sage (AI Q&A Advisor)
+
+```yaml
+# .github/workflows/sage.yml
+name: Sage Advisor
+on:
+  issue_comment:
+    types: [created]
+
+jobs:
+  sage:
+    if: contains(github.event.comment.body, '@sage') || contains(github.event.comment.body, '/sage')
+    uses: jbcom/control-center/.github/workflows/ecosystem-sage.yml@main
+    with:
+      query: ${{ github.event.comment.body }}
+      context_repo: ${{ github.repository }}
+      context_issue: ${{ github.event.issue.number }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+      GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+```
+
+### AI Agent Triggers (in Issues/PRs)
+
+| Trigger | Agent | Description |
+|---------|-------|-------------|
+| `/jules <task>` | Google Jules | Multi-file refactoring, creates PR automatically |
+| `/cursor <task>` | Cursor Cloud | Long-running tasks with full IDE context |
+| `@claude <task>` | Claude Code | Complex reasoning, implements and creates PR |
+| `@sage <question>` | Ollama | Quick answers, task decomposition |
+| `/sage <question>` | Ollama | Same as @sage |
+
+---
 
 ## Structure
 

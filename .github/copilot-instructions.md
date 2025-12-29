@@ -1,10 +1,37 @@
 # Copilot Instructions - jbcom Control Center
 
-This repo is a **centralized hub** for managing 20+ GitHub repositories across multiple ecosystems (Python, Node.js, Go, Terraform). Before any task, understand the two core workflows below.
+This repo is a **centralized hub** for managing 20+ GitHub repositories across multiple ecosystems (Python, Node.js, Go, Terraform). Before any task, understand the core systems below.
+
+## 🚀 Reusable AI Workflows (for Other Repos)
+
+This control center provides reusable workflows that any repository can call:
+
+| Workflow | Purpose | Trigger |
+|----------|---------|---------|
+| `ecosystem-reviewer.yml` | AI-powered PR review | `workflow_call` |
+| `ecosystem-fixer.yml` | Auto-fix CI failures | `workflow_call` |
+| `ecosystem-delegator.yml` | Delegate issues to AI agents | `workflow_call` |
+| `ecosystem-sage.yml` | AI Q&A advisor | `workflow_call` |
+
+**Usage from other repos:**
+```yaml
+jobs:
+  review:
+    uses: jbcom/control-center/.github/workflows/ecosystem-reviewer.yml@main
+    with:
+      pr_number: ${{ github.event.pull_request.number }}
+      repository: ${{ github.repository }}
+    secrets:
+      CI_GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+```
+
+See `CLAUDE.md` and `AGENTS.md` for complete integration documentation.
+
+---
 
 ## Architecture: Repository Management Hub
 
-**Three interconnected systems:**
+**Four interconnected systems:**
 
 1. **Configuration Layer** (`repo-config.json`, `agentic.config.json`)
    - Single source of truth for all managed repo settings
@@ -19,6 +46,11 @@ This repo is a **centralized hub** for managing 20+ GitHub repositories across m
 3. **CLI Tools** (`scripts/ecosystem`, `scripts/configure-repos`, `scripts/sync-files`)
    - Local preview/validation before sync
    - Direct repo configuration via `gh` CLI
+
+4. **AI Ecosystem Workflows** (`.github/workflows/ecosystem-*.yml`)
+   - Reusable workflows for AI-powered development
+   - Called by other repos via `workflow_call`
+   - Centralized AI agent orchestration
 
 ## Before Starting: The Session Protocol
 

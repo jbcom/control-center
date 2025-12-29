@@ -2,6 +2,29 @@
 
 Comprehensive instructions for AI agents working with this repository.
 
+## 🤖 AI Agent Commands
+
+Use these commands in issue or PR comments to delegate work to AI agents:
+
+| Command | Agent | Description |
+|---------|-------|-------------|
+| `/jules <task>` | Google Jules | Multi-file refactoring, auto-creates PR |
+| `/cursor <task>` | Cursor Cloud | Long-running tasks with full IDE context |
+| `@claude <task>` | Claude Code | Deep analysis, implements and creates PR |
+| `@sage <question>` | Ollama | Quick answers, code explanations |
+
+**Examples:**
+```markdown
+/jules Refactor the authentication module to use OAuth2
+@claude Fix the failing integration tests and explain the root cause
+@sage What's the best pattern for error handling in this codebase?
+```
+
+> **Note:** These commands require the repository to have the control center workflows configured.
+> See [jbcom/control-center](https://github.com/jbcom/control-center) for setup instructions.
+
+---
+
 ## Agent Types
 
 | Agent | Best For | Context File |
