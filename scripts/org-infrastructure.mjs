@@ -248,12 +248,12 @@ async function main() {
   
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}\n`);
 
-  await checkJulesInstallations();
-  
   if (!GITHUB_TOKEN) {
     console.error('❌ GITHUB_TOKEN required');
     process.exit(1);
   }
+
+  await checkJulesInstallations();
   
   const results = {
     orgs_processed: 0,
