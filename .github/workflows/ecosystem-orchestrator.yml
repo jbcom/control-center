@@ -71,6 +71,8 @@ on:
         required: false
       OLLAMA_API_KEY:
         required: false
+      OLLAMA_API_URL:
+        required: false
       CURSOR_API_KEY:
         required: false
 
@@ -124,7 +126,7 @@ env:
   ISSUE_TITLE: ${{ github.event.inputs.issue_title || inputs.issue_title || github.event.issue.title }}
   ISSUE_BODY: ${{ github.event.inputs.issue_body || inputs.issue_body || github.event.issue.body }}
   COMMENT_BODY: ${{ github.event.inputs.comment_body || inputs.comment_body || github.event.comment.body }}
-  MODEL_TIER: ${{ github.event.inputs.model_tier || inputs.model_tier || 'ollama' }}
+  MODEL_TIER: ${{ inputs.model_tier || 'ollama' }}
 
   # Standard Ollama config
   OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
@@ -188,11 +190,9 @@ jobs:
     name: Review (Claude)
     needs: review_ollama
     if: |
-      secrets.ANTHROPIC_API_KEY != '' && (
-        always() && (
-          needs.review_ollama.outputs.needs_escalation == 'true' ||
-          env.MODEL_TIER == 'claude'
-        )
+      always() && (
+        needs.review_ollama.outputs.needs_escalation == 'true' ||
+        inputs.model_tier == 'claude'
       )
     runs-on: ubuntu-latest
     steps:
@@ -219,11 +219,9 @@ jobs:
     name: Refactor (Jules)
     needs: review_ollama
     if: |
-      secrets.GOOGLE_JULES_API_KEY != '' && (
-        always() && (
-          (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
-          env.MODEL_TIER == 'jules'
-        )
+      always() && (
+        (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
+        inputs.model_tier == 'jules'
       )
     runs-on: ubuntu-latest
     steps:
@@ -269,9 +267,9 @@ jobs:
   delegate_jules_cursor:
     name: Delegate (Jules/Cursor)
     if: |
-      (github.event_name == 'issue_comment' && (contains(env.COMMENT_BODY, '/jules') || contains(env.COMMENT_BODY, '/cursor'))) ||
+      (github.event_name == 'issue_comment' && (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor'))) ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor')))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delegate' && (contains(github.event.inputs.comment_body, '/jules') || contains(github.event.inputs.comment_body, '/cursor')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -296,9 +294,9 @@ jobs:
   delegate_claude_issue:
     name: Delegate (Claude Issue)
     if: |
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request == null && contains(env.COMMENT_BODY, '@claude')) ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request == null && contains(github.event.comment.body, '@claude')) ||
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && contains(inputs.comment_body, '@claude')) ||
-      (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate' && contains(inputs.comment_body, '@claude'))
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'delegate' && contains(github.event.inputs.comment_body, '@claude'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -340,7 +338,7 @@ jobs:
   delegate_claude_pr:
     name: Delegate (Claude PR)
     if: |
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(env.COMMENT_BODY, '@claude'))
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request != null && contains(github.event.comment.body, '@claude'))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
