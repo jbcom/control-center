@@ -77,3 +77,16 @@ curl -X POST 'https://api.cursor.com/agents/launch' \
 4.  **Review Feedback**: The supervisor addresses any feedback or comments on the PR.
 5.  **Merge**: Once all checks pass and feedback is addressed, the supervisor merges the PR.
 6.  **Task Delegation**: For complex issues, the supervisor can spawn sub-agents to handle specific tasks.
+
+## Implementation Status
+
+- [x] Created orchestrator script
+- [ ] Add to agentic-control as proper module
+- [ ] Create GitHub Action wrapper
+- [ ] Add to control-center sync
+
+## Related
+
+- #422 (Unified Orchestrator EPIC)
+- #427 (@agentic packages EPIC)
+- #428 (Bulk delegation tracking)
