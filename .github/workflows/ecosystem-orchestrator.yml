@@ -10,6 +10,7 @@ on:
       - 'repo-config.json'
       - '.github/sync-always.yml'
       - '.github/sync-initial.yml'
+      - 'branch-rulesets/**'
   pull_request:
     types: [opened, synchronize, ready_for_review]
   issue_comment:
@@ -142,7 +143,7 @@ env:
   ISSUE_TITLE: ${{ github.event.inputs.issue_title || inputs.issue_title || github.event.issue.title }}
   ISSUE_BODY: ${{ github.event.inputs.issue_body || inputs.issue_body || github.event.issue.body }}
 
-  OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 jobs:
@@ -157,7 +158,7 @@ jobs:
       (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: |
           ./scripts/validate-config
           ./scripts/check-symlinks
@@ -166,14 +167,14 @@ jobs:
     name: 🆕 Sync - Create Repos
     needs: sync_validate
     if: |
-      always() && (
+      always() && needs.sync_validate.result == 'success' && (
         github.event_name == 'push' ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
       )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - name: Create missing repositories
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
@@ -188,52 +189,62 @@ jobs:
     name: 📦 Sync - Initial Files
     needs: sync_create_repos
     if: |
-      always() && (
+      always() && needs.sync_create_repos.result == 'success' && (
         github.event_name == 'push' ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
       ) && github.event.inputs.sync_type != 'always-only'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: BetaHuhn/repo-file-sync-action@v1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        env:
+          GIT_LFS_SKIP_SMUDGE: "1"
         with:
           GH_PAT: ${{ secrets.JBCOM_TOKEN }}
           CONFIG_PATH: .github/sync-initial.yml
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
           SKIP_PR: true
+          COMMIT_PREFIX: "chore(sync): "
+          GIT_EMAIL: "bot@agentic.dev"
+          GIT_USERNAME: "agentic-bot"
 
   sync_always:
     name: 🔄 Sync - Always Sync Files
     needs: sync_initial
     if: |
-      always() && (
+      always() && needs.sync_initial.result == 'success' && (
         github.event_name == 'push' ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
       ) && github.event.inputs.sync_type != 'initial-only'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: BetaHuhn/repo-file-sync-action@v1
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619
+        env:
+          GIT_LFS_SKIP_SMUDGE: "1"
         with:
           GH_PAT: ${{ secrets.JBCOM_TOKEN }}
           CONFIG_PATH: .github/sync-always.yml
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
           SKIP_PR: true
+          COMMIT_PREFIX: "chore(sync): "
+          GIT_EMAIL: "bot@agentic.dev"
+          GIT_USERNAME: "agentic-bot"
 
   sync_projects:
     name: 📋 Sync - GitHub Projects
     needs: sync_always
     if: |
-      always() && (
+      always() && needs.sync_always.result == 'success' && (
         github.event_name == 'push' ||
         (github.event_name == 'schedule' && github.event.schedule == '0 3 * * *') ||
         (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'sync')
       ) && github.event.inputs.dry_run != 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       - run: ./scripts/sync-projects --verbose
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
@@ -252,7 +263,7 @@ jobs:
       suggestion_count: ${{ steps.review.outputs.suggestion_count }}
       needs_escalation: ${{ steps.check.outputs.needs_escalation }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
       - id: review
         uses: jbcom/control-center/.github/actions/agentic-pr-review@main
@@ -284,12 +295,14 @@ jobs:
       )
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
-      - uses: anthropics/claude-code-action@beta
+      - uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
+          allowed_tools: "Read,Glob,Grep,LS,Bash(git diff),Bash(gh pr view),Bash(gh pr list),Bash(gh issue view)"
           direct_prompt: 'Review PR #${{ env.TARGET_PR }} in ${{ env.TARGET_REPO }}. Focus on security, bugs, performance, and error handling.'
 
   review_jules:
@@ -355,12 +368,14 @@ jobs:
     if: github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with: { repository: '${{ env.TARGET_REPO }}', fetch-depth: 0, token: '${{ secrets.CI_GITHUB_TOKEN }}' }
-      - uses: anthropics/claude-code-action@beta
+      - uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
+          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh pr list),Bash(node:*),Bash(npm:*)"
 
   # =============================================================================
   # DELEGATE WORKFLOW
@@ -373,7 +388,8 @@ jobs:
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor')))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with: { repository: '${{ env.TARGET_REPO }}', token: '${{ secrets.CI_GITHUB_TOKEN }}' }
       - uses: jbcom/control-center/.github/actions/agentic-issue-triage@main
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -392,11 +408,14 @@ jobs:
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && contains(inputs.comment_body, '@claude'))
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: anthropics/claude-code-action@beta
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with: { repository: '${{ env.TARGET_REPO }}', token: '${{ secrets.CI_GITHUB_TOKEN }}', fetch-depth: 0 }
+      - uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
+          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh pr create),Bash(gh issue view),Bash(node:*),Bash(npm:*)"
           direct_prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
             Title: ${{ env.ISSUE_TITLE }}
@@ -422,8 +441,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with: { node-version: '22' }
       - name: Run Curator Script
         env:
