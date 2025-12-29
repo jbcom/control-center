@@ -1,0 +1,69 @@
+name: Ecosystem Orchestrator
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Action to run (review, delegate, sync)'
+        required: true
+        type: choice
+        options:
+          - review
+          - delegate
+          - sync
+      pr_number:
+        description: 'PR number to review'
+        required: false
+        type: number
+      issue_number:
+        description: 'Issue number to delegate'
+        required: false
+        type: number
+      repository:
+        description: 'Repository to target (owner/repo)'
+        required: false
+        type: string
+      comment_body:
+        description: 'Comment body for delegation'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+jobs:
+  review:
+    name: Review PR
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'review')
+    uses: jbcom/agentic-control/actions/pr-review@v1
+    with:
+      pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
+      repository: ${{ github.repository || inputs.repository }}
+    secrets: inherit
+
+  delegate:
+    name: Delegate Issue
+    if: |
+      github.event_name == 'issue_comment' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate')
+    uses: jbcom/agentic-control/actions/issue-triage@v1
+    with:
+      issue_number: ${{ github.event.issue.number || inputs.issue_number }}
+      comment_body: ${{ github.event.comment.body || inputs.comment_body }}
+      repository: ${{ github.repository || inputs.repository }}
+    secrets: inherit
+
+  sync:
+    name: Sync Ecosystem
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'sync'
+    uses: ./.github/workflows/ecosystem-sync.yml
+    secrets: inherit
