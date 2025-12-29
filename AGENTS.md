@@ -171,6 +171,14 @@ and fix the root cause.
 
 ---
 
+## Agentic Ecosystem Architecture
+
+For a detailed breakdown of the `agentic` ecosystem, including repository scope, ownership, and technical architecture, please see the canonical documentation:
+
+- **[Agentic Ecosystem Architecture](docs/agentic-ecosystem.md)**
+
+---
+
 ## Ecosystem Scope
 
 ### Organizations Managed
