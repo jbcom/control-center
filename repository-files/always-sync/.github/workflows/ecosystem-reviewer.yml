@@ -2,7 +2,7 @@ name: Ecosystem Reviewer
 
 # Tiered AI Review Pipeline:
 # 1. Ollama (fast, cheap) → quick review
-# 2. Claude (escalation) → complex PRs or many issues  
+# 2. Claude (escalation) → complex PRs or many issues
 # 3. Jules (refactor) → when code changes needed
 
 on:
@@ -11,7 +11,7 @@ on:
   # Also handle @claude mentions in PR comments
   issue_comment:
     types: [created]
-  
+
   # Enterprise Reusable Workflow
   workflow_call:
     inputs:
@@ -36,8 +36,6 @@ on:
       GOOGLE_JULES_API_KEY:
         required: false
       OLLAMA_API_KEY:
-        required: false
-      OLLAMA_API_URL:
         required: false
 
   # Manual/On-call trigger
@@ -87,7 +85,7 @@ jobs:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
-          
+
       - name: Review PR
         id: review
         uses: jbcom/control-center/.github/actions/agentic-pr-review@main
@@ -105,7 +103,7 @@ jobs:
         run: |
           SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
           ADDITIONS=$(gh pr view ${{ env.TARGET_PR }} --repo ${{ env.TARGET_REPO }} --json additions --jq '.additions')
-          
+
           # Escalate if: >5 suggestions OR >500 lines changed OR Ollama failed
           if [[ "$SUGGESTIONS" -gt 5 ]] || [[ "$ADDITIONS" -gt 500 ]] || [[ -z "$SUGGESTIONS" ]]; then
             echo "needs_escalation=true" >> $GITHUB_OUTPUT
@@ -160,9 +158,9 @@ jobs:
             - Logic errors and bugs
             - Performance problems
             - Missing error handling
-            
+
             PR: #${{ env.TARGET_PR }}
-            
+
             If no critical issues, APPROVE the PR.
             Post inline comments for specific issues.
 
@@ -201,7 +199,7 @@ jobs:
           PR_DATA=$(gh pr view "$TARGET_PR" --repo "$TARGET_REPO" --json title,headRefName)
           PR_TITLE=$(echo "$PR_DATA" | jq -r .title)
           PR_BRANCH=$(echo "$PR_DATA" | jq -r .headRefName)
-          
+
           RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
@@ -234,7 +232,7 @@ jobs:
   claude-interactive:
     name: Claude Interactive
     if: |
-      github.event_name == 'issue_comment' && 
+      github.event_name == 'issue_comment' &&
       github.event.issue.pull_request &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest

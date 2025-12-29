@@ -8,7 +8,7 @@ name: Ecosystem Delegator
 on:
   issue_comment:
     types: [created]
-  
+
   # Enterprise Reusable Workflow
   workflow_call:
     inputs:
@@ -104,7 +104,7 @@ jobs:
         with:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
-          
+
       - name: Create Jules Session from Issue
         if: contains(env.COMMENT_BODY, '/jules')
         env:
@@ -205,21 +205,21 @@ jobs:
           allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh pr create),Bash(gh issue view),Bash(node:*),Bash(npm:*)"
           direct_prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.TARGET_ISSUE }}
-            
+
             Title: ${{ env.ISSUE_TITLE }}
-            
+
             Description:
             ${{ env.ISSUE_BODY }}
-            
+
             ---
-            
+
             Triggering comment: ${{ env.COMMENT_BODY }}
-            
+
             ---
-            
+
             Analyze the issue and either:
             1. Answer the question if it's a question
             2. Implement a fix if it's a bug
             3. Implement the feature if it's a feature request
-            
+
             Create a PR with your changes.
