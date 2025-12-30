@@ -1,9 +1,9 @@
-name: Test Working
+name: Test With Action
 
 on:
   workflow_call:
     inputs:
-      message:
+      action:
         required: true
         type: string
     secrets:
@@ -15,4 +15,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Echo
-        run: echo "${{ inputs.message }}"
+        run: echo "${{ inputs.action }}"
