@@ -157,7 +157,7 @@ jobs:
           # Copy the org sync workflow from template
           cp $GITHUB_WORKSPACE/repository-files/org-control-center/.github/workflows/sync.yml .github/workflows/sync.yml
           
-          # Commit and push
+          # Commit and push with retry
           git add -A
           if ! git diff --staged --quiet; then
             if [[ "${{ inputs.dry_run }}" != "true" ]]; then
@@ -165,8 +165,17 @@ jobs:
 
           Enterprise sync from jbcom/control-center
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              git push origin main
-              echo "✅ Pushed to $ORG/control-center"
+              
+              # Try to push, pull and retry if rejected
+              for i in 1 2 3; do
+                if git push origin main 2>/dev/null; then
+                  echo "✅ Pushed to $ORG/control-center"
+                  break
+                else
+                  echo "  Retry $i: pulling latest..."
+                  git pull --rebase origin main 2>/dev/null || true
+                fi
+              done
             else
               echo "[DRY RUN] Would push to $ORG/control-center"
               git diff --staged --stat
