@@ -13,30 +13,51 @@
 name: Ecosystem Connector
 
 on:
-  # PR events - comprehensive triggers for self-assessment
-  # https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request
+  # ════════════════════════════════════════════════════════════════
+  # DATA PLANE: PR lifecycle events
+  # ════════════════════════════════════════════════════════════════
   pull_request:
     types: 
-      - opened           # New PR created
-      - synchronize      # New commits pushed
-      - reopened         # PR reopened after close
-      - ready_for_review # Draft -> Ready
+      - opened           # New PR → create tracking issue
+      - synchronize      # New commits → update synthesis
+      - reopened         # PR reopened → reopen tracking issue
+      - ready_for_review # Draft -> Ready → trigger synthesis
       - labeled          # Label added (for sync/auto-merge)
       - unlabeled        # Label removed
+      - closed           # PR closed/merged → close tracking issue
   pull_request_review:
     types: [submitted, dismissed]
-  # For @cascade commands in PR comments
+  
+  # ════════════════════════════════════════════════════════════════
+  # CONTROL PLANE: Tracking issue events (our KV store)
+  # ════════════════════════════════════════════════════════════════
+  issues:
+    types:
+      - labeled          # State transition (blocked→review→ready)
+      - unlabeled        # State regression
+      - edited           # Manual update to synthesis
+      - closed           # Cleanup
+  
+  # Commands on tracking issues OR PRs
   issue_comment:
     types: [created]
-  # For CI completion -> self-assess
+  
+  # Milestone events for release tracking
+  milestone:
+    types: [closed]      # Release cut → audit all linked PRs
+  
+  # ════════════════════════════════════════════════════════════════
+  # CI EVENTS: Trigger merge assessment
+  # ════════════════════════════════════════════════════════════════
   check_suite:
     types: [completed]
-  # Check runs for more granular CI status
   check_run:
     types: [completed]
-  # Status updates (external CI systems)
   status: {}
-  # Main branch - propagate changes, no reviews
+  
+  # ════════════════════════════════════════════════════════════════
+  # PROPAGATION: Main branch changes
+  # ════════════════════════════════════════════════════════════════
   push:
     branches: [main]
     paths:
@@ -204,32 +225,43 @@ jobs:
           fi
 
   # ============================================================
-  # REVIEW SYNTHESIS: Gather → Resolve → Synthesize (One Clean Pass)
-  # 1. Fetch ALL AI feedback (reviews, threads, comments)
-  # 2. Resolve ALL outdated threads, minimize stale comments
-  # 3. Create ONE aggregate synthesis for CASCADE to process
+  # REVIEW SYNTHESIS: Tracking Issue as KV Store
+  # ════════════════════════════════════════════════════════════
+  # Pattern: GitHub Issue as persistent, queryable state store
+  #
+  # KEY: "synthesis-pr-{number}" (issue title)
+  # VALUE: Issue body (structured markdown with metadata)
+  # INDEXES: Labels (synthesis, blocked, review, ready, pr-{n})
+  # TTL: Auto-close when PR merges (linked issue)
+  #
+  # Flow:
+  #   1. PR opened → create tracking issue
+  #   2. AI feedback → gather, resolve, update issue body
+  #   3. State change → update labels (blocked/review/ready)
+  #   4. PR merged → close tracking issue
   # ============================================================
   review-synthesis:
-    name: Review Synthesis
+    name: Review Synthesis (KV Store)
     if: |
       github.event_name == 'pull_request_review' ||
       github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && 
        contains(github.event.comment.body, '@cascade synthesize'))
     runs-on: ubuntu-latest
+    outputs:
+      tracking_issue: ${{ steps.synthesis.outputs.tracking_issue }}
+      verdict: ${{ steps.synthesis.outputs.verdict }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Gather, Resolve, Synthesize
+      - name: Gather → Resolve → Store in Tracking Issue
+        id: synthesis
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_API_URL: ${{ vars.OLLAMA_API_URL || 'https://api.ollama.com' }}
         run: |
-          # Get PR number from various event types
+          # ════════════════════════════════════════════════════════════
+          # RESOLVE PR CONTEXT
+          # ════════════════════════════════════════════════════════════
           case "${{ github.event_name }}" in
             issue_comment) PR_NUM="${{ github.event.issue.number }}" ;;
             *) PR_NUM="${{ github.event.pull_request.number }}" ;;
@@ -237,24 +269,99 @@ jobs:
           
           [ -z "$PR_NUM" ] && echo "No PR number" && exit 0
           
-          echo "🔄 Gather → Resolve → Synthesize for PR #$PR_NUM"
+          # Get PR details
+          PR_DATA=$(gh pr view $PR_NUM --json title,url,author,headRefName,baseRefName 2>/dev/null || echo "{}")
+          PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // "Unknown"')
+          PR_URL=$(echo "$PR_DATA" | jq -r '.url // ""')
+          PR_AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login // "unknown"')
+          PR_BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName // "unknown"')
+          
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  📦 KV STORE: Tracking Issue for PR #$PR_NUM"
+          echo "╚════════════════════════════════════════════════════════════╝"
           
           OWNER="${{ github.repository_owner }}"
           REPO="${{ github.event.repository.name }}"
           AI_AGENTS="copilot|github-actions|coderabbitai|gemini|cursor|amazon-q|dependabot|bugbot|claude|sonarcloud|codacy|snyk"
           
-          # ============================================================
-          # STEP 1: GATHER all AI feedback
-          # ============================================================
+          # ════════════════════════════════════════════════════════════
+          # STEP 1: GET OR CREATE TRACKING ISSUE (KV key lookup)
+          # ════════════════════════════════════════════════════════════
           echo ""
-          echo "📥 Step 1: Gathering all AI feedback..."
+          echo "🔑 Step 1: KV Lookup - tracking issue..."
+          
+          ISSUE_KEY="synthesis-pr-$PR_NUM"
+          
+          # Ensure labels exist
+          gh label create "synthesis" --description "PR synthesis tracking issue" --color "7057FF" 2>/dev/null || true
+          gh label create "queue-blocked" --description "PR blocked by critical issues" --color "B60205" 2>/dev/null || true
+          gh label create "queue-review" --description "PR needs review attention" --color "FBCA04" 2>/dev/null || true
+          gh label create "queue-ready" --description "PR ready for merge" --color "0E8A16" 2>/dev/null || true
+          
+          # Search for existing tracking issue
+          TRACKING_ISSUE=$(gh issue list --label "synthesis" --search "$ISSUE_KEY in:title" --json number,state --jq '.[0].number // empty' 2>/dev/null)
+          
+          if [ -z "$TRACKING_ISSUE" ]; then
+            echo "  Creating new tracking issue..."
+            
+            INITIAL_BODY="# 🔬 Synthesis: PR #$PR_NUM
+
+          > **Linked PR:** $PR_URL
+          > **Author:** @$PR_AUTHOR
+          > **Branch:** \`$PR_BRANCH\`
+
+          ---
+
+          ## 📊 Queue State
+
+          | Metric | Value |
+          |--------|-------|
+          | Reviews Analyzed | 0 |
+          | Active Threads | 0 |
+          | Resolved | 0 |
+          | Last Updated | $(date -u +%Y-%m-%dT%H:%M:%SZ) |
+
+          ## 🎯 Verdict
+
+          \`PENDING\` - Awaiting AI feedback
+
+          ## 📝 Feedback Queue
+
+          _No feedback collected yet._
+
+          ---
+
+          <sub>🤖 Managed by CASCADE | Commands: \`@cascade synthesize\`, \`@cascade address\`</sub>"
+            
+            TRACKING_ISSUE=$(gh issue create \
+              --title "$ISSUE_KEY: $PR_TITLE" \
+              --body "$INITIAL_BODY" \
+              --label "synthesis" \
+              --json number --jq '.number')
+            
+            # Link to PR via comment
+            gh pr comment $PR_NUM --body "📦 **Tracking Issue Created:** #$TRACKING_ISSUE
+
+          All AI feedback will be synthesized there. Use \`@cascade\` commands on the tracking issue for targeted actions."
+            
+            echo "  ✅ Created tracking issue #$TRACKING_ISSUE"
+          else
+            echo "  ✅ Found existing tracking issue #$TRACKING_ISSUE"
+          fi
+          
+          echo "tracking_issue=$TRACKING_ISSUE" >> $GITHUB_OUTPUT
+          
+          # ════════════════════════════════════════════════════════════
+          # STEP 2: GATHER all AI feedback from PR
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "📥 Step 2: Gathering AI feedback from PR..."
           
           QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
             repository(owner: $owner, name: $repo) {
               pullRequest(number: $pr) {
                 reviews(first: 100) {
                   nodes {
-                    id
                     author { login }
                     body
                     state
@@ -268,13 +375,10 @@ jobs:
                     isOutdated
                     path
                     line
-                    comments(first: 10) {
+                    comments(first: 5) {
                       nodes {
-                        id
                         author { login }
                         body
-                        diffHunk
-                        createdAt
                       }
                     }
                   }
@@ -285,163 +389,144 @@ jobs:
           
           RESULT=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
           
-          # Extract reviews from AI agents
-          REVIEWS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
-            [.data.repository.pullRequest.reviews.nodes[]? |
-            select(.author.login | test($agents; "i")) |
-            {author: .author.login, state: .state, body: .body, date: .submittedAt}]
-          ' 2>/dev/null || echo "[]")
-          
-          # Extract unresolved threads from AI agents
-          THREADS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
-            [.data.repository.pullRequest.reviewThreads.nodes[]? |
-            select(.isResolved == false) |
-            select(.comments.nodes[0].author.login | test($agents; "i")) |
-            {id: .id, path: .path, line: .line, outdated: .isOutdated,
-             author: .comments.nodes[0].author.login,
-             body: .comments.nodes[0].body,
-             diffHunk: .comments.nodes[0].diffHunk}]
-          ' 2>/dev/null || echo "[]")
-          
-          # Extract outdated thread IDs for resolution
-          OUTDATED_IDS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
-            .data.repository.pullRequest.reviewThreads.nodes[]? |
-            select(.isOutdated == true and .isResolved == false) |
-            select(.comments.nodes[0].author.login | test($agents; "i")) |
-            .id
-          ' 2>/dev/null || echo "")
+          # Extract and count
+          REVIEWS=$(echo "$RESULT" | jq --arg agents "$AI_AGENTS" '[.data.repository.pullRequest.reviews.nodes[]? | select(.author.login | test($agents; "i"))]' 2>/dev/null || echo "[]")
+          THREADS=$(echo "$RESULT" | jq --arg agents "$AI_AGENTS" '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved == false) | select(.comments.nodes[0].author.login | test($agents; "i"))]' 2>/dev/null || echo "[]")
+          OUTDATED_IDS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isOutdated == true and .isResolved == false) | select(.comments.nodes[0].author.login | test($agents; "i")) | .id' 2>/dev/null || echo "")
           
           REVIEW_COUNT=$(echo "$REVIEWS" | jq 'length')
           THREAD_COUNT=$(echo "$THREADS" | jq 'length')
-          OUTDATED_COUNT=$(echo "$OUTDATED_IDS" | grep -c . || echo "0")
+          CRITICAL_COUNT=$(echo "$THREADS" | jq '[.[] | select(.comments.nodes[0].body | test("security|vulnerability|critical|breaking"; "i"))] | length')
           
-          echo "  Found: $REVIEW_COUNT reviews, $THREAD_COUNT active threads, $OUTDATED_COUNT outdated"
+          echo "  Found: $REVIEW_COUNT reviews, $THREAD_COUNT threads, $CRITICAL_COUNT critical"
           
-          # ============================================================
-          # STEP 2: RESOLVE all outdated threads
-          # ============================================================
+          # ════════════════════════════════════════════════════════════
+          # STEP 3: RESOLVE outdated threads (dequeue old items)
+          # ════════════════════════════════════════════════════════════
           echo ""
-          echo "🧹 Step 2: Resolving outdated threads..."
+          echo "🧹 Step 3: Resolving outdated threads..."
           
           RESOLVED=0
-          for THREAD_ID in $OUTDATED_IDS; do
-            [ -z "$THREAD_ID" ] && continue
-            gh api graphql -f query='mutation($id: ID!) {
-              resolveReviewThread(input: {threadId: $id}) {
-                thread { isResolved }
-              }
-            }' -f id="$THREAD_ID" 2>/dev/null && RESOLVED=$((RESOLVED + 1))
+          for TID in $OUTDATED_IDS; do
+            [ -z "$TID" ] && continue
+            gh api graphql -f query='mutation($id: ID!) { resolveReviewThread(input: {threadId: $id}) { thread { isResolved } } }' -f id="$TID" 2>/dev/null && RESOLVED=$((RESOLVED + 1))
           done
           echo "  ✅ Resolved $RESOLVED outdated threads"
           
-          # Minimize old bot comments (keep last 3)
-          BOT_COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
-            [.[] | select(.user.type == "Bot" or (.user.login | test("copilot|coderabbit|gemini|amazon-q|cursor|bugbot|sonar|snyk|codacy"; "i"))) | .node_id]
-          ' 2>/dev/null || echo "[]")
-          
-          COMMENT_COUNT=$(echo "$BOT_COMMENTS" | jq 'length')
-          if [ "$COMMENT_COUNT" -gt 5 ]; then
-            echo "  Minimizing old bot comments ($COMMENT_COUNT total, keeping last 3)..."
-            echo "$BOT_COMMENTS" | jq -r '.[:(-3)][]' | while read -r CID; do
-              [ -z "$CID" ] && continue
-              gh api graphql -f query='mutation($id: ID!) {
-                minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
-                  minimizedComment { isMinimized }
-                }
-              }' -f id="$CID" 2>/dev/null || true
-            done
-            echo "  ✅ Minimized old comments"
-          fi
-          
-          # ============================================================
-          # STEP 3: SYNTHESIZE into ONE aggregate comment
-          # ============================================================
+          # ════════════════════════════════════════════════════════════
+          # STEP 4: DETERMINE VERDICT
+          # ════════════════════════════════════════════════════════════
           echo ""
-          echo "🔬 Step 3: Creating synthesis..."
+          echo "⚖️ Step 4: Determining verdict..."
           
-          # Skip if nothing to synthesize
-          if [ "$REVIEW_COUNT" -eq 0 ] && [ "$THREAD_COUNT" -eq 0 ]; then
-            echo "  No AI feedback to synthesize"
-            exit 0
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            VERDICT="BLOCKED"
+            VERDICT_EMOJI="🔴"
+            VERDICT_LABEL="queue-blocked"
+          elif [ "$THREAD_COUNT" -gt 0 ]; then
+            VERDICT="REVIEW"
+            VERDICT_EMOJI="🟡"
+            VERDICT_LABEL="queue-review"
+          else
+            VERDICT="READY"
+            VERDICT_EMOJI="✅"
+            VERDICT_LABEL="queue-ready"
           fi
           
-          # Build context for synthesis
-          REVIEW_TEXT=$(echo "$REVIEWS" | jq -r '.[] | "**\(.author)** (\(.state)): \(.body)"' 2>/dev/null | head -50)
-          THREAD_TEXT=$(echo "$THREADS" | jq -r '.[] | "**\(.author)** on `\(.path):\(.line // "?")`: \(.body)"' 2>/dev/null | head -50)
+          echo "  Verdict: $VERDICT_EMOJI $VERDICT"
+          echo "verdict=$VERDICT" >> $GITHUB_OUTPUT
           
-          CONTEXT="Synthesize this AI feedback for a PR:
-
-          ## Reviews ($REVIEW_COUNT)
-          $REVIEW_TEXT
-
-          ## Active Suggestions ($THREAD_COUNT)  
-          $THREAD_TEXT
-
-          Create a concise actionable summary:
-          1. 🔴 **Critical** - Must fix (security, bugs)
-          2. 🟠 **Important** - Should fix (performance, logic)
-          3. 🟡 **Suggested** - Nice to have (style, clarity)
-          4. ✅ **Already Good** - Positive feedback
-          5. 📊 **Verdict** - Ready to merge? What's blocking?"
+          # ════════════════════════════════════════════════════════════
+          # STEP 5: BUILD FEEDBACK QUEUE (for issue body)
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "📝 Step 5: Building feedback queue..."
           
-          # Call Ollama for AI synthesis
-          SYNTHESIS=""
-          if [ -n "$OLLAMA_API_KEY" ] && [ -n "$OLLAMA_API_URL" ]; then
-            SYNTHESIS=$(curl -sf --max-time 60 \
-              -H "Authorization: Bearer $OLLAMA_API_KEY" \
-              -H "Content-Type: application/json" \
-              -d "$(jq -n --arg prompt "$CONTEXT" '{
-                model: "glm-4.6:cloud",
-                messages: [
-                  {role: "system", content: "Expert code reviewer. Be concise."},
-                  {role: "user", content: $prompt}
-                ],
-                stream: false
-              }')" \
-              "$OLLAMA_API_URL/api/chat" 2>/dev/null | jq -r '.message.content // empty') || true
+          FEEDBACK_LIST=""
+          if [ "$THREAD_COUNT" -gt 0 ]; then
+            FEEDBACK_LIST=$(echo "$THREADS" | jq -r '
+              .[] | 
+              "- [ ] **\(.comments.nodes[0].author.login)** on `\(.path):\(.line // "?")`\n  > \(.comments.nodes[0].body | split("\n")[0])"
+            ' 2>/dev/null | head -30)
+          else
+            FEEDBACK_LIST="_No active feedback items._"
           fi
           
-          # Build the ONE aggregate comment
-          MARKER="CASCADE Review Synthesis"
+          # ════════════════════════════════════════════════════════════
+          # STEP 6: UPDATE TRACKING ISSUE (KV store write)
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "💾 Step 6: Updating tracking issue (KV write)..."
           
-          if [ -n "$SYNTHESIS" ]; then
-            BODY="## 🔬 $MARKER
+          UPDATED_BODY="# 🔬 Synthesis: PR #$PR_NUM
 
-          **Analyzed:** $REVIEW_COUNT reviews, $THREAD_COUNT suggestions | **Resolved:** $RESOLVED outdated
-
-          $SYNTHESIS
+          > **Linked PR:** $PR_URL
+          > **Author:** @$PR_AUTHOR
+          > **Branch:** \`$PR_BRANCH\`
 
           ---
-          <sub>🤖 Synthesized by CASCADE | Use \`@cascade address feedback\` to auto-fix</sub>"
-          else
-            BODY="## 🔬 $MARKER
 
-          **Analyzed:** $REVIEW_COUNT reviews, $THREAD_COUNT suggestions | **Resolved:** $RESOLVED outdated
+          ## 📊 Queue State
 
-          ### Active Feedback
-          $THREAD_TEXT
+          | Metric | Value |
+          |--------|-------|
+          | Reviews Analyzed | $REVIEW_COUNT |
+          | Active Threads | $THREAD_COUNT |
+          | Critical Issues | $CRITICAL_COUNT |
+          | Resolved This Run | $RESOLVED |
+          | Last Updated | $(date -u +%Y-%m-%dT%H:%M:%SZ) |
+
+          ## 🎯 Verdict
+
+          $VERDICT_EMOJI **$VERDICT**
+
+          ## 📝 Feedback Queue
+
+          $FEEDBACK_LIST
 
           ---
-          <sub>🤖 Use \`@cascade synthesize\` for AI-powered summary</sub>"
-          fi
+
+          ### 🤖 CASCADE Commands
+
+          Use these commands **on this issue** for targeted AI actions:
+
+          | Command | Action |
+          |---------|--------|
+          | \`@cascade address\` | AI fixes all feedback items |
+          | \`@cascade synthesize\` | Re-gather and re-synthesize |
+          | \`@cascade merge\` | Force merge assessment |
+
+          <sub>Updated by Ecosystem Connector</sub>"
           
-          # Find and UPDATE existing synthesis, or create new
-          EXISTING_ID=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq "
-            .[] | select(.body | contains(\"$MARKER\")) | .node_id
-          " 2>/dev/null | tail -1)
+          gh issue edit $TRACKING_ISSUE --body "$UPDATED_BODY"
           
-          if [ -n "$EXISTING_ID" ]; then
-            echo "  Updating existing synthesis comment..."
-            gh api graphql -f query='mutation($id: ID!, $body: String!) {
-              updateIssueComment(input: {id: $id, body: $body}) { clientMutationId }
-            }' -f id="$EXISTING_ID" -f body="$BODY" 2>/dev/null || gh pr comment $PR_NUM --body "$BODY"
-          else
-            echo "  Creating new synthesis comment..."
-            gh pr comment $PR_NUM --body "$BODY"
+          # Update labels (remove old state, add new)
+          gh issue edit $TRACKING_ISSUE --remove-label "queue-blocked,queue-review,queue-ready" 2>/dev/null || true
+          gh issue edit $TRACKING_ISSUE --add-label "$VERDICT_LABEL"
+          
+          echo "  ✅ Tracking issue #$TRACKING_ISSUE updated with verdict: $VERDICT"
+          
+          # ════════════════════════════════════════════════════════════
+          # STEP 7: Handle PR lifecycle (close issue if PR closed)
+          # ════════════════════════════════════════════════════════════
+          if [ "${{ github.event.action }}" = "closed" ]; then
+            echo ""
+            echo "🏁 PR closed - closing tracking issue..."
+            
+            if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+              gh issue close $TRACKING_ISSUE --comment "✅ PR #$PR_NUM merged successfully."
+            else
+              gh issue close $TRACKING_ISSUE --comment "❌ PR #$PR_NUM closed without merge."
+            fi
           fi
           
           echo ""
-          echo "✅ Synthesis complete - ONE aggregate comment for CASCADE"
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  ✅ KV STORE UPDATED                                       ║"
+          echo "║  Key: $ISSUE_KEY                                           ║"
+          echo "║  Tracking Issue: #$TRACKING_ISSUE                          ║"
+          echo "║  Verdict: $VERDICT                                         ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
 
   # Automatic AI review on new/updated PRs
   auto-review:
