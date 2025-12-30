@@ -204,12 +204,8 @@ Create a complete, production-ready documentation site.`;
       console.log(`  ✓ Jules session created for ${org} docs: ${data.name}`);
       return data;
     } else if (res.status === 404) {
-      console.error(`
-  ❌ Jules error 404: Not Found
-     This usually means the 'Google Jules' GitHub App is not installed on the '${org}' organization.
-     Please install it here and re-run the script:
-     ➡️ https://github.com/apps/google-jules
-`);
+      const errorMsg = `Jules error 404: Not Found. This usually means the 'Google Jules' GitHub App is not installed on the '${org}' organization. Please install it here and re-run the script: https://github.com/apps/google-jules`;
+      throw new Error(errorMsg);
     } else {
       const errorBody = await res.text();
       console.error(`  Jules error: ${res.status}\n  ${errorBody}`);
@@ -294,6 +290,12 @@ async function main() {
   await writeFile('org-infrastructure-report.json', JSON.stringify(results, null, 2));
   
   console.log('\n' + JSON.stringify(results, null, 2));
+
+  if (results.errors.length > 0) {
+    console.error(`\n❌ ${results.errors.length} errors encountered. See logs for details.`);
+    process.exit(1);
+  }
+
   console.log('\n✅ Infrastructure setup complete');
 }
 
