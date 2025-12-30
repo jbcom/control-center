@@ -109,16 +109,24 @@ jobs:
           AGENT="${{ steps.select.outputs.agent }}"
           REPO="${{ steps.select.outputs.repo }}"
           
-          # Load contexts
+          # Load org context (from org control center)
           ORG_CTX=$(cat .github/org-context.json 2>/dev/null || echo "{}")
-          REPO_CTX=$(cat .github/repo-context.json 2>/dev/null || echo "{}")
           
-          # Extract values
+          # Repo context lives in each repo - use defaults if not present
+          # Repos should create their own .github/repo-context.json
+          if [ -f ".github/repo-context.json" ]; then
+            REPO_CTX=$(cat .github/repo-context.json)
+          else
+            echo "⚠️ No .github/repo-context.json found - using defaults"
+            REPO_CTX='{}'
+          fi
+          
+          # Extract values with sensible defaults
           ORG_NAME=$(echo "$ORG_CTX" | jq -r '.org // "unknown"')
-          LANGUAGES=$(echo "$ORG_CTX" | jq -r '.languages | join(", ") // "typescript"')
+          LANGUAGES=$(echo "$ORG_CTX" | jq -r 'if .languages then .languages | join(", ") else "typescript" end')
           TEST_CMD=$(echo "$REPO_CTX" | jq -r '.commands.test // "npm test"')
           LINT_CMD=$(echo "$REPO_CTX" | jq -r '.commands.lint // "npm run lint"')
-          FOCUS=$(echo "$ORG_CTX" | jq -r '.focus | join(", ") // ""')
+          FOCUS=$(echo "$ORG_CTX" | jq -r 'if .focus then .focus | join(", ") else "" end')
           
           # Load metaprompt
           PROMPT_FILE=".github/metaprompts/${AGENT}.md"
