@@ -1,4 +1,4 @@
-name: Test Orchestrator Minimal
+name: Test No Perms
 
 on:
   workflow_call:
@@ -9,28 +9,14 @@ on:
       repository:
         required: true
         type: string
-      pr_number:
-        required: false
-        type: number
     secrets:
       CI_GITHUB_TOKEN:
         required: true
 
-permissions:
-  contents: write
-  pull-requests: write
-  issues: write
-  actions: write
-
 jobs:
   review:
     name: Review
-    if: inputs.action == 'review'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repository }}
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
       - name: Echo
-        run: echo "Review for PR ${{ inputs.pr_number }} in ${{ inputs.repository }}"
+        run: echo "Review in ${{ inputs.repository }}"
