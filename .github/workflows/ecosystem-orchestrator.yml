@@ -159,7 +159,7 @@ jobs:
 
       - name: Review PR with Ollama
         id: review
-        uses: jbcom/control-center/.github/actions/agentic-pr-review@main
+        uses: jbcom/agentic-pr-review@v1
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           model: ${{ env.OLLAMA_MODEL }}
@@ -280,7 +280,7 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Delegate Issue Command
-        uses: jbcom/control-center/.github/actions/agentic-issue-triage@main
+        uses: jbcom/agentic-issue-triage@v1
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
