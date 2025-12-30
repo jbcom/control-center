@@ -49,6 +49,7 @@ jobs:
         id: parse
         env:
           COMMENT: ${{ github.event.comment.body }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           ISSUE_NUM="${{ github.event.issue.number }}"
           IS_PR="${{ github.event.issue.pull_request != null }}"
@@ -82,8 +83,6 @@ jobs:
           
           echo "agent=$AGENT" >> $GITHUB_OUTPUT
           echo "🎯 Routing to: $AGENT"
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Acknowledge
         env:

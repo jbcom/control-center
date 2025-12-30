@@ -66,6 +66,7 @@ jobs:
         id: assess
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
         run: |
           # ══════════════════════════════════════════════════════════
           # RESOLVE PR NUMBER
@@ -84,15 +85,13 @@ jobs:
               if [ -n "${{ github.event.issue.pull_request }}" ]; then
                 PR_NUM="${{ github.event.issue.number }}"
               else
-                # Comment on tracking issue - extract PR number from title
-                TITLE="${{ github.event.issue.title }}"
-                PR_NUM=$(echo "$TITLE" | grep -oE 'pr-([0-9]+)' | grep -oE '[0-9]+' || echo "")
+                # Comment on tracking issue - extract PR number from title (via env var for security)
+                PR_NUM=$(echo "$ISSUE_TITLE" | grep -oE 'pr-([0-9]+)' | grep -oE '[0-9]+' || echo "")
               fi
               ;;
             issues)
-              # Tracking issue labeled - extract PR number from title
-              TITLE="${{ github.event.issue.title }}"
-              PR_NUM=$(echo "$TITLE" | grep -oE 'pr-([0-9]+)' | grep -oE '[0-9]+' || echo "")
+              # Tracking issue labeled - extract PR number from title (via env var for security)
+              PR_NUM=$(echo "$ISSUE_TITLE" | grep -oE 'pr-([0-9]+)' | grep -oE '[0-9]+' || echo "")
               ;;
             *)
               PR_NUM=""
@@ -116,6 +115,7 @@ jobs:
           MERGE_STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus // "UNKNOWN"')
           REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision // "REVIEW_REQUIRED"')
           TITLE=$(echo "$PR_DATA" | jq -r '.title // "Unknown"')
+          # shellcheck disable=SC2034
           HAS_AUTO=$(echo "$PR_DATA" | jq '[.labels[]?.name // empty] | map(select(. == "auto-merge")) | length')
           
           echo ""
@@ -276,11 +276,6 @@ jobs:
           
           echo "🔄 PR is behind, attempting rebase..."
           
-          # Get branch info
-          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json headRefName,baseRefName,headRepository)
-          HEAD=$(echo "$PR_DATA" | jq -r '.headRefName')
-          BASE=$(echo "$PR_DATA" | jq -r '.baseRefName')
-          
           # Try GitHub's update branch API
           gh api -X PUT repos/${{ github.repository }}/pulls/$PR_NUM/update-branch \
             -f update_method=rebase 2>/dev/null && echo "✅ Rebased via API" && exit 0
@@ -309,10 +304,9 @@ jobs:
           echo "🚀 Attempting to merge PR #$PR_NUM..."
           
           # Final check
-          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json mergeable,mergeStateStatus,reviewDecision,isDraft)
+          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json mergeable,mergeStateStatus,isDraft)
           MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
           STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus')
-          REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision')
           DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
           
           if [ "$DRAFT" = "true" ]; then
