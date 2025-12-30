@@ -1,0 +1,50 @@
+name: 'Rate Limit Command'
+description: 'Rate limits a command based on user comments.'
+author: 'Jules'
+branding:
+  icon: 'clock'
+  color: 'yellow'
+
+inputs:
+  github_token:
+    description: 'The GitHub token to use for authentication.'
+    required: true
+  issue_number:
+    description: 'The number of the issue to triage.'
+    required: true
+  user_login:
+    description: 'The login of the user who triggered the command.'
+    required: true
+  repository:
+    description: 'The repository where the command was triggered.'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Rate Limit Command
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github_token }}
+      run: |
+        USER_LOGIN="${{ inputs.user_login }}"
+        ISSUE_NUMBER="${{ inputs.issue_number }}"
+        REPO="${{ inputs.repository }}"
+
+        # Get the timestamp of the last two comments by the user
+        TIMESTAMPS=$(gh api "repos/$REPO/issues/$ISSUE_NUMBER/comments" --jq ".[] | select(.user.login == \"$USER_LOGIN\") | .created_at" | tail -n 2)
+
+        if [ $(echo "$TIMESTAMPS" | wc -l) -eq 2 ]; then
+          TIMESTAMP1=$(echo "$TIMESTAMPS" | head -n 1)
+          TIMESTAMP2=$(echo "$TIMESTAMPS" | tail -n 1)
+
+          DATE1=$(date -d "$TIMESTAMP1" +%s)
+          DATE2=$(date -d "$TIMESTAMP2" +%s)
+
+          DIFF=$((DATE2 - DATE1))
+
+          if [ "$DIFF" -lt 60 ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "Rate limit exceeded. Please wait a moment before trying again."
+            exit 1
+          fi
+        fi

@@ -64,6 +64,10 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
+        # Read API endpoints from the enterprise config file
+        JULES_API_ENDPOINT=$(jq -r '.apiEndpoints.jules' .github/enterprise-config.json)
+        CURSOR_API_ENDPOINT=$(jq -r '.apiEndpoints.cursor' .github/enterprise-config.json)
+
         # If /jules command is present, delegate to Google Jules
         if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
@@ -78,7 +82,7 @@ runs:
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
           [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          RESPONSE=$(curl -s -X POST "$JULES_API_ENDPOINT/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
@@ -114,6 +118,12 @@ runs:
         # If /cursor command is present, delegate to Cursor
         if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
           echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
+
+          if [[ -z "$CURSOR_API_KEY" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ CURSOR_API_KEY not configured. Cannot delegate to Cursor."
+            exit 1
+          fi
+
           # ... logic for Cursor delegation if needed ...
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
           exit 0

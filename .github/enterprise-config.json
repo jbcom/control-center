@@ -1,0 +1,13 @@
+{
+  "apiEndpoints": {
+    "jules": "https://jules.googleapis.com/v1alpha",
+    "cursor": "https://cursor.example.com/api"
+  },
+  "secretPatterns": {
+    "githubToken": "CI_GITHUB_TOKEN",
+    "anthropicApiKey": "ANTHROPIC_API_KEY",
+    "googleJulesApiKey": "GOOGLE_JULES_API_KEY",
+    "ollamaApiKey": "OLLAMA_API_KEY",
+    "cursorApiKey": "CURSOR_API_KEY"
+  }
+}
