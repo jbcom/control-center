@@ -204,12 +204,16 @@ jobs:
           fi
 
   # ============================================================
-  # REVIEW SYNTHESIS: Extract and synthesize all AI reviewer feedback
+  # REVIEW SYNTHESIS: Gather → Resolve → Synthesize (One Clean Pass)
+  # 1. Fetch ALL AI feedback (reviews, threads, comments)
+  # 2. Resolve ALL outdated threads, minimize stale comments
+  # 3. Create ONE aggregate synthesis for CASCADE to process
   # ============================================================
   review-synthesis:
     name: Review Synthesis
     if: |
       github.event_name == 'pull_request_review' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'issue_comment' && 
        contains(github.event.comment.body, '@cascade synthesize'))
     runs-on: ubuntu-latest
@@ -219,26 +223,38 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - name: Extract and synthesize reviews
+      - name: Gather, Resolve, Synthesize
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_API_URL: ${{ vars.OLLAMA_API_URL || 'https://api.ollama.com' }}
         run: |
-          if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            PR_NUM="${{ github.event.issue.number }}"
-          else
-            PR_NUM="${{ github.event.pull_request.number }}"
-          fi
+          # Get PR number from various event types
+          case "${{ github.event_name }}" in
+            issue_comment) PR_NUM="${{ github.event.issue.number }}" ;;
+            *) PR_NUM="${{ github.event.pull_request.number }}" ;;
+          esac
           
-          echo "📊 Synthesizing reviews for PR #$PR_NUM..."
+          [ -z "$PR_NUM" ] && echo "No PR number" && exit 0
           
-          # GraphQL query to get all review threads and suggestions
+          echo "🔄 Gather → Resolve → Synthesize for PR #$PR_NUM"
+          
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|cursor|amazon-q|dependabot|bugbot|claude|sonarcloud|codacy|snyk"
+          
+          # ============================================================
+          # STEP 1: GATHER all AI feedback
+          # ============================================================
+          echo ""
+          echo "📥 Step 1: Gathering all AI feedback..."
+          
           QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
             repository(owner: $owner, name: $repo) {
               pullRequest(number: $pr) {
-                reviews(first: 50) {
+                reviews(first: 100) {
                   nodes {
+                    id
                     author { login }
                     body
                     state
@@ -247,12 +263,16 @@ jobs:
                 }
                 reviewThreads(first: 100) {
                   nodes {
+                    id
                     isResolved
-                    comments(first: 20) {
+                    isOutdated
+                    path
+                    line
+                    comments(first: 10) {
                       nodes {
+                        id
                         author { login }
                         body
-                        path
                         diffHunk
                         createdAt
                       }
@@ -263,113 +283,165 @@ jobs:
             }
           }'
           
-          # Execute GraphQL query
-          OWNER="${{ github.repository_owner }}"
-          REPO="${{ github.event.repository.name }}"
-          
           RESULT=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
           
-          # Extract reviews from known AI agents
-          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|cursor|amazon-q|dependabot"
-          
-          # Parse reviews
+          # Extract reviews from AI agents
           REVIEWS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
-            .data.repository.pullRequest.reviews.nodes[]? |
+            [.data.repository.pullRequest.reviews.nodes[]? |
             select(.author.login | test($agents; "i")) |
-            "### \(.author.login) (\(.state))\n\(.body)\n"
-          ' 2>/dev/null || echo "")
+            {author: .author.login, state: .state, body: .body, date: .submittedAt}]
+          ' 2>/dev/null || echo "[]")
           
-          # Parse review thread comments (code suggestions)
-          SUGGESTIONS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
-            .data.repository.pullRequest.reviewThreads.nodes[]? |
+          # Extract unresolved threads from AI agents
+          THREADS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
+            [.data.repository.pullRequest.reviewThreads.nodes[]? |
             select(.isResolved == false) |
-            .comments.nodes[] |
-            select(.author.login | test($agents; "i")) |
-            "### \(.author.login) on `\(.path)`\n```diff\n\(.diffHunk // "")\n```\n\(.body)\n---\n"
+            select(.comments.nodes[0].author.login | test($agents; "i")) |
+            {id: .id, path: .path, line: .line, outdated: .isOutdated,
+             author: .comments.nodes[0].author.login,
+             body: .comments.nodes[0].body,
+             diffHunk: .comments.nodes[0].diffHunk}]
+          ' 2>/dev/null || echo "[]")
+          
+          # Extract outdated thread IDs for resolution
+          OUTDATED_IDS=$(echo "$RESULT" | jq -r --arg agents "$AI_AGENTS" '
+            .data.repository.pullRequest.reviewThreads.nodes[]? |
+            select(.isOutdated == true and .isResolved == false) |
+            select(.comments.nodes[0].author.login | test($agents; "i")) |
+            .id
           ' 2>/dev/null || echo "")
           
-          # Count suggestions
-          REVIEW_COUNT=$(echo "$REVIEWS" | grep -c "^### " || echo "0")
-          SUGGESTION_COUNT=$(echo "$SUGGESTIONS" | grep -c "^### " || echo "0")
+          REVIEW_COUNT=$(echo "$REVIEWS" | jq 'length')
+          THREAD_COUNT=$(echo "$THREADS" | jq 'length')
+          OUTDATED_COUNT=$(echo "$OUTDATED_IDS" | grep -c . || echo "0")
           
-          echo "Found $REVIEW_COUNT reviews and $SUGGESTION_COUNT suggestions from AI agents"
+          echo "  Found: $REVIEW_COUNT reviews, $THREAD_COUNT active threads, $OUTDATED_COUNT outdated"
           
-          if [ "$REVIEW_COUNT" -eq 0 ] && [ "$SUGGESTION_COUNT" -eq 0 ]; then
-            echo "No AI reviews to synthesize yet"
+          # ============================================================
+          # STEP 2: RESOLVE all outdated threads
+          # ============================================================
+          echo ""
+          echo "🧹 Step 2: Resolving outdated threads..."
+          
+          RESOLVED=0
+          for THREAD_ID in $OUTDATED_IDS; do
+            [ -z "$THREAD_ID" ] && continue
+            gh api graphql -f query='mutation($id: ID!) {
+              resolveReviewThread(input: {threadId: $id}) {
+                thread { isResolved }
+              }
+            }' -f id="$THREAD_ID" 2>/dev/null && RESOLVED=$((RESOLVED + 1))
+          done
+          echo "  ✅ Resolved $RESOLVED outdated threads"
+          
+          # Minimize old bot comments (keep last 3)
+          BOT_COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
+            [.[] | select(.user.type == "Bot" or (.user.login | test("copilot|coderabbit|gemini|amazon-q|cursor|bugbot|sonar|snyk|codacy"; "i"))) | .node_id]
+          ' 2>/dev/null || echo "[]")
+          
+          COMMENT_COUNT=$(echo "$BOT_COMMENTS" | jq 'length')
+          if [ "$COMMENT_COUNT" -gt 5 ]; then
+            echo "  Minimizing old bot comments ($COMMENT_COUNT total, keeping last 3)..."
+            echo "$BOT_COMMENTS" | jq -r '.[:(-3)][]' | while read -r CID; do
+              [ -z "$CID" ] && continue
+              gh api graphql -f query='mutation($id: ID!) {
+                minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
+                  minimizedComment { isMinimized }
+                }
+              }' -f id="$CID" 2>/dev/null || true
+            done
+            echo "  ✅ Minimized old comments"
+          fi
+          
+          # ============================================================
+          # STEP 3: SYNTHESIZE into ONE aggregate comment
+          # ============================================================
+          echo ""
+          echo "🔬 Step 3: Creating synthesis..."
+          
+          # Skip if nothing to synthesize
+          if [ "$REVIEW_COUNT" -eq 0 ] && [ "$THREAD_COUNT" -eq 0 ]; then
+            echo "  No AI feedback to synthesize"
             exit 0
           fi
           
-          # Check for existing synthesis comment
-          MARKER="Review Synthesis"
-          EXISTING=$(gh pr view $PR_NUM --json comments --jq ".comments[] | select(.body | contains(\"$MARKER\")) | .id" | tail -1)
+          # Build context for synthesis
+          REVIEW_TEXT=$(echo "$REVIEWS" | jq -r '.[] | "**\(.author)** (\(.state)): \(.body)"' 2>/dev/null | head -50)
+          THREAD_TEXT=$(echo "$THREADS" | jq -r '.[] | "**\(.author)** on `\(.path):\(.line // "?")`: \(.body)"' 2>/dev/null | head -50)
           
-          # Prepare context for Ollama
-          CONTEXT="You are reviewing code suggestions from multiple AI agents.
+          CONTEXT="Synthesize this AI feedback for a PR:
+
+          ## Reviews ($REVIEW_COUNT)
+          $REVIEW_TEXT
+
+          ## Active Suggestions ($THREAD_COUNT)  
+          $THREAD_TEXT
+
+          Create a concise actionable summary:
+          1. 🔴 **Critical** - Must fix (security, bugs)
+          2. 🟠 **Important** - Should fix (performance, logic)
+          3. 🟡 **Suggested** - Nice to have (style, clarity)
+          4. ✅ **Already Good** - Positive feedback
+          5. 📊 **Verdict** - Ready to merge? What's blocking?"
           
-          ## AI Reviews
-          $REVIEWS
-          
-          ## Code Suggestions (Unresolved)
-          $SUGGESTIONS
-          
-          Synthesize these into:
-          1. **Critical Issues** - Must fix before merge (security, bugs, breaking changes)
-          2. **Recommended Changes** - Should fix (performance, maintainability)
-          3. **Optional Improvements** - Nice to have (style, minor optimizations)
-          4. **Conflicting Advice** - Where AI agents disagree, provide guidance
-          5. **Summary** - Overall assessment and merge readiness
-          
-          Be concise. Use severity emojis: 🔴 critical, 🟠 high, 🟡 medium, ⚪ low"
-          
-          # Call Ollama for synthesis (if available)
+          # Call Ollama for AI synthesis
+          SYNTHESIS=""
           if [ -n "$OLLAMA_API_KEY" ] && [ -n "$OLLAMA_API_URL" ]; then
-            SYNTHESIS=$(curl -sf --max-time 120 \
+            SYNTHESIS=$(curl -sf --max-time 60 \
               -H "Authorization: Bearer $OLLAMA_API_KEY" \
               -H "Content-Type: application/json" \
-              -d "$(jq -n --arg prompt "$CONTEXT" --arg model "glm-4.6:cloud" '{
-                model: $model,
+              -d "$(jq -n --arg prompt "$CONTEXT" '{
+                model: "glm-4.6:cloud",
                 messages: [
-                  { role: "system", content: "Expert code reviewer synthesizing AI feedback." },
-                  { role: "user", content: $prompt }
+                  {role: "system", content: "Expert code reviewer. Be concise."},
+                  {role: "user", content: $prompt}
                 ],
                 stream: false
               }')" \
-              "$OLLAMA_API_URL/api/chat" 2>/dev/null | jq -r '.message.content // empty') || SYNTHESIS=""
+              "$OLLAMA_API_URL/api/chat" 2>/dev/null | jq -r '.message.content // empty') || true
           fi
           
-          # Build synthesis comment
+          # Build the ONE aggregate comment
+          MARKER="CASCADE Review Synthesis"
+          
           if [ -n "$SYNTHESIS" ]; then
-            BODY="## 🔬 **$MARKER**
-          
-          Analyzed **$REVIEW_COUNT reviews** and **$SUGGESTION_COUNT suggestions** from AI agents.
-          
+            BODY="## 🔬 $MARKER
+
+          **Analyzed:** $REVIEW_COUNT reviews, $THREAD_COUNT suggestions | **Resolved:** $RESOLVED outdated
+
           $SYNTHESIS
-          
+
           ---
-          <sub>Synthesized by Cascade using Ollama</sub>"
+          <sub>🤖 Synthesized by CASCADE | Use \`@cascade address feedback\` to auto-fix</sub>"
           else
-            # Fallback - just list what we found
-            BODY="## 🔬 **$MARKER**
-          
-          Found **$REVIEW_COUNT reviews** and **$SUGGESTION_COUNT suggestions** from AI agents.
-          
-          ### Unresolved Suggestions
-          $SUGGESTIONS
-          
+            BODY="## 🔬 $MARKER
+
+          **Analyzed:** $REVIEW_COUNT reviews, $THREAD_COUNT suggestions | **Resolved:** $RESOLVED outdated
+
+          ### Active Feedback
+          $THREAD_TEXT
+
           ---
-          <sub>Use \`@cascade synthesize\` to get AI-powered synthesis</sub>"
+          <sub>🤖 Use \`@cascade synthesize\` for AI-powered summary</sub>"
           fi
           
-          # Post or update comment
-          if [ -n "$EXISTING" ]; then
-            echo "Updating existing synthesis comment"
+          # Find and UPDATE existing synthesis, or create new
+          EXISTING_ID=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq "
+            .[] | select(.body | contains(\"$MARKER\")) | .node_id
+          " 2>/dev/null | tail -1)
+          
+          if [ -n "$EXISTING_ID" ]; then
+            echo "  Updating existing synthesis comment..."
             gh api graphql -f query='mutation($id: ID!, $body: String!) {
               updateIssueComment(input: {id: $id, body: $body}) { clientMutationId }
-            }' -f id="$EXISTING" -f body="$BODY" 2>/dev/null || \
-              gh pr comment $PR_NUM --body "$BODY"
+            }' -f id="$EXISTING_ID" -f body="$BODY" 2>/dev/null || gh pr comment $PR_NUM --body "$BODY"
           else
+            echo "  Creating new synthesis comment..."
             gh pr comment $PR_NUM --body "$BODY"
           fi
+          
+          echo ""
+          echo "✅ Synthesis complete - ONE aggregate comment for CASCADE"
 
   # Automatic AI review on new/updated PRs
   auto-review:
