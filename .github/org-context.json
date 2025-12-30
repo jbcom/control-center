@@ -1,29 +1,24 @@
 {
   "$schema": "./schemas/org-registry.schema.json",
   "enterprise": "jbcom",
-  "description": "Registry of organizations managed by this enterprise control center",
+  "description": "Enterprise control plane - manages organization control centers (no codebases)",
   
-  "organizations": [
-    {
-      "org": "jbcom",
-      "domain": "jonbogaty.com",
-      "type": "primary",
-      "controlCenter": null,
-      "languages": ["typescript", "python", "go", "terraform"],
-      "focus": ["AI orchestration", "Games", "Infrastructure"],
-      "repos": {
-        "include": "*",
-        "exclude": ["*.github.io"]
-      }
-    },
+  "thisOrg": {
+    "org": "jbcom",
+    "domain": "jonbogaty.com",
+    "type": "enterprise-control-plane",
+    "purpose": "Top-level orchestration only - no codebases, just control-center and docs",
+    "repos": ["control-center"]
+  },
+  
+  "managedOrganizations": [
     {
       "org": "agentic-dev-library",
       "domain": "agentic.dev",
-      "type": "child",
       "controlCenter": "agentic-dev-library/control-center",
       "languages": ["typescript"],
       "focus": ["AI agent primitives", "npm packages", "GitHub Actions"],
-      "repos": {
+      "repoFilter": {
         "include": "*",
         "exclude": []
       }
@@ -31,11 +26,10 @@
     {
       "org": "strata-game-library",
       "domain": "strata.game",
-      "type": "child",
       "controlCenter": "strata-game-library/control-center",
       "languages": ["typescript", "rust"],
       "focus": ["Procedural graphics", "Game engines", "WebGPU"],
-      "repos": {
+      "repoFilter": {
         "include": "*",
         "exclude": []
       }
@@ -43,11 +37,10 @@
     {
       "org": "extended-data-library",
       "domain": "extendeddata.dev",
-      "type": "child",
       "controlCenter": "extended-data-library/control-center",
       "languages": ["python", "typescript"],
       "focus": ["Data utilities", "Enterprise integrations", "Type systems"],
-      "repos": {
+      "repoFilter": {
         "include": "*",
         "exclude": []
       }
