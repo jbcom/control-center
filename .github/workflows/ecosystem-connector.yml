@@ -373,7 +373,9 @@ jobs:
     name: Cascade
     if: |
       github.event_name == 'issue_comment' &&
-      contains(github.event.comment.body, '@cascade')
+      contains(github.event.comment.body, '@cascade') &&
+      !contains(github.event.comment.body, '@cascade rebase') &&
+      !contains(github.event.comment.body, '@cascade synthesize')
     runs-on: ubuntu-latest
     outputs:
       route: ${{ steps.route.outputs.agent }}
