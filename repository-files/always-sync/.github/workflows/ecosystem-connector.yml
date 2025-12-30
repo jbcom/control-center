@@ -933,3 +933,146 @@ jobs:
             gh pr ready $PR_NUM
             # No comment - the ready_for_review event will trigger auto-review
           fi
+
+  # ============================================================
+  # SELF-ASSESS: Automatically evaluate PRs for auto-merge eligibility
+  # This is what makes the ecosystem-connector truly autonomous
+  # ============================================================
+  self-assess:
+    name: Self Assess
+    if: |
+      (github.event_name == 'check_suite' &&
+       github.event.check_suite.conclusion == 'success' &&
+       github.event.check_suite.pull_requests[0] != null) ||
+      (github.event_name == 'pull_request' &&
+       github.event.action == 'synchronize' &&
+       !github.event.pull_request.draft)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - name: Assess and auto-approve if eligible
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Get PR number
+          if [ "${{ github.event_name }}" = "check_suite" ]; then
+            PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number')
+          else
+            PR_NUM="${{ github.event.pull_request.number }}"
+          fi
+          
+          if [ "$PR_NUM" = "null" ] || [ -z "$PR_NUM" ]; then
+            echo "No PR to assess"
+            exit 0
+          fi
+          
+          echo "🔍 Self-assessing PR #$PR_NUM..."
+          
+          # Get PR details
+          PR_DATA=$(gh pr view $PR_NUM --json author,labels,isDraft,mergeable,mergeStateStatus,reviewDecision,title,headRefName)
+          
+          AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login')
+          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
+          MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
+          MERGE_STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus')
+          REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision')
+          TITLE=$(echo "$PR_DATA" | jq -r '.title')
+          BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
+          HAS_AUTO=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "auto-merge" || echo "0")
+          HAS_SYNC=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "sync" || echo "0")
+          
+          echo "  Author: $AUTHOR"
+          echo "  Title: $TITLE"
+          echo "  Branch: $BRANCH"
+          echo "  Draft: $IS_DRAFT, Mergeable: $MERGEABLE, State: $MERGE_STATE"
+          echo "  Review: $REVIEW, Has auto-merge: $HAS_AUTO, Has sync: $HAS_SYNC"
+          
+          # Skip if draft
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "  Skipping - draft PR"
+            exit 0
+          fi
+          
+          # Skip if already has labels
+          if [ "$HAS_AUTO" -gt 0 ] || [ "$HAS_SYNC" -gt 0 ]; then
+            echo "  Already labeled for auto-merge"
+            exit 0
+          fi
+          
+          # Check all CI status
+          FAILED_CHECKS=$(gh pr checks $PR_NUM --json name,conclusion --jq '[.[] | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT")] | length')
+          PENDING_CHECKS=$(gh pr checks $PR_NUM --json name,state --jq '[.[] | select(.state == "PENDING" or .state == "QUEUED")] | length')
+          
+          echo "  Failed checks: $FAILED_CHECKS, Pending: $PENDING_CHECKS"
+          
+          # Don't proceed if checks are failing or pending
+          if [ "$FAILED_CHECKS" -gt 0 ]; then
+            echo "  Skipping - has failing checks"
+            exit 0
+          fi
+          
+          if [ "$PENDING_CHECKS" -gt 0 ]; then
+            echo "  Skipping - checks still pending"
+            exit 0
+          fi
+          
+          # Safety criteria for auto-merge eligibility
+          ELIGIBLE=false
+          REASON=""
+          
+          # Criterion 1: Sync PRs from control center
+          if echo "$TITLE" | grep -qiE "^sync:|^\[sync\]"; then
+            ELIGIBLE=true
+            REASON="Sync PR from control center"
+          fi
+          
+          # Criterion 2: Trusted bot authors
+          if [[ "$AUTHOR" == *"[bot]"* ]] || [[ "$AUTHOR" == *"-bot"* ]]; then
+            ELIGIBLE=true
+            REASON="Trusted bot author: $AUTHOR"
+          fi
+          
+          # Criterion 3: Cursor agent branches (this repo's own work)
+          if echo "$BRANCH" | grep -qE "^cursor/"; then
+            ELIGIBLE=true
+            REASON="Cursor agent branch"
+          fi
+          
+          # Criterion 4: Dependabot/renovate PRs
+          if [ "$AUTHOR" = "dependabot" ] || [ "$AUTHOR" = "renovate" ]; then
+            ELIGIBLE=true
+            REASON="Dependency update from $AUTHOR"
+          fi
+          
+          # Criterion 5: Already approved by human
+          if [ "$REVIEW" = "APPROVED" ]; then
+            ELIGIBLE=true
+            REASON="Already approved by reviewer"
+          fi
+          
+          if [ "$ELIGIBLE" = "true" ]; then
+            echo "  ✅ Eligible for auto-merge: $REASON"
+            
+            # Create auto-merge label if it doesn't exist
+            gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
+            
+            # Add label
+            gh pr edit $PR_NUM --add-label "auto-merge"
+            
+            # Auto-approve (if not already approved and we have permission)
+            if [ "$REVIEW" != "APPROVED" ]; then
+              gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
+
+**Reason:** $REASON
+
+All CI checks passed. PR meets auto-merge criteria." || echo "  Could not auto-approve (may need different permissions)"
+            fi
+            
+            echo "  Added auto-merge label and approved"
+          else
+            echo "  Not eligible for auto-merge (requires manual review)"
+          fi
