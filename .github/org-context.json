@@ -7,8 +7,12 @@
     "org": "jbcom",
     "domain": "jonbogaty.com",
     "type": "enterprise-control-plane",
-    "purpose": "Top-level orchestration only - no codebases, just control-center and docs",
-    "repos": ["control-center"]
+    "purpose": "PURELY control and documentation - no codebases",
+    "contains": {
+      "control": ["control-center"],
+      "documentation": ["docs", "*.github.io"],
+      "codebases": []
+    }
   },
   
   "managedOrganizations": [

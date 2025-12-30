@@ -54,25 +54,30 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Discover Child Orgs
+      - name: Discover Managed Organizations
         id: discover
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          echo "🔍 Discovering child organizations..."
+          echo "🔍 Discovering managed organizations..."
+          echo ""
+          echo "jbcom is PURELY control + documentation (no codebases)"
+          echo "Syncing to org control centers that manage actual codebases..."
+          echo ""
           
-          # Read org-context for child orgs
-          CHILD_ORGS=$(jq -r '.childOrgs[] | .org' .github/org-context.json 2>/dev/null || echo "")
+          # Read managed orgs from org-context (enterprise registry)
+          MANAGED_ORGS=$(jq -r '.managedOrganizations[] | .org' .github/org-context.json 2>/dev/null || echo "")
           
-          # Build matrix
+          # Build matrix of orgs with accessible control centers
           ORGS="[]"
-          for ORG in $CHILD_ORGS; do
-            # Check if control-center exists
-            if gh repo view "$ORG/control-center" > /dev/null 2>&1; then
+          for ORG in $MANAGED_ORGS; do
+            CONTROL_CENTER=$(jq -r --arg org "$ORG" '.managedOrganizations[] | select(.org == $org) | .controlCenter' .github/org-context.json)
+            
+            if gh repo view "$CONTROL_CENTER" > /dev/null 2>&1; then
               ORGS=$(echo "$ORGS" | jq --arg org "$ORG" '. + [$org]')
-              echo "  ✅ $ORG/control-center"
+              echo "  ✅ $CONTROL_CENTER"
             else
-              echo "  ⚠️ $ORG/control-center not found"
+              echo "  ⚠️ $CONTROL_CENTER not found or not accessible"
             fi
           done
           
@@ -82,6 +87,7 @@ jobs:
           fi
           
           echo "orgs=$ORGS" >> $GITHUB_OUTPUT
+          echo ""
           echo "📋 Will sync to: $ORGS"
 
   # ════════════════════════════════════════════════════════════════
@@ -111,10 +117,10 @@ jobs:
       - name: Load Org Context
         id: context
         run: |
-          # Get org-specific context from parent
+          # Get org-specific context from enterprise registry
           ORG="${{ matrix.org }}"
           
-          ORG_CTX=$(jq --arg org "$ORG" '.childOrgs[] | select(.org == $org)' source/.github/org-context.json 2>/dev/null || echo "{}")
+          ORG_CTX=$(jq --arg org "$ORG" '.managedOrganizations[] | select(.org == $org)' source/.github/org-context.json 2>/dev/null || echo "{}")
           
           # Extract values
           DOMAIN=$(echo "$ORG_CTX" | jq -r '.domain // "unknown"')
