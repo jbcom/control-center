@@ -1,0 +1,374 @@
+# Ecosystem Agents - Scheduled AI Agent Runners
+# Dispatches bespoke agents nightly/monthly with factory metaprompts
+#
+# Agents:
+# - Bolt ⚡ (Performance)
+# - Sentinel 🛡️ (Security)
+# - Palette 🎨 (UX/A11y)
+# - Scribe 📚 (Documentation)
+# - Triage 🔍 (Issue/PR management)
+
+name: Ecosystem Agents
+
+on:
+  schedule:
+    # Nightly at 2 AM UTC - rotate through agents
+    - cron: '0 2 * * 0'  # Sunday: Bolt (performance)
+    - cron: '0 2 * * 1'  # Monday: Sentinel (security)
+    - cron: '0 2 * * 2'  # Tuesday: Palette (UX)
+    - cron: '0 2 * * 3'  # Wednesday: Scribe (docs)
+    - cron: '0 2 * * 4'  # Thursday: Bolt
+    - cron: '0 2 * * 5'  # Friday: Triage
+    - cron: '0 2 * * 6'  # Saturday: Sentinel
+    
+    # Monthly deep assessment - 1st of month at 3 AM UTC
+    - cron: '0 3 1 * *'
+  
+  workflow_dispatch:
+    inputs:
+      agent:
+        description: 'Agent to run'
+        required: true
+        type: choice
+        options:
+          - bolt
+          - sentinel
+          - palette
+          - scribe
+          - triage
+          - assessment
+      target_repo:
+        description: 'Specific repo (owner/repo) or leave empty for self'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  issues: write
+  pull-requests: write
+
+env:
+  JULES_API: https://jules.googleapis.com/v1alpha
+
+jobs:
+  # ════════════════════════════════════════════════════════════════
+  # DISPATCH: Determine which agent to run
+  # ════════════════════════════════════════════════════════════════
+  dispatch:
+    name: Dispatch Agent
+    runs-on: ubuntu-latest
+    outputs:
+      agent: ${{ steps.select.outputs.agent }}
+      repo: ${{ steps.select.outputs.repo }}
+      prompt: ${{ steps.select.outputs.prompt }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Agent
+        id: select
+        run: |
+          # Determine agent from schedule or input
+          if [ -n "${{ inputs.agent }}" ]; then
+            AGENT="${{ inputs.agent }}"
+          else
+            # Select based on day of week
+            DOW=$(date +%u)
+            case $DOW in
+              0) AGENT="bolt" ;;
+              1) AGENT="sentinel" ;;
+              2) AGENT="palette" ;;
+              3) AGENT="scribe" ;;
+              4) AGENT="bolt" ;;
+              5) AGENT="triage" ;;
+              6) AGENT="sentinel" ;;
+              *) AGENT="triage" ;;
+            esac
+            
+            # Check if it's monthly assessment day
+            if [ "$(date +%d)" = "01" ] && [ "$(date +%H)" = "03" ]; then
+              AGENT="assessment"
+            fi
+          fi
+          
+          # Target repo
+          if [ -n "${{ inputs.target_repo }}" ]; then
+            REPO="${{ inputs.target_repo }}"
+          else
+            REPO="${{ github.repository }}"
+          fi
+          
+          echo "agent=$AGENT" >> $GITHUB_OUTPUT
+          echo "repo=$REPO" >> $GITHUB_OUTPUT
+          
+          echo "🤖 Agent: $AGENT"
+          echo "📦 Repo: $REPO"
+
+      - name: Load and Inject Context
+        id: context
+        run: |
+          AGENT="${{ steps.select.outputs.agent }}"
+          REPO="${{ steps.select.outputs.repo }}"
+          
+          # Load contexts
+          ORG_CTX=$(cat .github/org-context.json 2>/dev/null || echo "{}")
+          REPO_CTX=$(cat .github/repo-context.json 2>/dev/null || echo "{}")
+          
+          # Extract values
+          ORG_NAME=$(echo "$ORG_CTX" | jq -r '.org // "unknown"')
+          LANGUAGES=$(echo "$ORG_CTX" | jq -r '.languages | join(", ") // "typescript"')
+          TEST_CMD=$(echo "$REPO_CTX" | jq -r '.commands.test // "npm test"')
+          LINT_CMD=$(echo "$REPO_CTX" | jq -r '.commands.lint // "npm run lint"')
+          FOCUS=$(echo "$ORG_CTX" | jq -r '.focus | join(", ") // ""')
+          
+          # Load metaprompt
+          PROMPT_FILE=".github/metaprompts/${AGENT}.md"
+          if [ -f "$PROMPT_FILE" ]; then
+            PROMPT=$(cat "$PROMPT_FILE")
+          else
+            PROMPT="You are a helpful coding assistant for $REPO."
+          fi
+          
+          # Inject context
+          PROMPT=$(echo "$PROMPT" | sed \
+            -e "s|{{ORG_NAME}}|$ORG_NAME|g" \
+            -e "s|{{REPO_NAME}}|${REPO##*/}|g" \
+            -e "s|{{LANGUAGES}}|$LANGUAGES|g" \
+            -e "s|{{TEST_COMMAND}}|$TEST_CMD|g" \
+            -e "s|{{LINT_COMMAND}}|$LINT_CMD|g" \
+            -e "s|{{FOCUS_AREAS}}|$FOCUS|g")
+          
+          # Save prompt to file for next job
+          echo "$PROMPT" > /tmp/agent-prompt.md
+          
+          echo "✅ Loaded $AGENT metaprompt with context"
+
+      - name: Upload Prompt
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-prompt
+          path: /tmp/agent-prompt.md
+          retention-days: 1
+
+  # ════════════════════════════════════════════════════════════════
+  # JULES: Run agent via Jules API (AUTO_CREATE_PR)
+  # ════════════════════════════════════════════════════════════════
+  run-jules:
+    name: Run via Jules
+    needs: dispatch
+    if: needs.dispatch.outputs.agent != 'triage' && needs.dispatch.outputs.agent != 'assessment'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Prompt
+        uses: actions/download-artifact@v4
+        with:
+          name: agent-prompt
+          path: /tmp
+
+      - name: Launch Jules Session
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          AGENT="${{ needs.dispatch.outputs.agent }}"
+          REPO="${{ needs.dispatch.outputs.repo }}"
+          PROMPT=$(cat /tmp/agent-prompt.md)
+          
+          # Parse owner/repo
+          OWNER="${REPO%%/*}"
+          REPO_NAME="${REPO##*/}"
+          
+          echo "🤖 Launching $AGENT via Jules..."
+          echo "   Source: sources/github/$OWNER/$REPO_NAME"
+          
+          # Get default branch
+          DEFAULT_BRANCH=$(gh api repos/$REPO --jq '.default_branch' 2>/dev/null || echo "main")
+          
+          # Create Jules session
+          RESPONSE=$(curl -sf -X POST "${{ env.JULES_API }}/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg prompt "$PROMPT" \
+              --arg source "sources/github/$OWNER/$REPO_NAME" \
+              --arg branch "$DEFAULT_BRANCH" \
+              '{
+                prompt: $prompt,
+                sourceContext: {
+                  source: $source,
+                  githubRepoContext: {
+                    startingBranch: $branch
+                  }
+                },
+                automationMode: "AUTO_CREATE_PR"
+              }')" 2>&1) || RESPONSE=""
+          
+          if [ -z "$RESPONSE" ]; then
+            echo "❌ Failed to create Jules session"
+            exit 1
+          fi
+          
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
+          STATE=$(echo "$RESPONSE" | jq -r '.state // "UNKNOWN"')
+          
+          echo ""
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  ✅ JULES SESSION CREATED                                  ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          echo "   Agent: $AGENT"
+          echo "   Session: $SESSION_ID"
+          echo "   State: $STATE"
+          echo "   URL: $SESSION_URL"
+          echo ""
+          echo "Jules will create a PR if improvements are found."
+
+  # ════════════════════════════════════════════════════════════════
+  # TRIAGE: Run triage agent (uses gh CLI, not Jules)
+  # ════════════════════════════════════════════════════════════════
+  run-triage:
+    name: Run Triage
+    needs: dispatch
+    if: needs.dispatch.outputs.agent == 'triage'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Triage Issues and PRs
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          REPO="${{ needs.dispatch.outputs.repo }}"
+          
+          echo "🔍 Running triage on $REPO..."
+          
+          # Count issues
+          TOTAL_ISSUES=$(gh issue list --repo $REPO --state open --json number --jq 'length')
+          UNLABELED=$(gh issue list --repo $REPO --state open --json labels --jq '[.[] | select(.labels | length == 0)] | length')
+          
+          # Count PRs
+          TOTAL_PRS=$(gh pr list --repo $REPO --state open --json number --jq 'length')
+          NEEDS_REVIEW=$(gh pr list --repo $REPO --state open --json reviewDecision --jq '[.[] | select(.reviewDecision != "APPROVED")] | length')
+          
+          # Find stale items (>30 days)
+          THIRTY_DAYS_AGO=$(date -d '30 days ago' +%Y-%m-%d 2>/dev/null || date -v-30d +%Y-%m-%d)
+          STALE_ISSUES=$(gh issue list --repo $REPO --state open --json updatedAt --jq "[.[] | select(.updatedAt < \"$THIRTY_DAYS_AGO\")] | length" 2>/dev/null || echo "0")
+          
+          # Generate report
+          REPORT="## 🔍 Triage Report - $(date +%Y-%m-%d)
+          
+          ### Issues
+          | Metric | Count |
+          |--------|-------|
+          | Total Open | $TOTAL_ISSUES |
+          | Unlabeled | $UNLABELED |
+          | Stale (>30d) | $STALE_ISSUES |
+          
+          ### Pull Requests
+          | Metric | Count |
+          |--------|-------|
+          | Total Open | $TOTAL_PRS |
+          | Needs Review | $NEEDS_REVIEW |
+          
+          ---
+          <sub>Generated by Ecosystem Agents - Triage</sub>"
+          
+          echo "$REPORT"
+          
+          # Create issue if there are problems
+          if [ "$UNLABELED" -gt 5 ] || [ "$STALE_ISSUES" -gt 3 ]; then
+            # Check for existing triage issue this week
+            EXISTING=$(gh issue list --repo $REPO --label "triage" --state open --json number --jq '.[0].number // empty')
+            
+            if [ -z "$EXISTING" ]; then
+              gh label create "triage" --repo $REPO --color "FBCA04" 2>/dev/null || true
+              gh issue create --repo $REPO \
+                --title "🔍 Triage needed: $UNLABELED unlabeled, $STALE_ISSUES stale" \
+                --body "$REPORT" \
+                --label "triage"
+              echo "✅ Created triage issue"
+            else
+              gh issue comment $EXISTING --repo $REPO --body "$REPORT"
+              echo "✅ Updated existing triage issue #$EXISTING"
+            fi
+          fi
+
+  # ════════════════════════════════════════════════════════════════
+  # ASSESSMENT: Monthly deep codebase review
+  # ════════════════════════════════════════════════════════════════
+  run-assessment:
+    name: Monthly Assessment
+    needs: dispatch
+    if: needs.dispatch.outputs.agent == 'assessment'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Deep Codebase Assessment
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          REPO="${{ needs.dispatch.outputs.repo }}"
+          
+          echo "📊 Running monthly deep assessment on $REPO..."
+          
+          # Gather metrics
+          TOTAL_FILES=$(find . -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" \) | wc -l)
+          TOTAL_LINES=$(find . -type f \( -name "*.ts" -o -name "*.py" -o -name "*.go" \) -exec wc -l {} + 2>/dev/null | tail -1 | awk '{print $1}' || echo "0")
+          
+          # Check for common issues
+          TODO_COUNT=$(grep -r "TODO\|FIXME\|HACK" --include="*.ts" --include="*.py" --include="*.go" . 2>/dev/null | wc -l || echo "0")
+          
+          # Check test coverage (if available)
+          COVERAGE="N/A"
+          if [ -f "coverage/lcov.info" ]; then
+            COVERAGE=$(grep -E "^LF:|^LH:" coverage/lcov.info | awk -F: '{sum[$1]+=$2} END {if(sum["LF"]>0) printf "%.1f%%", (sum["LH"]/sum["LF"])*100; else print "N/A"}')
+          fi
+          
+          # Check for outdated dependencies
+          OUTDATED="N/A"
+          if [ -f "package.json" ]; then
+            OUTDATED=$(npm outdated --json 2>/dev/null | jq 'length' || echo "N/A")
+          fi
+          
+          # Generate assessment
+          ASSESSMENT="## 📊 Monthly Codebase Assessment - $(date +%Y-%m)
+          
+          ### Metrics
+          | Metric | Value |
+          |--------|-------|
+          | Total Files | $TOTAL_FILES |
+          | Total Lines | $TOTAL_LINES |
+          | TODOs/FIXMEs | $TODO_COUNT |
+          | Test Coverage | $COVERAGE |
+          | Outdated Deps | $OUTDATED |
+          
+          ### Health Indicators
+          "
+          
+          # Add health checks
+          if [ "$TODO_COUNT" -gt 20 ]; then
+            ASSESSMENT="$ASSESSMENT
+          - ⚠️ High TODO count ($TODO_COUNT) - consider creating issues"
+          else
+            ASSESSMENT="$ASSESSMENT
+          - ✅ TODO count acceptable ($TODO_COUNT)"
+          fi
+          
+          ASSESSMENT="$ASSESSMENT
+          
+          ---
+          <sub>Generated by Ecosystem Agents - Monthly Assessment</sub>"
+          
+          echo "$ASSESSMENT"
+          
+          # Create assessment issue
+          gh label create "assessment" --repo $REPO --color "7057FF" 2>/dev/null || true
+          gh issue create --repo $REPO \
+            --title "📊 Monthly Assessment - $(date +%Y-%m)" \
+            --body "$ASSESSMENT" \
+            --label "assessment"
+          
+          echo "✅ Assessment complete"

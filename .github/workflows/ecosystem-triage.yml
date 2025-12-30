@@ -76,19 +76,19 @@ jobs:
           # Handle PR closed event
           if [ "${{ github.event.action }}" = "closed" ]; then
             echo "🏁 PR #$PR_NUM closed - closing tracking issue..."
-            TRACKING=$(gh issue list --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number --jq '.[0].number // empty')
+            TRACKING=$(gh issue list --repo "${{ github.repository }}" --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number --jq '.[0].number // empty')
             if [ -n "$TRACKING" ]; then
               if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
-                gh issue close $TRACKING --comment "✅ PR #$PR_NUM merged successfully." 2>/dev/null || true
+                gh issue close $TRACKING --repo "${{ github.repository }}" --comment "✅ PR #$PR_NUM merged successfully." 2>/dev/null || true
               else
-                gh issue close $TRACKING --comment "❌ PR #$PR_NUM closed without merge." 2>/dev/null || true
+                gh issue close $TRACKING --repo "${{ github.repository }}" --comment "❌ PR #$PR_NUM closed without merge." 2>/dev/null || true
               fi
             fi
             exit 0
           fi
           
           # Get PR details
-          PR_DATA=$(gh pr view $PR_NUM --json title,url,author,headRefName,isDraft 2>/dev/null || echo "{}")
+          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json title,url,author,headRefName,isDraft 2>/dev/null || echo "{}")
           PR_TITLE=$(echo "$PR_DATA" | jq -r '.title // "Unknown"')
           PR_URL=$(echo "$PR_DATA" | jq -r '.url // ""')
           PR_AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login // "unknown"')
@@ -118,16 +118,16 @@ jobs:
           for LABEL in "synthesis:7057FF" "queue-blocked:B60205" "queue-review:FBCA04" "queue-ready:0E8A16"; do
             NAME="${LABEL%%:*}"
             COLOR="${LABEL##*:}"
-            gh label create "$NAME" --color "$COLOR" 2>/dev/null || true
+            gh label create "$NAME" --color "$COLOR" --repo "${{ github.repository }}" 2>/dev/null || true
           done
           
           # Search for existing tracking issue
-          TRACKING_ISSUE=$(gh issue list --label "synthesis" --search "$ISSUE_KEY in:title" --json number --jq '.[0].number // empty' 2>/dev/null)
+          TRACKING_ISSUE=$(gh issue list --repo "${{ github.repository }}" --label "synthesis" --search "$ISSUE_KEY in:title" --json number --jq '.[0].number // empty' 2>/dev/null)
           
           if [ -z "$TRACKING_ISSUE" ]; then
             echo "  Creating new tracking issue..."
             
-            TRACKING_ISSUE=$(gh issue create \
+            TRACKING_ISSUE=$(gh issue create --repo "${{ github.repository }}" \
               --title "$ISSUE_KEY: $PR_TITLE" \
               --body "# 🔬 Synthesis: PR #$PR_NUM
 
@@ -149,7 +149,7 @@ jobs:
               2>/dev/null | grep -oE '[0-9]+$')
             
             # Link tracking issue to PR
-            gh pr comment $PR_NUM --body "📦 **Tracking:** #$TRACKING_ISSUE" 2>/dev/null || true
+            gh pr comment $PR_NUM --repo "${{ github.repository }}" --body "📦 **Tracking:** #$TRACKING_ISSUE" 2>/dev/null || true
             echo "  ✅ Created #$TRACKING_ISSUE"
           else
             echo "  ✅ Found #$TRACKING_ISSUE"
@@ -273,11 +273,11 @@ jobs:
 
           <sub>🤖 Ecosystem Triage</sub>"
           
-          gh issue edit $TRACKING_ISSUE --body "$BODY" 2>/dev/null || true
+          gh issue edit $TRACKING_ISSUE --repo "${{ github.repository }}" --body "$BODY" 2>/dev/null || true
           
           # Update labels
-          gh issue edit $TRACKING_ISSUE --remove-label "queue-blocked,queue-review,queue-ready" 2>/dev/null || true
-          gh issue edit $TRACKING_ISSUE --add-label "$VERDICT_LABEL" 2>/dev/null || true
+          gh issue edit $TRACKING_ISSUE --repo "${{ github.repository }}" --remove-label "queue-blocked,queue-review,queue-ready" 2>/dev/null || true
+          gh issue edit $TRACKING_ISSUE --repo "${{ github.repository }}" --add-label "$VERDICT_LABEL" 2>/dev/null || true
           
           echo ""
           echo "✅ Tracking issue #$TRACKING_ISSUE updated: $VERDICT"

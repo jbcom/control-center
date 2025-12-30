@@ -63,7 +63,7 @@ jobs:
           
           # Get branch if PR
           if [ "$IS_PR" = "true" ]; then
-            BRANCH=$(gh pr view $ISSUE_NUM --json headRefName --jq '.headRefName' 2>/dev/null || echo "main")
+            BRANCH=$(gh pr view $ISSUE_NUM --repo "${{ github.repository }}" --json headRefName --jq '.headRefName' 2>/dev/null || echo "main")
           else
             BRANCH="main"
           fi
@@ -101,9 +101,9 @@ jobs:
           \`\`\`"
           
           if [ "$IS_PR" = "true" ]; then
-            gh pr comment $ISSUE_NUM --body "$BODY"
+            gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           else
-            gh issue comment $ISSUE_NUM --body "$BODY"
+            gh issue comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           fi
 
   # ════════════════════════════════════════════════════════════════
@@ -199,9 +199,9 @@ jobs:
           
           # Post result
           if [ "$IS_PR" = "true" ]; then
-            gh pr comment $ISSUE_NUM --body "$BODY"
+            gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           else
-            gh issue comment $ISSUE_NUM --body "$BODY"
+            gh issue comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           fi
 
   # ════════════════════════════════════════════════════════════════
@@ -288,9 +288,9 @@ jobs:
           
           # Post result
           if [ "$IS_PR" = "true" ]; then
-            gh pr comment $ISSUE_NUM --body "$BODY"
+            gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           else
-            gh issue comment $ISSUE_NUM --body "$BODY"
+            gh issue comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           fi
 
   # ════════════════════════════════════════════════════════════════
@@ -343,9 +343,9 @@ jobs:
           
           # Post result
           if [ "$IS_PR" = "true" ]; then
-            gh pr comment $ISSUE_NUM --body "$BODY"
+            gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           else
-            gh issue comment $ISSUE_NUM --body "$BODY"
+            gh issue comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
           fi
 
   # ════════════════════════════════════════════════════════════════

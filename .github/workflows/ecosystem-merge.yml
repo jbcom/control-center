@@ -109,7 +109,7 @@ jobs:
           # ══════════════════════════════════════════════════════════
           # GET PR STATE
           # ══════════════════════════════════════════════════════════
-          PR_DATA=$(gh pr view $PR_NUM --json isDraft,mergeable,reviewDecision,title,labels,mergeStateStatus 2>/dev/null || echo "{}")
+          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json isDraft,mergeable,reviewDecision,title,labels,mergeStateStatus 2>/dev/null || echo "{}")
           
           IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft // false')
           MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable // "UNKNOWN"')
@@ -130,7 +130,7 @@ jobs:
           echo ""
           echo "📖 Reading tracking issue..."
           
-          TRACKING=$(gh issue list --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number,labels --jq '.[0]' 2>/dev/null || echo "{}")
+          TRACKING=$(gh issue list --repo "${{ github.repository }}" --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number,labels --jq '.[0]' 2>/dev/null || echo "{}")
           TRACKING_NUM=$(echo "$TRACKING" | jq -r '.number // empty')
           
           VERDICT="UNKNOWN"
@@ -228,7 +228,7 @@ jobs:
           PR_NUM="${{ needs.assess.outputs.pr_number }}"
           
           # Check current review state
-          REVIEW=$(gh pr view $PR_NUM --json reviewDecision --jq '.reviewDecision' 2>/dev/null || echo "")
+          REVIEW=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json reviewDecision --jq '.reviewDecision' 2>/dev/null || echo "")
           
           if [ "$REVIEW" = "APPROVED" ]; then
             echo "✅ Already approved"
@@ -248,8 +248,8 @@ jobs:
           Proceeding with merge." 2>/dev/null || echo "Could not approve (may need different token)"
           
           # Add auto-merge label
-          gh label create "auto-merge" --color "0E8A16" 2>/dev/null || true
-          gh pr edit $PR_NUM --add-label "auto-merge" 2>/dev/null || true
+          gh label create "auto-merge" --repo "${{ github.repository }}" --color "0E8A16" 2>/dev/null || true
+          gh pr edit $PR_NUM --repo "${{ github.repository }}" --add-label "auto-merge" 2>/dev/null || true
 
   # ════════════════════════════════════════════════════════════════
   # REBASE: Auto-rebase if behind
@@ -267,7 +267,7 @@ jobs:
           PR_NUM="${{ needs.assess.outputs.pr_number }}"
           
           # Check merge state
-          MERGE_STATE=$(gh pr view $PR_NUM --json mergeStateStatus --jq '.mergeStateStatus' 2>/dev/null || echo "")
+          MERGE_STATE=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json mergeStateStatus --jq '.mergeStateStatus' 2>/dev/null || echo "")
           
           if [ "$MERGE_STATE" != "BEHIND" ]; then
             echo "✅ PR is up to date"
@@ -277,7 +277,7 @@ jobs:
           echo "🔄 PR is behind, attempting rebase..."
           
           # Get branch info
-          PR_DATA=$(gh pr view $PR_NUM --json headRefName,baseRefName,headRepository)
+          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json headRefName,baseRefName,headRepository)
           HEAD=$(echo "$PR_DATA" | jq -r '.headRefName')
           BASE=$(echo "$PR_DATA" | jq -r '.baseRefName')
           
@@ -309,7 +309,7 @@ jobs:
           echo "🚀 Attempting to merge PR #$PR_NUM..."
           
           # Final check
-          PR_DATA=$(gh pr view $PR_NUM --json mergeable,mergeStateStatus,reviewDecision,isDraft)
+          PR_DATA=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json mergeable,mergeStateStatus,reviewDecision,isDraft)
           MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
           STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus')
           REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision')
@@ -335,9 +335,9 @@ jobs:
             echo "✅ PR #$PR_NUM merged successfully!"
             
             # Close tracking issue
-            TRACKING=$(gh issue list --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number --jq '.[0].number // empty' 2>/dev/null)
+            TRACKING=$(gh issue list --repo "${{ github.repository }}" --label "synthesis" --search "synthesis-pr-$PR_NUM in:title" --json number --jq '.[0].number // empty' 2>/dev/null)
             if [ -n "$TRACKING" ]; then
-              gh issue close $TRACKING --comment "✅ PR #$PR_NUM merged." 2>/dev/null || true
+              gh issue close $TRACKING --repo "${{ github.repository }}" --comment "✅ PR #$PR_NUM merged." 2>/dev/null || true
             fi
           else
             echo "⚠️ Merge failed - may need manual intervention"
