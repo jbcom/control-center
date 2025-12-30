@@ -1095,3 +1095,102 @@ jobs:
           fi
           
           echo "  ✅ Added auto-merge label and approved"
+
+  # ============================================================
+  # RESOLVE-FEEDBACK: Clean up resolved/outdated AI feedback
+  # Resolves review threads, hides stale comments, marks addressed
+  # ============================================================
+  resolve-feedback:
+    name: Resolve Feedback
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.action == 'synchronize'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - name: Resolve outdated review threads
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR_NUM="${{ github.event.pull_request.number }}"
+          echo "🧹 Cleaning up feedback for PR #$PR_NUM..."
+          
+          # GraphQL to get all review threads
+          QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) {
+                reviewThreads(first: 100) {
+                  nodes {
+                    id
+                    isResolved
+                    isOutdated
+                    path
+                    comments(first: 1) {
+                      nodes {
+                        author { login }
+                        body
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }'
+          
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          
+          THREADS=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
+          
+          # Known AI agents whose outdated feedback can be auto-resolved
+          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|amazon-q|dependabot|cursor|bugbot|claude"
+          
+          # Find outdated, unresolved threads from AI agents
+          OUTDATED_IDS=$(echo "$THREADS" | jq -r --arg agents "$AI_AGENTS" '
+            .data.repository.pullRequest.reviewThreads.nodes[]? |
+            select(.isOutdated == true and .isResolved == false) |
+            select(.comments.nodes[0].author.login | test($agents; "i")) |
+            .id
+          ' 2>/dev/null || echo "")
+          
+          RESOLVED_COUNT=0
+          
+          for THREAD_ID in $OUTDATED_IDS; do
+            [ -z "$THREAD_ID" ] && continue
+            
+            echo "  Resolving outdated thread: $THREAD_ID"
+            
+            gh api graphql -f query='mutation($id: ID!) {
+              resolveReviewThread(input: {threadId: $id}) {
+                thread { isResolved }
+              }
+            }' -f id="$THREAD_ID" 2>/dev/null && RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
+          done
+          
+          echo "  ✅ Resolved $RESOLVED_COUNT outdated AI review threads"
+          
+          # Minimize stale bot comments (CodeQL, etc)
+          COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
+            .[] | select(.user.type == "Bot") | 
+            select(.body | test("CodeQL|security|vulnerability|suggestion"; "i")) |
+            select(.created_at < (now - 86400 | todate)) |
+            {id: .node_id, author: .user.login}
+          ' 2>/dev/null || echo "")
+          
+          MINIMIZED_COUNT=0
+          
+          echo "$COMMENTS" | jq -r '.id' 2>/dev/null | while read -r COMMENT_ID; do
+            [ -z "$COMMENT_ID" ] && continue
+            
+            gh api graphql -f query='mutation($id: ID!) {
+              minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
+                minimizedComment { isMinimized }
+              }
+            }' -f id="$COMMENT_ID" 2>/dev/null && MINIMIZED_COUNT=$((MINIMIZED_COUNT + 1))
+          done
+          
+          echo "  ✅ Minimized stale bot comments"
