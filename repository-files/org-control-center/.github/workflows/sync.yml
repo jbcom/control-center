@@ -36,23 +36,21 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           ORG: ${{ github.repository_owner }}
         run: |
-          echo "🔄 Syncing to all repos in $ORG..."
+          echo "Syncing to all repos in $ORG..."
           echo "Strategy: Enterprise base + Org overrides"
           echo ""
           
           # Get all non-archived, non-control-center repos
-          repos=$(gh repo list "$ORG" --no-archived --json name --jq '.[].name' | grep -v "^control-center$" | grep -v "^\\.github$")
+          repos=$(gh repo list "$ORG" --no-archived --json name --jq '.[].name' | grep -v "^control-center$" | grep -v "^\.github$")
           
           for repo in $repos; do
             echo ""
-            echo "═══════════════════════════════════════"
-            echo "  $ORG/$repo"
-            echo "═══════════════════════════════════════"
+            echo "=== $ORG/$repo ==="
             
             # Clone target repo
             rm -rf /tmp/target
             if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git" /tmp/target 2>/dev/null; then
-              echo "  ⚠️ Could not clone - skipping"
+              echo "  Could not clone - skipping"
               continue
             fi
             cd /tmp/target
@@ -63,19 +61,15 @@ jobs:
             # Ensure directories exist
             mkdir -p .github/workflows .cursor/rules
             
-            # ─────────────────────────────────────────
             # LAYER 1: Enterprise always-sync (base)
-            # ─────────────────────────────────────────
-            echo "  📦 Layer 1: Enterprise files..."
+            echo "  Layer 1: Enterprise files..."
             if [ -d "$GITHUB_WORKSPACE/repository-files/always-sync" ]; then
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             
-            # ─────────────────────────────────────────
             # LAYER 2: Language-specific rules
-            # ─────────────────────────────────────────
-            echo "  🔧 Layer 2: Language-specific..."
+            echo "  Layer 2: Language-specific..."
             if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "requirements.txt" ]; then
               echo "    - Python detected"
               cp -r $GITHUB_WORKSPACE/repository-files/python/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
@@ -97,15 +91,11 @@ jobs:
               cp -r $GITHUB_WORKSPACE/repository-files/terraform/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             
-            # ─────────────────────────────────────────
             # LAYER 3: Org-specific overrides (wins)
-            # ─────────────────────────────────────────
-            echo "  🏢 Layer 3: Org overrides..."
+            echo "  Layer 3: Org overrides..."
             if [ -d "$GITHUB_WORKSPACE/repository-files/org-overrides" ]; then
-              # Copy all org overrides - these take precedence
               cp -r $GITHUB_WORKSPACE/repository-files/org-overrides/.github/workflows/* .github/workflows/ 2>/dev/null && echo "    - Workflows overridden" || true
               cp -r $GITHUB_WORKSPACE/repository-files/org-overrides/.cursor/rules/* .cursor/rules/ 2>/dev/null && echo "    - Cursor rules overridden" || true
-              # Any other org-specific files
               for item in $GITHUB_WORKSPACE/repository-files/org-overrides/*; do
                 if [ -f "$item" ]; then
                   cp "$item" . 2>/dev/null && echo "    - $(basename $item) overridden" || true
@@ -115,13 +105,10 @@ jobs:
               echo "    - No org overrides defined"
             fi
             
-            # ─────────────────────────────────────────
             # LAYER 4: Initial-only (only if missing)
-            # ─────────────────────────────────────────
-            echo "  📝 Layer 4: Initial-only..."
+            echo "  Layer 4: Initial-only..."
             for file in CLAUDE.md AGENTS.md; do
               if [ ! -f "$file" ]; then
-                # Check org-specific first, then enterprise
                 if [ -f "$GITHUB_WORKSPACE/repository-files/org-overrides/$file" ]; then
                   cp "$GITHUB_WORKSPACE/repository-files/org-overrides/$file" "$file"
                   echo "    - $file created (org version)"
@@ -132,27 +119,21 @@ jobs:
               fi
             done
             
-            # ─────────────────────────────────────────
             # Commit and push
-            # ─────────────────────────────────────────
             if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
               git add -A
-              git commit -m "chore(sync): update from $ORG/control-center
-
-Enterprise + org-specific merge from control-center"
+              git commit -m "chore(sync): update from $ORG/control-center"
               if git push origin HEAD 2>/dev/null; then
-                echo "  ✅ Synced successfully"
+                echo "  Synced successfully"
               else
-                echo "  ⚠️ Push failed (branch protection?)"
+                echo "  Push failed (branch protection?)"
               fi
             else
-              echo "  ✅ Already up to date"
+              echo "  Already up to date"
             fi
             
             cd $GITHUB_WORKSPACE
           done
           
           echo ""
-          echo "═══════════════════════════════════════"
-          echo "  🎉 Sync complete"
-          echo "═══════════════════════════════════════"
+          echo "Sync complete"
