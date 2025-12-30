@@ -1,18 +1,36 @@
-name: Test Reusable
+name: Test Orchestrator Minimal
 
 on:
   workflow_call:
     inputs:
-      message:
+      action:
         required: true
         type: string
+      repository:
+        required: true
+        type: string
+      pr_number:
+        required: false
+        type: number
     secrets:
       CI_GITHUB_TOKEN:
         required: true
 
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
 jobs:
-  test:
+  review:
+    name: Review
+    if: inputs.action == 'review'
     runs-on: ubuntu-latest
     steps:
-      - name: Echo message
-        run: echo "${{ inputs.message }}"
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repository }}
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+      - name: Echo
+        run: echo "Review for PR ${{ inputs.pr_number }} in ${{ inputs.repository }}"
