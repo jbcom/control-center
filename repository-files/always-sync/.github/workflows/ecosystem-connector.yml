@@ -13,15 +13,29 @@
 name: Ecosystem Connector
 
 on:
-  # PR events - full review/rebase/merge treatment
+  # PR events - comprehensive triggers for self-assessment
+  # https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request
   pull_request:
-    types: [opened, synchronize, ready_for_review]
+    types: 
+      - opened           # New PR created
+      - synchronize      # New commits pushed
+      - reopened         # PR reopened after close
+      - ready_for_review # Draft -> Ready
+      - labeled          # Label added (for sync/auto-merge)
+      - unlabeled        # Label removed
   pull_request_review:
-    types: [submitted]
+    types: [submitted, dismissed]
+  # For @cascade commands in PR comments
   issue_comment:
     types: [created]
+  # For CI completion -> self-assess
   check_suite:
     types: [completed]
+  # Check runs for more granular CI status
+  check_run:
+    types: [completed]
+  # Status updates (external CI systems)
+  status: {}
   # Main branch - propagate changes, no reviews
   push:
     branches: [main]
@@ -937,16 +951,21 @@ jobs:
   # ============================================================
   # SELF-ASSESS: Automatically evaluate ALL PRs for auto-merge
   # This is what makes the ecosystem-connector truly autonomous
-  # Runs on EVERY PR event - evaluation determines eligibility
+  # Runs on EVERY relevant event - evaluation determines eligibility
   # ============================================================
   self-assess:
     name: Self Assess
     if: |
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review') ||
       (github.event_name == 'check_suite' &&
        github.event.check_suite.conclusion == 'success' &&
        github.event.check_suite.pull_requests[0] != null) ||
-      (github.event_name == 'pull_request') ||
-      (github.event_name == 'pull_request_review')
+      (github.event_name == 'check_run' &&
+       github.event.check_run.conclusion == 'success' &&
+       github.event.check_run.pull_requests[0] != null) ||
+      (github.event_name == 'status' &&
+       github.event.state == 'success')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -958,12 +977,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          # Get PR number
-          if [ "${{ github.event_name }}" = "check_suite" ]; then
-            PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number')
-          else
-            PR_NUM="${{ github.event.pull_request.number }}"
-          fi
+          # Get PR number from various event types
+          case "${{ github.event_name }}" in
+            pull_request)
+              PR_NUM="${{ github.event.pull_request.number }}"
+              ;;
+            pull_request_review)
+              PR_NUM="${{ github.event.pull_request.number }}"
+              ;;
+            check_suite)
+              PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number')
+              ;;
+            check_run)
+              PR_NUM=$(echo '${{ toJson(github.event.check_run.pull_requests) }}' | jq -r '.[0].number')
+              ;;
+            status)
+              # Status events don't have direct PR association - need to find via commit
+              COMMIT="${{ github.event.commit.sha }}"
+              PR_NUM=$(gh pr list --state open --json number,headRefOid --jq ".[] | select(.headRefOid == \"$COMMIT\") | .number" | head -1)
+              ;;
+            *)
+              PR_NUM=""
+              ;;
+          esac
           
           if [ "$PR_NUM" = "null" ] || [ -z "$PR_NUM" ]; then
             echo "No PR to assess"
