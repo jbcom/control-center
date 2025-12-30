@@ -1077,17 +1077,21 @@ jobs:
           
           # Auto-approve (if not already approved)
           if [ "$REVIEW" != "APPROVED" ]; then
-            gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
+            APPROVE_BODY=$(cat << 'EOFBODY'
+          ✅ **Auto-approved by Ecosystem Connector**
 
-All CI checks passed. PR is mergeable.
+          All CI checks passed. PR is mergeable.
 
-| Check | Status |
-|-------|--------|
-| CI Passing | ✅ |
-| Mergeable | ✅ |
-| Draft | ❌ |
+          | Check | Status |
+          |-------|--------|
+          | CI Passing | ✅ |
+          | Mergeable | ✅ |
+          | Draft | ❌ |
 
-Proceeding with auto-merge." || echo "  Could not auto-approve (may need different permissions)"
+          Proceeding with auto-merge.
+          EOFBODY
+          )
+            gh pr review $PR_NUM --approve --body "$APPROVE_BODY" || echo "  Could not auto-approve (may need different permissions)"
           fi
           
           echo "  ✅ Added auto-merge label and approved"
