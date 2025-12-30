@@ -298,8 +298,9 @@ jobs:
       - name: Merge PR
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          PR_NUM: ${{ needs.assess.outputs.pr_number }}
         run: |
-          PR_NUM="${{ needs.assess.outputs.pr_number }}"
+          # PR_NUM passed via env to prevent code injection
           
           echo "🚀 Attempting to merge PR #$PR_NUM..."
           
