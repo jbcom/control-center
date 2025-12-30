@@ -148,8 +148,8 @@ jobs:
       (github.event_name == 'workflow_dispatch' && inputs.action == 'review')
     runs-on: ubuntu-latest
     outputs:
-      suggestion_count: ${{ steps.review.outputs.suggestion_count }}
-      needs_escalation: ${{ steps.check.outputs.needs_escalation }}
+      score: ${{ steps.calculate_metrics.outputs.score }}
+      issues_count: ${{ steps.calculate_metrics.outputs.issues_count }}
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
         with:
@@ -167,19 +167,13 @@ jobs:
           ollama_host: ${{ env.OLLAMA_HOST }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
 
-      - name: Check for escalation
-        id: check
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+      - name: Calculate Review Metrics
+        id: calculate_metrics
         run: |
-          SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
-          ADDITIONS=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json additions --jq '.additions')
-
-          if [[ "$SUGGESTIONS" -gt 5 ]] || [[ "$ADDITIONS" -gt 500 ]] || [[ -z "$SUGGESTIONS" ]]; then
-            echo "needs_escalation=true" >> $GITHUB_OUTPUT
-          else
-            echo "needs_escalation=false" >> $GITHUB_OUTPUT
-          fi
+          ISSUES_COUNT=${{ steps.review.outputs.suggestion_count || 0 }}
+          echo "issues_count=$ISSUES_COUNT" >> $GITHUB_OUTPUT
+          SCORE=$((10 - ISSUES_COUNT))
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
 
   # ====================================================================
   #                    JOB: TIER 2 CLAUDE REVIEW
@@ -213,41 +207,49 @@ jobs:
             Approve if no critical issues are found.
 
   # ====================================================================
-  #                    JOB: TIER 3 JULES REFACTOR
+  #                    JOB: TIER 3 JULES DELEGATION
   # ====================================================================
-  review_jules:
-    name: Refactor (Jules)
+  delegate-to-jules:
+    name: Delegate Complex Tasks to Jules
     needs: review_ollama
     if: |
       secrets.GOOGLE_JULES_API_KEY != '' && (
-        always() && (
-          (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
-          env.MODEL_TIER == 'jules'
-        )
+        needs.review_ollama.outputs.score < 5 && needs.review_ollama.outputs.issues_count > 5
       )
     runs-on: ubuntu-latest
     steps:
-      - name: Create Jules Session for PR
-        id: jules
+      - name: Get Review Summary
+        id: get_summary
         env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          PR_DATA=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json title,headRefName)
+          COMMENT=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json comments --jq '.comments[] | select(.author.login == "github-actions[bot]") | .body' | tail -n 1)
+          SUMMARY=$(echo "$COMMENT" | head -n 3 | sed 's/## 🤖 AI Code Review//' | tr -d '\n' | head -c 500)
+          echo "summary=$SUMMARY" >> $GITHUB_OUTPUT
+
+      - name: Create Jules session
+        id: jules
+        env:
+          JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          PR_DATA=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json title,headRefName,body)
           PR_TITLE=$(echo "$PR_DATA" | jq -r .title)
           PR_BRANCH=$(echo "$PR_DATA" | jq -r .headRefName)
+          SUMMARY="${{ steps.get_summary.outputs.summary }}"
 
           RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "X-Goog-Api-Key: $JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d @- <<EOF
           {
-            "prompt": "Refactor PR #${{ env.PR_NUMBER }}: ${PR_TITLE}",
+            "prompt": "Fix issues identified in PR #${{ env.PR_NUMBER }}: ${{ steps.get_summary.outputs.summary }}",
             "sourceContext": {
               "source": "sources/github/${{ env.TARGET_REPO }}",
               "githubRepoContext": { "startingBranch": "${PR_BRANCH}" }
             },
-            "automationMode": "AUTO_CREATE_PR"
+            "automationMode": "AUTO_CREATE_PR",
+            "title": "Jules: Fix PR #${{ env.PR_NUMBER }} issues"
           }
           EOF
           )
