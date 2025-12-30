@@ -1077,17 +1077,103 @@ jobs:
           
           # Auto-approve (if not already approved)
           if [ "$REVIEW" != "APPROVED" ]; then
-            gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
+            APPROVE_BODY=$(cat << 'EOFBODY'
+          ✅ **Auto-approved by Ecosystem Connector**
 
-All CI checks passed. PR is mergeable.
+          All CI checks passed. PR is mergeable.
 
-| Check | Status |
-|-------|--------|
-| CI Passing | ✅ |
-| Mergeable | ✅ |
-| Draft | ❌ |
+          | Check | Status |
+          |-------|--------|
+          | CI Passing | ✅ |
+          | Mergeable | ✅ |
+          | Draft | ❌ |
 
-Proceeding with auto-merge." || echo "  Could not auto-approve (may need different permissions)"
+          Proceeding with auto-merge.
+          EOFBODY
+          )
+            gh pr review $PR_NUM --approve --body "$APPROVE_BODY" || echo "  Could not auto-approve (may need different permissions)"
           fi
           
           echo "  ✅ Added auto-merge label and approved"
+          
+          # ============================================================
+          # RESOLVE OUTDATED FEEDBACK
+          # Clean up resolved/outdated AI feedback as part of self-assess
+          # ============================================================
+          echo ""
+          echo "🧹 Cleaning up outdated feedback..."
+          
+          # GraphQL to get all review threads
+          QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
+            repository(owner: $owner, name: $repo) {
+              pullRequest(number: $pr) {
+                reviewThreads(first: 100) {
+                  nodes {
+                    id
+                    isResolved
+                    isOutdated
+                    path
+                    comments(first: 1) {
+                      nodes {
+                        author { login }
+                        body
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }'
+          
+          OWNER="${{ github.repository_owner }}"
+          REPO="${{ github.event.repository.name }}"
+          
+          THREADS=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
+          
+          # Known AI agents whose outdated feedback can be auto-resolved
+          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|amazon-q|dependabot|cursor|bugbot|claude|sonarcloud|codacy|snyk"
+          
+          # Find outdated, unresolved threads from AI agents
+          OUTDATED_IDS=$(echo "$THREADS" | jq -r --arg agents "$AI_AGENTS" '
+            .data.repository.pullRequest.reviewThreads.nodes[]? |
+            select(.isOutdated == true and .isResolved == false) |
+            select(.comments.nodes[0].author.login | test($agents; "i")) |
+            .id
+          ' 2>/dev/null || echo "")
+          
+          RESOLVED_COUNT=0
+          
+          for THREAD_ID in $OUTDATED_IDS; do
+            [ -z "$THREAD_ID" ] && continue
+            
+            echo "  Resolving outdated thread: $THREAD_ID"
+            
+            gh api graphql -f query='mutation($id: ID!) {
+              resolveReviewThread(input: {threadId: $id}) {
+                thread { isResolved }
+              }
+            }' -f id="$THREAD_ID" 2>/dev/null && RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
+          done
+          
+          echo "  ✅ Resolved $RESOLVED_COUNT outdated AI review threads"
+          
+          # Minimize stale bot comments (CodeQL, security scanners, etc)
+          STALE_COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
+            [.[] | select(.user.type == "Bot" or (.user.login | test("codeql|snyk|sonar|codacy|dependabot"; "i"))) | .node_id] | .[]
+          ' 2>/dev/null || echo "")
+          
+          # Only minimize if there are many comments (>10) to reduce noise
+          COMMENT_COUNT=$(echo "$STALE_COMMENTS" | grep -c . || echo "0")
+          if [ "$COMMENT_COUNT" -gt 10 ]; then
+            echo "  Found $COMMENT_COUNT bot comments, minimizing older ones..."
+            # Minimize all but the last 5
+            echo "$STALE_COMMENTS" | head -n -5 | while read -r COMMENT_ID; do
+              [ -z "$COMMENT_ID" ] && continue
+              gh api graphql -f query='mutation($id: ID!) {
+                minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
+                  minimizedComment { isMinimized }
+                }
+              }' -f id="$COMMENT_ID" 2>/dev/null || true
+            done
+            echo "  ✅ Minimized stale bot comments"
+          fi

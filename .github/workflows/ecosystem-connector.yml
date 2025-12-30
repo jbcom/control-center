@@ -1095,29 +1095,13 @@ jobs:
           fi
           
           echo "  ✅ Added auto-merge label and approved"
-
-  # ============================================================
-  # RESOLVE-FEEDBACK: Clean up resolved/outdated AI feedback
-  # Resolves review threads, hides stale comments, marks addressed
-  # ============================================================
-  resolve-feedback:
-    name: Resolve Feedback
-    if: |
-      github.event_name == 'pull_request' &&
-      github.event.action == 'synchronize'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Resolve outdated review threads
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          PR_NUM="${{ github.event.pull_request.number }}"
-          echo "🧹 Cleaning up feedback for PR #$PR_NUM..."
+          
+          # ============================================================
+          # RESOLVE OUTDATED FEEDBACK
+          # Clean up resolved/outdated AI feedback as part of self-assess
+          # ============================================================
+          echo ""
+          echo "🧹 Cleaning up outdated feedback..."
           
           # GraphQL to get all review threads
           QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
@@ -1147,7 +1131,7 @@ jobs:
           THREADS=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
           
           # Known AI agents whose outdated feedback can be auto-resolved
-          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|amazon-q|dependabot|cursor|bugbot|claude"
+          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|amazon-q|dependabot|cursor|bugbot|claude|sonarcloud|codacy|snyk"
           
           # Find outdated, unresolved threads from AI agents
           OUTDATED_IDS=$(echo "$THREADS" | jq -r --arg agents "$AI_AGENTS" '
@@ -1173,24 +1157,23 @@ jobs:
           
           echo "  ✅ Resolved $RESOLVED_COUNT outdated AI review threads"
           
-          # Minimize stale bot comments (CodeQL, etc)
-          COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
-            .[] | select(.user.type == "Bot") | 
-            select(.body | test("CodeQL|security|vulnerability|suggestion"; "i")) |
-            select(.created_at < (now - 86400 | todate)) |
-            {id: .node_id, author: .user.login}
+          # Minimize stale bot comments (CodeQL, security scanners, etc)
+          STALE_COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
+            [.[] | select(.user.type == "Bot" or (.user.login | test("codeql|snyk|sonar|codacy|dependabot"; "i"))) | .node_id] | .[]
           ' 2>/dev/null || echo "")
           
-          MINIMIZED_COUNT=0
-          
-          echo "$COMMENTS" | jq -r '.id' 2>/dev/null | while read -r COMMENT_ID; do
-            [ -z "$COMMENT_ID" ] && continue
-            
-            gh api graphql -f query='mutation($id: ID!) {
-              minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
-                minimizedComment { isMinimized }
-              }
-            }' -f id="$COMMENT_ID" 2>/dev/null && MINIMIZED_COUNT=$((MINIMIZED_COUNT + 1))
-          done
-          
-          echo "  ✅ Minimized stale bot comments"
+          # Only minimize if there are many comments (>10) to reduce noise
+          COMMENT_COUNT=$(echo "$STALE_COMMENTS" | grep -c . || echo "0")
+          if [ "$COMMENT_COUNT" -gt 10 ]; then
+            echo "  Found $COMMENT_COUNT bot comments, minimizing older ones..."
+            # Minimize all but the last 5
+            echo "$STALE_COMMENTS" | head -n -5 | while read -r COMMENT_ID; do
+              [ -z "$COMMENT_ID" ] && continue
+              gh api graphql -f query='mutation($id: ID!) {
+                minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
+                  minimizedComment { isMinimized }
+                }
+              }' -f id="$COMMENT_ID" 2>/dev/null || true
+            done
+            echo "  ✅ Minimized stale bot comments"
+          fi
