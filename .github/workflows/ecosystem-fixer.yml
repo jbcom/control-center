@@ -150,20 +150,23 @@ jobs:
           REPO_NAME="${TARGET_REPO##*/}"
           OWNER="${TARGET_REPO%%/*}"
           
-          # Build prompt from failure context
-          PROMPT="Fix the CI failure in this repository.
-
-Branch: $TARGET_BRANCH
-PR: #$PR_NUM
-
-Failure logs:
-$FAILURE_SUMMARY
-
-Instructions:
-1. Analyze the failure logs
-2. Identify the root cause
-3. Make the minimal fix needed
-4. Ensure tests pass"
+          # Build prompt from failure context (using heredoc for safety)
+          PROMPT=$(cat <<PROMPT_EOF
+          Fix the CI failure in this repository.
+          
+          Branch: $TARGET_BRANCH
+          PR: #$PR_NUM
+          
+          Failure logs:
+          $(echo "$FAILURE_SUMMARY" | head -200)
+          
+          Instructions:
+          1. Analyze the failure logs
+          2. Identify the root cause
+          3. Make the minimal fix needed
+          4. Ensure tests pass
+          PROMPT_EOF
+          )
 
           # Create Jules session via API (Jules runs in its own sandbox)
           echo "🤖 Creating Jules session..."
@@ -224,17 +227,21 @@ Instructions:
           
           # Post comment to PR requesting Claude fix
           # Claude Code Action monitors for @claude mentions
-          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "@claude Please fix the CI failure on this PR.
-
-**Branch:** \`$TARGET_BRANCH\`
-
-**Failure Summary:**
-\`\`\`
-$(echo "$FAILURE_SUMMARY" | jq -r '.' | head -100)
-\`\`\`
-
-Please analyze the logs, identify the root cause, and push a fix."
-
+          COMMENT_BODY=$(cat <<COMMENT_EOF
+          @claude Please fix the CI failure on this PR.
+          
+          **Branch:** \`$TARGET_BRANCH\`
+          
+          **Failure Summary:**
+          \`\`\`
+          $(echo "$FAILURE_SUMMARY" | jq -r '.' 2>/dev/null | head -100 || echo "$FAILURE_SUMMARY" | head -100)
+          \`\`\`
+          
+          Please analyze the logs, identify the root cause, and push a fix.
+          COMMENT_EOF
+          )
+          
+          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "$COMMENT_BODY"
           echo "✅ Posted Claude fix request to PR #$PR_NUM"
 
   # ════════════════════════════════════════════════════════════════
@@ -252,8 +259,11 @@ Please analyze the logs, identify the root cause, and push a fix."
           TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
           PR_NUM: ${{ needs.analyze.outputs.pr_number }}
         run: |
-          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "⚠️ **Auto-fix unavailable for fork PRs**
-
-This PR originates from a fork. For security reasons, automatic CI fixes are disabled.
-
-Please fix the CI failure manually and push your changes."
+          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "$(cat <<'NOTICE_EOF'
+          ⚠️ **Auto-fix unavailable for fork PRs**
+          
+          This PR originates from a fork. For security reasons, automatic CI fixes are disabled.
+          
+          Please fix the CI failure manually and push your changes.
+          NOTICE_EOF
+          )"
