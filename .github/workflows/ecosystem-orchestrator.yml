@@ -126,8 +126,8 @@ env:
   COMMENT_BODY: ${{ github.event.inputs.comment_body || inputs.comment_body || github.event.comment.body }}
   MODEL_TIER: ${{ github.event.inputs.model_tier || inputs.model_tier || 'ollama' }}
 
-  # Standard Ollama config
-  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  # Standard Ollama config (secrets not accessible at workflow env level)
+  OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
 
 permissions:
@@ -188,21 +188,30 @@ jobs:
     name: Review (Claude)
     needs: review_ollama
     if: |
-      secrets.ANTHROPIC_API_KEY != '' && (
-        always() && (
-          needs.review_ollama.outputs.needs_escalation == 'true' ||
-          env.MODEL_TIER == 'claude'
-        )
+      always() && (
+        needs.review_ollama.outputs.needs_escalation == 'true' ||
+        env.MODEL_TIER == 'claude'
       )
     runs-on: ubuntu-latest
     steps:
+      - name: Check API Key
+        id: check
+        run: |
+          if [ -z "${{ secrets.ANTHROPIC_API_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        if: steps.check.outputs.skip != 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Claude Code Review
+        if: steps.check.outputs.skip != 'true'
         uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -219,15 +228,23 @@ jobs:
     name: Refactor (Jules)
     needs: review_ollama
     if: |
-      secrets.GOOGLE_JULES_API_KEY != '' && (
-        always() && (
-          (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
-          env.MODEL_TIER == 'jules'
-        )
+      always() && (
+        (needs.review_ollama.result == 'success' && needs.review_ollama.outputs.suggestion_count > 10) ||
+        env.MODEL_TIER == 'jules'
       )
     runs-on: ubuntu-latest
     steps:
+      - name: Check API Key
+        id: check
+        run: |
+          if [ -z "${{ secrets.GOOGLE_JULES_API_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Jules Session for PR
+        if: steps.check.outputs.skip != 'true'
         id: jules
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
