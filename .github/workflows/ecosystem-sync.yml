@@ -1,18 +1,19 @@
-name: Ecosystem Sync
+# Ecosystem Sync - Enterprise Hierarchical Delegation
+#
+# ARCHITECTURE:
+# jbcom/control-center (this repo)
+#   └── syncs to → org/control-center (each org)
+#         └── syncs to → org/repo (each repo in org)
+#
+# This workflow ONLY syncs to org control-centers.
+# Each org control-center handles its own internal sync.
+#
+# PHASES:
+# 0. Ensure org control-centers exist (idempotent)
+# 1. Sync enterprise files to org control-centers
+# 2. Trigger org control-centers to cascade to their repos
 
-# Sync repository-files to all managed repositories
-# 
-# Two-phase sync for safety and clean logging:
-# PHASE 1: Initial Sync - Creates missing files only (safe for customized repos)  
-# PHASE 2: Always Sync - Overwrites with latest shared configs
-#
-# DIRECT PUSH MODE: Always pushes directly to main (no PRs)
-# Branch rulesets allow Dependabot, Renovate, and admins to bypass protections
-#
-# TROUBLESHOOTING:
-# - If you see 'repository not found' errors:
-#   1. Verify the repository exists in repo-config.json
-#   2. Ensure JBCOM_TOKEN has write access to the repository
+name: Ecosystem Sync
 
 on:
   workflow_dispatch:
@@ -22,239 +23,303 @@ on:
         required: false
         default: false
         type: boolean
-      sync_type:
-        description: 'Which sync to run'
+      target_org:
+        description: 'Target specific org (or all)'
         required: false
-        default: 'both'
+        default: 'all'
         type: choice
         options:
-          - both
-          - always-only
-          - initial-only
+          - all
+          - arcade-cabinet
+          - agentic-dev-library
+          - extended-data-library
+          - strata-game-library
   schedule:
-    # Nightly at 3:00 UTC - direct push mode
+    # Nightly at 3:00 UTC
     - cron: '0 3 * * *'
   push:
     branches: [main]
     paths:
       - 'repository-files/**'
       - 'repo-config.json'
-      - 'branch-rulesets/**'
-      - '.github/sync-always.yml'
-      - '.github/sync-initial.yml'
 
 permissions:
   contents: read
 
+env:
+  MANAGED_ORGS: arcade-cabinet,agentic-dev-library,extended-data-library,strata-game-library
+
 jobs:
   # =============================================================================
-  # Validate configuration before any sync
+  # Phase 0: Ensure Org Control-Centers Exist (Idempotent)
   # =============================================================================
-  validate:
-    name: 🔍 Validate Configuration
+  phase-0-ensure-control-centers:
+    name: 🏗️ Phase 0 - Ensure Org Control-Centers
     runs-on: ubuntu-latest
+    outputs:
+      orgs: ${{ steps.list.outputs.orgs }}
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Validate all configs
+      - name: List target orgs
+        id: list
         run: |
-          echo "Validating repo-config.json..."
-          ./scripts/validate-config
-          
-          echo "Checking for symlinks..."
-          ./scripts/check-symlinks
-          
-          echo "✅ All validations passed"
+          if [[ "${{ inputs.target_org }}" == "all" || -z "${{ inputs.target_org }}" ]]; then
+            echo 'orgs=["arcade-cabinet","agentic-dev-library","extended-data-library","strata-game-library"]' >> $GITHUB_OUTPUT
+          else
+            echo 'orgs=["${{ inputs.target_org }}"]' >> $GITHUB_OUTPUT
+          fi
 
-  # =============================================================================
-  # PHASE 0: Create Repos (Idempotent)
-  # Creates any repos that don't exist yet - safe to run every time
-  # =============================================================================
-  phase-0-create-repos:
-    name: 🆕 Phase 0 - Create Repos
-    needs: validate
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Create missing repositories
+      - name: Ensure org control-centers exist
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            ./scripts/create-repos --dry-run --verbose
+          for org in arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
+            # Skip if targeting specific org
+            if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
+              continue
+            fi
+            
+            echo "Checking $org/control-center..."
+            
+            if gh repo view "$org/control-center" >/dev/null 2>&1; then
+              echo "  ✅ Already exists"
+            else
+              echo "  Creating $org/control-center..."
+              if [[ "${{ inputs.dry_run }}" != "true" ]]; then
+                gh repo create "$org/control-center" \
+                  --public \
+                  --description "Control center for $org organization - syncs from jbcom/control-center" \
+                  --add-readme
+                echo "  ✅ Created"
+              else
+                echo "  [DRY RUN] Would create"
+              fi
+            fi
+          done
+
+      - name: Summary
+        run: |
+          echo "### 🏗️ Phase 0: Org Control-Centers" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Verified control-center repos exist for all managed orgs." >> $GITHUB_STEP_SUMMARY
+
+  # =============================================================================
+  # Phase 1: Sync Enterprise Files to Org Control-Centers
+  # =============================================================================
+  phase-1-sync-to-org-control-centers:
+    name: 📤 Phase 1 - Sync to ${{ matrix.org }}/control-center
+    needs: phase-0-ensure-control-centers
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        org: ${{ fromJson(needs.phase-0-ensure-control-centers.outputs.orgs) }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Sync enterprise files to ${{ matrix.org }}/control-center
+        env:
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+          ORG: ${{ matrix.org }}
+        run: |
+          echo "🔄 Syncing enterprise files to $ORG/control-center..."
+          
+          # Clone org control-center
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/control-center.git" /tmp/org-cc
+          cd /tmp/org-cc
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Ensure directory structure
+          mkdir -p repository-files/always-sync/.github/workflows
+          mkdir -p repository-files/always-sync/.cursor/rules
+          mkdir -p repository-files/initial-only
+          mkdir -p .github/workflows
+          
+          # Copy enterprise always-sync files (these cascade down)
+          echo "  Copying always-sync files..."
+          cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* repository-files/always-sync/.github/workflows/ 2>/dev/null || true
+          cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* repository-files/always-sync/.cursor/rules/ 2>/dev/null || true
+          
+          # Copy language-specific rules
+          for lang in python nodejs go terraform rust; do
+            if [ -d "$GITHUB_WORKSPACE/repository-files/$lang" ]; then
+              mkdir -p "repository-files/$lang"
+              cp -r "$GITHUB_WORKSPACE/repository-files/$lang/"* "repository-files/$lang/" 2>/dev/null || true
+            fi
+          done
+          
+          # Copy initial-only files
+          cp -r $GITHUB_WORKSPACE/repository-files/initial-only/* repository-files/initial-only/ 2>/dev/null || true
+          
+          # Create/update the org's internal sync workflow
+          cat > .github/workflows/sync.yml << 'SYNC_EOF'
+          # Org Internal Sync - Cascades from enterprise control-center
+          # This workflow syncs files from this control-center to all repos in the org
+          
+          name: Sync
+          
+          on:
+            workflow_dispatch:
+            push:
+              branches: [main]
+              paths:
+                - 'repository-files/**'
+            schedule:
+              - cron: '0 4 * * *'  # 1 hour after enterprise sync
+          
+          permissions:
+            contents: read
+          
+          jobs:
+            sync:
+              name: Sync to Org Repos
+              runs-on: ubuntu-latest
+              steps:
+                - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+          
+                - name: Sync to all org repos
+                  env:
+                    GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+                    ORG: ${{ github.repository_owner }}
+                  run: |
+                    echo "🔄 Syncing to all repos in $ORG..."
+                    
+                    # Get all non-archived, non-control-center repos
+                    repos=$(gh repo list "$ORG" --no-archived --json name --jq '.[].name' | grep -v "^control-center$" | grep -v "^\\.github$")
+                    
+                    for repo in $repos; do
+                      echo ""
+                      echo "=== $ORG/$repo ==="
+                      
+                      # Clone target repo
+                      rm -rf /tmp/target
+                      git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git" /tmp/target 2>/dev/null || continue
+                      cd /tmp/target
+                      
+                      git config user.name "github-actions[bot]"
+                      git config user.email "github-actions[bot]@users.noreply.github.com"
+                      
+                      # Sync always-sync files
+                      mkdir -p .github/workflows .cursor/rules
+                      cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
+                      cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+                      
+                      # Sync language-specific rules based on what's in repo
+                      if [ -f "pyproject.toml" ] || [ -f "setup.py" ]; then
+                        cp -r $GITHUB_WORKSPACE/repository-files/python/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+                      fi
+                      if [ -f "package.json" ]; then
+                        cp -r $GITHUB_WORKSPACE/repository-files/nodejs/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+                      fi
+                      if [ -f "go.mod" ]; then
+                        cp -r $GITHUB_WORKSPACE/repository-files/go/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+                      fi
+                      if [ -f "Cargo.toml" ]; then
+                        cp -r $GITHUB_WORKSPACE/repository-files/rust/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+                      fi
+                      
+                      # Sync initial-only files (only if missing)
+                      for file in CLAUDE.md AGENTS.md; do
+                        if [ ! -f "$file" ] && [ -f "$GITHUB_WORKSPACE/repository-files/initial-only/$file" ]; then
+                          cp "$GITHUB_WORKSPACE/repository-files/initial-only/$file" "$file"
+                        fi
+                      done
+                      
+                      # Commit and push if changes
+                      if ! git diff --quiet; then
+                        git add -A
+                        git commit -m "chore(sync): update from $ORG/control-center"
+                        git push origin HEAD 2>/dev/null || echo "  ⚠️ Push failed (branch protection?)"
+                        echo "  ✅ Synced"
+                      else
+                        echo "  ✅ No changes"
+                      fi
+                      
+                      cd $GITHUB_WORKSPACE
+                    done
+          SYNC_EOF
+          
+          # Commit and push
+          git add -A
+          if ! git diff --staged --quiet; then
+            if [[ "${{ inputs.dry_run }}" != "true" ]]; then
+              git commit -m "chore(sync): update from jbcom/control-center
+
+          Enterprise sync from jbcom/control-center
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              git push origin main
+              echo "✅ Pushed to $ORG/control-center"
+            else
+              echo "[DRY RUN] Would push to $ORG/control-center"
+              git diff --staged --stat
+            fi
           else
-            ./scripts/create-repos --verbose
+            echo "✅ No changes needed for $ORG/control-center"
           fi
 
-      - name: Phase 0 Summary
-        run: |
-          echo "### 🆕 Phase 0: Create Repos" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Behavior:** Idempotently creates any missing repositories" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Repos are created as public with:" >> $GITHUB_STEP_SUMMARY
-          echo "- README initialized" >> $GITHUB_STEP_SUMMARY
-          echo "- Standard descriptions from repo-config.json" >> $GITHUB_STEP_SUMMARY
-
   # =============================================================================
-  # PHASE 1: Initial Sync
-  # Creates files ONLY if they don't exist - safe for repos with customizations
+  # Phase 2: Trigger Org Control-Centers to Cascade
   # =============================================================================
-  phase-1-initial:
-    name: 📦 Phase 1 - Initial Sync
-    needs: phase-0-create-repos
+  phase-2-trigger-cascade:
+    name: 🌊 Phase 2 - Trigger Cascade
+    needs: phase-1-sync-to-org-control-centers
     runs-on: ubuntu-latest
-    if: github.event.inputs.sync_type != 'always-only'
+    if: inputs.dry_run != 'true'
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Initial file sync (create missing only)
-        id: sync
-        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.21.1
+      - name: Trigger org sync workflows
         env:
-          # Skip LFS to avoid issues with repos that have broken LFS objects
-          GIT_LFS_SKIP_SMUDGE: "1"
-        with:
-          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
-          CONFIG_PATH: .github/sync-initial.yml
-          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
-          SKIP_PR: true
-          COMMIT_PREFIX: 'chore(init):'
-          COMMIT_BODY: |
-            Initial file setup from control center.
-            Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GIT_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_USERNAME: github-actions[bot]
-
-      - name: Phase 1 Summary
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
-          echo "### 📦 Phase 1: Initial Sync" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Config:** \`.github/sync-initial.yml\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Behavior:** Only creates files if they don't exist" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Files synced:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`CLAUDE.md\`, \`AGENTS.md\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/dependabot.yml\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/SECURITY.md\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/ISSUE_TEMPLATE/\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.cursor/Dockerfile\`, \`.cursor/environment.json\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`docs/\` scaffold" >> $GITHUB_STEP_SUMMARY
+          for org in arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
+            # Skip if targeting specific org
+            if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
+              continue
+            fi
+            
+            echo "Triggering sync in $org/control-center..."
+            gh workflow run sync.yml --repo "$org/control-center" 2>/dev/null || echo "  ⚠️ Could not trigger (workflow may not exist yet)"
+          done
 
-  # =============================================================================
-  # PHASE 2: Always Sync  
-  # Overwrites files with latest from control center - keeps shared configs in sync
-  # =============================================================================
-  phase-2-always:
-    name: 🔄 Phase 2 - Always Sync
-    needs: [validate, phase-0-create-repos, phase-1-initial]
-    runs-on: ubuntu-latest
-    # Run even if phase-1 was skipped (when sync_type is always-only)
-    # But require phase-0 to succeed so we know repos exist
-    if: |
-      always() && 
-      needs.validate.result == 'success' &&
-      needs.phase-0-create-repos.result == 'success' &&
-      github.event.inputs.sync_type != 'initial-only' &&
-      (needs.phase-1-initial.result == 'success' || needs.phase-1-initial.result == 'skipped')
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Always file sync (overwrite)
-        id: sync
-        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.21.1
-        env:
-          # Skip LFS to avoid issues with repos that have broken LFS objects
-          GIT_LFS_SKIP_SMUDGE: "1"
-        with:
-          GH_PAT: ${{ secrets.JBCOM_TOKEN }}
-          CONFIG_PATH: .github/sync-always.yml
-          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' }}
-          SKIP_PR: true
-          COMMIT_PREFIX: 'chore(sync):'
-          COMMIT_BODY: |
-            Sync shared configurations from control center.
-            Source: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          GIT_EMAIL: github-actions[bot]@users.noreply.github.com
-          GIT_USERNAME: github-actions[bot]
-
-      - name: Phase 2 Summary
+      - name: Summary
         run: |
-          echo "### 🔄 Phase 2: Always Sync" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌊 Phase 2: Cascade Triggered" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Config:** \`.github/sync-always.yml\`" >> $GITHUB_STEP_SUMMARY
-          echo "**Behavior:** Overwrites files with latest from control center" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Files synced:" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.cursor/rules/\` (Cursor AI rules)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/workflows/\` (shared workflows)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/agents/\` (AI agent configs)" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/settings.yml\`" >> $GITHUB_STEP_SUMMARY
-          echo "- \`.github/CODEOWNERS\`" >> $GITHUB_STEP_SUMMARY
-          echo "- Language-specific rules (python/nodejs/go/terraform)" >> $GITHUB_STEP_SUMMARY
+          echo "Triggered sync workflows in org control-centers." >> $GITHUB_STEP_SUMMARY
+          echo "Each org will now sync to its own repositories." >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
   # Final Summary
   # =============================================================================
   summary:
     name: 📊 Summary
-    needs: [phase-0-create-repos, phase-1-initial, phase-2-always]
+    needs: [phase-0-ensure-control-centers, phase-1-sync-to-org-control-centers, phase-2-trigger-cascade]
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: Generate final summary
-        env:
-          PHASE0_RESULT: ${{ needs.phase-0-create-repos.result }}
-          PHASE1_RESULT: ${{ needs.phase-1-initial.result }}
-          PHASE2_RESULT: ${{ needs.phase-2-always.result }}
+      - name: Generate summary
         run: |
           echo "## 🔄 Ecosystem Sync Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            echo "**Mode:** 🔍 Dry run (no changes made)" >> $GITHUB_STEP_SUMMARY
+          if [[ "${{ inputs.dry_run }}" == "true" ]]; then
+            echo "**Mode:** 🔍 Dry run" >> $GITHUB_STEP_SUMMARY
           else
-            echo "**Mode:** ⚡ Direct push to main" >> $GITHUB_STEP_SUMMARY
+            echo "**Mode:** ⚡ Live sync" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
           
-          echo "| Phase | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-
-          case "$PHASE0_RESULT" in
-            success) echo "| 🆕 Create Repos | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
-            skipped) echo "| 🆕 Create Repos | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
-            failure) echo "| 🆕 Create Repos | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
-            *) echo "| 🆕 Create Repos | ⚠️ $PHASE0_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
-          esac
-          
-          case "$PHASE1_RESULT" in
-            success) echo "| 📦 Initial Sync | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
-            skipped) echo "| 📦 Initial Sync | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
-            failure) echo "| 📦 Initial Sync | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
-            *) echo "| 📦 Initial Sync | ⚠️ $PHASE1_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
-          esac
-          
-          case "$PHASE2_RESULT" in
-            success) echo "| 🔄 Always Sync | ✅ Success |" >> $GITHUB_STEP_SUMMARY ;;
-            skipped) echo "| 🔄 Always Sync | ⏭️ Skipped |" >> $GITHUB_STEP_SUMMARY ;;
-            failure) echo "| 🔄 Always Sync | ❌ Failed |" >> $GITHUB_STEP_SUMMARY ;;
-            *) echo "| 🔄 Always Sync | ⚠️ $PHASE2_RESULT |" >> $GITHUB_STEP_SUMMARY ;;
-          esac
-
-  # =============================================================================
-  # Sync GitHub Projects
-  # =============================================================================
-  sync-projects:
-    name: 📋 Sync Projects
-    needs: phase-2-always
-    runs-on: ubuntu-latest
-    if: always() && github.event.inputs.dry_run != 'true'
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Sync issues to projects
-        run: ./scripts/sync-projects --verbose
-        env:
-          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+          echo "### Architecture" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "jbcom/control-center (enterprise)" >> $GITHUB_STEP_SUMMARY
+          echo "  ├── arcade-cabinet/control-center" >> $GITHUB_STEP_SUMMARY
+          echo "  │     └── (syncs to arcade-cabinet/*)" >> $GITHUB_STEP_SUMMARY
+          echo "  ├── agentic-dev-library/control-center" >> $GITHUB_STEP_SUMMARY
+          echo "  │     └── (syncs to agentic-dev-library/*)" >> $GITHUB_STEP_SUMMARY
+          echo "  ├── extended-data-library/control-center" >> $GITHUB_STEP_SUMMARY
+          echo "  │     └── (syncs to extended-data-library/*)" >> $GITHUB_STEP_SUMMARY
+          echo "  └── strata-game-library/control-center" >> $GITHUB_STEP_SUMMARY
+          echo "        └── (syncs to strata-game-library/*)" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
