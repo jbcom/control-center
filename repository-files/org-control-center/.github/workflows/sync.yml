@@ -6,9 +6,10 @@
 # 3. Apply language-specific rules based on detected stack
 # 4. Initial-only files only created if missing
 #
-# Org-specific customization:
-# - Add files to repository-files/org-overrides/ to override enterprise defaults
-# - These are applied AFTER enterprise files, so org wins on conflicts
+# PR-BASED SYNC:
+# - Creates PRs instead of pushing directly to main
+# - Ecosystem connector workflow auto-triages and merges sync PRs
+# - Labels: sync, auto-merge
 
 name: Sync
 
@@ -18,8 +19,7 @@ on:
     branches: [main]
     paths:
       - 'repository-files/**'
-  schedule:
-    - cron: '0 4 * * *'
+      - '.github/workflows/sync.yml'
 
 permissions:
   contents: read
@@ -29,15 +29,15 @@ jobs:
     name: Sync to Org Repos
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Sync to all org repos
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           ORG: ${{ github.repository_owner }}
         run: |
-          echo "Syncing to all repos in $ORG..."
-          echo "Strategy: Enterprise base + Org overrides"
+          echo "🔄 Syncing to all repos in $ORG..."
+          echo "Strategy: Enterprise base + Org overrides → PR"
           echo ""
           
           # Get all non-archived, non-control-center repos
@@ -50,13 +50,17 @@ jobs:
             # Clone target repo
             rm -rf /tmp/target
             if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git" /tmp/target 2>/dev/null; then
-              echo "  Could not clone - skipping"
+              echo "  ⚠️ Could not clone - skipping"
               continue
             fi
             cd /tmp/target
             
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Create sync branch
+            BRANCH="sync/control-center-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$BRANCH"
             
             # Ensure directories exist
             mkdir -p .github/workflows .cursor/rules
@@ -66,6 +70,10 @@ jobs:
             if [ -d "$GITHUB_WORKSPACE/repository-files/always-sync" ]; then
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+              # Copy root files
+              for file in $GITHUB_WORKSPACE/repository-files/always-sync/*; do
+                [ -f "$file" ] && cp "$file" . 2>/dev/null || true
+              done
             fi
             
             # LAYER 2: Language-specific rules
@@ -119,21 +127,69 @@ jobs:
               fi
             done
             
-            # Commit and push
-            if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
-              git add -A
-              git commit -m "chore(sync): update from $ORG/control-center"
-              if git push origin HEAD 2>/dev/null; then
-                echo "  Synced successfully"
-              else
-                echo "  Push failed (branch protection?)"
-              fi
+            # Check for changes
+            if git diff --quiet && [ -z "$(git status --porcelain)" ]; then
+              echo "  ✅ Already up to date"
+              cd $GITHUB_WORKSPACE
+              continue
+            fi
+            
+            # Commit changes
+            git add -A
+            git commit -m "chore(sync): update from $ORG/control-center
+
+Synced files:
+- Enterprise base (always-sync)
+- Language-specific rules
+- Org overrides (if any)
+
+This PR will be auto-triaged and merged by ecosystem-connector."
+            
+            # Push branch
+            if ! git push origin "$BRANCH" 2>/dev/null; then
+              echo "  ⚠️ Push failed"
+              cd $GITHUB_WORKSPACE
+              continue
+            fi
+            
+            # Create PR
+            PR_URL=$(gh pr create \
+              --repo "$ORG/$repo" \
+              --base main \
+              --head "$BRANCH" \
+              --title "chore(sync): update from control-center" \
+              --body "## 🔄 Sync from $ORG/control-center
+
+### Changes
+- Enterprise base files (workflows, cursor rules)
+- Language-specific rules (auto-detected)
+- Org-specific overrides
+
+### Auto-merge
+This PR has the \`sync\` and \`auto-merge\` labels.
+The ecosystem-connector workflow will:
+1. ✅ Auto-approve (from trusted source)
+2. ✅ Add labels
+3. ✅ Merge when CI passes
+
+---
+*Automated sync from $ORG/control-center*" \
+              --label "sync,auto-merge" 2>/dev/null || echo "")
+            
+            if [ -n "$PR_URL" ]; then
+              echo "  ✅ PR created: $PR_URL"
             else
-              echo "  Already up to date"
+              # PR might already exist, try to find it
+              EXISTING=$(gh pr list --repo "$ORG/$repo" --head "$BRANCH" --json url --jq '.[0].url' 2>/dev/null || echo "")
+              if [ -n "$EXISTING" ]; then
+                echo "  ✅ PR already exists: $EXISTING"
+              else
+                echo "  ⚠️ Could not create PR"
+              fi
             fi
             
             cd $GITHUB_WORKSPACE
           done
           
           echo ""
-          echo "Sync complete"
+          echo "🎉 Sync complete - PRs created for all repos"
