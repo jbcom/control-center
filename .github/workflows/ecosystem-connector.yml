@@ -933,3 +933,125 @@ jobs:
             gh pr ready $PR_NUM
             # No comment - the ready_for_review event will trigger auto-review
           fi
+
+  # ============================================================
+  # SELF-ASSESS: Automatically evaluate ALL PRs for auto-merge
+  # This is what makes the ecosystem-connector truly autonomous
+  # Runs on EVERY PR event - evaluation determines eligibility
+  # ============================================================
+  self-assess:
+    name: Self Assess
+    if: |
+      (github.event_name == 'check_suite' &&
+       github.event.check_suite.conclusion == 'success' &&
+       github.event.check_suite.pull_requests[0] != null) ||
+      (github.event_name == 'pull_request') ||
+      (github.event_name == 'pull_request_review')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
+      - name: Assess and auto-approve if eligible
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          # Get PR number
+          if [ "${{ github.event_name }}" = "check_suite" ]; then
+            PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number')
+          else
+            PR_NUM="${{ github.event.pull_request.number }}"
+          fi
+          
+          if [ "$PR_NUM" = "null" ] || [ -z "$PR_NUM" ]; then
+            echo "No PR to assess"
+            exit 0
+          fi
+          
+          echo "🔍 Self-assessing PR #$PR_NUM..."
+          
+          # Get PR details
+          PR_DATA=$(gh pr view $PR_NUM --json author,labels,isDraft,mergeable,mergeStateStatus,reviewDecision,title,headRefName)
+          
+          AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login')
+          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
+          MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
+          MERGE_STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus')
+          REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision')
+          TITLE=$(echo "$PR_DATA" | jq -r '.title')
+          BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
+          HAS_AUTO=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "auto-merge" || echo "0")
+          HAS_SYNC=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "sync" || echo "0")
+          
+          echo "  Author: $AUTHOR"
+          echo "  Title: $TITLE"
+          echo "  Branch: $BRANCH"
+          echo "  Draft: $IS_DRAFT, Mergeable: $MERGEABLE, State: $MERGE_STATE"
+          echo "  Review: $REVIEW, Has auto-merge: $HAS_AUTO, Has sync: $HAS_SYNC"
+          
+          # Skip if draft
+          if [ "$IS_DRAFT" = "true" ]; then
+            echo "  Skipping - draft PR"
+            exit 0
+          fi
+          
+          # Skip if already has labels
+          if [ "$HAS_AUTO" -gt 0 ] || [ "$HAS_SYNC" -gt 0 ]; then
+            echo "  Already labeled for auto-merge"
+            exit 0
+          fi
+          
+          # Check all CI status
+          FAILED_CHECKS=$(gh pr checks $PR_NUM --json name,conclusion --jq '[.[] | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT")] | length')
+          PENDING_CHECKS=$(gh pr checks $PR_NUM --json name,state --jq '[.[] | select(.state == "PENDING" or .state == "QUEUED")] | length')
+          
+          echo "  Failed checks: $FAILED_CHECKS, Pending: $PENDING_CHECKS"
+          
+          # Don't proceed if checks are failing or pending
+          if [ "$FAILED_CHECKS" -gt 0 ]; then
+            echo "  Skipping - has failing checks"
+            exit 0
+          fi
+          
+          if [ "$PENDING_CHECKS" -gt 0 ]; then
+            echo "  Skipping - checks still pending"
+            exit 0
+          fi
+          
+          # ALL PRs are eligible for auto-merge if:
+          # 1. All CI checks pass (already verified above)
+          # 2. PR is mergeable
+          # 3. Not a draft
+          # Safety comes from CI checks, not arbitrary criteria
+          
+          if [ "$MERGEABLE" != "MERGEABLE" ]; then
+            echo "  Skipping - not in mergeable state ($MERGEABLE)"
+            exit 0
+          fi
+          
+          echo "  ✅ All CI passed, PR is mergeable - enabling auto-merge"
+          
+          # Create auto-merge label if it doesn't exist
+          gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
+          
+          # Add label
+          gh pr edit $PR_NUM --add-label "auto-merge"
+          
+          # Auto-approve (if not already approved)
+          if [ "$REVIEW" != "APPROVED" ]; then
+            gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
+
+All CI checks passed. PR is mergeable.
+
+| Check | Status |
+|-------|--------|
+| CI Passing | ✅ |
+| Mergeable | ✅ |
+| Draft | ❌ |
+
+Proceeding with auto-merge." || echo "  Could not auto-approve (may need different permissions)"
+          fi
+          
+          echo "  ✅ Added auto-merge label and approved"
