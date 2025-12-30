@@ -1,12 +1,9 @@
-name: Test No Perms
+name: Test Working
 
 on:
   workflow_call:
     inputs:
-      action:
-        required: true
-        type: string
-      repository:
+      message:
         required: true
         type: string
     secrets:
@@ -14,9 +11,8 @@ on:
         required: true
 
 jobs:
-  review:
-    name: Review
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Echo
-        run: echo "Review in ${{ inputs.repository }}"
+        run: echo "${{ inputs.message }}"
