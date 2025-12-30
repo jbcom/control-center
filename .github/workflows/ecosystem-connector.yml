@@ -1021,231 +1021,207 @@ jobs:
           fi
 
   # ============================================================
-  # SELF-ASSESS: Automatically evaluate ALL PRs for auto-merge
-  # This is what makes the ecosystem-connector truly autonomous
-  # Runs on EVERY relevant event - evaluation determines eligibility
+  # MERGE QUEUE CONSUMER: Read fixed point → Evaluate → Decide
   # ============================================================
-  self-assess:
-    name: Self Assess
-    if: |
-      (github.event_name == 'pull_request') ||
-      (github.event_name == 'pull_request_review') ||
-      (github.event_name == 'check_suite' &&
-       github.event.check_suite.conclusion == 'success' &&
-       github.event.check_suite.pull_requests[0] != null) ||
-      (github.event_name == 'check_run' &&
-       github.event.check_run.conclusion == 'success' &&
-       github.event.check_run.pull_requests[0] != null) ||
-      (github.event_name == 'status' &&
-       github.event.state == 'success')
+  # Pattern: Feedback Merge Queue
+  #   PRODUCERS: AI reviewers (Copilot, Gemini, CodeRabbit, etc.)
+  #   QUEUE: Fixed-point synthesis comment (updated by review-synthesis)
+  #   CONSUMER: This job - reads queue state, decides on merge
+  #
+  # Division of labor (backportable to @agentic packages):
+  #   review-synthesis = @agentic/triage (primitives)
+  #   merge-assess = @agentic/control (decisions)
+  # ============================================================
+  merge-assess:
+    name: Merge Queue Consumer
+    needs: [review-synthesis]
+    if: always()  # Run even if synthesis skipped (no feedback yet = OK to merge)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-
-      - name: Assess and auto-approve if eligible
+      - name: Consume queue and assess merge eligibility
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          # Get PR number from various event types
+          # ════════════════════════════════════════════════════════════
+          # STEP 1: Resolve PR number from event
+          # ════════════════════════════════════════════════════════════
           case "${{ github.event_name }}" in
-            pull_request)
-              PR_NUM="${{ github.event.pull_request.number }}"
-              ;;
-            pull_request_review)
-              PR_NUM="${{ github.event.pull_request.number }}"
-              ;;
-            check_suite)
-              PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number')
-              ;;
-            check_run)
-              PR_NUM=$(echo '${{ toJson(github.event.check_run.pull_requests) }}' | jq -r '.[0].number')
-              ;;
+            pull_request) PR_NUM="${{ github.event.pull_request.number }}" ;;
+            pull_request_review) PR_NUM="${{ github.event.pull_request.number }}" ;;
+            issue_comment) PR_NUM="${{ github.event.issue.number }}" ;;
+            check_suite) PR_NUM=$(echo '${{ toJson(github.event.check_suite.pull_requests) }}' | jq -r '.[0].number // empty') ;;
+            check_run) PR_NUM=$(echo '${{ toJson(github.event.check_run.pull_requests) }}' | jq -r '.[0].number // empty') ;;
             status)
-              # Status events don't have direct PR association - need to find via commit
               COMMIT="${{ github.event.commit.sha }}"
-              PR_NUM=$(gh pr list --state open --json number,headRefOid --jq ".[] | select(.headRefOid == \"$COMMIT\") | .number" | head -1)
+              PR_NUM=$(gh pr list --state open --json number,headRefOid --jq ".[] | select(.headRefOid == \"$COMMIT\") | .number" 2>/dev/null | head -1)
               ;;
-            *)
-              PR_NUM=""
-              ;;
+            *) PR_NUM="" ;;
           esac
           
-          if [ "$PR_NUM" = "null" ] || [ -z "$PR_NUM" ]; then
-            echo "No PR to assess"
-            exit 0
+          [ -z "$PR_NUM" ] || [ "$PR_NUM" = "null" ] && echo "No PR context" && exit 0
+          
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  🎯 MERGE QUEUE CONSUMER - PR #$PR_NUM"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          
+          # ════════════════════════════════════════════════════════════
+          # STEP 2: Get PR state
+          # ════════════════════════════════════════════════════════════
+          PR_DATA=$(gh pr view $PR_NUM --json isDraft,mergeable,reviewDecision,title,labels 2>/dev/null || echo "{}")
+          
+          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft // false')
+          MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable // "UNKNOWN"')
+          REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision // "REVIEW_REQUIRED"')
+          TITLE=$(echo "$PR_DATA" | jq -r '.title // "Unknown"')
+          HAS_AUTO=$(echo "$PR_DATA" | jq '[.labels[]?.name // empty] | map(select(. == "auto-merge")) | length')
+          
+          echo ""
+          echo "📋 PR State: $TITLE"
+          echo "   Draft: $IS_DRAFT | Mergeable: $MERGEABLE | Review: $REVIEW"
+          
+          [ "$IS_DRAFT" = "true" ] && echo "⏸️  Draft PR - skipping" && exit 0
+          
+          # ════════════════════════════════════════════════════════════
+          # STEP 3: Read the FIXED POINT (feedback queue state)
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "📖 Reading feedback queue (fixed point)..."
+          
+          QUEUE_MARKER="CASCADE Review Synthesis"
+          QUEUE_STATE=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq "
+            [.[] | select(.body | contains(\"$QUEUE_MARKER\"))] | last | .body // empty
+          " 2>/dev/null || echo "")
+          
+          # Parse queue state
+          CRITICAL=0
+          IMPORTANT=0
+          SUGGESTED=0
+          VERDICT="CLEAR"
+          
+          if [ -n "$QUEUE_STATE" ]; then
+            echo "   ✅ Queue has state"
+            
+            # Count severity markers
+            CRITICAL=$(echo "$QUEUE_STATE" | grep -c "🔴" || echo "0")
+            IMPORTANT=$(echo "$QUEUE_STATE" | grep -c "🟠" || echo "0")
+            SUGGESTED=$(echo "$QUEUE_STATE" | grep -c "🟡" || echo "0")
+            
+            echo "   🔴 Critical: $CRITICAL | 🟠 Important: $IMPORTANT | 🟡 Suggested: $SUGGESTED"
+            
+            # Determine verdict from queue
+            if [ "$CRITICAL" -gt 0 ]; then
+              VERDICT="BLOCKED"
+            elif echo "$QUEUE_STATE" | grep -qi "verdict.*ready\|ready.*merge\|✅.*merge"; then
+              VERDICT="READY"
+            elif [ "$IMPORTANT" -gt 0 ]; then
+              VERDICT="REVIEW"
+            else
+              VERDICT="CLEAR"
+            fi
+          else
+            echo "   ⚪ Queue empty (no AI feedback yet)"
+            VERDICT="CLEAR"  # No feedback = no blockers
           fi
           
-          echo "🔍 Self-assessing PR #$PR_NUM..."
+          echo "   📊 Queue verdict: $VERDICT"
           
-          # Get PR details
-          PR_DATA=$(gh pr view $PR_NUM --json author,labels,isDraft,mergeable,mergeStateStatus,reviewDecision,title,headRefName)
+          # ════════════════════════════════════════════════════════════
+          # STEP 4: Check CI status
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "🔬 Checking CI pipeline..."
           
-          AUTHOR=$(echo "$PR_DATA" | jq -r '.author.login')
-          IS_DRAFT=$(echo "$PR_DATA" | jq -r '.isDraft')
-          MERGEABLE=$(echo "$PR_DATA" | jq -r '.mergeable')
-          MERGE_STATE=$(echo "$PR_DATA" | jq -r '.mergeStateStatus')
-          REVIEW=$(echo "$PR_DATA" | jq -r '.reviewDecision')
-          TITLE=$(echo "$PR_DATA" | jq -r '.title')
-          BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
-          HAS_AUTO=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "auto-merge" || echo "0")
-          HAS_SYNC=$(echo "$PR_DATA" | jq -r '.labels[].name' | grep -c "sync" || echo "0")
+          FAILED=$(gh pr checks $PR_NUM --json conclusion --jq '[.[] | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT")] | length' 2>/dev/null || echo "0")
+          PENDING=$(gh pr checks $PR_NUM --json state --jq '[.[] | select(.state == "PENDING" or .state == "QUEUED")] | length' 2>/dev/null || echo "0")
           
-          echo "  Author: $AUTHOR"
-          echo "  Title: $TITLE"
-          echo "  Branch: $BRANCH"
-          echo "  Draft: $IS_DRAFT, Mergeable: $MERGEABLE, State: $MERGE_STATE"
-          echo "  Review: $REVIEW, Has auto-merge: $HAS_AUTO, Has sync: $HAS_SYNC"
+          echo "   Failed: $FAILED | Pending: $PENDING"
           
-          # Skip if draft
-          if [ "$IS_DRAFT" = "true" ]; then
-            echo "  Skipping - draft PR"
-            exit 0
+          CI_READY=false
+          [ "$FAILED" -eq 0 ] && [ "$PENDING" -eq 0 ] && CI_READY=true
+          
+          # ════════════════════════════════════════════════════════════
+          # STEP 5: DECISION MATRIX
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          echo "┌─────────────────────────────────────────────────────────┐"
+          echo "│                   DECISION MATRIX                       │"
+          echo "├───────────────────────┬─────────────────────────────────┤"
+          printf "│ %-21s │ %-31s │\n" "CI Pipeline" "$([ "$CI_READY" = true ] && echo '✅ All checks passed' || echo "❌ $FAILED failed, $PENDING pending")"
+          printf "│ %-21s │ %-31s │\n" "Mergeable State" "$([ "$MERGEABLE" = 'MERGEABLE' ] && echo '✅ Ready' || echo "❌ $MERGEABLE")"
+          printf "│ %-21s │ %-31s │\n" "Critical Issues" "$([ "$CRITICAL" -eq 0 ] && echo '✅ None' || echo "🔴 $CRITICAL blocking")"
+          printf "│ %-21s │ %-31s │\n" "Queue Verdict" "$VERDICT"
+          echo "└───────────────────────┴─────────────────────────────────┘"
+          
+          # Decision logic
+          CAN_MERGE=false
+          REASON=""
+          
+          if [ "$CI_READY" = true ] && [ "$MERGEABLE" = "MERGEABLE" ] && [ "$CRITICAL" -eq 0 ]; then
+            case "$VERDICT" in
+              READY|CLEAR)
+                CAN_MERGE=true
+                REASON="CI ✅ + Mergeable ✅ + Queue clear"
+                ;;
+              REVIEW)
+                # Important issues exist but not critical - can still merge
+                CAN_MERGE=true
+                REASON="CI ✅ + Mergeable ✅ + Non-blocking feedback ($IMPORTANT items)"
+                ;;
+              BLOCKED)
+                REASON="Queue blocked by critical issues"
+                ;;
+            esac
+          elif [ "$CI_READY" = false ]; then
+            REASON="CI pipeline not ready"
+          elif [ "$MERGEABLE" != "MERGEABLE" ]; then
+            REASON="PR not in mergeable state ($MERGEABLE)"
+          elif [ "$CRITICAL" -gt 0 ]; then
+            REASON="$CRITICAL critical issues in queue"
           fi
           
-          # Skip if already has labels
-          if [ "$HAS_AUTO" -gt 0 ] || [ "$HAS_SYNC" -gt 0 ]; then
-            echo "  Already labeled for auto-merge"
-            exit 0
-          fi
-          
-          # Check all CI status
-          FAILED_CHECKS=$(gh pr checks $PR_NUM --json name,conclusion --jq '[.[] | select(.conclusion == "FAILURE" or .conclusion == "TIMED_OUT")] | length')
-          PENDING_CHECKS=$(gh pr checks $PR_NUM --json name,state --jq '[.[] | select(.state == "PENDING" or .state == "QUEUED")] | length')
-          
-          echo "  Failed checks: $FAILED_CHECKS, Pending: $PENDING_CHECKS"
-          
-          # Don't proceed if checks are failing or pending
-          if [ "$FAILED_CHECKS" -gt 0 ]; then
-            echo "  Skipping - has failing checks"
-            exit 0
-          fi
-          
-          if [ "$PENDING_CHECKS" -gt 0 ]; then
-            echo "  Skipping - checks still pending"
-            exit 0
-          fi
-          
-          # ALL PRs are eligible for auto-merge if:
-          # 1. All CI checks pass (already verified above)
-          # 2. PR is mergeable
-          # 3. Not a draft
-          # Safety comes from CI checks, not arbitrary criteria
-          
-          if [ "$MERGEABLE" != "MERGEABLE" ]; then
-            echo "  Skipping - not in mergeable state ($MERGEABLE)"
-            exit 0
-          fi
-          
-          echo "  ✅ All CI passed, PR is mergeable - enabling auto-merge"
-          
-          # Create auto-merge label if it doesn't exist
-          gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
-          
-          # Add label
-          gh pr edit $PR_NUM --add-label "auto-merge"
-          
-          # Auto-approve (if not already approved)
-          if [ "$REVIEW" != "APPROVED" ]; then
-            APPROVE_BODY=$(cat << 'EOFBODY'
-          ✅ **Auto-approved by Ecosystem Connector**
-
-          All CI checks passed. PR is mergeable.
+          # ════════════════════════════════════════════════════════════
+          # STEP 6: ACT on decision
+          # ════════════════════════════════════════════════════════════
+          echo ""
+          if [ "$CAN_MERGE" = true ]; then
+            echo "✅ ELIGIBLE FOR AUTO-MERGE"
+            echo "   Reason: $REASON"
+            
+            # Ensure label exists
+            gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
+            
+            # Add label if not present
+            if [ "$HAS_AUTO" -eq 0 ]; then
+              gh pr edit $PR_NUM --add-label "auto-merge"
+              echo "   📌 Added auto-merge label"
+            fi
+            
+            # Auto-approve if needed
+            if [ "$REVIEW" != "APPROVED" ]; then
+              APPROVE_MSG="✅ **Auto-approved by Merge Queue Consumer**
 
           | Check | Status |
           |-------|--------|
-          | CI Passing | ✅ |
-          | Mergeable | ✅ |
-          | Draft | ❌ |
+          | CI Pipeline | ✅ Passed |
+          | Mergeable | ✅ Ready |
+          | Queue State | $VERDICT |
+          | Critical Issues | $CRITICAL |
 
-          Proceeding with auto-merge.
-          EOFBODY
-          )
-            gh pr review $PR_NUM --approve --body "$APPROVE_BODY" || echo "  Could not auto-approve (may need different permissions)"
-          fi
-          
-          echo "  ✅ Added auto-merge label and approved"
-          
-          # ============================================================
-          # RESOLVE OUTDATED FEEDBACK
-          # Clean up resolved/outdated AI feedback as part of self-assess
-          # ============================================================
-          echo ""
-          echo "🧹 Cleaning up outdated feedback..."
-          
-          # GraphQL to get all review threads
-          QUERY='query($owner: String!, $repo: String!, $pr: Int!) {
-            repository(owner: $owner, name: $repo) {
-              pullRequest(number: $pr) {
-                reviewThreads(first: 100) {
-                  nodes {
-                    id
-                    isResolved
-                    isOutdated
-                    path
-                    comments(first: 1) {
-                      nodes {
-                        author { login }
-                        body
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }'
-          
-          OWNER="${{ github.repository_owner }}"
-          REPO="${{ github.event.repository.name }}"
-          
-          THREADS=$(gh api graphql -f query="$QUERY" -f owner="$OWNER" -f repo="$REPO" -F pr="$PR_NUM" 2>/dev/null || echo "{}")
-          
-          # Known AI agents whose outdated feedback can be auto-resolved
-          AI_AGENTS="copilot|github-actions|coderabbitai|gemini|amazon-q|dependabot|cursor|bugbot|claude|sonarcloud|codacy|snyk"
-          
-          # Find outdated, unresolved threads from AI agents
-          OUTDATED_IDS=$(echo "$THREADS" | jq -r --arg agents "$AI_AGENTS" '
-            .data.repository.pullRequest.reviewThreads.nodes[]? |
-            select(.isOutdated == true and .isResolved == false) |
-            select(.comments.nodes[0].author.login | test($agents; "i")) |
-            .id
-          ' 2>/dev/null || echo "")
-          
-          RESOLVED_COUNT=0
-          
-          for THREAD_ID in $OUTDATED_IDS; do
-            [ -z "$THREAD_ID" ] && continue
+          **Reason:** $REASON"
+              
+              gh pr review $PR_NUM --approve --body "$APPROVE_MSG" 2>/dev/null || echo "   ⚠️  Could not auto-approve"
+              echo "   ✅ Approved PR"
+            fi
             
-            echo "  Resolving outdated thread: $THREAD_ID"
+            echo ""
+            echo "🚀 PR #$PR_NUM is queued for merge"
+          else
+            echo "⏸️  NOT ELIGIBLE FOR AUTO-MERGE"
+            echo "   Reason: $REASON"
             
-            gh api graphql -f query='mutation($id: ID!) {
-              resolveReviewThread(input: {threadId: $id}) {
-                thread { isResolved }
-              }
-            }' -f id="$THREAD_ID" 2>/dev/null && RESOLVED_COUNT=$((RESOLVED_COUNT + 1))
-          done
-          
-          echo "  ✅ Resolved $RESOLVED_COUNT outdated AI review threads"
-          
-          # Minimize stale bot comments (CodeQL, security scanners, etc)
-          STALE_COMMENTS=$(gh api repos/${{ github.repository }}/issues/$PR_NUM/comments --jq '
-            [.[] | select(.user.type == "Bot" or (.user.login | test("codeql|snyk|sonar|codacy|dependabot"; "i"))) | .node_id] | .[]
-          ' 2>/dev/null || echo "")
-          
-          # Only minimize if there are many comments (>10) to reduce noise
-          COMMENT_COUNT=$(echo "$STALE_COMMENTS" | grep -c . || echo "0")
-          if [ "$COMMENT_COUNT" -gt 10 ]; then
-            echo "  Found $COMMENT_COUNT bot comments, minimizing older ones..."
-            # Minimize all but the last 5
-            echo "$STALE_COMMENTS" | head -n -5 | while read -r COMMENT_ID; do
-              [ -z "$COMMENT_ID" ] && continue
-              gh api graphql -f query='mutation($id: ID!) {
-                minimizeComment(input: {subjectId: $id, classifier: OUTDATED}) {
-                  minimizedComment { isMinimized }
-                }
-              }' -f id="$COMMENT_ID" 2>/dev/null || true
-            done
-            echo "  ✅ Minimized stale bot comments"
+            # Remove auto-merge label if present and now ineligible
+            if [ "$HAS_AUTO" -gt 0 ]; then
+              gh pr edit $PR_NUM --remove-label "auto-merge" 2>/dev/null || true
+              echo "   🏷️  Removed auto-merge label"
+            fi
           fi
