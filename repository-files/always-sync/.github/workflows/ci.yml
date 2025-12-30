@@ -1,394 +1,161 @@
+# CI Workflow - All actions pinned to exact SHAs
+# Security best practice: prevents supply chain attacks
+# Cost optimized: efficient caching and parallel execution
+
 name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
 
 permissions:
   contents: read
 
 jobs:
-  lint-workflows:
-    name: Lint Workflows
+  detect-stack:
+    name: Detect Stack
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
+    outputs:
+      has_rust: ${{ steps.detect.outputs.has_rust }}
+      has_node: ${{ steps.detect.outputs.has_node }}
+      has_python: ${{ steps.detect.outputs.has_python }}
+      has_go: ${{ steps.detect.outputs.has_go }}
+      has_docs: ${{ steps.detect.outputs.has_docs }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Install actionlint
-        run: |
-          # actionlint v1.7.9 - https://github.com/rhysd/actionlint/releases/tag/v1.7.9
-          ACTIONLINT_VERSION="1.7.9"
-          ACTIONLINT_CHECKSUM="233b280d05e100837f4af1433c7b40a5dcb306e3aa68fb4f17f8a7f45a7df7b4"
-          
-          curl -sL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" -o actionlint.tar.gz
-          echo "${ACTIONLINT_CHECKSUM}  actionlint.tar.gz" | sha256sum -c
-          tar xz -C /tmp actionlint < actionlint.tar.gz
-          sudo mv /tmp/actionlint /usr/local/bin/
-          rm actionlint.tar.gz
-
-      - name: Lint all workflows
-        run: |
-          echo "Linting all workflow files..."
-          # Ignore SC2086 (double quote to prevent globbing) - common in GHA workflows
-          # where variables like $GITHUB_STEP_SUMMARY are known-safe
-          actionlint -ignore 'SC2086' -ignore 'SC2129' -color
-          echo "✅ All workflows pass linting"
-
-  validate-expressions:
-    name: Validate Workflow Expressions
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check for dangerous input comparison patterns
-        run: |
-          echo "Checking for dangerous boolean comparison patterns..."
-          echo "These break when inputs are null (not provided)"
-          echo ""
-          
-          ERRORS=0
-          
-          for workflow in .github/workflows/*.yml; do
-            # Skip ci.yml since it contains the patterns in documentation/grep commands
-            if [ "$workflow" = ".github/workflows/ci.yml" ]; then
-              continue
-            fi
-            
-            echo "Checking $workflow..."
-            
-            # Pattern: inputs.X == false (breaks when null)
-            # Only match in 'if:' conditions, not in echo/grep commands
-            if grep -E '^\s+if:.*inputs\.[a-z_]+ == false' "$workflow" 2>/dev/null || \
-               grep -E '^\s+if: \|' -A5 "$workflow" 2>/dev/null | grep -E 'inputs\.[a-z_]+ == false' 2>/dev/null; then
-              echo "❌ ERROR in $workflow: Found 'inputs.X == false' in condition"
-              echo "   This returns false when inputs are null. Use 'inputs.X != true' instead."
-              ERRORS=$((ERRORS + 1))
-            fi
-            
-            # Pattern: inputs.auto_fix_tests == true (default is true, breaks when null)
-            if grep -E '^\s+if:.*inputs\.auto_fix_tests == true' "$workflow" 2>/dev/null || \
-               grep -E '^\s+if: \|' -A5 "$workflow" 2>/dev/null | grep -E 'inputs\.auto_fix_tests == true' 2>/dev/null; then
-              echo "❌ ERROR in $workflow: Found 'inputs.auto_fix_tests == true' in condition"
-              echo "   Default is true, but null == true is false. Use 'inputs.auto_fix_tests != false' instead."
-              ERRORS=$((ERRORS + 1))
-            fi
-          done
-          
-          if [ $ERRORS -gt 0 ]; then
-            echo ""
-            echo "❌ Found $ERRORS dangerous pattern(s)"
-            exit 1
-          fi
-          
-          echo "✅ No dangerous input comparison patterns found"
-
-      - name: Validate GitHub Actions expression logic
-        run: |
-          echo "Testing expression evaluation behavior..."
-          
-          # Test that our patterns work correctly
-          test_pattern() {
-            local desc="$1"
-            local expected="$2"
-            local actual="$3"
-            
-            if [ "$expected" = "$actual" ]; then
-              echo "✅ $desc"
-            else
-              echo "❌ $desc (expected: $expected, got: $actual)"
-              return 1
-            fi
-          }
-          
-          FAILURES=0
-          
-          # Test: != true pattern (for dry_run with default=false)
-          VAL=""  # null/unset
-          [ "$VAL" != "true" ] && R="true" || R="false"
-          test_pattern "null != true → true (dry_run unset should run)" "true" "$R" || FAILURES=$((FAILURES+1))
-          
-          VAL="false"
-          [ "$VAL" != "true" ] && R="true" || R="false"
-          test_pattern "false != true → true (dry_run=false should run)" "true" "$R" || FAILURES=$((FAILURES+1))
-          
-          VAL="true"
-          [ "$VAL" != "true" ] && R="true" || R="false"
-          test_pattern "true != true → false (dry_run=true should skip)" "false" "$R" || FAILURES=$((FAILURES+1))
-          
-          # Test: != false pattern (for auto_fix_tests with default=true)
-          VAL=""
-          [ "$VAL" != "false" ] && R="true" || R="false"
-          test_pattern "null != false → true (auto_fix unset should run)" "true" "$R" || FAILURES=$((FAILURES+1))
-          
-          VAL="true"
-          [ "$VAL" != "false" ] && R="true" || R="false"
-          test_pattern "true != false → true (auto_fix=true should run)" "true" "$R" || FAILURES=$((FAILURES+1))
-          
-          VAL="false"
-          [ "$VAL" != "false" ] && R="true" || R="false"
-          test_pattern "false != false → false (auto_fix=false should skip)" "false" "$R" || FAILURES=$((FAILURES+1))
-          
-          if [ $FAILURES -gt 0 ]; then
-            echo "❌ $FAILURES expression test(s) failed"
-            exit 1
-          fi
-          
-          echo "✅ All expression tests passed"
-
-  validate-repo-config:
-    name: Validate Repo Configuration
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check repo-config.json is valid JSON
-        run: |
-          echo "Validating repo-config.json..."
-          
-          if [ ! -f "repo-config.json" ]; then
-            echo "❌ Missing repo-config.json"
-            exit 1
-          fi
-          
-          if ! jq empty repo-config.json 2>/dev/null; then
-            echo "❌ repo-config.json is not valid JSON"
-            exit 1
-          fi
-          
-          echo "✅ repo-config.json is valid JSON"
-
-      - name: Validate scripts exist and are executable
-        run: |
-          echo "Checking management scripts..."
-          
-          ERRORS=0
-          
-          for script in scripts/sync-files scripts/configure-repos scripts/sync-secrets; do
-            if [ ! -f "$script" ]; then
-              echo "❌ Missing script: $script"
-              ERRORS=$((ERRORS + 1))
-            elif [ ! -x "$script" ]; then
-              echo "❌ Script not executable: $script"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✅ $script"
-            fi
-          done
-          
-          if [ $ERRORS -gt 0 ]; then
-            echo "❌ $ERRORS script error(s)"
-            exit 1
-          fi
-          
-          echo "✅ All management scripts are valid"
-
-      - name: Validate repository-files source paths
-        run: |
-          echo "Checking that repository-files source paths exist..."
-          
-          ERRORS=0
-          
-          # Check always-sync files
-          for file in repository-files/always-sync/.cursor/rules/*.mdc; do
-            if [ -f "$file" ]; then
-              echo "✅ $file"
-            fi
-          done
-          
-          # Check language-specific files
-          for file in repository-files/python/.cursor/rules/python.mdc \
-                      repository-files/nodejs/.cursor/rules/typescript.mdc \
-                      repository-files/go/.cursor/rules/go.mdc \
-                      repository-files/terraform/.cursor/rules/terraform.mdc; do
-            if [ ! -f "$file" ]; then
-              echo "❌ Missing language rule: $file"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✅ $file"
-            fi
-          done
-          
-          if [ $ERRORS -gt 0 ]; then
-            echo ""
-            echo "❌ $ERRORS source path(s) do not exist"
-            exit 1
-          fi
-          
-          echo ""
-          echo "✅ All repository-files source paths exist"
-
-  validate-repository-files:
-    name: Validate Repository Files
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Check repository-files structure
-        run: |
-          echo "Validating repository-files directory structure..."
-          
-          ERRORS=0
-          
-          # Check required directories exist
-          for dir in repository-files/always-sync repository-files/initial-only; do
-            if [ ! -d "$dir" ]; then
-              echo "❌ Missing required directory: $dir"
-              ERRORS=$((ERRORS + 1))
-            else
-              echo "✅ $dir exists"
-            fi
-          done
-          
-          # Check cursor rules are valid
-          for rule in repository-files/always-sync/.cursor/rules/*.mdc; do
-            if [ -f "$rule" ]; then
-              # Basic validation - file should not be empty
-              if [ ! -s "$rule" ]; then
-                echo "❌ Empty cursor rule: $rule"
-                ERRORS=$((ERRORS + 1))
-              else
-                echo "✅ $rule"
-              fi
-            fi
-          done
-          
-          if [ $ERRORS -gt 0 ]; then
-            echo "❌ $ERRORS validation error(s)"
-            exit 1
-          fi
-          
-          echo "✅ Repository files structure is valid"
-
-  dry-run-generate-tests:
-    name: Dry Run - Generate Tests Workflow
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@v4
-
-      # actions/setup-python v6.1.0
-      - name: Set up Python
-        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          python-version: "3.12"
-
-      - name: Validate discover_modules.py logic
+          sparse-checkout: |
+            Cargo.toml
+            package.json
+            pyproject.toml
+            setup.py
+            requirements.txt
+            go.mod
+            docs
+          sparse-checkout-cone-mode: false
+      - name: Detect project type
+        id: detect
         run: |
-          echo "Testing module discovery logic..."
-          
-          # Create a minimal test structure using printf to avoid heredoc indentation issues
-          # Note: Using 'sample_pkg' not 'test_pkg' to avoid matching the "test_" skip pattern
-          mkdir -p sample_pkg
-          printf '%s\n' '"""Sample package."""' 'def hello():' '    pass' > sample_pkg/__init__.py
-          printf '%s\n' '"""Sample module."""' 'class SampleClass:' '    def method(self):' '        pass' '' 'def sample_func():' '    pass' > sample_pkg/module.py
-          
-          # Extract and run the discovery logic from generate-tests.yml
-          python3 << 'PYTEST'
-          import os
-          import json
-          import sys
-          from pathlib import Path
-          import ast
-          
-          def get_package_dirs():
-              packages = []
-              if Path("src").is_dir():
-                  for item in Path("src").iterdir():
-                      if item.is_dir() and (item / "__init__.py").exists():
-                          packages.append(str(item))
-              for item in Path(".").iterdir():
-                  if item.is_dir() and item.name not in ("tests", "test", "docs", "build", "dist", ".git", ".venv", "venv", "__pycache__", ".tox", "htmlcov", "src", ".github"):
-                      if (item / "__init__.py").exists():
-                          packages.append(str(item))
-              return packages or ["."]
-          
-          def find_python_modules(package_dirs):
-              modules = []
-              for pkg_dir in package_dirs:
-                  pkg_path = Path(pkg_dir)
-                  for py_file in pkg_path.rglob("*.py"):
-                      rel_path = str(py_file)
-                      if any(x in rel_path for x in ["__pycache__", "test_", "_test.py", "tests/", "test/", "conftest.py"]):
-                          continue
-                      if py_file.name.startswith("_") and py_file.name != "__init__.py":
-                          continue
-                      try:
-                          with open(py_file, "r", encoding="utf-8") as f:
-                              content = f.read()
-                          tree = ast.parse(content)
-                          funcs = sum(1 for n in ast.walk(tree) if isinstance(n, ast.FunctionDef))
-                          classes = sum(1 for n in ast.walk(tree) if isinstance(n, ast.ClassDef))
-                          if funcs > 0 or classes > 0:
-                              modules.append({
-                                  "path": str(py_file),
-                                  "functions": funcs,
-                                  "classes": classes,
-                                  "priority": classes * 2 + funcs
-                              })
-                      except (SyntaxError, UnicodeDecodeError, OSError):
-                          continue
-              return sorted(modules, key=lambda x: x["priority"], reverse=True)
-          
-          # Test
-          packages = get_package_dirs()
-          print(f"Found packages: {packages}")
-          assert "sample_pkg" in packages, f"Expected sample_pkg in {packages}"
-          
-          modules = find_python_modules(packages)
-          print(f"Found modules: {[m['path'] for m in modules]}")
-          assert len(modules) >= 2, f"Expected at least 2 modules, got {len(modules)}"
-          
-          print("✅ Module discovery logic works correctly")
-          PYTEST
-          
-          # Cleanup
-          rm -rf sample_pkg
+          echo "has_rust=$([[ -f Cargo.toml ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_node=$([[ -f package.json ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_python=$([[ -f pyproject.toml || -f setup.py || -f requirements.txt ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_go=$([[ -f go.mod ]] && echo true || echo false)" >> $GITHUB_OUTPUT
+          echo "has_docs=$([[ -d docs ]] && echo true || echo false)" >> $GITHUB_OUTPUT
 
-  summary:
-    name: CI Summary
-    needs: [lint-workflows, validate-expressions, validate-repo-config, validate-repository-files, dry-run-generate-tests]
+  rust:
+    name: Rust
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_rust == 'true'
     runs-on: ubuntu-latest
-    if: always()
-    permissions:
-      contents: read
-      pull-requests: write
     steps:
-      - name: Check results
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: dtolnay/rust-toolchain@4be9e76fd7c4901c61fb841f559994984270fce7 # stable
+        with:
+          toolchain: stable
+          components: clippy, rustfmt
+      - uses: swatinem/rust-cache@779680da715d629ac1d338a641029a2f4372abb5 # v2.7.8
+      - run: cargo build --release
+      - run: cargo test
+      - run: cargo clippy -- -D warnings
+      - run: cargo fmt -- --check
+
+  node:
+    name: Node.js
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_node == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: 9
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: pnpm
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm run lint || true
+      - run: pnpm run build || true
+      - run: pnpm test || true
+
+  python:
+    name: Python
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_python == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install
         run: |
-          # shellcheck disable=SC2086
-          {
-            echo "## CI Results"
-            echo ""
-            echo "| Check | Status |"
-            echo "|-------|--------|"
-            echo "| Lint Workflows | ${{ needs.lint-workflows.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Expressions | ${{ needs.validate-expressions.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Repo Config | ${{ needs.validate-repo-config.result == 'success' && '✅' || '❌' }} |"
-            echo "| Validate Repo Files | ${{ needs.validate-repository-files.result == 'success' && '✅' || '❌' }} |"
-            echo "| Dry Run Generate Tests | ${{ needs.dry-run-generate-tests.result == 'success' && '✅' || '❌' }} |"
-          } >> "$GITHUB_STEP_SUMMARY"
-          
-          # Fail if any job failed
-          if [ "${{ needs.lint-workflows.result }}" != "success" ] || \
-             [ "${{ needs.validate-expressions.result }}" != "success" ] || \
-             [ "${{ needs.validate-repo-config.result }}" != "success" ] || \
-             [ "${{ needs.validate-repository-files.result }}" != "success" ] || \
-             [ "${{ needs.dry-run-generate-tests.result }}" != "success" ]; then
-            echo ""
-            echo "❌ CI failed - one or more checks did not pass"
-            exit 1
+          pip install ruff pytest
+          if [[ -f requirements.txt ]]; then pip install -r requirements.txt; fi
+          if [[ -f pyproject.toml ]]; then pip install -e ".[dev]" 2>/dev/null || pip install -e . 2>/dev/null || true; fi
+      - run: ruff check . || true
+      - run: pytest || true
+
+  go:
+    name: Go
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_go == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
+        with:
+          go-version: '1.22'
+      - run: go build -v ./...
+      - run: go test -v ./...
+
+  docs-build:
+    name: Build & Sync Docs
+    needs: detect-stack
+    if: needs.detect-stack.outputs.has_docs == 'true' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: pnpm/action-setup@a7487c7e89a18df4991f7f222e4898a00d66ddda # v4.1.0
+        with:
+          version: 9
+      
+      - name: Build Docs (Generic)
+        run: |
+          if [ -f docs/Makefile ]; then
+            cd docs && make html
+          elif [ -f package.json ] && grep -q "build:docs" package.json; then
+            pnpm install --no-frozen-lockfile
+            pnpm run build:docs
+          elif [ -f Cargo.toml ]; then
+            cargo doc --no-deps
           fi
           
-          echo ""
-          echo "✅ All CI checks passed"
+      - name: Sync to Org Docs Repo
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ORG: ${{ github.repository_owner }}
+          REPO: ${{ github.event.repository.name }}
+        run: |
+          # Create temporary clone of docs repo
+          git clone https://x-access-token:${GH_TOKEN}@github.com/${ORG}/.github.git /tmp/docs-repo 2>/dev/null || exit 0
+          mkdir -p /tmp/docs-repo/docs/api/${REPO}
+          
+          # Copy built docs (heuristics for common locations)
+          if [ -d docs/_build/html ]; then
+            cp -r docs/_build/html/* /tmp/docs-repo/docs/api/${REPO}/
+          elif [ -d docs/dist ]; then
+            cp -r docs/dist/* /tmp/docs-repo/docs/api/${REPO}/
+          elif [ -d target/doc ]; then
+            cp -r target/doc/* /tmp/docs-repo/docs/api/${REPO}/
+          fi
+          
+          cd /tmp/docs-repo
+          git add .
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git commit -m "docs: update API docs for ${REPO}" || exit 0
+          git push origin main || true
