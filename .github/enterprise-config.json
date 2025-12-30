@@ -1,0 +1,76 @@
+{
+  "$schema": "./schemas/enterprise-config.schema.json",
+  "enterprise": "jbcom",
+  "description": "Enterprise control plane for jbcom ecosystem",
+  
+  "policies": {
+    "branchProtection": {
+      "enforceOnAllRepos": true,
+      "requiredChecks": ["CI", "Lint"],
+      "requirePRs": true,
+      "requireApprovals": 0,
+      "allowForcePush": false,
+      "allowDeletions": false
+    },
+    "security": {
+      "requireSecretScanning": true,
+      "requireDependabot": true,
+      "requireCodeQL": true,
+      "blockPushesWithSecrets": true
+    },
+    "automation": {
+      "enableAutoMerge": true,
+      "enableAutoRebase": true,
+      "enableAIReview": true,
+      "aiReviewers": ["ollama", "claude"]
+    }
+  },
+  
+  "thresholds": {
+    "codeCoverage": {
+      "minimum": 80,
+      "warn": 70
+    },
+    "docCoverage": {
+      "minimum": 70,
+      "warn": 50
+    },
+    "stalePR": {
+      "warnDays": 7,
+      "closeDays": 30
+    },
+    "staleIssue": {
+      "warnDays": 30,
+      "closeDays": 90
+    }
+  },
+  
+  "secrets": {
+    "required": [
+      "CI_GITHUB_TOKEN",
+      "ANTHROPIC_API_KEY"
+    ],
+    "optional": [
+      "GOOGLE_JULES_API_KEY",
+      "CURSOR_API_KEY",
+      "OLLAMA_API_KEY"
+    ]
+  },
+  
+  "githubApps": {
+    "required": [
+      "jules",
+      "copilot"
+    ],
+    "recommended": [
+      "dependabot",
+      "codeql"
+    ]
+  },
+  
+  "syncSchedule": {
+    "surveyor": "0 0 * * 0",
+    "audit": "0 4 1 * *",
+    "agents": "0 2 * * *"
+  }
+}

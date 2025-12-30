@@ -1,60 +1,84 @@
 {
-  "$schema": "./schemas/org-context.schema.json",
-  "org": "jbcom",
-  "domain": "jonbogaty.com",
-  "description": "Control center for jbcom ecosystem - games, packages, and infrastructure",
-  "languages": ["typescript", "python", "go", "terraform"],
-  "conventions": {
-    "testing": {
-      "typescript": "vitest",
-      "python": "pytest",
-      "go": "go test"
+  "$schema": "./schemas/org-registry.schema.json",
+  "enterprise": "jbcom",
+  "description": "Registry of organizations managed by this enterprise control center",
+  
+  "organizations": [
+    {
+      "org": "jbcom",
+      "domain": "jonbogaty.com",
+      "type": "primary",
+      "controlCenter": null,
+      "languages": ["typescript", "python", "go", "terraform"],
+      "focus": ["AI orchestration", "Games", "Infrastructure"],
+      "repos": {
+        "include": "*",
+        "exclude": ["*.github.io"]
+      }
     },
-    "linting": {
-      "typescript": "eslint + prettier",
-      "python": "ruff",
-      "go": "golangci-lint"
-    },
-    "docStyle": {
-      "typescript": "jsdoc",
-      "python": "google",
-      "go": "godoc"
-    }
-  },
-  "focus": [
-    "AI agent orchestration",
-    "Multi-repository management",
-    "Enterprise automation",
-    "Code quality"
-  ],
-  "securityFocus": [
-    "Secret management",
-    "Token rotation",
-    "Dependency scanning"
-  ],
-  "priorityLabels": ["critical", "high", "medium", "low"],
-  "teamAreas": ["infra", "agents", "games", "packages"],
-  "thresholds": {
-    "codeCoverage": 80,
-    "docCoverage": 70,
-    "maxOpenIssues": 50,
-    "maxStaleDays": 30
-  },
-  "childOrgs": [
     {
       "org": "agentic-dev-library",
       "domain": "agentic.dev",
-      "focus": ["AI agent primitives", "npm packages"]
+      "type": "child",
+      "controlCenter": "agentic-dev-library/control-center",
+      "languages": ["typescript"],
+      "focus": ["AI agent primitives", "npm packages", "GitHub Actions"],
+      "repos": {
+        "include": "*",
+        "exclude": []
+      }
     },
     {
       "org": "strata-game-library",
       "domain": "strata.game",
-      "focus": ["Procedural graphics", "Game engines"]
+      "type": "child",
+      "controlCenter": "strata-game-library/control-center",
+      "languages": ["typescript", "rust"],
+      "focus": ["Procedural graphics", "Game engines", "WebGPU"],
+      "repos": {
+        "include": "*",
+        "exclude": []
+      }
     },
     {
       "org": "extended-data-library",
       "domain": "extendeddata.dev",
-      "focus": ["Data utilities", "Enterprise integrations"]
+      "type": "child",
+      "controlCenter": "extended-data-library/control-center",
+      "languages": ["python", "typescript"],
+      "focus": ["Data utilities", "Enterprise integrations", "Type systems"],
+      "repos": {
+        "include": "*",
+        "exclude": []
+      }
     }
-  ]
+  ],
+  
+  "conventions": {
+    "testing": {
+      "typescript": "vitest",
+      "python": "pytest",
+      "go": "go test",
+      "rust": "cargo test"
+    },
+    "linting": {
+      "typescript": "eslint + prettier",
+      "python": "ruff",
+      "go": "golangci-lint",
+      "rust": "clippy"
+    },
+    "docStyle": {
+      "typescript": "jsdoc",
+      "python": "google",
+      "go": "godoc",
+      "rust": "rustdoc"
+    }
+  },
+  
+  "labels": {
+    "priority": ["critical", "high", "medium", "low"],
+    "type": ["bug", "feature", "docs", "chore", "refactor"],
+    "status": ["needs-triage", "in-progress", "blocked", "ready"],
+    "automation": ["auto-merge", "sync", "synthesis"]
+  }
 }
