@@ -13,6 +13,7 @@
 name: Ecosystem Connector
 
 on:
+  # PR events - full review/rebase/merge treatment
   pull_request:
     types: [opened, synchronize, ready_for_review]
   pull_request_review:
@@ -21,6 +22,12 @@ on:
     types: [created]
   check_suite:
     types: [completed]
+  # Main branch - propagate changes, no reviews
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ecosystem-connector.yml'
+      - 'repository-files/always-sync/**'
 
 permissions:
   contents: write
@@ -38,6 +45,25 @@ env:
   COMMENT_COOLDOWN_MINUTES: 5
 
 jobs:
+  # ============================================================
+  # MAIN BRANCH: Propagate ecosystem-connector changes
+  # ============================================================
+  propagate-on-main:
+    name: Propagate to Ecosystem
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger ecosystem sync
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          echo "🚀 ecosystem-connector updated on main - triggering sync..."
+          
+          # Trigger the ecosystem-sync workflow
+          gh workflow run ecosystem-sync.yml --repo ${{ github.repository }} || echo "Sync workflow triggered or already running"
+          
+          echo "✅ Sync triggered - changes will propagate to all org control-centers"
+
   # ============================================================
   # PRIME DIRECTIVE: Enforce SHA pinning for GitHub Actions
   # ============================================================
