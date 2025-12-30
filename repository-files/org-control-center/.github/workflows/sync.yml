@@ -1,10 +1,14 @@
 # Org Internal Sync - Cascades from enterprise control-center
-# This workflow syncs files from this control-center to all repos in the org
+# 
+# MERGE STRATEGY:
+# 1. Apply enterprise files from repository-files/always-sync (from jbcom/control-center)
+# 2. Apply org-specific overrides from repository-files/org-overrides (org can customize)
+# 3. Apply language-specific rules based on detected stack
+# 4. Initial-only files only created if missing
 #
-# Triggered by:
-# - Push to repository-files/
-# - Nightly schedule (1 hour after enterprise sync)
-# - Manual dispatch
+# Org-specific customization:
+# - Add files to repository-files/org-overrides/ to override enterprise defaults
+# - These are applied AFTER enterprise files, so org wins on conflicts
 
 name: Sync
 
@@ -33,18 +37,22 @@ jobs:
           ORG: ${{ github.repository_owner }}
         run: |
           echo "🔄 Syncing to all repos in $ORG..."
+          echo "Strategy: Enterprise base + Org overrides"
+          echo ""
           
           # Get all non-archived, non-control-center repos
           repos=$(gh repo list "$ORG" --no-archived --json name --jq '.[].name' | grep -v "^control-center$" | grep -v "^\\.github$")
           
           for repo in $repos; do
             echo ""
-            echo "=== $ORG/$repo ==="
+            echo "═══════════════════════════════════════"
+            echo "  $ORG/$repo"
+            echo "═══════════════════════════════════════"
             
             # Clone target repo
             rm -rf /tmp/target
             if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git" /tmp/target 2>/dev/null; then
-              echo "  ⚠️ Could not clone"
+              echo "  ⚠️ Could not clone - skipping"
               continue
             fi
             cd /tmp/target
@@ -52,50 +60,99 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             
-            # Sync always-sync files
+            # Ensure directories exist
             mkdir -p .github/workflows .cursor/rules
-            cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
-            cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             
-            # Sync language-specific rules based on what's in repo
+            # ─────────────────────────────────────────
+            # LAYER 1: Enterprise always-sync (base)
+            # ─────────────────────────────────────────
+            echo "  📦 Layer 1: Enterprise files..."
+            if [ -d "$GITHUB_WORKSPACE/repository-files/always-sync" ]; then
+              cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
+              cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
+            fi
+            
+            # ─────────────────────────────────────────
+            # LAYER 2: Language-specific rules
+            # ─────────────────────────────────────────
+            echo "  🔧 Layer 2: Language-specific..."
             if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "requirements.txt" ]; then
+              echo "    - Python detected"
               cp -r $GITHUB_WORKSPACE/repository-files/python/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             if [ -f "package.json" ]; then
+              echo "    - Node.js detected"
               cp -r $GITHUB_WORKSPACE/repository-files/nodejs/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             if [ -f "go.mod" ]; then
+              echo "    - Go detected"
               cp -r $GITHUB_WORKSPACE/repository-files/go/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             if [ -f "Cargo.toml" ]; then
+              echo "    - Rust detected"
               cp -r $GITHUB_WORKSPACE/repository-files/rust/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             if ls *.tf >/dev/null 2>&1; then
+              echo "    - Terraform detected"
               cp -r $GITHUB_WORKSPACE/repository-files/terraform/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
             
-            # Sync initial-only files (only if missing)
+            # ─────────────────────────────────────────
+            # LAYER 3: Org-specific overrides (wins)
+            # ─────────────────────────────────────────
+            echo "  🏢 Layer 3: Org overrides..."
+            if [ -d "$GITHUB_WORKSPACE/repository-files/org-overrides" ]; then
+              # Copy all org overrides - these take precedence
+              cp -r $GITHUB_WORKSPACE/repository-files/org-overrides/.github/workflows/* .github/workflows/ 2>/dev/null && echo "    - Workflows overridden" || true
+              cp -r $GITHUB_WORKSPACE/repository-files/org-overrides/.cursor/rules/* .cursor/rules/ 2>/dev/null && echo "    - Cursor rules overridden" || true
+              # Any other org-specific files
+              for item in $GITHUB_WORKSPACE/repository-files/org-overrides/*; do
+                if [ -f "$item" ]; then
+                  cp "$item" . 2>/dev/null && echo "    - $(basename $item) overridden" || true
+                fi
+              done
+            else
+              echo "    - No org overrides defined"
+            fi
+            
+            # ─────────────────────────────────────────
+            # LAYER 4: Initial-only (only if missing)
+            # ─────────────────────────────────────────
+            echo "  📝 Layer 4: Initial-only..."
             for file in CLAUDE.md AGENTS.md; do
-              if [ ! -f "$file" ] && [ -f "$GITHUB_WORKSPACE/repository-files/initial-only/$file" ]; then
-                cp "$GITHUB_WORKSPACE/repository-files/initial-only/$file" "$file"
+              if [ ! -f "$file" ]; then
+                # Check org-specific first, then enterprise
+                if [ -f "$GITHUB_WORKSPACE/repository-files/org-overrides/$file" ]; then
+                  cp "$GITHUB_WORKSPACE/repository-files/org-overrides/$file" "$file"
+                  echo "    - $file created (org version)"
+                elif [ -f "$GITHUB_WORKSPACE/repository-files/initial-only/$file" ]; then
+                  cp "$GITHUB_WORKSPACE/repository-files/initial-only/$file" "$file"
+                  echo "    - $file created (enterprise version)"
+                fi
               fi
             done
             
-            # Commit and push if changes
+            # ─────────────────────────────────────────
+            # Commit and push
+            # ─────────────────────────────────────────
             if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
               git add -A
-              git commit -m "chore(sync): update from $ORG/control-center"
+              git commit -m "chore(sync): update from $ORG/control-center
+
+Enterprise + org-specific merge from control-center"
               if git push origin HEAD 2>/dev/null; then
-                echo "  ✅ Synced"
+                echo "  ✅ Synced successfully"
               else
                 echo "  ⚠️ Push failed (branch protection?)"
               fi
             else
-              echo "  ✅ No changes"
+              echo "  ✅ Already up to date"
             fi
             
             cd $GITHUB_WORKSPACE
           done
           
           echo ""
-          echo "🎉 Sync complete"
+          echo "═══════════════════════════════════════"
+          echo "  🎉 Sync complete"
+          echo "═══════════════════════════════════════"
