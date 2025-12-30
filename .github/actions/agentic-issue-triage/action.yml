@@ -95,7 +95,7 @@ runs:
               }')")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_URL="https://console.google.com/jules/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
