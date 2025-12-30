@@ -7,7 +7,8 @@
  * GitHub doesn't allow programmatic app installation - this generates installation URLs.
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
+import { join } from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -30,7 +31,29 @@ const OPTIONAL_APPS = [
   { slug: 'render', name: 'Render', purpose: 'Deployment', priority: 'low' },
 ];
 
-const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
+async function loadOrganizations() {
+  try {
+    const configPath = join(process.cwd(), 'repo-config.json');
+    const configFile = await readFile(configPath, 'utf8');
+    const config = JSON.parse(configFile);
+    const managedOrgs = config?.organizations?.managed;
+
+    if (!managedOrgs || !Array.isArray(managedOrgs) || managedOrgs.length === 0) {
+      console.error('❌ "organizations.managed" is missing, not an array, or empty in repo-config.json');
+      process.exit(1);
+    }
+
+    if (!managedOrgs.includes('jbcom')) {
+      console.error('❌ "organizations.managed" must include the primary organization "jbcom"');
+      process.exit(1);
+    }
+
+    return managedOrgs;
+  } catch (error) {
+    console.error(`❌ Error reading or parsing repo-config.json: ${error.message}`);
+    process.exit(1);
+  }
+}
 
 async function ghApi(endpoint) {
   const res = await fetch(`https://api.github.com${endpoint}`, {
@@ -67,6 +90,8 @@ async function main() {
     process.exit(1);
   }
   
+  const organizations = await loadOrganizations();
+
   const report = {
     timestamp: new Date().toISOString(),
     organizations: {},
@@ -75,7 +100,7 @@ async function main() {
   };
   
   // Gather app installation status
-  for (const org of ORGANIZATIONS) {
+  for (const org of organizations) {
     console.log(`\n📦 ${org}`);
     const installedApps = await getOrgApps(org);
     
