@@ -123,17 +123,22 @@ async function mergePR(owner, repo, prNumber) {
   // Safety check: ensure PR doesn't contain obvious secrets or risky files
   const files = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/files`);
   if (Array.isArray(files)) {
-    const hasSecrets = files.some(f => f.patch && /password|secret|key|token/i.test(f.patch));
+    // Improved regex to detect patterns like `API_KEY=...` or `password: "..."`
+    const SENSITIVE_KEYWORD_REGEX = /("?api_?key"?|"?(client_)?secret"?|"?(access|refresh)_?token"?|password)[\s='":]+[a-zA-Z0-9_.-]{16,}/i;
+    const hasSecrets = files.some(f => f.patch && SENSITIVE_KEYWORD_REGEX.test(f.patch));
     if (hasSecrets) {
-      console.log(`  ⚠️ Skipping merge - PR contains potentially sensitive data`);
+      console.log(`  ⚠️ Skipping merge - PR contains potentially sensitive data.`);
       return { merged: false, message: 'Safety check failed: potential secrets detected' };
     }
   }
 
-  return ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
+  console.log(`  Attempting to merge PR #${prNumber} in ${owner}/${repo}`);
+  const result = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/merge`, {
     method: 'PUT',
     body: JSON.stringify({ merge_method: 'squash' })
   });
+  console.log(`  Merge result for PR #${prNumber}: ${result.merged ? '✅ Success' : `❌ Failed: ${result.message}`}`);
+  return result;
 }
 
 async function orchestrate() {
@@ -159,73 +164,77 @@ async function orchestrate() {
   console.log(`\nFound ${sessionsData.sessions?.length || 0} sessions\n`);
   
   for (const session of sessionsData.sessions || []) {
+    const sessionName = session.name || 'unknown-session';
     try {
-      const sessionId = session.name.split('/')[1];
+      const sessionId = sessionName.split('/').pop();
       
-      // Validate sessionId format to prevent path traversal
-      if (!sessionId || !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
-        console.log(`  ⚠️ Skipping invalid session ID: ${sessionId}`);
+      // Stricter validation for sessionId
+      if (!sessionId || !/^[a-zA-Z0-9_-]{10,}$/.test(sessionId)) {
+        console.warn(`  [${sessionName}] ⚠️ Skipping invalid or malformed session ID.`);
         continue;
       }
 
+      console.log(`[${sessionId}] Processing session...`);
       const details = await getSession(sessionId);
-      console.log(`Session ${sessionId}: ${details.state || 'UNKNOWN'}`);
+      console.log(`[${sessionId}] State: ${details.state || 'UNKNOWN'}`);
       
       if (details.state === 'COMPLETED' && details.pullRequest) {
-        console.log(`  PR: ${details.pullRequest}`);
+        console.log(`[${sessionId}] Found PR: ${details.pullRequest}`);
         const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
+
         if (match) {
           const [, owner, repo, prNum] = match;
+          const prIdentifier = `${owner}/${repo}#${prNum}`;
           
-          // Validate extracted parameters to prevent injection
-          if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo) || !/^\d+$/.test(prNum)) {
-            console.log(`  ⚠️ Skipping PR with invalid parameters: ${owner}/${repo}#${prNum}`);
+          // Stricter validation for GitHub identifiers
+          const validOwnerRepo = /^[a-zA-Z0-9._-]{1,100}$/;
+          const validPrNum = /^\d{1,7}$/;
+          if (!validOwnerRepo.test(owner) || !validOwnerRepo.test(repo) || !validPrNum.test(prNum)) {
+            console.error(`[${sessionId}] ❌ Invalid PR parameters extracted: ${prIdentifier}`);
             continue;
           }
 
+          console.log(`[${sessionId}] Checking status for ${prIdentifier}...`);
           const status = await checkPRStatus(owner, repo, prNum);
           
           if (!status) {
-            console.log(`  ⚠️ PR not found or error fetching status`);
+            console.warn(`[${sessionId}] ⚠️ PR ${prIdentifier} not found or error fetching status.`);
             continue;
           }
 
-          console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'} | Review: ${status.hasChangesRequested ? '❌ Changes Requested' : (status.isApproved ? '✅ Approved' : '⏳ Pending Approval')}`);
+          console.log(`[${sessionId}] Status for ${prIdentifier}: CI: ${status.allPassing ? '✅' : '❌'}, Mergeable: ${status.mergeable ? '✅' : '❌'}, Review: ${status.hasChangesRequested ? '❌' : (status.isApproved ? '✅' : '⏳')}`);
           
           if (status.allPassing && status.mergeable && status.isApproved && !status.hasChangesRequested) {
-            console.log(`  🔀 Merging...`);
-            const result = await mergePR(owner, repo, prNum);
-            console.log(`  Result: ${result.merged ? '✅ Merged' : result.message || 'Failed'}`);
+            console.log(`[${sessionId}] 🔀 Conditions met. Merging ${prIdentifier}...`);
+            await mergePR(owner, repo, prNum);
           } else {
-            if (!status.allPassing) {
-              console.log(`  Waiting for CI to pass...`);
-              
-              // If CI is failing and this is a Jules PR, spawn a Cursor agent to fix it
-              if (status.checks.some(c => c.conclusion === 'failure')) {
-                const alreadyRunning = activeAgents.some(a => 
-                  a.source?.repository === `${owner}/${repo}` && 
-                  a.prompt?.text?.includes(`#${prNum}`)
-                );
+            console.log(`[${sessionId}] ℹ️ Merge conditions not met for ${prIdentifier}.`);
+            if (!status.allPassing && status.checks.some(c => c.conclusion === 'failure')) {
+              const alreadyRunning = activeAgents.some(a =>
+                a.source?.repository === `${owner}/${repo}` &&
+                a.prompt?.text?.includes(`#${prNum}`)
+              );
 
-                if (alreadyRunning) {
-                  console.log(`  ℹ️ Cursor agent already running for PR #${prNum}`);
-                } else {
-                  try {
-                    await spawnCursorAgent(`${owner}/${repo}`, `Fix CI failures in PR #${prNum}: ${status.pr.title}`, status.pr.head.ref);
-                  } catch (err) {
-                    console.error(`  ❌ Failed to spawn Cursor agent:`, err.message);
-                  }
+              if (alreadyRunning) {
+                console.log(`[${sessionId}] ℹ️ Cursor agent already running for ${prIdentifier}.`);
+              } else {
+                console.log(`[${sessionId}] 🚀 Spawning Cursor agent to fix CI for ${prIdentifier}.`);
+                try {
+                  await spawnCursorAgent(`${owner}/${repo}`, `Fix CI failures in PR #${prNum}: ${status.pr.title}`, status.pr.head.ref);
+                } catch (err) {
+                  console.error(`[${sessionId}] ❌ Failed to spawn Cursor agent for ${prIdentifier}:`, err.message);
                 }
               }
             }
-            if (!status.mergeable) console.log(`  Waiting for mergeable state (clean)...`);
-            if (status.hasChangesRequested) console.log(`  Changes were requested. Please address them.`);
-            if (!status.isApproved && !status.hasChangesRequested) console.log(`  Waiting for approval...`);
           }
+        } else {
+          console.warn(`[${sessionId}] ⚠️ Could not parse PR URL: ${details.pullRequest}`);
         }
+      } else if (details.state !== 'COMPLETED') {
+          console.log(`[${sessionId}] ⏳ Session not yet completed.`);
       }
     } catch (err) {
-      console.error(`  Error processing session:`, err.message);
+      console.error(`[${sessionName}] ❌ Error processing session:`, err.message);
     }
   }
   
