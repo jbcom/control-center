@@ -1,3 +1,4 @@
+---
 name: 'Agentic Issue Triage'
 description: 'Triage a GitHub issue using an AI agent.'
 author: 'jbcom/agentic-control'
@@ -64,64 +65,76 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
-        # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
-          echo "🤖 Received '/jules' command. Delegating to Google Jules..."
-          
+        set -eo pipefail
+
+        handle_jules() {
+          echo "🤖 Received '/jules' command. Delegating..."
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+            gh issue comment "$ISSUE_NUMBER" --body \
+              "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate."
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          TASK=$(echo "$COMMENT_BODY" | \
+            sed -e 's|/jules[[:space:]]*||' \
+                -e 's/^[[:space:]]*//' \
+                -e 's/[[:space:]]*$//' | \
+            head -c 1000)
 
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+          if [ -z "$TASK" ]; then
+            TASK="Fix issue #$ISSUE_NUMBER"
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body \
+            "🤖 Creating Jules session with prompt: \`$TASK\`"
+
+          JSON_PAYLOAD=$(jq -n \
+            --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
+            --arg repo "$REPOSITORY" \
+            --arg branch "$DEFAULT_BRANCH" \
+            '{
+              prompt: $task,
+              sourceContext: {
+                source: ("sources/github/" + $repo),
+                githubRepoContext: { startingBranch: $branch }
+              },
+              automationMode: "AUTO_CREATE_PR"
+            }')
+
+          JULES_API_URL="https://jules.googleapis.com/v1alpha/sessions"
+          RESPONSE=$(curl -s -X POST "$JULES_API_URL" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
-              --arg repo "$REPOSITORY" \
-              --arg branch "$DEFAULT_BRANCH" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')")
+            -d "$JSON_PAYLOAD")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
           SESSION_URL="https://jules.google.com/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue and create a PR."
+            gh issue comment "$ISSUE_NUMBER" --body \
+              "## 🤖 Jules Session Created
+              ➡️ **[Monitor Session]($SESSION_URL)**
+              Jules will create a PR to fix this issue."
           else
             echo "Failed to create Jules session: $RESPONSE"
-            gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
+            gh issue comment "$ISSUE_NUMBER" --body \
+              "❌ Failed to create Jules session. Please check logs."
             exit 1
           fi
-          exit 0
-        fi
+        }
 
-        # If /cursor command is present, delegate to Cursor
-        if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
-          echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
-          # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
-          exit 0
-        fi
+        handle_cursor() {
+          echo "🤖 Received '/cursor' command. Delegating..."
+          gh issue comment "$ISSUE_NUMBER" --body \
+            "🤖 '/cursor' delegation is handled by the orchestrator."
+        }
 
-        # Fallback to standard triage if no specific command
-        echo "Performing standard issue triage..."
-        # agentic-control@1.1.0 doesn't have issue-triage command yet
-        # For now, we'll just acknowledge the issue
-        # agentic triage quick "$COMMENT_BODY"
-        gh issue comment "$ISSUE_NUMBER" --body "🤖 Issue received and queued for triage."
+        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+          handle_jules
+        elif [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
+          handle_cursor
+        else
+          echo "Performing standard issue triage..."
+          gh issue comment "$ISSUE_NUMBER" --body \
+            "🤖 Issue received and queued for triage."
+        fi
