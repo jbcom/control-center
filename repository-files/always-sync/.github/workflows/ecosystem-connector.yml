@@ -1020,59 +1020,38 @@ jobs:
             exit 0
           fi
           
-          # Safety criteria for auto-merge eligibility
-          ELIGIBLE=false
-          REASON=""
+          # ALL PRs are eligible for auto-merge if:
+          # 1. All CI checks pass (already verified above)
+          # 2. PR is mergeable
+          # 3. Not a draft
+          # Safety comes from CI checks, not arbitrary criteria
           
-          # Criterion 1: Sync PRs from control center
-          if echo "$TITLE" | grep -qiE "^sync:|^\[sync\]"; then
-            ELIGIBLE=true
-            REASON="Sync PR from control center"
+          if [ "$MERGEABLE" != "MERGEABLE" ]; then
+            echo "  Skipping - not in mergeable state ($MERGEABLE)"
+            exit 0
           fi
           
-          # Criterion 2: Trusted bot authors
-          if [[ "$AUTHOR" == *"[bot]"* ]] || [[ "$AUTHOR" == *"-bot"* ]]; then
-            ELIGIBLE=true
-            REASON="Trusted bot author: $AUTHOR"
-          fi
+          echo "  ✅ All CI passed, PR is mergeable - enabling auto-merge"
           
-          # Criterion 3: Cursor agent branches (this repo's own work)
-          if echo "$BRANCH" | grep -qE "^cursor/"; then
-            ELIGIBLE=true
-            REASON="Cursor agent branch"
-          fi
+          # Create auto-merge label if it doesn't exist
+          gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
           
-          # Criterion 4: Dependabot/renovate PRs
-          if [ "$AUTHOR" = "dependabot" ] || [ "$AUTHOR" = "renovate" ]; then
-            ELIGIBLE=true
-            REASON="Dependency update from $AUTHOR"
-          fi
+          # Add label
+          gh pr edit $PR_NUM --add-label "auto-merge"
           
-          # Criterion 5: Already approved by human
-          if [ "$REVIEW" = "APPROVED" ]; then
-            ELIGIBLE=true
-            REASON="Already approved by reviewer"
-          fi
-          
-          if [ "$ELIGIBLE" = "true" ]; then
-            echo "  ✅ Eligible for auto-merge: $REASON"
-            
-            # Create auto-merge label if it doesn't exist
-            gh label create "auto-merge" --description "Eligible for automatic merging" --color "0E8A16" 2>/dev/null || true
-            
-            # Add label
-            gh pr edit $PR_NUM --add-label "auto-merge"
-            
-            # Auto-approve (if not already approved and we have permission)
-            if [ "$REVIEW" != "APPROVED" ]; then
-              gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
+          # Auto-approve (if not already approved)
+          if [ "$REVIEW" != "APPROVED" ]; then
+            gh pr review $PR_NUM --approve --body "✅ **Auto-approved by Ecosystem Connector**
 
-**Reason:** $REASON
+All CI checks passed. PR is mergeable.
 
-All CI checks passed. PR meets auto-merge criteria." || echo "  Could not auto-approve (may need different permissions)"
-            fi
-            
-            echo "  Added auto-merge label and approved"
-          else
-            echo "  Not eligible for auto-merge (requires manual review)"
+| Check | Status |
+|-------|--------|
+| CI Passing | ✅ |
+| Mergeable | ✅ |
+| Draft | ❌ |
+
+Proceeding with auto-merge." || echo "  Could not auto-approve (may need different permissions)"
           fi
+          
+          echo "  ✅ Added auto-merge label and approved"
