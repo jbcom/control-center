@@ -1,3 +1,4 @@
+---
 name: 'Agentic Issue Triage'
 description: 'Triage a GitHub issue using an AI agent.'
 author: 'jbcom/agentic-control'
@@ -67,42 +68,48 @@ runs:
         # If /jules command is present, delegate to Google Jules
         if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
-          
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+            BODY="⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          TASK_FROM_COMMENT=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+          if [[ -z "$TASK_FROM_COMMENT" ]]; then
+            TASK="Fix issue #$ISSUE_NUMBER"
+            BODY="🤖 Received '/jules' command. Creating Jules session..."
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
+          else
+            TASK="Fix issue #$ISSUE_NUMBER: $TASK_FROM_COMMENT"
+            BODY="🤖 Received '/jules' command. Creating Jules session for task..."
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
+          fi
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
-              --arg repo "$REPOSITORY" \
-              --arg branch "$DEFAULT_BRANCH" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')")
+            -d @- <<EOF
+          $(jq -n \
+            --arg task "$TASK" \
+            --arg repo "$REPOSITORY" \
+            --arg branch "$DEFAULT_BRANCH" \
+            '{
+              prompt: $task,
+              sourceContext: {
+                source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                githubRepoContext: { startingBranch: $branch }
+              },
+              automationMode: "AUTO_CREATE_PR"
+            }')
+          EOF
+          )
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
           SESSION_URL="https://jules.google.com/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue and create a PR."
+            BODY="## 🤖 Jules Session Created\n\n➡️ **[Monitor Session]($SESSION_URL)**\n\nJules will analyze the issue and create a PR."
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
@@ -115,7 +122,8 @@ runs:
         if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
           echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
           # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+          BODY="🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+          gh issue comment "$ISSUE_NUMBER" --body "$BODY"
           exit 0
         fi
 
