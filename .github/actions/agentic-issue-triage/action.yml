@@ -75,8 +75,11 @@ runs:
 
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          TASK=$(echo "$COMMENT_BODY" | sed -e 's/^\/jules\s*//' | xargs | head -c 1000)
+          # If the task is empty or just empty quotes after trimming, set a default task.
+          if [ -z "$TASK" ] || [ "$TASK" = "''" ] || [ "$TASK" = '""' ]; then
+            TASK="Fix issue #$ISSUE_NUMBER"
+          fi
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
