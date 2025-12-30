@@ -73,10 +73,14 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000 | xargs)
+          if [ -z "$TASK" ]; then
+            echo "Empty /jules command received, exiting."
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command with empty task. Ignoring."
+            exit 0
+          fi
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
