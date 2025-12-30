@@ -1,7 +1,22 @@
 {
   "$schema": "./schemas/org-registry.schema.json",
   "enterprise": "jbcom",
-  "description": "Enterprise control plane - manages organization control centers (no codebases)",
+  "description": "Enterprise control plane - ALPHA of the cascade (not OMEGA)",
+  
+  "cascade": {
+    "alpha": {
+      "repo": "jbcom/control-center",
+      "role": "Genesis - pushes config/workflows DOWN to org control centers"
+    },
+    "omega": {
+      "repo": "jbcom/docs",
+      "role": "Terminus - receives escalations UP when unresolved at lower levels"
+    },
+    "flow": {
+      "down": "control-center → org-control-centers → repos (config, workflows, rules)",
+      "up": "repos → org-control-centers → docs (escalations, unresolved issues)"
+    }
+  },
   
   "thisOrg": {
     "org": "jbcom",
@@ -9,8 +24,8 @@
     "type": "enterprise-control-plane",
     "purpose": "PURELY control and documentation - no codebases",
     "contains": {
-      "control": ["control-center"],
-      "documentation": ["docs", "*.github.io"],
+      "alpha": ["control-center"],
+      "omega": ["docs"],
       "codebases": []
     }
   },
