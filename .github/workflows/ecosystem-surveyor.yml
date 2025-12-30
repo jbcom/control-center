@@ -65,13 +65,13 @@ jobs:
           echo "Syncing to org control centers that manage actual codebases..."
           echo ""
           
-          # Read managed orgs from org-context (enterprise registry)
-          MANAGED_ORGS=$(jq -r '.managedOrganizations[] | .org' .github/org-context.json 2>/dev/null || echo "")
+          # Read managed orgs from enterprise org-registry
+          MANAGED_ORGS=$(jq -r '.managedOrganizations[] | .org' .github/org-registry.json 2>/dev/null || echo "")
           
           # Build matrix of orgs with accessible control centers
           ORGS="[]"
           for ORG in $MANAGED_ORGS; do
-            CONTROL_CENTER=$(jq -r --arg org "$ORG" '.managedOrganizations[] | select(.org == $org) | .controlCenter' .github/org-context.json)
+            CONTROL_CENTER=$(jq -r --arg org "$ORG" '.managedOrganizations[] | select(.org == $org) | .controlCenter' .github/org-registry.json)
             
             if gh repo view "$CONTROL_CENTER" > /dev/null 2>&1; then
               ORGS=$(echo "$ORGS" | jq --arg org "$ORG" '. + [$org]')
@@ -120,7 +120,7 @@ jobs:
           # Get org-specific context from enterprise registry
           ORG="${{ matrix.org }}"
           
-          ORG_CTX=$(jq --arg org "$ORG" '.managedOrganizations[] | select(.org == $org)' source/.github/org-context.json 2>/dev/null || echo "{}")
+          ORG_CTX=$(jq --arg org "$ORG" '.managedOrganizations[] | select(.org == $org)' source/.github/org-registry.json 2>/dev/null || echo "{}")
           
           # Extract values
           DOMAIN=$(echo "$ORG_CTX" | jq -r '.domain // "unknown"')

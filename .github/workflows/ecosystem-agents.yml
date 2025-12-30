@@ -109,8 +109,10 @@ jobs:
           AGENT="${{ steps.select.outputs.agent }}"
           REPO="${{ steps.select.outputs.repo }}"
           
-          # Load org context (from org control center)
-          ORG_CTX=$(cat .github/org-context.json 2>/dev/null || echo "{}")
+          # Load enterprise config (we ARE the enterprise control plane)
+          # For managed orgs, this comes from their org-context.json
+          ENT_CTX=$(cat .github/enterprise-config.json 2>/dev/null || echo "{}")
+          ORG_REG=$(cat .github/org-registry.json 2>/dev/null || echo "{}")
           
           # Repo context lives in each repo - use defaults if not present
           # Repos should create their own .github/repo-context.json
@@ -121,12 +123,12 @@ jobs:
             REPO_CTX='{}'
           fi
           
-          # Extract values with sensible defaults
-          ORG_NAME=$(echo "$ORG_CTX" | jq -r '.org // "unknown"')
-          LANGUAGES=$(echo "$ORG_CTX" | jq -r 'if .languages then .languages | join(", ") else "typescript" end')
-          TEST_CMD=$(echo "$REPO_CTX" | jq -r '.commands.test // "npm test"')
-          LINT_CMD=$(echo "$REPO_CTX" | jq -r '.commands.lint // "npm run lint"')
-          FOCUS=$(echo "$ORG_CTX" | jq -r 'if .focus then .focus | join(", ") else "" end')
+          # Extract values - we're the enterprise, use enterprise config
+          ORG_NAME=$(echo "$ORG_REG" | jq -r '.thisOrg.org // "jbcom"')
+          LANGUAGES="yaml,bash,javascript"  # Control center languages
+          TEST_CMD=$(echo "$REPO_CTX" | jq -r '.commands.test // "echo No tests"')
+          LINT_CMD=$(echo "$REPO_CTX" | jq -r '.commands.lint // "actionlint"')
+          FOCUS="Enterprise control, Documentation"
           
           # Load metaprompt
           PROMPT_FILE=".github/metaprompts/${AGENT}.md"
