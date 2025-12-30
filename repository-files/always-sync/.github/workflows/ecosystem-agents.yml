@@ -109,9 +109,8 @@ jobs:
           AGENT="${{ steps.select.outputs.agent }}"
           REPO="${{ steps.select.outputs.repo }}"
           
-          # Load enterprise config (we ARE the enterprise control plane)
+          # Load enterprise registry (we ARE the enterprise control plane)
           # For managed orgs, this comes from their org-context.json
-          ENT_CTX=$(cat .github/enterprise-config.json 2>/dev/null || echo "{}")
           ORG_REG=$(cat .github/org-registry.json 2>/dev/null || echo "{}")
           
           # Repo context lives in each repo - use defaults if not present
