@@ -1,0 +1,26 @@
+{
+  "$schema": "./schemas/repo-context.schema.json",
+  "repo": "control-center",
+  "purpose": "Unified control center for jbcom ecosystem management",
+  "type": "infrastructure",
+  "languages": ["yaml", "bash", "javascript"],
+  "entryPoints": [
+    ".github/workflows/",
+    "scripts/"
+  ],
+  "commands": {
+    "test": "echo 'No tests for infra repo'",
+    "lint": "actionlint .github/workflows/*.yml",
+    "build": "echo 'No build step'"
+  },
+  "uiFramework": null,
+  "designSystem": null,
+  "documentation": {
+    "readme": "README.md",
+    "agents": "AGENTS.md",
+    "claude": "CLAUDE.md"
+  },
+  "owners": ["@jbcom"],
+  "automationLevel": "full",
+  "notes": "This repo manages all other repos - changes here propagate everywhere"
+}

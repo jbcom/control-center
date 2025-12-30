@@ -1,0 +1,60 @@
+{
+  "$schema": "./schemas/org-context.schema.json",
+  "org": "jbcom",
+  "domain": "jonbogaty.com",
+  "description": "Control center for jbcom ecosystem - games, packages, and infrastructure",
+  "languages": ["typescript", "python", "go", "terraform"],
+  "conventions": {
+    "testing": {
+      "typescript": "vitest",
+      "python": "pytest",
+      "go": "go test"
+    },
+    "linting": {
+      "typescript": "eslint + prettier",
+      "python": "ruff",
+      "go": "golangci-lint"
+    },
+    "docStyle": {
+      "typescript": "jsdoc",
+      "python": "google",
+      "go": "godoc"
+    }
+  },
+  "focus": [
+    "AI agent orchestration",
+    "Multi-repository management",
+    "Enterprise automation",
+    "Code quality"
+  ],
+  "securityFocus": [
+    "Secret management",
+    "Token rotation",
+    "Dependency scanning"
+  ],
+  "priorityLabels": ["critical", "high", "medium", "low"],
+  "teamAreas": ["infra", "agents", "games", "packages"],
+  "thresholds": {
+    "codeCoverage": 80,
+    "docCoverage": 70,
+    "maxOpenIssues": 50,
+    "maxStaleDays": 30
+  },
+  "childOrgs": [
+    {
+      "org": "agentic-dev-library",
+      "domain": "agentic.dev",
+      "focus": ["AI agent primitives", "npm packages"]
+    },
+    {
+      "org": "strata-game-library",
+      "domain": "strata.game",
+      "focus": ["Procedural graphics", "Game engines"]
+    },
+    {
+      "org": "extended-data-library",
+      "domain": "extendeddata.dev",
+      "focus": ["Data utilities", "Enterprise integrations"]
+    }
+  ]
+}
