@@ -1,8 +1,12 @@
 name: Ecosystem Fixer
 
-# CI Failure Resolution Pipeline:
-# 1. Try agentic-ci-resolution action (Jules/Cursor)
-# 2. Fallback to Claude if that fails
+# CI Failure Resolution Pipeline
+# 
+# SECURITY: This workflow does NOT checkout untrusted code.
+# Instead, it analyzes failures via API and delegates to AI agents
+# that run in their own sandboxed environments.
+#
+# Pattern: Privileged workflow_run → API analysis → External agent delegation
 
 on:
   workflow_run:
@@ -49,37 +53,49 @@ on:
         required: true
         type: string
 
-env:
-  TARGET_REPO: ${{ inputs.repository || github.repository }}
-  TARGET_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
-  TARGET_BRANCH: ${{ inputs.branch || github.event.workflow_run.head_branch }}
-
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
   actions: read
+  issues: write
 
 jobs:
-  # Security gate: Skip fork PRs to prevent untrusted code execution
-  security-check:
-    name: Security Check
+  # ════════════════════════════════════════════════════════════════
+  # ANALYZE: Extract failure context via API (no code checkout)
+  # ════════════════════════════════════════════════════════════════
+  analyze:
+    name: Analyze Failure
     if: |
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
       github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     outputs:
-      is_fork: ${{ steps.check.outputs.is_fork }}
-      safe_to_proceed: ${{ steps.check.outputs.safe }}
+      is_fork: ${{ steps.context.outputs.is_fork }}
+      pr_number: ${{ steps.context.outputs.pr_number }}
+      failure_summary: ${{ steps.context.outputs.failure_summary }}
+      target_repo: ${{ steps.context.outputs.target_repo }}
+      target_branch: ${{ steps.context.outputs.target_branch }}
+      target_run_id: ${{ steps.context.outputs.target_run_id }}
     steps:
-      - name: Check if fork PR
-        id: check
+      - name: Extract failure context via API
+        id: context
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          TARGET_REPO: ${{ env.TARGET_REPO }}
-          TARGET_BRANCH: ${{ env.TARGET_BRANCH }}
+          INPUT_REPO: ${{ inputs.repository }}
+          INPUT_BRANCH: ${{ inputs.branch }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
         run: |
-          # For workflow_run, check if the triggering PR is from a fork
+          # Resolve target from inputs or event
+          TARGET_REPO="${INPUT_REPO:-${{ github.repository }}}"
+          TARGET_BRANCH="${INPUT_BRANCH:-${{ github.event.workflow_run.head_branch }}}"
+          TARGET_RUN_ID="${INPUT_RUN_ID:-${{ github.event.workflow_run.id }}}"
+          
+          echo "target_repo=$TARGET_REPO" >> $GITHUB_OUTPUT
+          echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
+          echo "target_run_id=$TARGET_RUN_ID" >> $GITHUB_OUTPUT
+          
+          # Security: Check if fork PR
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             HEAD_REPO="${{ github.event.workflow_run.head_repository.full_name }}"
             BASE_REPO="${{ github.event.workflow_run.repository.full_name }}"
@@ -87,83 +103,157 @@ jobs:
             if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
               echo "⚠️ Fork PR detected: $HEAD_REPO → $BASE_REPO"
               echo "is_fork=true" >> $GITHUB_OUTPUT
-              echo "safe=false" >> $GITHUB_OUTPUT
               exit 0
             fi
           fi
-          
           echo "is_fork=false" >> $GITHUB_OUTPUT
-          echo "safe=true" >> $GITHUB_OUTPUT
-
-  fix:
-    name: Auto-resolve CI Failures
-    needs: security-check
-    if: needs.security-check.outputs.safe_to_proceed == 'true'
-    runs-on: ubuntu-latest
-    outputs:
-      result: ${{ steps.agentic.outcome }}
-    steps:
-      # Use persist-credentials: false for security - we'll auth separately for push
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          repository: ${{ env.TARGET_REPO }}
-          ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          persist-credentials: false
           
-      - name: Agentic CI Resolution
-        id: agentic
-        continue-on-error: true
-        uses: jbcom/control-center/.github/actions/agentic-ci-resolution@main
-        with:
-          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
-          jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          workflow_run_id: ${{ env.TARGET_RUN_ID }}
-          branch: ${{ env.TARGET_BRANCH }}
-          repository: ${{ env.TARGET_REPO }}
+          # Get PR number from branch
+          PR_NUM=$(gh pr list --repo "$TARGET_REPO" --head "$TARGET_BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
+          echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
+          
+          # Get failure logs via API (no checkout needed)
+          echo "📋 Fetching failure logs for run $TARGET_RUN_ID..."
+          LOGS=$(gh run view "$TARGET_RUN_ID" --repo "$TARGET_REPO" --log-failed 2>&1 | head -500 || echo "Could not fetch logs")
+          
+          # Create summary (escape for JSON)
+          SUMMARY=$(echo "$LOGS" | jq -Rs '.')
+          echo "failure_summary=$SUMMARY" >> $GITHUB_OUTPUT
+          
+          echo "✅ Analysis complete"
 
-  claude-fallback:
-    name: Claude CI Fix
-    needs: [security-check, fix]
-    # Only run if security passed, fix job actually ran (not skipped), and didn't succeed
+  # ════════════════════════════════════════════════════════════════
+  # DELEGATE: Send to AI agent via API (agent runs in own sandbox)
+  # ════════════════════════════════════════════════════════════════
+  delegate-jules:
+    name: Delegate to Jules
+    needs: analyze
     if: |
-      always() && 
-      needs.security-check.outputs.safe_to_proceed == 'true' &&
-      needs.fix.result != 'skipped' && 
-      needs.fix.result != 'success'
+      needs.analyze.outputs.is_fork != 'true' &&
+      needs.analyze.outputs.pr_number != ''
     runs-on: ubuntu-latest
     steps:
-      # Use persist-credentials: false for security
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-        with:
-          repository: ${{ env.TARGET_REPO }}
-          ref: ${{ env.TARGET_BRANCH }}
-          fetch-depth: 0
-          token: ${{ secrets.CI_GITHUB_TOKEN }}
-          persist-credentials: false
+      - name: Create Jules session via API
+        env:
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
+          TARGET_BRANCH: ${{ needs.analyze.outputs.target_branch }}
+          FAILURE_SUMMARY: ${{ needs.analyze.outputs.failure_summary }}
+          PR_NUM: ${{ needs.analyze.outputs.pr_number }}
+        run: |
+          if [ -z "$GOOGLE_JULES_API_KEY" ]; then
+            echo "⏭️ No Jules API key configured, skipping"
+            exit 0
+          fi
+          
+          # Extract repo name for Jules source context
+          REPO_NAME="${TARGET_REPO##*/}"
+          OWNER="${TARGET_REPO%%/*}"
+          
+          # Build prompt from failure context
+          PROMPT="Fix the CI failure in this repository.
 
-      - name: Get failure logs
-        id: logs
+Branch: $TARGET_BRANCH
+PR: #$PR_NUM
+
+Failure logs:
+$FAILURE_SUMMARY
+
+Instructions:
+1. Analyze the failure logs
+2. Identify the root cause
+3. Make the minimal fix needed
+4. Ensure tests pass"
+
+          # Create Jules session via API (Jules runs in its own sandbox)
+          echo "🤖 Creating Jules session..."
+          RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg prompt "$PROMPT" \
+              --arg source "sources/github/$OWNER/$REPO_NAME" \
+              --arg branch "$TARGET_BRANCH" \
+              '{
+                prompt: $prompt,
+                sourceContext: {
+                  source: $source,
+                  githubRepoContext: {
+                    startingBranch: $branch
+                  }
+                },
+                automationMode: "AUTO_CREATE_PR"
+              }')" 2>&1) || {
+            echo "⚠️ Jules API call failed: $RESPONSE"
+            exit 0
+          }
+          
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty')
+          if [ -n "$SESSION_ID" ]; then
+            echo "✅ Jules session created: $SESSION_ID"
+          else
+            echo "⚠️ Could not extract session ID"
+          fi
+
+  # ════════════════════════════════════════════════════════════════
+  # FALLBACK: Claude via GitHub Action (uses action's sandbox)
+  # ════════════════════════════════════════════════════════════════
+  delegate-claude:
+    name: Delegate to Claude
+    needs: [analyze, delegate-jules]
+    if: |
+      always() &&
+      needs.analyze.outputs.is_fork != 'true' &&
+      needs.analyze.outputs.pr_number != '' &&
+      (needs.delegate-jules.result == 'failure' || needs.delegate-jules.result == 'skipped')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post Claude fix request
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
+          TARGET_BRANCH: ${{ needs.analyze.outputs.target_branch }}
+          FAILURE_SUMMARY: ${{ needs.analyze.outputs.failure_summary }}
+          PR_NUM: ${{ needs.analyze.outputs.pr_number }}
         run: |
-          gh run view ${{ env.TARGET_RUN_ID }} --repo ${{ env.TARGET_REPO }} --log-failed > /tmp/ci_failure.log 2>&1 || true
-          echo "log_file=/tmp/ci_failure.log" >> $GITHUB_OUTPUT
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "⏭️ No Anthropic API key configured, skipping"
+            exit 0
+          fi
+          
+          # Post comment to PR requesting Claude fix
+          # Claude Code Action monitors for @claude mentions
+          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "@claude Please fix the CI failure on this PR.
 
-      - name: Claude Fix
-        uses: anthropics/claude-code-action@154d0de144ff82240e1c3deedff56280381fd122 # main
-        with:
-          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
-          allowed_bots: "google-labs-jules[bot],copilot-swe-agent[bot],dependabot[bot],renovate[bot],github-actions[bot]"
-          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh run view),Bash(node:*),Bash(npm:*)"
-          direct_prompt: |
-            Fix the CI failure in ${{ env.TARGET_REPO }}. The failure log is at /tmp/ci_failure.log
-            
-            1. Read the failure log
-            2. Identify the root cause
-            3. Fix the code
-            4. Commit and push
-            
-            Branch: ${{ env.TARGET_BRANCH }}
+**Branch:** \`$TARGET_BRANCH\`
+
+**Failure Summary:**
+\`\`\`
+$(echo "$FAILURE_SUMMARY" | jq -r '.' | head -100)
+\`\`\`
+
+Please analyze the logs, identify the root cause, and push a fix."
+
+          echo "✅ Posted Claude fix request to PR #$PR_NUM"
+
+  # ════════════════════════════════════════════════════════════════
+  # NOTIFY: Report status for fork PRs (cannot auto-fix)
+  # ════════════════════════════════════════════════════════════════
+  notify-fork:
+    name: Notify Fork PR
+    needs: analyze
+    if: needs.analyze.outputs.is_fork == 'true' && needs.analyze.outputs.pr_number != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post security notice
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
+          PR_NUM: ${{ needs.analyze.outputs.pr_number }}
+        run: |
+          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "⚠️ **Auto-fix unavailable for fork PRs**
+
+This PR originates from a fork. For security reasons, automatic CI fixes are disabled.
+
+Please fix the CI failure manually and push your changes."
