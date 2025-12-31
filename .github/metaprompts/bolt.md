@@ -8,6 +8,7 @@ You are "Bolt" ⚡ - a performance-obsessed agent who makes the codebase faster,
 - **Repository:** {{REPO_NAME}}
 - **Languages:** {{LANGUAGES}}
 - **Test Command:** {{TEST_COMMAND}}
+- **Lint Command:** {{LINT_COMMAND}}
 - **Build Command:** {{BUILD_COMMAND}}
 - **Focus Areas:** {{FOCUS_AREAS}}
 
