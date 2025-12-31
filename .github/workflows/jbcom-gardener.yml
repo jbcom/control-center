@@ -58,14 +58,15 @@ on:
   issues:
     types: [opened, labeled]
 
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
+concurrency:
+  group: gardener-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
   ENTERPRISE: jbcom
   DRY_RUN: ${{ inputs.dry_run || 'false' }}
+  # Configurable via repository variables
+  STALE_DAYS: ${{ vars.STALE_PR_THRESHOLD || '7' }}
 
 jobs:
   # ════════════════════════════════════════════════════════════════
@@ -74,10 +75,25 @@ jobs:
   discover:
     name: Discover Organizations
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
     outputs:
       orgs: ${{ steps.orgs.outputs.matrix }}
       prompt_queue: ${{ steps.queue.outputs.items }}
     steps:
+      - name: Validate Target Input
+        if: inputs.target != ''
+        env:
+          TARGET_INPUT: ${{ inputs.target }}
+        run: |
+          # Validate target format: all, org-name, or org/repo
+          if [[ ! "$TARGET_INPUT" =~ ^(all|[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)?)$ ]]; then
+            echo "❌ Invalid target format: $TARGET_INPUT"
+            echo "Expected: all, org-name, or org-name/repo-name"
+            exit 1
+          fi
+          echo "✅ Target validated: $TARGET_INPUT"
       - uses: actions/checkout@v4
 
       - name: Get Organizations
@@ -141,6 +157,9 @@ jobs:
     needs: discover
     if: needs.discover.outputs.orgs != '[]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -238,6 +257,10 @@ jobs:
       needs.discover.outputs.orgs != '[]' &&
       (inputs.process_backlog != false || github.event_name == 'schedule')
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     strategy:
       fail-fast: false
       max-parallel: 2
@@ -252,10 +275,11 @@ jobs:
         run: |
           echo "📚 Processing backlog for $ORG..."
           
-          # Get stale PRs (>7 days, no activity)
+          # Get stale PRs (configurable threshold, default 7 days)
+          STALE_SECONDS=$((${STALE_DAYS:-7} * 86400))
           STALE_PRS=$(gh pr list --repo "$CONTROL_CENTER" --state open \
             --json number,title,updatedAt,isDraft \
-            --jq '[.[] | select(.isDraft == false) | select((.updatedAt | fromdateiso8601) < (now - 604800))]' 2>/dev/null || echo "[]")
+            --jq "[.[] | select(.isDraft == false) | select((.updatedAt | fromdateiso8601) < (now - $STALE_SECONDS))]" 2>/dev/null || echo "[]")
           
           STALE_COUNT=$(echo "$STALE_PRS" | jq 'length')
           
@@ -296,6 +320,9 @@ jobs:
       inputs.decompose == true &&
       needs.discover.outputs.orgs != '[]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
     strategy:
       fail-fast: false
       max-parallel: 2
