@@ -222,6 +222,7 @@ Create a complete, production-ready documentation site.`;
 // Check for Jules app installation
 async function checkJulesInstallations() {
   console.log('Jules Installation Status:');
+  const missingInstallations = [];
 
   for (const org of Object.keys(ORGANIZATIONS)) {
     try {
@@ -232,13 +233,28 @@ async function checkJulesInstallations() {
         console.log(`  ✅ ${org}`);
       } else {
         console.log(`  ❌ ${org} - Missing`);
+        missingInstallations.push(org);
       }
     } catch (e) {
       console.log(`  ⚠️ ${org} - Error checking status: ${e.message}`);
+      missingInstallations.push(org);
     }
   }
 
-  console.log(`\nInstall Jules at: https://github.com/apps/google-jules\n`);
+  if (missingInstallations.length > 0) {
+    const errorMsg = `
+ JULES AUTHORIZATION REQUIRED
+ ---------------------------------
+ The 'Google Jules' GitHub App must be installed on the following organizations:
+ ${missingInstallations.map(org => `  - ${org}`).join('\n')}
+
+ Please install the app and grant access to all repositories:
+ ➡️ https://github.com/apps/google-jules
+`;
+    throw new Error(errorMsg);
+  }
+
+  console.log(`\nAll organizations have the Jules app installed.\n`);
 }
 
 async function main() {
