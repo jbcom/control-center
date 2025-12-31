@@ -1,5 +1,30 @@
 # Active Context
 
+## Session: 2025-12-31 (Full Release & Cascade Verification)
+
+### Completed
+- [x] Fixed GoReleaser template (removed duplicate .goreleaser.yml)
+- [x] Tagged and released v0.1.0
+- [x] Verified Docker image published to GHCR
+- [x] Verified binary artifacts for all platforms
+- [x] Triggered Ecosystem Sync to all org control-centers
+- [x] Triggered Org Sync to propagate to downstream repos
+- [x] Verified downstream repos (agentic-dev-library/control, strata-game-library/shaders) have AI workflows
+- [x] Verified Go binary executes correctly in CI
+
+### Current State
+- v0.1.0 RELEASED and deployed
+- All org control-centers updated
+- All downstream repos have AI workflows using Go binary
+- Binary execution verified - only issue is missing OLLAMA_API_KEY secret
+
+### For Next Agent
+- Configure OLLAMA_API_KEY secret in repos that need AI reviews
+- Monitor first real AI reviews on production PRs
+- Consider pinning control-center-build.yml to v0.1.0 tag instead of @main
+
+---
+
 ## Session: 2025-12-30 (Go CLI Verification)
 
 ### Completed
