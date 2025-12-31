@@ -30,21 +30,30 @@ jobs:
         run: |
           set -eo pipefail
 
-          # Construct the comment body
-          COMMENT_BODY="###  Jules Session Complete
-
-          **Session ID:** \`${SESSION_ID}\`
-          **Outcome:** ${OUTCOME}
-
-          "
-
-          if [[ -n "${PR_NUMBER}" ]]; then
-            # Comment on PR
-            gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body "$COMMENT_BODY"
-          elif [[ -n "${ISSUE_NUMBER}" ]]; then
-            # Comment on Issue
-            gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" --body "$COMMENT_BODY"
+          COMMENT_TARGET_ARGS=""
+          # If an issue number is present, that's always the source of the session.
+          if [[ -n "${ISSUE_NUMBER}" ]]; then
+            COMMENT_TARGET_ARGS="issue comment ${ISSUE_NUMBER}"
+          # If no issue number, the source might have been a PR.
+          elif [[ -n "${PR_NUMBER}" ]]; then
+            COMMENT_TARGET_ARGS="pr comment ${PR_NUMBER}"
           else
-            echo "Error: No PR or issue number provided in the payload."
+            echo "Error: No source issue or PR number was provided in the payload."
             exit 1
           fi
+
+          JULES_SESSION_URL="https://console.google.com/jules/session/${SESSION_ID}"
+          COMMENT_BODY="### ✅ Jules Session Complete
+
+          - **Session:** [${SESSION_ID}](${JULES_SESSION_URL})
+          - **Outcome:** \`${OUTCOME}\`
+          "
+
+          # If the source was an issue and a PR number is present, the PR is the result.
+          if [[ -n "${ISSUE_NUMBER}" && -n "${PR_NUMBER}" ]]; then
+            PR_URL="https://github.com/${REPO}/pull/${PR_NUMBER}"
+            COMMENT_BODY="${COMMENT_BODY}
+          - **Result:** See the generated PR: **[#${PR_NUMBER}](${PR_URL})**"
+          fi
+
+          gh ${COMMENT_TARGET_ARGS} --repo "${REPO}" --body "$COMMENT_BODY"
