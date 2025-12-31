@@ -8,22 +8,6 @@ on:
     types: [completed]
     branches-ignore: [main]
 
-  workflow_call:
-    inputs:
-      run_id:
-        description: 'Workflow run ID that failed'
-        required: true
-        type: string
-      repository:
-        description: 'Repository owner/name'
-        required: true
-        type: string
-    secrets:
-      CI_GITHUB_TOKEN:
-        required: true
-      OLLAMA_API_KEY:
-        required: false
-
   workflow_dispatch:
     inputs:
       run_id:
@@ -41,17 +25,13 @@ jobs:
     name: Suggest Fix
     if: |
       (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
-      github.event_name == 'workflow_call' ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
-      - name: AI Failure Analysis
-        uses: jbcom/control-center@v1
+      - uses: jbcom/control-center/actions/fixer@v1
         with:
-          command: fixer
-          repo: ${{ inputs.repository || github.repository }}
+          repo: ${{ github.repository }}
           run_id: ${{ inputs.run_id || github.event.workflow_run.id }}
-          log_level: info
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
