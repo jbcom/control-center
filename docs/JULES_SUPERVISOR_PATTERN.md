@@ -9,7 +9,8 @@ Cursor Cloud Agents designated as supervisors will have access to the following 
 | Variable              | Purpose                                       |
 |-----------------------|-----------------------------------------------|
 | `JULES_API_KEY`       | API key for accessing the Google Jules API.   |
-| `CURSOR_GITHUB_TOKEN` | GitHub token for performing repository actions like merging PRs. |
+| `CURSOR_API_KEY`      | API key for the Cursor Cloud Agent API, used for spawning other agents. |
+| `CURSOR_GITHUB_TOKEN` | GitHub token for repository actions. Falls back to `GITHUB_TOKEN` if not set. |
 
 ## Orchestration Pattern
 
@@ -58,25 +59,43 @@ For complex tasks that require parallel work, the supervisor can spawn additiona
 
 **Example cURL Request:**
 ```bash
-# Spawn a new agent to monitor a specific repository
+# Spawn a new agent to fix CI failures in a specific PR
 curl -X POST 'https://api.cursor.com/agents/launch' \
   -u "$CURSOR_API_KEY:" \
   -d '{
-    "repository": "jbcom/nodejs-strata",
-    "task": "Monitor Jules PRs, handle reviews, and merge when ready.",
-    "branch": "main"
+    "prompt": {
+      "text": "Fix CI failures in PR #123: Update dependencies"
+    },
+    "source": {
+      "repository": "jbcom/nodejs-strata",
+      "ref": "feature-branch-name"
+    },
+    "target": {
+      "autoCreatePr": true
+    }
   }'
 ```
 
 ## Workflow Steps
 
 1.  **Jules Creates PR**: A Jules session completes and generates a pull request.
-2.  **Supervisor Detection**: The Cursor supervisor agent detects the new PR.
-3.  **CI/CD Checks**: The supervisor monitors the CI/CD pipeline for the PR.
-    - If checks fail, the supervisor can attempt to fix them or delegate the task.
-4.  **Review Feedback**: The supervisor addresses any feedback or comments on the PR.
-5.  **Merge**: Once all checks pass and feedback is addressed, the supervisor merges the PR.
-6.  **Task Delegation**: For complex issues, the supervisor can spawn sub-agents to handle specific tasks.
+2.  **Supervisor Detection**: The Cursor supervisor agent detects the new PR by monitoring Jules sessions.
+3.  **CI/CD Monitoring**: The supervisor monitors the CI/CD pipeline for the PR.
+    - If checks fail, the supervisor spawns a new Cursor Cloud Agent specifically tasked with fixing the failure.
+4.  **Review Monitoring**: The supervisor checks the PR's review status. It does not actively address comments but waits for the PR to be formally approved without any outstanding change requests.
+5.  **Merge**: The supervisor merges the PR once a specific set of conditions are met:
+    - All CI/CD checks are passing.
+    - The PR is in a mergeable state (e.g., no conflicts).
+    - The PR has been approved by at least one reviewer.
+    - There are no outstanding change requests.
+6.  **Task Delegation**: The primary form of delegation is spawning new agents to handle CI/CD failures.
+
+## Security and Robustness
+
+The orchestrator script includes several features to ensure safe and reliable operation:
+
+-   **Secret Scanning**: Before merging, the script performs a basic scan of the PR's diff to detect common patterns for secrets (e.g., `api_key`, `password`, `token`). If a potential secret is found, the merge is aborted.
+-   **Input Validation**: Session IDs and components of the pull request URL (`owner`, `repo`, `prNum`) are validated to prevent path traversal or injection attacks.
 
 ## Implementation Status
 
