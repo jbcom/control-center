@@ -1,0 +1,37 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "go",
+  "packages": {
+    ".": {
+      "package-name": "control-center",
+      "changelog-path": "CHANGELOG.md",
+      "bump-minor-pre-major": true,
+      "bump-patch-for-minor-pre-major": true,
+      "draft": false,
+      "prerelease": false,
+      "include-component-in-tag": false,
+      "include-v-in-tag": true,
+      "changelog-sections": [
+        {"type": "feat", "section": "🚀 Features", "hidden": false},
+        {"type": "fix", "section": "🐛 Bug Fixes", "hidden": false},
+        {"type": "perf", "section": "⚡ Performance", "hidden": false},
+        {"type": "refactor", "section": "♻️ Refactoring", "hidden": false},
+        {"type": "docs", "section": "📚 Documentation", "hidden": false},
+        {"type": "deps", "section": "📦 Dependencies", "hidden": false},
+        {"type": "build", "section": "🏗️ Build", "hidden": false},
+        {"type": "ci", "section": "🔧 CI/CD", "hidden": true},
+        {"type": "test", "section": "🧪 Tests", "hidden": true},
+        {"type": "chore", "section": "🧹 Chores", "hidden": true}
+      ],
+      "extra-files": [
+        "README.md",
+        "action.yml",
+        "actions/reviewer/action.yml",
+        "actions/fixer/action.yml",
+        "actions/curator/action.yml",
+        "actions/delegator/action.yml",
+        "actions/gardener/action.yml"
+      ]
+    }
+  }
+}
