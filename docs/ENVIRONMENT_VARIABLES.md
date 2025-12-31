@@ -105,6 +105,28 @@ process.env.CURSOR_API_KEY = "standard-key";
 const api3 = new CursorAPI();  // Uses CURSOR_API_KEY
 ```
 
+### Google Jules
+
+| COPILOT_MCP Prefix | Standard Name | Usage |
+|-------------------|---------------|-------|
+| `COPILOT_MCP_GOOGLE_JULES_API_KEY` | `GOOGLE_JULES_API_KEY` | Google Jules API access |
+| `COPILOT_MCP_JULES_GITHUB_TOKEN` | `JULES_GITHUB_TOKEN` | GitHub token for Jules |
+
+**Used in:**
+- `scripts/ecosystem-curator.mjs`
+- `scripts/ecosystem-sage.mjs`
+
+### Ollama Cloud
+
+| COPILOT_MCP Prefix | Standard Name | Usage |
+|-------------------|---------------|-------|
+| `COPILOT_MCP_OLLAMA_API_URL` | `OLLAMA_API_URL` | Ollama Cloud API URL |
+| `COPILOT_MCP_OLLAMA_API_KEY` | `OLLAMA_API_KEY` | Ollama Cloud API key |
+
+**Used in:**
+- `scripts/ecosystem-curator.mjs`
+- `scripts/ecosystem-sage.mjs`
+
 ## Implementation Pattern
 
 ### Constructor Pattern

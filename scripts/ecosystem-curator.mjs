@@ -17,7 +17,7 @@ import { writeFile } from 'fs/promises';
 const GITHUB_TOKEN = process.env.CI_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
-const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com';
+const OLLAMA_HOST = process.env.OLLAMA_HOST || 'https://ollama.com/api';
 const OLLAMA_API_KEY = process.env.OLLAMA_API_KEY;
 
 // Self-discovery - no hardcoded org list
@@ -161,7 +161,8 @@ async function ollamaChat(messages) {
     return { message: { content: 'Dry run response' } };
   }
   
-  const res = await fetch(`${OLLAMA_HOST}/api/chat`, {
+  const baseUrl = OLLAMA_HOST.endsWith('/api') ? OLLAMA_HOST.slice(0, -4) : OLLAMA_HOST;
+  const res = await fetch(`${baseUrl}/api/chat`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${OLLAMA_API_KEY}`,
