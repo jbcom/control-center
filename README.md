@@ -185,6 +185,15 @@ The Curator automatically routes tasks to the appropriate AI agent:
 | Documentation | Jules | Full file context |
 | Ambiguous/sensitive | Human | Requires judgment |
 
+### Google Jules Integration
+
+Google Jules is used for complex, multi-file refactoring and asynchronous task delegation. It can be triggered in two ways:
+
+1.  **Issue Comment:** Comment `/jules <task description>` on a GitHub issue to create a new Jules session. Jules will analyze the task and create a pull request with the necessary changes.
+2.  **Automated PR Escalation:** If a pull request is deemed too complex for the initial Ollama-based review, a Jules session is automatically created to perform a deeper analysis and suggest refactorings.
+
+In both cases, a link to the Jules session will be posted in the issue or pull request for monitoring.
+
 ## Development
 
 ### Prerequisites

@@ -177,15 +177,15 @@ jobs:
             Approve if no critical issues are found.
 
   # ============================================================================
-  # DELEGATE: Jules/Cursor commands
+  # DELEGATE: Cursor commands
   # ============================================================================
-  delegate_jules_cursor:
-    name: Delegate (Jules/Cursor)
+  delegate_cursor:
+    name: Delegate (Cursor)
     if: |
       (github.event_name == 'issue_comment' && 
-       (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
+       contains(github.event.comment.body, '/cursor')) ||
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && 
-       (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor'))) ||
+       contains(inputs.comment_body, '/cursor')) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate')
     runs-on: ubuntu-latest
     env:
@@ -276,3 +276,71 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git status),Bash(git diff),Bash(git add),Bash(git commit),Bash(git push),Bash(gh pr view),Bash(gh pr list)"
+
+  # ============================================================================
+  # DELEGATE: Jules on PRs (Tier 3 - escalation)
+  # ============================================================================
+  delegate_to_jules_pr:
+    name: Delegate to Jules (PR)
+    needs: review_ollama
+    if: |
+      always() &&
+      needs.review_ollama.outputs.needs_escalation == 'true'
+    runs-on: ubuntu-latest
+    env:
+      TARGET_REPO: ${{ inputs.repository || github.repository }}
+      PR_NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
+      JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+      GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+    steps:
+      - name: Check API Key
+        id: check
+        run: |
+          if [ -z "${{ env.JULES_API_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            gh pr comment ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules for automated refactoring."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Jules session
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          set -eo pipefail
+          gh pr comment "${{ env.PR_NUMBER }}" --repo "${{ env.TARGET_REPO }}" --body "🤖 High complexity detected. Creating a Google Jules session for a deeper refactoring analysis..."
+
+          HEAD_REF=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json headRefName --jq '.headRefName')
+
+          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+            -H "X-Goog-Api-Key: $JULES_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg task "Fix issues identified in PR #${{ env.PR_NUMBER }} in repo ${{ env.TARGET_REPO }}" \
+              --arg repo "${{ env.TARGET_REPO }}" \
+              --arg branch "$HEAD_REF" \
+              '{
+                "prompt": $task,
+                "sourceContext": {
+                  "source": ("sources/github/" + $repo),
+                  "githubRepoContext": { "startingBranch": $branch }
+                },
+                "automationMode": "AUTO_CREATE_PR",
+                "title": "Jules: Fix PR #${{ env.PR_NUMBER }} issues"
+              }')")
+
+          echo "Jules API Response: $RESPONSE"
+
+          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+
+          if [ -n "$SESSION_ID" ] && [ "$SESSION_ID" != "null" ]; then
+            SESSION_URL="https://jules.google.com/session/${SESSION_ID}"
+            gh pr comment "${{ env.PR_NUMBER }}" --repo "${{ env.TARGET_REPO }}" --body "## 🤖 Jules Session Created
+
+            ➡️ **[Monitor Session]($SESSION_URL)**
+
+            Jules will analyze the PR and may create a new PR with suggested fixes."
+          else
+            echo "Failed to create Jules session: $RESPONSE"
+            gh pr comment "${{ env.PR_NUMBER }}" --repo "${{ env.TARGET_REPO }}" --body "❌ Failed to create Jules session. Please check workflow logs for details."
+            exit 1
+          fi
