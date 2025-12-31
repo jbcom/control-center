@@ -224,8 +224,9 @@ jobs:
       - name: Approve PR
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          PR_NUM: ${{ needs.assess.outputs.pr_number }}
         run: |
-          PR_NUM="${{ needs.assess.outputs.pr_number }}"
+          # PR_NUM passed via env to prevent code injection
           
           # Check current review state
           REVIEW=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json reviewDecision --jq '.reviewDecision' 2>/dev/null || echo "")
@@ -263,8 +264,9 @@ jobs:
       - name: Check and Rebase
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          PR_NUM: ${{ needs.assess.outputs.pr_number }}
         run: |
-          PR_NUM="${{ needs.assess.outputs.pr_number }}"
+          # PR_NUM passed via env to prevent code injection
           
           # Check merge state
           MERGE_STATE=$(gh pr view $PR_NUM --repo "${{ github.repository }}" --json mergeStateStatus --jq '.mergeStateStatus' 2>/dev/null || echo "")

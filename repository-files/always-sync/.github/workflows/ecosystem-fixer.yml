@@ -80,22 +80,23 @@ jobs:
         id: context
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          INPUT_REPO: ${{ inputs.repository }}
-          INPUT_BRANCH: ${{ inputs.branch }}
-          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_REPO: ${{ inputs.repository || github.repository }}
+          INPUT_BRANCH: ${{ inputs.branch || github.event.workflow_run.head_branch }}
+          INPUT_RUN_ID: ${{ inputs.run_id || github.event.workflow_run.id }}
+          EVENT_NAME: ${{ github.event_name }}
+          HEAD_REPO: ${{ github.event.workflow_run.head_repository.full_name }}
+          BASE_REPO: ${{ github.event.workflow_run.repository.full_name }}
         run: |
-          # Resolve target
-          TARGET_REPO="${INPUT_REPO:-${{ github.repository }}}"
-          TARGET_BRANCH="${INPUT_BRANCH:-${{ github.event.workflow_run.head_branch }}}"
-          TARGET_RUN_ID="${INPUT_RUN_ID:-${{ github.event.workflow_run.id }}}"
+          # Resolve target (via env vars to prevent code injection)
+          TARGET_REPO="$INPUT_REPO"
+          TARGET_BRANCH="$INPUT_BRANCH"
+          TARGET_RUN_ID="$INPUT_RUN_ID"
           
           echo "target_repo=$TARGET_REPO" >> $GITHUB_OUTPUT
           echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
           
-          # Security: Check if fork PR
-          if [ "${{ github.event_name }}" = "workflow_run" ]; then
-            HEAD_REPO="${{ github.event.workflow_run.head_repository.full_name }}"
-            BASE_REPO="${{ github.event.workflow_run.repository.full_name }}"
+          # Security: Check if fork PR (using env vars to prevent code injection)
+          if [ "$EVENT_NAME" = "workflow_run" ]; then
             if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
               echo "⚠️ Fork PR detected"
               echo "is_fork=true" >> $GITHUB_OUTPUT

@@ -87,22 +87,24 @@ jobs:
       - name: Acknowledge
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+          IS_PR: ${{ github.event.issue.pull_request != null }}
+          AGENT: ${{ steps.parse.outputs.agent }}
+          TASK: ${{ steps.parse.outputs.task }}
+          REPO: ${{ github.repository }}
         run: |
-          ISSUE_NUM="${{ github.event.issue.number }}"
-          IS_PR="${{ github.event.issue.pull_request != null }}"
-          AGENT="${{ steps.parse.outputs.agent }}"
-          TASK="${{ steps.parse.outputs.task }}"
+          # All values passed via env to prevent code injection
+          BODY=$(cat <<BODY_EOF
+          🌊 **CASCADE** → **$AGENT**
           
-          BODY="🌊 **CASCADE** → **$AGENT**
-
-          \`\`\`
-          $TASK
-          \`\`\`"
+          Task: $TASK
+          BODY_EOF
+          )
           
           if [ "$IS_PR" = "true" ]; then
-            gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
+            gh pr comment "$ISSUE_NUM" --repo "$REPO" --body "$BODY"
           else
-            gh issue comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
+            gh issue comment "$ISSUE_NUM" --repo "$REPO" --body "$BODY"
           fi
 
   # ════════════════════════════════════════════════════════════════
@@ -140,13 +142,13 @@ jobs:
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          TASK: ${{ needs.route.outputs.task }}
+          REPO: ${{ needs.route.outputs.repo }}
+          BRANCH: ${{ needs.route.outputs.branch }}
+          ISSUE_NUM: ${{ needs.route.outputs.issue_num }}
+          IS_PR: ${{ needs.route.outputs.is_pr }}
         run: |
-          TASK="${{ needs.route.outputs.task }}"
-          REPO="${{ needs.route.outputs.repo }}"
-          BRANCH="${{ needs.route.outputs.branch }}"
-          ISSUE_NUM="${{ needs.route.outputs.issue_num }}"
-          IS_PR="${{ needs.route.outputs.is_pr }}"
-          
+          # All values passed via env to prevent code injection
           echo "🤖 Launching Cursor agent..."
           echo "   Repo: $REPO"
           echo "   Branch: $BRANCH"
@@ -217,13 +219,13 @@ jobs:
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          TASK: ${{ needs.route.outputs.task }}
+          REPO: ${{ needs.route.outputs.repo }}
+          BRANCH: ${{ needs.route.outputs.branch }}
+          ISSUE_NUM: ${{ needs.route.outputs.issue_num }}
+          IS_PR: ${{ needs.route.outputs.is_pr }}
         run: |
-          TASK="${{ needs.route.outputs.task }}"
-          REPO="${{ needs.route.outputs.repo }}"
-          BRANCH="${{ needs.route.outputs.branch }}"
-          ISSUE_NUM="${{ needs.route.outputs.issue_num }}"
-          IS_PR="${{ needs.route.outputs.is_pr }}"
-          
+          # All values passed via env to prevent code injection
           # Parse owner/repo
           OWNER="${REPO%%/*}"
           REPO_NAME="${REPO##*/}"
@@ -306,11 +308,12 @@ jobs:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
           OLLAMA_API_URL: ${{ vars.OLLAMA_API_URL || 'https://api.ollama.com' }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          TASK: ${{ needs.route.outputs.task }}
+          ISSUE_NUM: ${{ needs.route.outputs.issue_num }}
+          IS_PR: ${{ needs.route.outputs.is_pr }}
+          REPO: ${{ github.repository }}
         run: |
-          TASK="${{ needs.route.outputs.task }}"
-          ISSUE_NUM="${{ needs.route.outputs.issue_num }}"
-          IS_PR="${{ needs.route.outputs.is_pr }}"
-          
+          # All values passed via env to prevent code injection
           echo "🤖 Querying Ollama..."
           
           # Call Ollama API
