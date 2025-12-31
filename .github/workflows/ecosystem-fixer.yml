@@ -2,11 +2,10 @@ name: Ecosystem Fixer
 
 # CI Failure Resolution Pipeline
 # 
-# SECURITY: This workflow does NOT checkout untrusted code.
-# Instead, it analyzes failures via API and delegates to AI agents
-# that run in their own sandboxed environments.
+# Uses Ollama GLM 4.6 Cloud for cost-efficient, fast auto-fix suggestions.
+# Combined with CodeQL and Copilot suggestions for comprehensive fixes.
 #
-# Pattern: Privileged workflow_run → API analysis → External agent delegation
+# Pattern: API analysis → Ollama suggestion → PR comment
 
 on:
   workflow_run:
@@ -14,7 +13,6 @@ on:
     types: [completed]
     branches-ignore: [main]
   
-  # Enterprise Reusable Workflow
   workflow_call:
     inputs:
       run_id:
@@ -32,12 +30,9 @@ on:
     secrets:
       CI_GITHUB_TOKEN:
         required: true
-      GOOGLE_JULES_API_KEY:
-        required: false
-      ANTHROPIC_API_KEY:
+      OLLAMA_API_KEY:
         required: false
 
-  # Manual/On-call trigger
   workflow_dispatch:
     inputs:
       run_id:
@@ -59,9 +54,13 @@ permissions:
   actions: read
   issues: write
 
+env:
+  OLLAMA_HOST: https://ollama.com
+  OLLAMA_MODEL: glm-4.6:cloud
+
 jobs:
   # ════════════════════════════════════════════════════════════════
-  # ANALYZE: Extract failure context via API (no code checkout)
+  # ANALYZE: Extract failure context via API
   # ════════════════════════════════════════════════════════════════
   analyze:
     name: Analyze Failure
@@ -73,10 +72,9 @@ jobs:
     outputs:
       is_fork: ${{ steps.context.outputs.is_fork }}
       pr_number: ${{ steps.context.outputs.pr_number }}
-      failure_summary: ${{ steps.context.outputs.failure_summary }}
+      failure_log: ${{ steps.context.outputs.failure_log }}
       target_repo: ${{ steps.context.outputs.target_repo }}
       target_branch: ${{ steps.context.outputs.target_branch }}
-      target_run_id: ${{ steps.context.outputs.target_run_id }}
     steps:
       - name: Extract failure context via API
         id: context
@@ -86,166 +84,132 @@ jobs:
           INPUT_BRANCH: ${{ inputs.branch }}
           INPUT_RUN_ID: ${{ inputs.run_id }}
         run: |
-          # Resolve target from inputs or event
+          # Resolve target
           TARGET_REPO="${INPUT_REPO:-${{ github.repository }}}"
           TARGET_BRANCH="${INPUT_BRANCH:-${{ github.event.workflow_run.head_branch }}}"
           TARGET_RUN_ID="${INPUT_RUN_ID:-${{ github.event.workflow_run.id }}}"
           
           echo "target_repo=$TARGET_REPO" >> $GITHUB_OUTPUT
           echo "target_branch=$TARGET_BRANCH" >> $GITHUB_OUTPUT
-          echo "target_run_id=$TARGET_RUN_ID" >> $GITHUB_OUTPUT
           
           # Security: Check if fork PR
           if [ "${{ github.event_name }}" = "workflow_run" ]; then
             HEAD_REPO="${{ github.event.workflow_run.head_repository.full_name }}"
             BASE_REPO="${{ github.event.workflow_run.repository.full_name }}"
-            
             if [ "$HEAD_REPO" != "$BASE_REPO" ]; then
-              echo "⚠️ Fork PR detected: $HEAD_REPO → $BASE_REPO"
+              echo "⚠️ Fork PR detected"
               echo "is_fork=true" >> $GITHUB_OUTPUT
               exit 0
             fi
           fi
           echo "is_fork=false" >> $GITHUB_OUTPUT
           
-          # Get PR number from branch
+          # Get PR number
           PR_NUM=$(gh pr list --repo "$TARGET_REPO" --head "$TARGET_BRANCH" --json number --jq '.[0].number // empty' 2>/dev/null || echo "")
           echo "pr_number=$PR_NUM" >> $GITHUB_OUTPUT
           
-          # Get failure logs via API (no checkout needed)
-          echo "📋 Fetching failure logs for run $TARGET_RUN_ID..."
-          LOGS=$(gh run view "$TARGET_RUN_ID" --repo "$TARGET_REPO" --log-failed 2>&1 | head -500 || echo "Could not fetch logs")
+          # Get failure logs (truncated for Ollama context window)
+          echo "📋 Fetching failure logs..."
+          LOGS=$(gh run view "$TARGET_RUN_ID" --repo "$TARGET_REPO" --log-failed 2>&1 | tail -300 || echo "Could not fetch logs")
           
-          # Create summary (escape for JSON)
-          SUMMARY=$(echo "$LOGS" | jq -Rs '.')
-          echo "failure_summary=$SUMMARY" >> $GITHUB_OUTPUT
-          
-          echo "✅ Analysis complete"
+          # Save to file for artifact
+          echo "$LOGS" > /tmp/failure.log
+          echo "failure_log=/tmp/failure.log" >> $GITHUB_OUTPUT
+
+      - name: Upload failure log
+        uses: actions/upload-artifact@v4
+        with:
+          name: failure-log
+          path: /tmp/failure.log
+          retention-days: 1
 
   # ════════════════════════════════════════════════════════════════
-  # DELEGATE: Send to AI agent via API (agent runs in own sandbox)
+  # FIX: Query Ollama GLM 4.6 for fix suggestions
   # ════════════════════════════════════════════════════════════════
-  delegate-jules:
-    name: Delegate to Jules
+  suggest-fix:
+    name: Suggest Fix (Ollama)
     needs: analyze
     if: |
       needs.analyze.outputs.is_fork != 'true' &&
       needs.analyze.outputs.pr_number != ''
     runs-on: ubuntu-latest
     steps:
-      - name: Create Jules session via API
+      - name: Download failure log
+        uses: actions/download-artifact@v4
+        with:
+          name: failure-log
+          path: /tmp
+
+      - name: Query Ollama for fix
         env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
           TARGET_BRANCH: ${{ needs.analyze.outputs.target_branch }}
-          FAILURE_SUMMARY: ${{ needs.analyze.outputs.failure_summary }}
           PR_NUM: ${{ needs.analyze.outputs.pr_number }}
         run: |
-          if [ -z "$GOOGLE_JULES_API_KEY" ]; then
-            echo "⏭️ No Jules API key configured, skipping"
+          if [ -z "$OLLAMA_API_KEY" ]; then
+            echo "⚠️ No OLLAMA_API_KEY configured"
             exit 0
           fi
           
-          # Extract repo name for Jules source context
-          REPO_NAME="${TARGET_REPO##*/}"
-          OWNER="${TARGET_REPO%%/*}"
+          FAILURE_LOG=$(cat /tmp/failure.log | head -200)
           
-          # Build prompt from failure context (using heredoc for safety)
+          # Build prompt using heredoc
           PROMPT=$(cat <<PROMPT_EOF
-          Fix the CI failure in this repository.
+          You are a CI failure analyzer. Analyze this failure log and provide a fix suggestion.
           
-          Branch: $TARGET_BRANCH
-          PR: #$PR_NUM
+          FAILURE LOG:
+          $FAILURE_LOG
           
-          Failure logs:
-          $(echo "$FAILURE_SUMMARY" | head -200)
+          Provide:
+          1. Root cause (1-2 sentences)
+          2. Suggested fix (specific code changes if possible)
+          3. Commands to verify the fix
           
-          Instructions:
-          1. Analyze the failure logs
-          2. Identify the root cause
-          3. Make the minimal fix needed
-          4. Ensure tests pass
+          Be concise. Focus on the actual error, not warnings.
           PROMPT_EOF
           )
 
-          # Create Jules session via API (Jules runs in its own sandbox)
-          echo "🤖 Creating Jules session..."
-          RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+          echo "🤖 Querying Ollama GLM 4.6..."
+          
+          RESPONSE=$(curl -sf "${{ env.OLLAMA_HOST }}/api/chat" \
+            -H "Authorization: Bearer $OLLAMA_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
+              --arg model "${{ env.OLLAMA_MODEL }}" \
               --arg prompt "$PROMPT" \
-              --arg source "sources/github/$OWNER/$REPO_NAME" \
-              --arg branch "$TARGET_BRANCH" \
               '{
-                prompt: $prompt,
-                sourceContext: {
-                  source: $source,
-                  githubRepoContext: {
-                    startingBranch: $branch
-                  }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')" 2>&1) || {
-            echo "⚠️ Jules API call failed: $RESPONSE"
-            exit 0
-          }
+                model: $model,
+                messages: [{"role": "user", "content": $prompt}],
+                stream: false
+              }')" 2>&1) || RESPONSE=""
           
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty')
-          if [ -n "$SESSION_ID" ]; then
-            echo "✅ Jules session created: $SESSION_ID"
+          if [ -z "$RESPONSE" ]; then
+            echo "⚠️ Ollama API call failed"
+            SUGGESTION="_(Auto-fix analysis unavailable. Please review the CI logs manually.)_"
           else
-            echo "⚠️ Could not extract session ID"
-          fi
-
-  # ════════════════════════════════════════════════════════════════
-  # FALLBACK: Claude via GitHub Action (uses action's sandbox)
-  # ════════════════════════════════════════════════════════════════
-  delegate-claude:
-    name: Delegate to Claude
-    needs: [analyze, delegate-jules]
-    if: |
-      always() &&
-      needs.analyze.outputs.is_fork != 'true' &&
-      needs.analyze.outputs.pr_number != '' &&
-      (needs.delegate-jules.result == 'failure' || needs.delegate-jules.result == 'skipped')
-    runs-on: ubuntu-latest
-    steps:
-      - name: Post Claude fix request
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
-          TARGET_BRANCH: ${{ needs.analyze.outputs.target_branch }}
-          FAILURE_SUMMARY: ${{ needs.analyze.outputs.failure_summary }}
-          PR_NUM: ${{ needs.analyze.outputs.pr_number }}
-        run: |
-          if [ -z "$ANTHROPIC_API_KEY" ]; then
-            echo "⏭️ No Anthropic API key configured, skipping"
-            exit 0
+            SUGGESTION=$(echo "$RESPONSE" | jq -r '.message.content // "No suggestion generated"')
           fi
           
-          # Post comment to PR requesting Claude fix
-          # Claude Code Action monitors for @claude mentions
+          # Post suggestion to PR
           COMMENT_BODY=$(cat <<COMMENT_EOF
-          @claude Please fix the CI failure on this PR.
+          ## 🔧 CI Fix Suggestion
           
-          **Branch:** \`$TARGET_BRANCH\`
+          **Branch:** $TARGET_BRANCH
           
-          **Failure Summary:**
-          \`\`\`
-          $(echo "$FAILURE_SUMMARY" | jq -r '.' 2>/dev/null | head -100 || echo "$FAILURE_SUMMARY" | head -100)
-          \`\`\`
+          $SUGGESTION
           
-          Please analyze the logs, identify the root cause, and push a fix.
+          ---
+          <sub>🤖 Generated by Ecosystem Fixer using Ollama GLM 4.6</sub>
           COMMENT_EOF
           )
           
           gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "$COMMENT_BODY"
-          echo "✅ Posted Claude fix request to PR #$PR_NUM"
+          echo "✅ Posted fix suggestion to PR #$PR_NUM"
 
   # ════════════════════════════════════════════════════════════════
-  # NOTIFY: Report status for fork PRs (cannot auto-fix)
+  # NOTIFY: Report status for fork PRs
   # ════════════════════════════════════════════════════════════════
   notify-fork:
     name: Notify Fork PR
@@ -253,17 +217,16 @@ jobs:
     if: needs.analyze.outputs.is_fork == 'true' && needs.analyze.outputs.pr_number != ''
     runs-on: ubuntu-latest
     steps:
-      - name: Post security notice
+      - name: Post notice
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           TARGET_REPO: ${{ needs.analyze.outputs.target_repo }}
           PR_NUM: ${{ needs.analyze.outputs.pr_number }}
         run: |
-          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "$(cat <<'NOTICE_EOF'
+          gh pr comment "$PR_NUM" --repo "$TARGET_REPO" --body "$(cat <<'EOF'
           ⚠️ **Auto-fix unavailable for fork PRs**
           
-          This PR originates from a fork. For security reasons, automatic CI fixes are disabled.
-          
-          Please fix the CI failure manually and push your changes.
-          NOTICE_EOF
+          For security reasons, automatic CI fixes are disabled for fork PRs.
+          Please fix the CI failure manually.
+          EOF
           )"

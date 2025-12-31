@@ -1,5 +1,5 @@
 # Ecosystem Agents - Scheduled AI Agent Runners
-# Dispatches bespoke agents nightly/monthly with factory metaprompts
+# Dispatches bespoke agents nightly using Claude Haiku 4.5 (cost-efficient)
 #
 # Agents:
 # - Bolt ⚡ (Performance)
@@ -7,6 +7,8 @@
 # - Palette 🎨 (UX/A11y)
 # - Scribe 📚 (Documentation)
 # - Triage 🔍 (Issue/PR management)
+#
+# Model: claude-3-5-haiku-latest (fast, cost-efficient, good at coding)
 
 name: Ecosystem Agents
 
@@ -48,7 +50,7 @@ permissions:
   pull-requests: write
 
 env:
-  JULES_API: https://jules.googleapis.com/v1alpha
+  CLAUDE_MODEL: claude-3-5-haiku-latest
 
 jobs:
   # ════════════════════════════════════════════════════════════════
@@ -159,77 +161,44 @@ jobs:
           retention-days: 1
 
   # ════════════════════════════════════════════════════════════════
-  # JULES: Run agent via Jules API (AUTO_CREATE_PR)
+  # CLAUDE HAIKU: Run agent via Claude Code Action (cost-efficient)
   # ════════════════════════════════════════════════════════════════
-  run-jules:
-    name: Run via Jules
+  run-claude:
+    name: Run via Claude Haiku
     needs: dispatch
     if: needs.dispatch.outputs.agent != 'triage' && needs.dispatch.outputs.agent != 'assessment'
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CI_GITHUB_TOKEN }}
+
       - name: Download Prompt
         uses: actions/download-artifact@v4
         with:
           name: agent-prompt
           path: /tmp
 
-      - name: Launch Jules Session
-        env:
-          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          AGENT="${{ needs.dispatch.outputs.agent }}"
-          REPO="${{ needs.dispatch.outputs.repo }}"
-          PROMPT=$(cat /tmp/agent-prompt.md)
-          
-          # Parse owner/repo
-          OWNER="${REPO%%/*}"
-          REPO_NAME="${REPO##*/}"
-          
-          echo "🤖 Launching $AGENT via Jules..."
-          echo "   Source: sources/github/$OWNER/$REPO_NAME"
-          
-          # Get default branch
-          DEFAULT_BRANCH=$(gh api repos/$REPO --jq '.default_branch' 2>/dev/null || echo "main")
-          
-          # Create Jules session
-          RESPONSE=$(curl -sf -X POST "${{ env.JULES_API }}/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg prompt "$PROMPT" \
-              --arg source "sources/github/$OWNER/$REPO_NAME" \
-              --arg branch "$DEFAULT_BRANCH" \
-              '{
-                prompt: $prompt,
-                sourceContext: {
-                  source: $source,
-                  githubRepoContext: {
-                    startingBranch: $branch
-                  }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')" 2>&1) || RESPONSE=""
-          
-          if [ -z "$RESPONSE" ]; then
-            echo "❌ Failed to create Jules session"
-            exit 1
-          fi
-          
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
-          STATE=$(echo "$RESPONSE" | jq -r '.state // "UNKNOWN"')
-          
-          echo ""
-          echo "╔════════════════════════════════════════════════════════════╗"
-          echo "║  ✅ JULES SESSION CREATED                                  ║"
-          echo "╚════════════════════════════════════════════════════════════╝"
-          echo "   Agent: $AGENT"
-          echo "   Session: $SESSION_ID"
-          echo "   State: $STATE"
-          echo "   URL: $SESSION_URL"
-          echo ""
-          echo "Jules will create a PR if improvements are found."
+      - name: Run Claude Haiku Agent
+        uses: anthropics/claude-code-action@main
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          model: ${{ env.CLAUDE_MODEL }}
+          github_token: ${{ secrets.CI_GITHUB_TOKEN }}
+          allowed_tools: "Edit,Write,Read,Glob,Grep,LS,Bash(git:*),Bash(npm:*),Bash(pnpm:*),Bash(python:*),Bash(uv:*)"
+          direct_prompt: |
+            $(cat /tmp/agent-prompt.md)
+            
+            IMPORTANT INSTRUCTIONS:
+            1. Analyze the codebase for improvements in your area of focus
+            2. Make targeted, minimal changes (under 300 lines total)
+            3. Run tests if available to verify changes
+            4. Create a branch and commit your changes
+            5. Push the branch and create a PR
+            
+            Branch naming: agent/${{ needs.dispatch.outputs.agent }}-$(date +%Y%m%d)
+            PR title format: "improve(${{ needs.dispatch.outputs.agent }}): <brief description>"
 
   # ════════════════════════════════════════════════════════════════
   # TRIAGE: Run triage agent (uses gh CLI, not Jules)
