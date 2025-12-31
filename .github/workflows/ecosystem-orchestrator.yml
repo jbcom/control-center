@@ -105,7 +105,7 @@ jobs:
       OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
       OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
@@ -158,7 +158,7 @@ jobs:
             echo "skip=false" >> $GITHUB_OUTPUT
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         if: steps.check.outputs.skip != 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
@@ -193,7 +193,7 @@ jobs:
       ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
       COMMENT_BODY: ${{ inputs.comment_body || github.event.comment.body }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -228,7 +228,7 @@ jobs:
       ISSUE_BODY: ${{ inputs.issue_body || github.event.issue.body }}
       COMMENT_BODY: ${{ inputs.comment_body || github.event.comment.body }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
@@ -264,7 +264,7 @@ jobs:
     env:
       TARGET_REPO: ${{ inputs.repository || github.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: ${{ env.TARGET_REPO }}
           fetch-depth: 0
