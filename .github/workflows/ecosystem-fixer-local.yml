@@ -17,6 +17,8 @@ jobs:
   build:
     if: github.event.workflow_run.conclusion == 'failure'
     uses: ./.github/workflows/control-center-build.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_branch || github.ref_name }}
 
   fix:
     needs: build

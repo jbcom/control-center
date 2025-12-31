@@ -4,6 +4,12 @@ name: Build Control Center
 
 on:
   workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to checkout (defaults to main for external callers)'
+        required: false
+        type: string
+        default: 'main'
     outputs:
       binary_path:
         description: 'Path to the built binary'
@@ -22,7 +28,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           repository: jbcom/control-center
-          ref: main
+          ref: ${{ inputs.ref }}
 
       - uses: actions/setup-go@v5
         with:
