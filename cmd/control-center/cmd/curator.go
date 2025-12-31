@@ -131,7 +131,9 @@ func runCurator(cmd *cobra.Command, args []string) error {
 				} else {
 					log.WithField("session", session.Name).Info("Created Jules session")
 					comment := fmt.Sprintf("🤖 **Delegated to Jules**\n\nSession: `%s`\n\nReasoning: %s", session.Name, triage.Reasoning)
-					ghClient.PostComment(ctx, curatorRepo, issue.Number, comment)
+					if err := ghClient.PostComment(ctx, curatorRepo, issue.Number, comment); err != nil {
+						log.WithError(err).Warn("Failed to post Jules comment")
+					}
 				}
 			}
 
@@ -144,23 +146,33 @@ func runCurator(cmd *cobra.Command, args []string) error {
 				} else {
 					log.WithField("agent_id", agent.ID).Info("Launched Cursor agent")
 					comment := fmt.Sprintf("🤖 **Delegated to Cursor**\n\nAgent: `%s`\n\nReasoning: %s", agent.ID, triage.Reasoning)
-					ghClient.PostComment(ctx, curatorRepo, issue.Number, comment)
+					if err := ghClient.PostComment(ctx, curatorRepo, issue.Number, comment); err != nil {
+						log.WithError(err).Warn("Failed to post Cursor comment")
+					}
 				}
 			}
 
 		case "human":
 			comment := fmt.Sprintf("👤 **Needs Human Review**\n\nReasoning: %s\n\nPriority: %s", triage.Reasoning, triage.Priority)
-			ghClient.PostComment(ctx, curatorRepo, issue.Number, comment)
-			ghClient.AddLabel(ctx, curatorRepo, issue.Number, "needs-human-review")
+			if err := ghClient.PostComment(ctx, curatorRepo, issue.Number, comment); err != nil {
+				log.WithError(err).Warn("Failed to post human review comment")
+			}
+			if err := ghClient.AddLabel(ctx, curatorRepo, issue.Number, "needs-human-review"); err != nil {
+				log.WithError(err).Warn("Failed to add needs-human-review label")
+			}
 
 		default:
 			// Ollama can handle inline
 			comment := fmt.Sprintf("🤖 **Quick Fix Available**\n\nThis appears to be a simple issue.\n\nReasoning: %s", triage.Reasoning)
-			ghClient.PostComment(ctx, curatorRepo, issue.Number, comment)
+			if err := ghClient.PostComment(ctx, curatorRepo, issue.Number, comment); err != nil {
+				log.WithError(err).Warn("Failed to post quick fix comment")
+			}
 		}
 
 		// Mark as triaged
-		ghClient.AddLabel(ctx, curatorRepo, issue.Number, "triaged")
+		if err := ghClient.AddLabel(ctx, curatorRepo, issue.Number, "triaged"); err != nil {
+			log.WithError(err).Warn("Failed to add triaged label")
+		}
 	}
 
 	log.Info("Curator completed")

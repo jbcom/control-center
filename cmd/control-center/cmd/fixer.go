@@ -15,9 +15,9 @@ import (
 )
 
 var (
-	fixerRepo   string
-	fixerPR     int
-	fixerRunID  int64
+	fixerRepo  string
+	fixerPR    int
+	fixerRunID int64
 )
 
 var fixerCmd = &cobra.Command{

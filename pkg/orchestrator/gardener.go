@@ -28,8 +28,8 @@ type Gardener struct {
 
 // OrgRegistry represents the organization registry
 type OrgRegistry struct {
-	Enterprise           string               `json:"enterprise"`
-	ManagedOrganizations []ManagedOrg         `json:"managedOrganizations"`
+	Enterprise           string       `json:"enterprise"`
+	ManagedOrganizations []ManagedOrg `json:"managedOrganizations"`
 }
 
 // ManagedOrg represents a managed organization
@@ -210,8 +210,8 @@ func (g *Gardener) processBacklog(ctx context.Context, org ManagedOrg) error {
 
 			if !g.config.DryRun {
 				// Add stale label
-				if err := g.gh.AddLabel(ctx, org.ControlCenter, pr.Number, "stale"); err != nil {
-					log.WithError(err).Warn("Failed to add stale label")
+				if labelErr := g.gh.AddLabel(ctx, org.ControlCenter, pr.Number, "stale"); labelErr != nil {
+					log.WithError(labelErr).Warn("Failed to add stale label")
 				}
 
 				// Post comment
@@ -223,8 +223,8 @@ This PR has been inactive for more than 7 days. The Gardener will attempt to:
 3. Merge if ready
 
 If you want to keep this PR open, please update it.`
-				if err := g.gh.PostComment(ctx, org.ControlCenter, pr.Number, comment); err != nil {
-					log.WithError(err).Warn("Failed to post comment")
+				if commentErr := g.gh.PostComment(ctx, org.ControlCenter, pr.Number, comment); commentErr != nil {
+					log.WithError(commentErr).Warn("Failed to post comment")
 				}
 			}
 		}
@@ -245,8 +245,8 @@ If you want to keep this PR open, please update it.`
 
 			if !g.config.DryRun {
 				// Add needs-triage label
-				if err := g.gh.AddLabel(ctx, org.ControlCenter, issue.Number, "needs-triage"); err != nil {
-					log.WithError(err).Warn("Failed to add needs-triage label")
+				if labelErr := g.gh.AddLabel(ctx, org.ControlCenter, issue.Number, "needs-triage"); labelErr != nil {
+					log.WithError(labelErr).Warn("Failed to add needs-triage label")
 				}
 			}
 		}
