@@ -1,0 +1,74 @@
+---
+name: "Control Center"
+author: "jbcom"
+description: "Enterprise AI orchestration - Gardener, Curator, Reviewer, Fixer"
+branding:
+  icon: "cpu"
+  color: "purple"
+
+inputs:
+  command:
+    description: "Command to run: gardener, curator, reviewer, fixer"
+    required: true
+  repo:
+    description: "Target repository (owner/name)"
+    required: false
+  pr:
+    description: "Pull request number"
+    required: false
+  target:
+    description: "Target for gardener: all, org-name, or org-name/repo-name"
+    required: false
+    default: "all"
+  dry_run:
+    description: "Run without making changes"
+    required: false
+    default: "false"
+  log_level:
+    description: "Log level: debug, info, warn, error"
+    required: false
+    default: "info"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install Control Center
+      shell: bash
+      run: |
+        # Install from Go
+        go install github.com/jbcom/control-center/cmd/control-center@latest
+        
+        # Or download from releases (faster)
+        # VERSION=$(curl -s https://api.github.com/repos/jbcom/control-center/releases/latest | jq -r .tag_name)
+        # curl -sL "https://github.com/jbcom/control-center/releases/download/${VERSION}/control-center_${VERSION}_linux_x86_64.tar.gz" | tar xz -C /usr/local/bin
+
+    - name: Run Control Center
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+        CI_GITHUB_TOKEN: ${{ github.token }}
+        OLLAMA_API_KEY: ${{ inputs.ollama_api_key || '' }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key || '' }}
+        CURSOR_API_KEY: ${{ inputs.cursor_api_key || '' }}
+      run: |
+        ARGS="${{ inputs.command }}"
+        
+        if [ -n "${{ inputs.repo }}" ]; then
+          ARGS="$ARGS --repo ${{ inputs.repo }}"
+        fi
+        
+        if [ -n "${{ inputs.pr }}" ]; then
+          ARGS="$ARGS --pr ${{ inputs.pr }}"
+        fi
+        
+        if [ -n "${{ inputs.target }}" ] && [ "${{ inputs.command }}" = "gardener" ]; then
+          ARGS="$ARGS --target ${{ inputs.target }}"
+        fi
+        
+        if [ "${{ inputs.dry_run }}" = "true" ]; then
+          ARGS="$ARGS --dry-run"
+        fi
+        
+        ARGS="$ARGS --log-level ${{ inputs.log_level }}"
+        
+        control-center $ARGS
