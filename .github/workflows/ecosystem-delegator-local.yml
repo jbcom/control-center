@@ -1,6 +1,6 @@
-# AI Delegator - calls control-center reusable workflow
-# Synced from jbcom/control-center
-name: AI Delegator
+# LOCAL ecosystem delegator - uses built Go binary
+# This validates the binary works in real-world CI
+name: AI Delegator (Local Binary)
 
 on:
   issue_comment:
@@ -16,7 +16,7 @@ jobs:
     if: |
       github.event.issue.pull_request == null &&
       (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))
-    uses: jbcom/control-center/.github/workflows/control-center-build.yml@main
+    uses: ./.github/workflows/control-center-build.yml
 
   delegate:
     needs: build
@@ -27,8 +27,6 @@ jobs:
         with:
           name: control-center-binary
           path: /tmp
-          run-id: ${{ github.run_id }}
-          github-token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Run delegator
         env:

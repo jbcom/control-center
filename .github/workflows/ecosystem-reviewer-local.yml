@@ -1,6 +1,6 @@
-# AI Code Review - calls control-center reusable workflow
-# Synced from jbcom/control-center
-name: AI Review
+# LOCAL ecosystem reviewer - uses built Go binary
+# This validates the binary works in real-world CI
+name: AI Review (Local Binary)
 
 on:
   pull_request:
@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    uses: jbcom/control-center/.github/workflows/control-center-build.yml@main
+    uses: ./.github/workflows/control-center-build.yml
 
   review:
     needs: build
@@ -24,8 +24,6 @@ jobs:
         with:
           name: control-center-binary
           path: /tmp
-          run-id: ${{ github.run_id }}
-          github-token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 
       - name: Run reviewer
         env:
