@@ -153,7 +153,7 @@ jobs:
             exit 0
           fi
           
-          FAILURE_LOG=$(cat /tmp/failure.log | head -200)
+          FAILURE_LOG=$(head -200 /tmp/failure.log)
           
           # Build prompt using heredoc
           PROMPT=$(cat <<PROMPT_EOF

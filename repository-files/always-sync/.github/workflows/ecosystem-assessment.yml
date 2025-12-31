@@ -95,7 +95,7 @@ jobs:
           #   description: ...
           
           if [ -f reports/improvements.json ]; then
-            MATRIX=$(cat reports/improvements.json | jq -c '.')
+            MATRIX=$(jq -c '.' < reports/improvements.json)
           else
             # Default matrix if Codex didn't generate one
             MATRIX='[{"area":"test-coverage","priority":"high"},{"area":"documentation","priority":"medium"},{"area":"security","priority":"high"},{"area":"code-quality","priority":"medium"}]'
