@@ -1,0 +1,40 @@
+---
+name: "Control Center - AI Curator"
+author: "jbcom"
+description: "Nightly AI triage of issues and PRs with smart routing"
+
+branding:
+  icon: "inbox"
+  color: "yellow"
+
+runs:
+  using: "docker"
+  image: "docker://ghcr.io/jbcom/control-center:latest"
+  args: ["curator"]
+  env:
+    CONTROL_CENTER_REPO: ${{ inputs.repo }}
+    CONTROL_CENTER_LOG_LEVEL: ${{ inputs.log_level }}
+    CONTROL_CENTER_DRY_RUN: ${{ inputs.dry_run }}
+
+inputs:
+  repo:
+    description: "Repository (owner/name)"
+    required: true
+  log_level:
+    description: "Log level: debug, info, warn, error"
+    required: false
+    default: "info"
+  dry_run:
+    description: "Run without making changes"
+    required: false
+    default: "false"
+
+outputs:
+  issues_processed:
+    description: "Number of issues processed"
+  routed_to_jules:
+    description: "Issues routed to Jules"
+  routed_to_cursor:
+    description: "Issues routed to Cursor"
+  routed_to_human:
+    description: "Issues flagged for human review"

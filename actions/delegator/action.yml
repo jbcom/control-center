@@ -1,0 +1,49 @@
+---
+name: "Control Center - AI Delegator"
+author: "jbcom"
+description: "Delegate tasks to AI agents (Jules, Cursor) via /command syntax"
+
+branding:
+  icon: "send"
+  color: "green"
+
+runs:
+  using: "docker"
+  image: "docker://ghcr.io/jbcom/control-center:latest"
+  args: ["delegator"]
+  env:
+    CONTROL_CENTER_REPO: ${{ inputs.repo }}
+    CONTROL_CENTER_ISSUE: ${{ inputs.issue }}
+    CONTROL_CENTER_COMMAND: ${{ inputs.command }}
+    CONTROL_CENTER_BRANCH: ${{ inputs.branch }}
+    CONTROL_CENTER_LOG_LEVEL: ${{ inputs.log_level }}
+    CONTROL_CENTER_DRY_RUN: ${{ inputs.dry_run }}
+
+inputs:
+  repo:
+    description: "Repository (owner/name)"
+    required: true
+  issue:
+    description: "Issue number"
+    required: true
+  command:
+    description: "Delegation command (e.g., '/jules fix the bug')"
+    required: true
+  branch:
+    description: "Default branch for new work"
+    required: false
+    default: "main"
+  log_level:
+    description: "Log level: debug, info, warn, error"
+    required: false
+    default: "info"
+  dry_run:
+    description: "Run without creating sessions"
+    required: false
+    default: "false"
+
+outputs:
+  agent:
+    description: "Agent delegated to (jules, cursor)"
+  session_id:
+    description: "Session/Agent ID created"

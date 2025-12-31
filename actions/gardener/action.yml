@@ -1,0 +1,49 @@
+---
+name: "Control Center - Gardener"
+author: "jbcom"
+description: "Enterprise cascade orchestration across organizations and repositories"
+
+branding:
+  icon: "git-branch"
+  color: "purple"
+
+runs:
+  using: "docker"
+  image: "docker://ghcr.io/jbcom/control-center:latest"
+  args: ["gardener"]
+  env:
+    CONTROL_CENTER_TARGET: ${{ inputs.target }}
+    CONTROL_CENTER_DECOMPOSE: ${{ inputs.decompose }}
+    CONTROL_CENTER_BACKLOG: ${{ inputs.backlog }}
+    CONTROL_CENTER_LOG_LEVEL: ${{ inputs.log_level }}
+    CONTROL_CENTER_DRY_RUN: ${{ inputs.dry_run }}
+
+inputs:
+  target:
+    description: "Target scope: all, org-name, or org-name/repo-name"
+    required: false
+    default: "all"
+  decompose:
+    description: "Cascade instructions to repository level"
+    required: false
+    default: "false"
+  backlog:
+    description: "Process stale PRs and issues"
+    required: false
+    default: "true"
+  log_level:
+    description: "Log level: debug, info, warn, error"
+    required: false
+    default: "info"
+  dry_run:
+    description: "Run without making changes"
+    required: false
+    default: "false"
+
+outputs:
+  orgs_discovered:
+    description: "Number of organizations discovered"
+  orgs_healed:
+    description: "Number of control centers healed"
+  backlog_processed:
+    description: "Number of backlog items processed"

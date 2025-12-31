@@ -1,0 +1,44 @@
+---
+name: "Control Center - AI Fixer"
+author: "jbcom"
+description: "AI-powered CI failure analysis and fix suggestions"
+
+branding:
+  icon: "tool"
+  color: "orange"
+
+runs:
+  using: "docker"
+  image: "docker://ghcr.io/jbcom/control-center:latest"
+  args: ["fixer"]
+  env:
+    CONTROL_CENTER_REPO: ${{ inputs.repo }}
+    CONTROL_CENTER_PR: ${{ inputs.pr }}
+    CONTROL_CENTER_RUN_ID: ${{ inputs.run_id }}
+    CONTROL_CENTER_LOG_LEVEL: ${{ inputs.log_level }}
+    CONTROL_CENTER_DRY_RUN: ${{ inputs.dry_run }}
+
+inputs:
+  repo:
+    description: "Repository (owner/name)"
+    required: true
+  pr:
+    description: "Pull request number (alternative to run_id)"
+    required: false
+  run_id:
+    description: "Workflow run ID (alternative to pr)"
+    required: false
+  log_level:
+    description: "Log level: debug, info, warn, error"
+    required: false
+    default: "info"
+  dry_run:
+    description: "Run without posting comments"
+    required: false
+    default: "false"
+
+outputs:
+  root_cause:
+    description: "Identified root cause"
+  suggestion:
+    description: "Suggested fix"
