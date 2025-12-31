@@ -3,7 +3,7 @@
 ###
 # Build a static control-center binary for the requested platform.
 ###
-FROM golang:1.23-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
