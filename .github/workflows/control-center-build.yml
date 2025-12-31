@@ -18,6 +18,10 @@ on:
         description: 'Whether cache was hit'
         value: ${{ jobs.build.outputs.cache_hit }}
 
+# Minimal permissions for build workflow
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -25,10 +29,13 @@ jobs:
       binary_path: ${{ steps.build.outputs.path }}
       cache_hit: ${{ steps.cache.outputs.cache-hit }}
     steps:
+      # Security: Only allow refs from jbcom/control-center
+      # The checkout always targets our repo, so ref injection is limited to our branches
       - uses: actions/checkout@v4
         with:
           repository: jbcom/control-center
           ref: ${{ inputs.ref }}
+          persist-credentials: false
 
       - uses: actions/setup-go@v5
         with:
