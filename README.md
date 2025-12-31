@@ -149,29 +149,9 @@ curator:
 
 ## Architecture
 
-```
-control-center/
-├── cmd/control-center/     # CLI entrypoint
-│   └── cmd/                # Cobra commands
-│       ├── root.go
-│       ├── gardener.go
-│       ├── curator.go
-│       ├── reviewer.go
-│       ├── fixer.go
-│       └── version.go
-├── pkg/
-│   ├── clients/            # API clients
-│   │   ├── ollama/         # Ollama GLM 4.6
-│   │   ├── jules/          # Google Jules
-│   │   ├── cursor/         # Cursor Cloud Agent
-│   │   └── github/         # GitHub API + gh CLI
-│   ├── config/             # Configuration
-│   └── orchestrator/       # Orchestration logic
-├── Dockerfile
-├── action.yml              # GitHub Action
-├── .goreleaser.yml         # Release config
-└── .golangci.yml           # Linter config
-```
+For a detailed breakdown of the `agentic` ecosystem, including repository scope, ownership, and technical architecture, please see the canonical documentation:
+
+- **[Agentic Ecosystem Architecture](docs/agentic-ecosystem.md)**
 
 ## Task Routing
 

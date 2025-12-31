@@ -54,6 +54,17 @@ The ecosystem is designed to separate vendor-specific concerns from the core orc
 **PyPI Package**: `vendor-connectors`
 **URL**: [github.com/jbcom/python-vendor-connectors](https://github.com/jbcom/python-vendor-connectors)
 
+| Connector | Status | Notes |
+|-----------|--------|-------|
+| Cursor | ❌ **NEEDED** | Port from `agentic-control/src/fleet/cursor-api.ts` |
+| Anthropic | ❌ **NEEDED** | Wrap Claude Agent SDK |
+| AWS | ✅ Exists | |
+| GitHub | ✅ Exists | |
+| Google | ✅ Exists | |
+| Slack | ✅ Exists | |
+| Vault | ✅ Exists | |
+| Zoom | ✅ Exists | |
+
 ### `agentic-control`
 **Purpose**: A vendor-agnostic protocol layer for agent orchestration. This repository defines the "rules of the road" for how agents communicate and hand off tasks.
 **Owner**: `jbcom-control-center` (Node.js package management)
@@ -61,9 +72,24 @@ The ecosystem is designed to separate vendor-specific concerns from the core orc
 **NPM Package**: `agentic-control`
 **URL**: [github.com/jbcom/nodejs-agentic-control](https://github.com/jbcom/nodejs-agentic-control)
 
-### `agentic-crew`
+| Module | Status | Notes |
+|--------|--------|-------|
+| `core/` | ✅ Keep | Core types and interfaces |
+| `fleet/` | 🔄 Refactor | Remove vendor-specific code, keep protocols |
+| `triage/` | ✅ Keep | Agent triage logic |
+| `handoff/` | ✅ Keep | Agent handoff logic |
+| `github/` | ✅ Keep | GitHub integration (uses gh CLI) |
+| `providers/` | ❌ **NEW** | Provider interface that uses vendor-connectors |
+
+### `agentic-crew` (NEW)
 **Purpose**: A CrewAI-specific orchestration layer. This repository provides concrete implementations of agent crews using the CrewAI framework.
 **Owner**: `jbcom-control-center` (Python package management)
 **Language**: Python
 **PyPI Package**: `agentic-crew`
 **URL**: [github.com/jbcom/python-agentic-crew](https://github.com/jbcom/python-agentic-crew)
+
+| Module | Status | Notes |
+|--------|--------|-------|
+| CrewAI flows | ❌ **NEW** | Move from agentic-control/python/ |
+| Manager patterns | ❌ **NEW** | |
+| Protocol bridge | ❌ **NEW** | Bridge to agentic-control |

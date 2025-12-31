@@ -177,38 +177,6 @@ For a detailed breakdown of the `agentic` ecosystem, including repository scope,
 
 - **[Agentic Ecosystem Architecture](docs/agentic-ecosystem.md)**
 
----
-
-## Ecosystem Scope
-
-### Organizations Managed
-
-| Organization | Domain | Purpose | Repos |
-|-------------|--------|---------|-------|
-| `jbcom` | jonbogaty.com | Control center, games, portfolio | 9 |
-| `strata-game-library` | strata.game | Procedural 3D graphics library | 9 |
-| `agentic-dev-library` | agentic.dev | AI agent orchestration | 6 |
-| `extended-data-library` | extendeddata.dev | Enterprise data utilities | 6 |
-
-### Repository Structure
-
-```
-control-center/
-├── .github/
-│   └── workflows/           # Ecosystem workflows
-│       ├── ecosystem-curator.yml      # Nightly triage
-│       ├── ecosystem-harvester.yml    # PR monitoring
-│       ├── ecosystem-sage.yml         # On-call advisor
-│       ├── ecosystem-reviewer.yml     # PR review
-│       ├── ecosystem-fixer.yml        # CI auto-fix
-│       └── ecosystem-delegator.yml    # Agent delegation
-├── memory-bank/             # AI context and history
-├── repository-files/        # Files synced to all repos
-│   └── always-sync/         # Always overwrite
-├── scripts/                 # Orchestration scripts
-└── strata/                  # Strata-specific config
-```
-
 ## Ecosystem Workflows
 
 | Workflow | Trigger | Purpose |
