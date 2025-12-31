@@ -1,0 +1,381 @@
+# jbcom-gardener.yml - Enterprise Level Orchestrator
+#
+# The GARDENER is the first-line orchestrator for the enterprise.
+# It cascades instructions from enterprise → org control centers → repositories.
+#
+# Responsibilities:
+# 1. Discover all organizations in the enterprise
+# 2. Auto-heal organization control centers (missing files, misconfig)
+# 3. Process prompt-queue issues for cascade execution
+# 4. Trigger backlog reconciliation (outstanding PRs/issues)
+# 5. Optionally decompose to second level (org → repos)
+#
+# Prompt Queue Format (issue title):
+#   🌱 PLANT: <instruction>
+#   🎯 TARGET: [all | org-name | org-name/repo-name]
+#   📋 SCOPE: [enterprise | organization | repository]
+
+name: jbcom Gardener
+
+on:
+  schedule:
+    # Nightly at 3 AM UTC
+    - cron: '0 3 * * *'
+  
+  # On push to main - close the loop
+  push:
+    branches: [main]
+    paths:
+      - 'repository-files/**'
+      - '.github/workflows/**'
+      - '.github/org-registry.json'
+  
+  # Manual with options
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target: all, org-name, or org-name/repo-name'
+        required: false
+        default: 'all'
+        type: string
+      decompose:
+        description: 'Decompose to repository level'
+        required: false
+        default: false
+        type: boolean
+      dry_run:
+        description: 'Dry run (no mutations)'
+        required: false
+        default: false
+        type: boolean
+      process_backlog:
+        description: 'Process backlog PRs/issues'
+        required: false
+        default: true
+        type: boolean
+
+  # Triggered by prompt-queue issues
+  issues:
+    types: [opened, labeled]
+
+concurrency:
+  group: gardener-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  ENTERPRISE: jbcom
+  DRY_RUN: ${{ inputs.dry_run || 'false' }}
+  # Configurable via repository variables
+  STALE_DAYS: ${{ vars.STALE_PR_THRESHOLD || '7' }}
+
+jobs:
+  # ════════════════════════════════════════════════════════════════
+  # DISCOVER: Get all organizations from enterprise registry
+  # ════════════════════════════════════════════════════════════════
+  discover:
+    name: Discover Organizations
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      orgs: ${{ steps.orgs.outputs.matrix }}
+      prompt_queue: ${{ steps.queue.outputs.items }}
+    steps:
+      - name: Validate Target Input
+        if: inputs.target != ''
+        env:
+          TARGET_INPUT: ${{ inputs.target }}
+        run: |
+          # Validate target format: all, org-name, or org/repo
+          if [[ ! "$TARGET_INPUT" =~ ^(all|[a-zA-Z0-9_-]+(/[a-zA-Z0-9_.-]+)?)$ ]]; then
+            echo "❌ Invalid target format: $TARGET_INPUT"
+            echo "Expected: all, org-name, or org-name/repo-name"
+            exit 1
+          fi
+          echo "✅ Target validated: $TARGET_INPUT"
+      - uses: actions/checkout@v4
+
+      - name: Get Organizations
+        id: orgs
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          TARGET: ${{ inputs.target || 'all' }}
+        run: |
+          echo "🌱 jbcom Gardener - Discovering organizations..."
+          
+          # Read from org-registry.json
+          MANAGED=$(jq -c '.managedOrganizations' .github/org-registry.json)
+          
+          # Build matrix
+          if [ "$TARGET" = "all" ]; then
+            MATRIX=$(echo "$MANAGED" | jq -c '[.[] | {org: .org, control_center: .controlCenter}]')
+          else
+            # Filter to specific org
+            MATRIX=$(echo "$MANAGED" | jq -c --arg t "$TARGET" '[.[] | select(.org == $t) | {org: .org, control_center: .controlCenter}]')
+          fi
+          
+          echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
+          echo "📋 Organizations: $(echo "$MATRIX" | jq -r '.[].org' | tr '\n' ' ')"
+
+      - name: Check Prompt Queue
+        id: queue
+        if: github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
+          ISSUE_NUM: ${{ github.event.issue.number }}
+        run: |
+          # Check if this is a prompt-queue issue
+          if echo "$ISSUE_TITLE" | grep -qE "^🌱 PLANT:"; then
+            echo "📬 Prompt queue issue detected: #$ISSUE_NUM"
+            
+            # Parse the instruction
+            INSTRUCTION=$(echo "$ISSUE_TITLE" | sed 's/^🌱 PLANT: //')
+            TARGET=$(echo "$ISSUE_BODY" | grep -oP '🎯 TARGET: \K.*' | head -1 || echo "all")
+            SCOPE=$(echo "$ISSUE_BODY" | grep -oP '📋 SCOPE: \K.*' | head -1 || echo "enterprise")
+            
+            ITEM=$(jq -nc --arg inst "$INSTRUCTION" --arg target "$TARGET" --arg scope "$SCOPE" --arg num "$ISSUE_NUM" \
+              '{instruction: $inst, target: $target, scope: $scope, issue: $num}')
+            
+            echo "items=[$ITEM]" >> $GITHUB_OUTPUT
+            
+            # Acknowledge
+            COMMENT="🌱 **Gardener Processing**"
+            COMMENT="$COMMENT\n\n| Field | Value |\n|-------|-------|\n| Instruction | $INSTRUCTION |\n| Target | $TARGET |\n| Scope | $SCOPE |\n\nProcessing cascade..."
+            echo -e "$COMMENT" | gh issue comment "$ISSUE_NUM" --repo "${{ github.repository }}" --body-file -
+          else
+            echo "items=[]" >> $GITHUB_OUTPUT
+          fi
+
+  # ════════════════════════════════════════════════════════════════
+  # HEAL: Auto-heal organization control centers
+  # ════════════════════════════════════════════════════════════════
+  heal:
+    name: Heal ${{ matrix.org }}
+    needs: discover
+    if: needs.discover.outputs.orgs != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.orgs) }}
+    outputs:
+      healed: ${{ steps.heal.outputs.healed }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check Control Center Health
+        id: health
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ORG: ${{ matrix.org }}
+          CONTROL_CENTER: ${{ matrix.control_center }}
+        run: |
+          echo "🏥 Checking health of $CONTROL_CENTER..."
+          
+          ISSUES=()
+          
+          # Check if control center exists
+          if ! gh repo view "$CONTROL_CENTER" > /dev/null 2>&1; then
+            echo "❌ Control center not found: $CONTROL_CENTER"
+            echo "needs_heal=false" >> $GITHUB_OUTPUT
+            echo "exists=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "exists=true" >> $GITHUB_OUTPUT
+          
+          # Check for required files
+          REQUIRED_FILES=(
+            ".github/workflows/ecosystem-triage.yml"
+            ".github/workflows/ecosystem-merge.yml"
+            ".github/workflows/ecosystem-fixer.yml"
+            ".github/org-context.json"
+          )
+          
+          for FILE in "${REQUIRED_FILES[@]}"; do
+            if ! gh api "repos/$CONTROL_CENTER/contents/$FILE" > /dev/null 2>&1; then
+              ISSUES+=("Missing: $FILE")
+            fi
+          done
+          
+          # Check for stale sync (last sync > 7 days)
+          LAST_SYNC=$(gh api "repos/$CONTROL_CENTER/commits?path=.github/workflows&per_page=1" --jq '.[0].commit.committer.date' 2>/dev/null || echo "")
+          if [ -n "$LAST_SYNC" ]; then
+            DAYS_AGO=$(( ($(date +%s) - $(date -d "$LAST_SYNC" +%s)) / 86400 ))
+            if [ "$DAYS_AGO" -gt 7 ]; then
+              ISSUES+=("Stale: Last sync was $DAYS_AGO days ago")
+            fi
+          fi
+          
+          if [ ${#ISSUES[@]} -gt 0 ]; then
+            echo "⚠️ Issues found:"
+            printf '  - %s\n' "${ISSUES[@]}"
+            echo "needs_heal=true" >> $GITHUB_OUTPUT
+            echo "issues=${ISSUES[*]}" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Control center healthy"
+            echo "needs_heal=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Heal Control Center
+        id: heal
+        if: steps.health.outputs.needs_heal == 'true' && steps.health.outputs.exists == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ORG: ${{ matrix.org }}
+          CONTROL_CENTER: ${{ matrix.control_center }}
+        run: |
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "🔍 [DRY RUN] Would trigger sync for $CONTROL_CENTER"
+            echo "healed=dry-run" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          echo "🔧 Triggering sync for $CONTROL_CENTER..."
+          
+          # Trigger the ecosystem-surveyor to sync this org
+          gh workflow run ecosystem-surveyor.yml \
+            --repo "${{ github.repository }}" \
+            -f target_org="$ORG"
+          
+          echo "healed=true" >> $GITHUB_OUTPUT
+
+  # ════════════════════════════════════════════════════════════════
+  # BACKLOG: Process outstanding PRs and issues
+  # ════════════════════════════════════════════════════════════════
+  backlog:
+    name: Backlog ${{ matrix.org }}
+    needs: [discover, heal]
+    if: |
+      always() && 
+      needs.discover.outputs.orgs != '[]' &&
+      (inputs.process_backlog != false || github.event_name == 'schedule')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.orgs) }}
+    steps:
+      - name: Process Backlog
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ORG: ${{ matrix.org }}
+          CONTROL_CENTER: ${{ matrix.control_center }}
+        run: |
+          echo "📚 Processing backlog for $ORG..."
+          
+          # Get stale PRs (configurable threshold, default 7 days)
+          STALE_SECONDS=$((${STALE_DAYS:-7} * 86400))
+          STALE_PRS=$(gh pr list --repo "$CONTROL_CENTER" --state open \
+            --json number,title,updatedAt,isDraft \
+            --jq "[.[] | select(.isDraft == false) | select((.updatedAt | fromdateiso8601) < (now - $STALE_SECONDS))]" 2>/dev/null || echo "[]")
+          
+          STALE_COUNT=$(echo "$STALE_PRS" | jq 'length')
+          
+          if [ "$STALE_COUNT" -gt 0 ]; then
+            echo "📋 Found $STALE_COUNT stale PRs"
+            
+            if [ "${{ env.DRY_RUN }}" = "true" ]; then
+              echo "🔍 [DRY RUN] Would process: $(echo "$STALE_PRS" | jq -r '.[].number' | tr '\n' ' ')"
+            else
+              # Add 'stale' label and comment
+              for PR_NUM in $(echo "$STALE_PRS" | jq -r '.[].number'); do
+                gh pr edit "$PR_NUM" --repo "$CONTROL_CENTER" --add-label "stale" 2>/dev/null || true
+                
+                STALE_MSG="⏰ **Stale PR Detected**\n\nThis PR has been inactive for >7 days. The Gardener will attempt to:\n1. Check if CI is passing\n2. Resolve any blockers\n3. Merge if ready\n\nIf you want to keep this PR open, please update it."
+                echo -e "$STALE_MSG" | gh pr comment "$PR_NUM" --repo "$CONTROL_CENTER" --body-file - 2>/dev/null || true
+              done
+            fi
+          else
+            echo "✅ No stale PRs"
+          fi
+          
+          # Get unassigned issues
+          UNASSIGNED=$(gh issue list --repo "$CONTROL_CENTER" --state open \
+            --json number,title,labels,assignees \
+            --jq '[.[] | select(.assignees | length == 0)]' 2>/dev/null || echo "[]")
+          
+          UNASSIGNED_COUNT=$(echo "$UNASSIGNED" | jq 'length')
+          echo "📋 Found $UNASSIGNED_COUNT unassigned issues"
+
+  # ════════════════════════════════════════════════════════════════
+  # DECOMPOSE: Optionally cascade to repository level
+  # ════════════════════════════════════════════════════════════════
+  decompose:
+    name: Decompose to ${{ matrix.org }}
+    needs: [discover, heal, backlog]
+    if: |
+      always() && 
+      inputs.decompose == true &&
+      needs.discover.outputs.orgs != '[]'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: write
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        include: ${{ fromJson(needs.discover.outputs.orgs) }}
+    steps:
+      - name: Call Org Gardener
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          ORG: ${{ matrix.org }}
+          CONTROL_CENTER: ${{ matrix.control_center }}
+        run: |
+          echo "🌿 Decomposing to $ORG repository level..."
+          
+          if [ "${{ env.DRY_RUN }}" = "true" ]; then
+            echo "🔍 [DRY RUN] Would trigger org-gardener in $CONTROL_CENTER"
+            exit 0
+          fi
+          
+          # Trigger the org's gardener workflow
+          gh workflow run "${ORG}-gardener.yml" \
+            --repo "$CONTROL_CENTER" \
+            -f process_backlog=true \
+            2>/dev/null || {
+            echo "⚠️ Org gardener not found, using ecosystem-sync"
+            gh workflow run ecosystem-sync.yml \
+              --repo "$CONTROL_CENTER" \
+              2>/dev/null || echo "⚠️ No sync workflow found"
+          }
+
+  # ════════════════════════════════════════════════════════════════
+  # REPORT: Summary of gardening activities
+  # ════════════════════════════════════════════════════════════════
+  report:
+    name: Gardening Report
+    needs: [discover, heal, backlog, decompose]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate Report
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          echo "╔════════════════════════════════════════════════════════════╗"
+          echo "║  🌱 GARDENING REPORT                                       ║"
+          echo "╚════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Enterprise: ${{ env.ENTERPRISE }}"
+          echo "Trigger: ${{ github.event_name }}"
+          echo "Dry Run: ${{ env.DRY_RUN }}"
+          echo ""
+          echo "Jobs:"
+          echo "  - Discover: ${{ needs.discover.result }}"
+          echo "  - Heal: ${{ needs.heal.result }}"
+          echo "  - Backlog: ${{ needs.backlog.result }}"
+          echo "  - Decompose: ${{ needs.decompose.result }}"
