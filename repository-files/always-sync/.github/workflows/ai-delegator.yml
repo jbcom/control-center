@@ -35,10 +35,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          COMMAND_BODY: ${{ github.event.comment.body }}
         run: |
           chmod +x /tmp/control-center
           /tmp/control-center delegator \
             --repo "${{ github.repository }}" \
             --issue "${{ github.event.issue.number }}" \
-            --command "${{ github.event.comment.body }}" \
+            --command "$COMMAND_BODY" \
             --log-level info
