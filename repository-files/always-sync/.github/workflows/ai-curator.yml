@@ -1,0 +1,49 @@
+# AI Curator - Uses jbcom/control-center
+# Synced from jbcom/control-center
+#
+# Nightly triage of issues and PRs using AI routing
+name: AI Curator
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # 3 AM UTC daily
+
+  workflow_call:
+    inputs:
+      repository:
+        description: 'Repository to curate'
+        required: true
+        type: string
+    secrets:
+      CI_GITHUB_TOKEN:
+        required: true
+      OLLAMA_API_KEY:
+        required: false
+      GOOGLE_JULES_API_KEY:
+        required: false
+      CURSOR_API_KEY:
+        required: false
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  curate:
+    name: Triage Issues
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Triage
+        uses: jbcom/control-center@v1
+        with:
+          command: curator
+          repo: ${{ inputs.repository || github.repository }}
+          log_level: info
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}

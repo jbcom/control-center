@@ -1,0 +1,79 @@
+# AI Delegator - Uses jbcom/control-center
+# Synced from jbcom/control-center
+#
+# Handles delegation commands in issue comments:
+#   /jules <task>  - Delegate to Google Jules
+#   /cursor <task> - Delegate to Cursor Cloud Agent
+name: AI Delegator
+
+on:
+  issue_comment:
+    types: [created]
+
+  workflow_call:
+    inputs:
+      command:
+        description: 'Delegation command (e.g., /jules fix bug)'
+        required: true
+        type: string
+      issue_number:
+        description: 'Issue number'
+        required: true
+        type: number
+      repository:
+        description: 'Repository owner/name'
+        required: true
+        type: string
+      default_branch:
+        description: 'Default branch'
+        required: false
+        default: 'main'
+        type: string
+    secrets:
+      CI_GITHUB_TOKEN:
+        required: true
+      GOOGLE_JULES_API_KEY:
+        required: false
+      CURSOR_API_KEY:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      command:
+        description: 'Command (e.g., /jules fix this)'
+        required: true
+        type: string
+      issue_number:
+        description: 'Issue number'
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  delegate:
+    name: Delegate to AI
+    if: |
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
+       (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delegate Task
+        uses: jbcom/control-center@v1
+        with:
+          command: delegator
+          repo: ${{ inputs.repository || github.repository }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+          # Pass command details via env vars
+          CONTROL_CENTER_ISSUE: ${{ inputs.issue_number || github.event.issue.number }}
+          CONTROL_CENTER_COMMAND: ${{ inputs.command || github.event.comment.body }}
+          CONTROL_CENTER_BRANCH: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}

@@ -1,0 +1,57 @@
+# AI CI Fixer - Uses jbcom/control-center
+# Synced from jbcom/control-center
+name: AI Fixer
+
+on:
+  workflow_run:
+    workflows: ["CI", "Build", "Test", "Lint"]
+    types: [completed]
+    branches-ignore: [main]
+
+  workflow_call:
+    inputs:
+      run_id:
+        description: 'Workflow run ID that failed'
+        required: true
+        type: string
+      repository:
+        description: 'Repository owner/name'
+        required: true
+        type: string
+    secrets:
+      CI_GITHUB_TOKEN:
+        required: true
+      OLLAMA_API_KEY:
+        required: false
+
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'Workflow run ID'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  fix:
+    name: Suggest Fix
+    if: |
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'failure') ||
+      github.event_name == 'workflow_call' ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: AI Failure Analysis
+        uses: jbcom/control-center@v1
+        with:
+          command: fixer
+          repo: ${{ inputs.repository || github.repository }}
+          run_id: ${{ inputs.run_id || github.event.workflow_run.id }}
+          log_level: info
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
