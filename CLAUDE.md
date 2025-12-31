@@ -255,6 +255,9 @@ The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration
 
 #### Cursor Cloud Agent Endpoints (v0)
 
+**Base URL**: `https://api.cursor.com/v0`  
+**Authentication**: `Authorization: Bearer <CURSOR_API_KEY>` or Basic Auth with API key as username.
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | `POST` | `/agents` | Launch a new background agent |
@@ -264,6 +267,25 @@ The `scripts/ecosystem-curator.mjs` script is a nightly autonomous orchestration
 | `POST` | `/agents/{id}/followup` | Send a follow-up message to an agent |
 | `GET` | `/repositories` | List accessible repositories |
 | `GET` | `/models` | List available AI models |
+
+##### Launch Agent Request Body (`POST /agents`)
+
+```json
+{
+  "prompt": {
+    "text": "Task description"
+  },
+  "source": {
+    "repository": "org/repo",
+    "ref": "main"
+  },
+  "target": {
+    "autoCreatePr": true,
+    "branchName": "fix/issue-123",
+    "openAsCursorGithubApp": true
+  }
+}
+```
 
 ## Session Start/End Protocol
 

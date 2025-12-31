@@ -18,6 +18,7 @@ import { writeFileSync } from 'fs';
 // CI_GITHUB_TOKEN is root admin token for all ecosystem operations
 const GITHUB_TOKEN = process.env.CI_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
 const CURSOR_SESSION_TOKEN = process.env.CURSOR_SESSION_TOKEN;
+const CURSOR_API_KEY = process.env.CURSOR_API_KEY;
 const GOOGLE_JULES_API_KEY = process.env.GOOGLE_JULES_API_KEY;
 const DRY_RUN = process.env.DRY_RUN === 'true';
 
@@ -37,6 +38,8 @@ const BOT_AUTHORS = [
 const stats = {
   cursor_composers_checked: 0,
   cursor_composers_completed: 0,
+  cursor_agents_checked: 0,
+  cursor_agents_completed: 0,
   jules_sessions_checked: 0,
   jules_sessions_completed: 0,
   prs_reviewed: 0,
@@ -133,6 +136,55 @@ async function cursorOpenPr(bcId) {
   }
   
   return res.json();
+}
+
+// ============================================================================
+// Cursor Cloud Agent API (v0)
+// ============================================================================
+
+async function cursorCloudApi(endpoint, options = {}) {
+  if (!CURSOR_API_KEY) return null;
+  const res = await fetch(`https://api.cursor.com/v0${endpoint}`, {
+    ...options,
+    headers: {
+      'Authorization': `Bearer ${CURSOR_API_KEY}`,
+      'Content-Type': 'application/json',
+      ...options.headers
+    }
+  });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({ message: res.statusText }));
+    throw new Error(`Cursor Cloud API ${res.status}: ${JSON.stringify(error)}`);
+  }
+  return res.json();
+}
+
+async function harvestCursorAgents() {
+  console.log('\n🤖 Harvesting Cursor Cloud Agents...');
+  
+  if (!CURSOR_API_KEY) {
+    console.log('   ⚠️ CURSOR_API_KEY not set - skipping');
+    return;
+  }
+  
+  try {
+    const data = await cursorCloudApi('/agents');
+    const agents = data?.agents || [];
+    stats.cursor_agents_checked = agents.length;
+    console.log(`   Found ${agents.length} agents`);
+    
+    for (const agent of agents) {
+      const status = agent.status || 'unknown';
+      console.log(`   - ${agent.id}: ${status} (${agent.repository})`);
+      
+      if (status === 'completed' || status === 'finished') {
+        stats.cursor_agents_completed++;
+      }
+    }
+  } catch (e) {
+    console.log(`   Error: ${e.message}`);
+    stats.errors.push(`Cursor agent harvest error: ${e.message}`);
+  }
 }
 
 // ============================================================================
@@ -434,6 +486,7 @@ async function main() {
   }
   
   await harvestCursorComposers();
+  await harvestCursorAgents();
   await harvestJulesSessions();
   await processPRs();
   

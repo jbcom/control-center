@@ -299,16 +299,34 @@ c.approve_plan('sessions/SESSION_ID')"
 ```
 
 ### Cursor Cloud Agent
+
+**Base URL**: `https://api.cursor.com/v0`  
+**Authentication**: `Authorization: Bearer <CURSOR_API_KEY>` or Basic Auth with API key as username (`-u "$CURSOR_API_KEY:"`).
+
 ```bash
 # Via GitHub comment (preferred)
 gh pr comment <PR> --body "@cursor <instructions>"
 
-# Via API
+# Via API (Launch Agent)
 curl -X POST "https://api.cursor.com/v0/agents" \
   -u "$CURSOR_API_KEY:" \
   -H "Content-Type: application/json" \
-  -d '{"prompt":{"text":"..."},"source":{"repository":"..."}}'
+  -d '{
+    "prompt": {"text": "Task description"},
+    "source": {"repository": "org/repo", "ref": "main"},
+    "target": {"autoCreatePr": true, "openAsCursorGithubApp": true}
+  }'
 ```
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/agents` | Launch a new background agent |
+| `GET` | `/agents` | List all background agents |
+| `GET` | `/agents/{id}` | Get agent status |
+| `GET` | `/agents/{id}/conversation` | Get agent conversation history |
+| `POST` | `/agents/{id}/followup` | Send a follow-up message to an agent |
+| `GET` | `/repositories` | List accessible repositories |
+| `GET` | `/models` | List available AI models |
 
 ## Session Management
 

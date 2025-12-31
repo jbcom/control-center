@@ -19,5 +19,6 @@ jobs:
       - name: Run Jules Supervisor
         env:
           JULES_API_KEY: ${{ secrets.JULES_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           CURSOR_GITHUB_TOKEN: ${{ secrets.CURSOR_GITHUB_TOKEN }}
         run: node scripts/cursor-jules-orchestrator.mjs

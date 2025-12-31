@@ -114,8 +114,46 @@ runs:
         # If /cursor command is present, delegate to Cursor
         if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
           echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
-          # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+          
+          if [[ -z "$CURSOR_API_KEY" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ CURSOR_API_KEY not configured. Cannot delegate to Cursor."
+            exit 1
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Spawning Cursor agent..."
+          
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/cursor[[:space:]]*||' | head -c 1000)
+          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+
+          RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
+            -H "Authorization: Bearer $CURSOR_API_KEY" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
+              --arg repo "$REPOSITORY" \
+              --arg branch "$DEFAULT_BRANCH" \
+              '{
+                prompt: { text: $task },
+                source: { repository: $repo, ref: $branch },
+                target: { 
+                  autoCreatePr: true,
+                  openAsCursorGithubApp: true
+                }
+              }')")
+
+          AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+
+          if [ -n "$AGENT_ID" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Cursor Agent Spawned
+            
+          **Agent ID:** \`$AGENT_ID\`
+          
+          The Cursor agent will analyze the issue and create a PR."
+          else
+            echo "Failed to spawn Cursor agent: $RESPONSE"
+            gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to spawn Cursor agent. Please check logs."
+            exit 1
+          fi
           exit 0
         fi
 

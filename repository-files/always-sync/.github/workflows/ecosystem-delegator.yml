@@ -113,12 +113,8 @@ jobs:
           DEFAULT_BRANCH: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}
         run: |
           # Extract prompt from comment, removing the /jules command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/jules ||p')
-
-          if [[ -z "$PROMPT" ]]; then
-            echo "Jules command used without a prompt. Exiting."
-            exit 0
-          fi
+          PROMPT=$(echo "${COMMENT_BODY}" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+          [ -z "$PROMPT" ] && PROMPT="Fix issue #$TARGET_ISSUE"
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
@@ -154,20 +150,23 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           # Extract prompt from comment, removing the /cursor command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/cursor ||p')
-
-          if [[ -z "$PROMPT" ]]; then
-            echo "Cursor command used without a prompt. Exiting."
-            exit 0
-          fi
+          PROMPT=$(echo "${COMMENT_BODY}" | sed 's|/cursor[[:space:]]*||' | head -c 1000)
+          [ -z "$PROMPT" ] && PROMPT="Fix issue #$TARGET_ISSUE"
 
           RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
-            -u "$CURSOR_API_KEY:" \
+            -H "Authorization: Bearer $CURSOR_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
               --arg task "$PROMPT" \
               --arg repo "$TARGET_REPO" \
-              '{"prompt":{"text":$task},"source":{"repository":$repo}}')")
+              '{
+                prompt: { text: $task },
+                source: { repository: $repo },
+                target: { 
+                  autoCreatePr: true,
+                  openAsCursorGithubApp: true
+                }
+              }')")
 
           AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
 
