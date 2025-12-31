@@ -1,0 +1,21 @@
+{
+  "$schema": "../schemas/repo-context.schema.json",
+  "repo": "REPO_NAME",
+  "purpose": "Brief description of this repository's purpose",
+  "type": "library|application|infrastructure|documentation",
+  "languages": ["typescript"],
+  "entryPoints": ["src/index.ts"],
+  "commands": {
+    "test": "pnpm test",
+    "lint": "pnpm lint",
+    "build": "pnpm build"
+  },
+  "uiFramework": null,
+  "designSystem": null,
+  "documentation": {
+    "readme": "README.md"
+  },
+  "owners": ["@owner"],
+  "automationLevel": "full|partial|manual",
+  "notes": "Any special notes about this repository"
+}

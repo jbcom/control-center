@@ -1,0 +1,93 @@
+{
+  "$schema": "./schemas/org-registry.schema.json",
+  "enterprise": "jbcom",
+  "description": "Enterprise control plane - ALPHA of the cascade (not OMEGA)",
+  
+  "cascade": {
+    "alpha": {
+      "repo": "jbcom/control-center",
+      "role": "SOURCE - emits config/workflows DOWN (fire and forget)"
+    },
+    "omega": {
+      "repo": "jbcom/docs",
+      "role": "SINK - receives escalations UP (final resolution point)"
+    },
+    "principle": "Once it leaves control-center, it's not our problem. Escalations go to docs, not back here."
+  },
+  
+  "thisOrg": {
+    "org": "jbcom",
+    "domain": "jonbogaty.com",
+    "type": "enterprise-control-plane",
+    "purpose": "PURELY control and documentation - no codebases",
+    "contains": {
+      "alpha": ["control-center"],
+      "omega": ["docs"],
+      "codebases": []
+    }
+  },
+  
+  "managedOrganizations": [
+    {
+      "org": "agentic-dev-library",
+      "domain": "agentic.dev",
+      "controlCenter": "agentic-dev-library/control-center",
+      "languages": ["typescript"],
+      "focus": ["AI agent primitives", "npm packages", "GitHub Actions"],
+      "repoFilter": {
+        "include": "*",
+        "exclude": []
+      }
+    },
+    {
+      "org": "strata-game-library",
+      "domain": "strata.game",
+      "controlCenter": "strata-game-library/control-center",
+      "languages": ["typescript", "rust"],
+      "focus": ["Procedural graphics", "Game engines", "WebGPU"],
+      "repoFilter": {
+        "include": "*",
+        "exclude": []
+      }
+    },
+    {
+      "org": "extended-data-library",
+      "domain": "extendeddata.dev",
+      "controlCenter": "extended-data-library/control-center",
+      "languages": ["python", "typescript"],
+      "focus": ["Data utilities", "Enterprise integrations", "Type systems"],
+      "repoFilter": {
+        "include": "*",
+        "exclude": []
+      }
+    }
+  ],
+  
+  "conventions": {
+    "testing": {
+      "typescript": "vitest",
+      "python": "pytest",
+      "go": "go test",
+      "rust": "cargo test"
+    },
+    "linting": {
+      "typescript": "eslint + prettier",
+      "python": "ruff",
+      "go": "golangci-lint",
+      "rust": "clippy"
+    },
+    "docStyle": {
+      "typescript": "jsdoc",
+      "python": "google",
+      "go": "godoc",
+      "rust": "rustdoc"
+    }
+  },
+  
+  "labels": {
+    "priority": ["critical", "high", "medium", "low"],
+    "type": ["bug", "feature", "docs", "chore", "refactor"],
+    "status": ["needs-triage", "in-progress", "blocked", "ready"],
+    "automation": ["auto-merge", "sync", "synthesis"]
+  }
+}
