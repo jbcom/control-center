@@ -1,38 +1,234 @@
-# ⚠️ ARCHIVED - Migrated to jbcom/.github
+# Control Center
 
-This repository has been archived. All functionality has been migrated to:
+Enterprise AI orchestration for the jbcom ecosystem.
 
-**[jbcom/.github](https://github.com/jbcom/.github)** (private)
+[![Go CI](https://github.com/jbcom/control-center/actions/workflows/go.yml/badge.svg)](https://github.com/jbcom/control-center/actions/workflows/go.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/jbcom/control-center.svg)](https://pkg.go.dev/github.com/jbcom/control-center)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## What Moved Where
+## Overview
 
-| Component | New Location |
-|-----------|--------------|
-| Agent memory bank | `.github/memory-bank/` |
-| File sync templates | `.github/sync-files/` |
-| Cursor rules | `.github/sync-files/*/cursor/rules/` |
-| Workflow templates | `.github/sync-files/always-sync/.github/workflows/` |
-| Repo settings | `settings.yml` (via Settings app) |
+Control Center is a unified CLI tool for managing AI agents, repository synchronization, and enterprise workflows across the jbcom ecosystem. It provides native integrations with:
 
-## New Architecture
+- **Ollama** (GLM 4.6 Cloud) - Fast code review and analysis
+- **Google Jules** - Multi-file refactoring with auto-PR creation
+- **Cursor Cloud Agent** - Long-running autonomous tasks
 
-- **Settings app** handles repository configuration declaratively
-- **File sync workflow** creates PRs to sync files to repos
-- **No more custom scripts** - everything is YAML-based
+## Installation
 
-## Domain Standard
+### Go Install
 
-A new standard for allocating dedicated domains to project ecosystems has been documented. See [`docs/DOMAIN-STANDARD.md`](docs/DOMAIN-STANDARD.md) for the full standard.
+```bash
+go install github.com/jbcom/control-center/cmd/control-center@latest
+```
 
-## Ecosystem Roadmap
+### Docker
 
-A balanced roadmap ensures all ecosystem areas get appropriate attention. See [`docs/ROADMAP.md`](docs/ROADMAP.md) for the full roadmap.
+```bash
+docker pull ghcr.io/jbcom/control-center:latest
+```
 
-The `repo-config.json` schema has been updated to support an optional `domain` property for each ecosystem, and a new `docs.yml` workflow is available to automate documentation deployment with GitHub Pages.
+### Binary
 
-## Historical Reference
+Download from [Releases](https://github.com/jbcom/control-center/releases).
 
-This repo is kept as read-only for historical reference. Do not fork or clone.
+## Commands
+
+### Gardener
+
+Enterprise-level cascade orchestrator. Discovers organizations, auto-heals control centers, processes backlog, and cascades instructions.
+
+```bash
+# Run for all organizations
+control-center gardener --target all
+
+# Run for specific organization
+control-center gardener --target extended-data-library
+
+# Dry run
+control-center gardener --target all --dry-run
+```
+
+### Curator
+
+Nightly triage of issues and PRs. Analyzes and routes to appropriate AI agents.
+
+```bash
+# Curate a specific repository
+control-center curator --repo jbcom/control-center
+
+# Dry run
+control-center curator --repo jbcom/control-center --dry-run
+```
+
+### Reviewer
+
+AI-powered code review using Ollama.
+
+```bash
+# Review a specific PR
+control-center reviewer --repo jbcom/control-center --pr 123
+
+# With debug output
+control-center reviewer --repo jbcom/control-center --pr 123 --log-level debug
+```
+
+### Fixer
+
+Automated CI failure resolution.
+
+```bash
+# Analyze and suggest fix for a PR
+control-center fixer --repo jbcom/control-center --pr 123
+
+# Analyze a specific workflow run
+control-center fixer --repo jbcom/control-center --run-id 12345678
+```
+
+## GitHub Action
+
+Use Control Center in your workflows:
+
+```yaml
+- uses: jbcom/control-center@v1
+  with:
+    command: reviewer
+    repo: ${{ github.repository }}
+    pr: ${{ github.event.pull_request.number }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+```
+
+### Inputs
+
+| Input | Description | Required | Default |
+|-------|-------------|----------|---------|
+| `command` | Command: gardener, curator, reviewer, fixer | Yes | - |
+| `repo` | Target repository (owner/name) | No | - |
+| `pr` | Pull request number | No | - |
+| `target` | Target for gardener | No | `all` |
+| `dry_run` | Run without making changes | No | `false` |
+| `log_level` | Log level: debug, info, warn, error | No | `info` |
+
+## Configuration
+
+### Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `GITHUB_TOKEN` | GitHub token for API access |
+| `CI_GITHUB_TOKEN` | Alternative GitHub token (CI workflows) |
+| `OLLAMA_API_KEY` | Ollama Cloud API key |
+| `GOOGLE_JULES_API_KEY` | Google Jules API key |
+| `CURSOR_API_KEY` | Cursor Cloud Agent API key |
+
+### Config File
+
+Control Center looks for configuration in:
+- `--config` flag
+- `$HOME/.control-center.yaml`
+- `./.control-center.yaml`
+- `/etc/control-center/config.yaml`
+
+Example:
+
+```yaml
+log:
+  level: info
+  format: text
+
+gardener:
+  target: all
+  decompose: false
+  backlog: true
+
+curator:
+  repo: jbcom/control-center
+```
+
+## Architecture
+
+```
+control-center/
+├── cmd/control-center/     # CLI entrypoint
+│   └── cmd/                # Cobra commands
+│       ├── root.go
+│       ├── gardener.go
+│       ├── curator.go
+│       ├── reviewer.go
+│       ├── fixer.go
+│       └── version.go
+├── pkg/
+│   ├── clients/            # API clients
+│   │   ├── ollama/         # Ollama GLM 4.6
+│   │   ├── jules/          # Google Jules
+│   │   ├── cursor/         # Cursor Cloud Agent
+│   │   └── github/         # GitHub API + gh CLI
+│   ├── config/             # Configuration
+│   └── orchestrator/       # Orchestration logic
+├── Dockerfile
+├── action.yml              # GitHub Action
+├── .goreleaser.yml         # Release config
+└── .golangci.yml           # Linter config
+```
+
+## Task Routing
+
+The Curator automatically routes tasks to the appropriate AI agent:
+
+| Task Type | Agent | Reason |
+|-----------|-------|--------|
+| Quick fix (<5 lines) | Ollama | Fast, inline |
+| Multi-file refactor | Jules | Async, AUTO_CREATE_PR |
+| Complex debugging | Cursor | Full IDE context |
+| Documentation | Jules | Full file context |
+| Ambiguous/sensitive | Human | Requires judgment |
+
+## Development
+
+### Prerequisites
+
+- Go 1.23+
+- Docker (optional)
+- gh CLI (for GitHub operations)
+
+### Build
+
+```bash
+go build -o control-center ./cmd/control-center
+```
+
+### Test
+
+```bash
+go test -v ./...
+```
+
+### Lint
+
+```bash
+golangci-lint run
+```
+
+### Release
+
+Releases are automated via GoReleaser on tag push:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+## Related Projects
+
+- [secretssync](https://github.com/extended-data-library/secretssync) - Multi-account secrets management
+- [vendor-connectors](https://github.com/jbcom/vendor-connectors) - Python API clients
 
 ---
-*Archived: 2025-12-16*
+
+<sub>Built with ❤️ by the jbcom ecosystem</sub>

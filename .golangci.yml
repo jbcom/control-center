@@ -1,0 +1,44 @@
+# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - govet         # Vet examines Go source code
+    - ineffassign   # Detects unused assignments
+    - staticcheck   # Includes gosimple
+    - unused        # Checks for unused code
+    - misspell      # Find commonly misspelled words
+    - gofmt         # Check formatting
+    - goimports     # Check imports
+
+linters-settings:
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment  # Too noisy for this codebase
+  errcheck:
+    exclude-functions:
+      - io.Closer.Close
+      - io.ReadCloser.Close
+      - (*os.File).Close
+      - (net/http.ResponseWriter).Write
+      - os.Setenv
+      - os.Unsetenv
+      - os.Remove
+      - (*github.com/spf13/cobra.Command).MarkFlagRequired
+      - (*github.com/spf13/viper.Viper).BindPFlag
+      - github.com/spf13/viper.BindPFlag
+
+run:
+  timeout: 5m
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  exclude-rules:
+    - path: ".*_test\\.go"
+      linters:
+        - errcheck
+    - path: "tests/.*"
+      linters:
+        - errcheck
