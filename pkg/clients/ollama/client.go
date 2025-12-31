@@ -17,7 +17,7 @@ const (
 	DefaultModel = "glm-4.6:cloud"
 
 	// DefaultHost is the Ollama cloud API endpoint
-	DefaultHost = "https://api.ollama.com"
+	DefaultHost = "https://ollama.com"
 )
 
 // Client provides access to Ollama API
