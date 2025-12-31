@@ -43,9 +43,9 @@ RUN --mount=type=cache,target=/go/pkg/mod \
       -o /out/control-center ./cmd/control-center
 
 ###
-# Runtime image: tiny BusyBox container that only carries the binary and certs.
+# Runtime image: Alpine with gh CLI for GitHub operations
 ###
-FROM busybox:1.37.0-musl AS runtime
+FROM alpine:3.21 AS runtime
 
 ARG VERSION=dev
 
@@ -54,17 +54,18 @@ ENV CONTROL_CENTER_VERSION=${VERSION}
 LABEL org.opencontainers.image.title="control-center" \
       org.opencontainers.image.description="Enterprise AI orchestration for the jbcom ecosystem" \
       org.opencontainers.image.source="https://github.com/jbcom/control-center" \
+      org.opencontainers.image.vendor="jbcom" \
+      org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version=${VERSION}
+
+# Install gh CLI and ca-certificates
+RUN apk add --no-cache ca-certificates github-cli
 
 WORKDIR /app
 
-RUN mkdir -p /etc/ssl/certs
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=builder /out/control-center /usr/local/bin/control-center
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
 
-# Ensure gh CLI is available (installed in runtime for GitHub operations)
-# In production, use a base image with gh or mount it
-# For GitHub Actions, gh is pre-installed
-
-ENTRYPOINT ["/usr/local/bin/control-center"]
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["--help"]
