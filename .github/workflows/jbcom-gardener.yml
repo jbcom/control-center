@@ -126,18 +126,9 @@ jobs:
             echo "items=[$ITEM]" >> $GITHUB_OUTPUT
             
             # Acknowledge
-            gh issue comment "$ISSUE_NUM" --repo "${{ github.repository }}" --body "$(cat <<'EOF'
-            🌱 **Gardener Processing**
-            
-            | Field | Value |
-            |-------|-------|
-            | Instruction | $INSTRUCTION |
-            | Target | $TARGET |
-            | Scope | $SCOPE |
-            
-            Processing cascade...
-            EOF
-            )"
+            COMMENT="🌱 **Gardener Processing**"
+            COMMENT="$COMMENT\n\n| Field | Value |\n|-------|-------|\n| Instruction | $INSTRUCTION |\n| Target | $TARGET |\n| Scope | $SCOPE |\n\nProcessing cascade..."
+            echo -e "$COMMENT" | gh issue comment "$ISSUE_NUM" --repo "${{ github.repository }}" --body-file -
           else
             echo "items=[]" >> $GITHUB_OUTPUT
           fi
@@ -278,17 +269,8 @@ jobs:
               for PR_NUM in $(echo "$STALE_PRS" | jq -r '.[].number'); do
                 gh pr edit "$PR_NUM" --repo "$CONTROL_CENTER" --add-label "stale" 2>/dev/null || true
                 
-                gh pr comment "$PR_NUM" --repo "$CONTROL_CENTER" --body "$(cat <<'STALE_EOF'
-                ⏰ **Stale PR Detected**
-                
-                This PR has been inactive for >7 days. The Gardener will attempt to:
-                1. Check if CI is passing
-                2. Resolve any blockers
-                3. Merge if ready
-                
-                If you want to keep this PR open, please update it.
-                STALE_EOF
-                )" 2>/dev/null || true
+                STALE_MSG="⏰ **Stale PR Detected**\n\nThis PR has been inactive for >7 days. The Gardener will attempt to:\n1. Check if CI is passing\n2. Resolve any blockers\n3. Merge if ready\n\nIf you want to keep this PR open, please update it."
+                echo -e "$STALE_MSG" | gh pr comment "$PR_NUM" --repo "$CONTROL_CENTER" --body-file - 2>/dev/null || true
               done
             fi
           else
