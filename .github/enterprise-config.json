@@ -8,7 +8,7 @@
       "enforceOnAllRepos": true,
       "requiredChecks": ["CI", "Lint"],
       "requirePRs": true,
-      "requireApprovals": 0,
+      "requireApprovals": 1,
       "allowForcePush": false,
       "allowDeletions": false
     },

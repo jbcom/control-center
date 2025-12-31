@@ -2,7 +2,7 @@
   "$schema": "../schemas/repo-context.schema.json",
   "repo": "REPO_NAME",
   "purpose": "Brief description of this repository's purpose",
-  "type": "library|application|infrastructure|documentation",
+  "type": "library",
   "languages": ["typescript"],
   "entryPoints": ["src/index.ts"],
   "commands": {
@@ -16,6 +16,6 @@
     "readme": "README.md"
   },
   "owners": ["@owner"],
-  "automationLevel": "full|partial|manual",
+  "automationLevel": "full",
   "notes": "Any special notes about this repository"
 }

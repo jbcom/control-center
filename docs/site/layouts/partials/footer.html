@@ -1,0 +1,47 @@
+<footer class="site-footer">
+  <div class="footer-content">
+    <div class="footer-brand">
+      <a href="{{ "/" | relURL }}" class="logo">
+        <div class="logo-mark logo-mark-sm">jb</div>
+        <span class="wordmark">jbcom</span>
+      </a>
+      <p class="footer-tagline">Production-grade open source tools for builders</p>
+    </div>
+    
+    <div class="footer-links">
+      <div class="footer-section">
+        <h4>Documentation</h4>
+        <ul>
+          <li><a href="{{ "/" | relURL }}">Overview</a></li>
+          <li><a href="{{ "/api/" | relURL }}">API Reference</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-section">
+        <h4>Resources</h4>
+        <ul>
+          <li><a href="{{ .Site.Params.github_repo }}" target="_blank" rel="noopener">GitHub</a></li>
+          <li><a href="https://pkg.go.dev/github.com/jbcom/${PROJECT_NAME}" target="_blank" rel="noopener">pkg.go.dev</a></li>
+          <li><a href="https://jbcom.github.io/" target="_blank" rel="noopener">jbcom Ecosystem</a></li>
+        </ul>
+      </div>
+      
+      <div class="footer-section">
+        <h4>Community</h4>
+        <ul>
+          <li><a href="{{ .Site.Params.github_repo }}/issues" target="_blank" rel="noopener">Issues</a></li>
+          <li><a href="{{ .Site.Params.github_repo }}/discussions" target="_blank" rel="noopener">Discussions</a></li>
+          <li><a href="{{ .Site.Params.github_repo }}/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a></li>
+        </ul>
+      </div>
+    </div>
+    
+    <div class="footer-bottom">
+      <p>&copy; {{ now.Year }} Jon Bogaty. Licensed under Apache 2.0.</p>
+      <p class="footer-meta">
+        Built with <a href="https://go.abhg.dev/doc2go/" target="_blank" rel="noopener">doc2go</a> 
+        and <a href="https://gohugo.io/" target="_blank" rel="noopener">Hugo</a>.
+      </p>
+    </div>
+  </div>
+</footer>

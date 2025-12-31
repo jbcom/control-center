@@ -1,0 +1,73 @@
+# Reusable workflow: Build and cache control-center binary
+# Called by our own ecosystem workflows AND by synced workflows in other repos
+name: Build Control Center
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: 'Git ref to checkout (defaults to main for external callers)'
+        required: false
+        type: string
+        default: 'main'
+    outputs:
+      binary_path:
+        description: 'Path to the built binary'
+        value: ${{ jobs.build.outputs.binary_path }}
+      cache_hit:
+        description: 'Whether cache was hit'
+        value: ${{ jobs.build.outputs.cache_hit }}
+
+# Minimal permissions for build workflow
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      binary_path: ${{ steps.build.outputs.path }}
+      cache_hit: ${{ steps.cache.outputs.cache-hit }}
+    steps:
+      # Security: Only allow refs from jbcom/control-center
+      # The checkout always targets our repo, so ref injection is limited to our branches
+      - uses: actions/checkout@v4
+        with:
+          repository: jbcom/control-center
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          cache: true
+
+      # Cache the built binary by commit SHA
+      - name: Cache binary
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/control-center
+          key: control-center-${{ runner.os }}-${{ hashFiles('go.sum', 'cmd/**', 'pkg/**') }}
+          restore-keys: |
+            control-center-${{ runner.os }}-
+
+      - name: Build binary
+        id: build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          go build -ldflags="-s -w" -o /tmp/control-center ./cmd/control-center
+          echo "path=/tmp/control-center" >> $GITHUB_OUTPUT
+
+      - name: Verify binary
+        run: |
+          chmod +x /tmp/control-center
+          /tmp/control-center version
+          echo "path=/tmp/control-center" >> $GITHUB_OUTPUT
+
+      - name: Upload binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-center-binary
+          path: /tmp/control-center
+          retention-days: 1

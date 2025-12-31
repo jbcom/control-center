@@ -1,0 +1,42 @@
+# LOCAL ecosystem fixer - uses built Go binary
+# This validates the binary works in real-world CI
+name: AI Fixer (Local Binary)
+
+on:
+  workflow_run:
+    workflows: ["CI", "Build", "Test", "Lint", "Go"]
+    types: [completed]
+    branches-ignore: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+  actions: read
+
+jobs:
+  build:
+    if: github.event.workflow_run.conclusion == 'failure'
+    uses: ./.github/workflows/control-center-build.yml
+    with:
+      ref: ${{ github.event.workflow_run.head_branch || github.ref_name }}
+
+  fix:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download binary
+        uses: actions/download-artifact@v4
+        with:
+          name: control-center-binary
+          path: /tmp
+
+      - name: Run fixer
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+          OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+        run: |
+          chmod +x /tmp/control-center
+          /tmp/control-center fixer \
+            --repo "${{ github.repository }}" \
+            --run-id "${{ github.event.workflow_run.id }}" \
+            --log-level info
