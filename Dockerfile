@@ -3,7 +3,7 @@
 ###
 # Build a static control-center binary for the requested platform.
 ###
-FROM golang:1.23-bookworm AS builder
+FROM golang:1.25-bookworm AS builder
 
 ARG TARGETOS=linux
 ARG TARGETARCH=amd64
@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 ###
 # Runtime image: Alpine with gh CLI for GitHub operations
 ###
-FROM alpine:3.21 AS runtime
+FROM alpine:3.23 AS runtime
 
 ARG VERSION=dev
 
