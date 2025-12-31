@@ -66,6 +66,7 @@ func runCurator(cmd *cobra.Command, args []string) error {
 
 	ollamaKey := os.Getenv("OLLAMA_API_KEY")
 	julesKey := os.Getenv("GOOGLE_JULES_API_KEY")
+	julesProject := os.Getenv("JULES_PROJECT_ID")
 	cursorKey := os.Getenv("CURSOR_API_KEY")
 
 	ghClient := github.NewClient(ghToken)
@@ -73,7 +74,13 @@ func runCurator(cmd *cobra.Command, args []string) error {
 
 	var julesClient *jules.Client
 	if julesKey != "" {
-		julesClient = jules.NewClient(jules.Config{APIKey: julesKey})
+		if julesProject == "" {
+			return fmt.Errorf("JULES_PROJECT_ID is required when GOOGLE_JULES_API_KEY is set")
+		}
+		julesClient = jules.NewClient(jules.Config{
+			APIKey:    julesKey,
+			ProjectID: julesProject,
+		})
 	}
 
 	var cursorClient *cursor.Client

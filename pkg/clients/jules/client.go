@@ -21,13 +21,15 @@ const (
 type Client struct {
 	apiKey     string
 	host       string
+	projectID  string
 	httpClient *http.Client
 }
 
 // Config holds Jules client configuration
 type Config struct {
-	APIKey string
-	Host   string
+	APIKey    string
+	Host      string
+	ProjectID string
 }
 
 // NewClient creates a new Jules client
@@ -37,8 +39,9 @@ func NewClient(cfg Config) *Client {
 	}
 
 	return &Client{
-		apiKey: cfg.APIKey,
-		host:   cfg.Host,
+		apiKey:    cfg.APIKey,
+		host:      cfg.Host,
+		projectID: cfg.ProjectID,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -99,7 +102,8 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/sessions", bytes.NewReader(body))
+	url := fmt.Sprintf("%s/v1alpha/projects/%s/sessions", c.host, c.projectID)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -137,7 +141,8 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 
 // GetSession gets a Jules session by name
 func (c *Client) GetSession(ctx context.Context, name string) (*Session, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/"+name, nil)
+	url := fmt.Sprintf("%s/v1alpha/%s", c.host, name)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -169,7 +174,8 @@ func (c *Client) GetSession(ctx context.Context, name string) (*Session, error) 
 
 // ListSessions lists Jules sessions
 func (c *Client) ListSessions(ctx context.Context) ([]Session, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/sessions", nil)
+	url := fmt.Sprintf("%s/v1alpha/projects/%s/sessions", c.host, c.projectID)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -203,7 +209,8 @@ func (c *Client) ListSessions(ctx context.Context) ([]Session, error) {
 
 // ApprovePlan approves a pending Jules plan
 func (c *Client) ApprovePlan(ctx context.Context, sessionName string) error {
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/"+sessionName+":approvePlan", nil)
+	url := fmt.Sprintf("%s/v1alpha/%s:approvePlan", c.host, sessionName)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
