@@ -47,9 +47,9 @@ jobs:
             exit 0
           fi
           
-          # Validate branch name
-          if [[ ! "$HEAD_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
-            echo "::error::Invalid branch name"
+          # Stricter branch name validation
+          if [[ "$HEAD_BRANCH" == *".."* || "$HEAD_BRANCH" == *"//"* || "$HEAD_BRANCH" =~ ^/|/$ ]]; then
+            echo "::error::Invalid branch name. Contains traversal or invalid sequences."
             echo "is_trusted=false" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -240,6 +240,18 @@ jobs:
             echo "::warning::ANTHROPIC_API_KEY not configured"
             echo "available=false" >> $GITHUB_OUTPUT
           fi
+
+      - name: Validate branch name before checkout
+        if: steps.check-key.outputs.available == 'true'
+        env:
+          HEAD_BRANCH: ${{ needs.validate.outputs.head_branch }}
+        run: |
+          # Redundant security check for defense-in-depth
+          if [[ "$HEAD_BRANCH" == *".."* || "$HEAD_BRANCH" == *"//"* || "$HEAD_BRANCH" =~ ^/|/$ ]]; then
+            echo "::error::Invalid branch name detected before checkout."
+            exit 1
+          fi
+          echo "Branch name is clean."
 
       # Note: head_branch is validated in 'validate' job with regex ^[a-zA-Z0-9/_.-]+$
       # and fork PRs are rejected, making this safe for checkout
