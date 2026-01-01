@@ -94,10 +94,11 @@ runs:
                 automationMode: "AUTO_CREATE_PR"
               }')")
 
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_NAME=$(echo "$RESPONSE" | jq -r '.name // empty')
 
-          if [ -n "$SESSION_ID" ]; then
+          if [ -n "$SESSION_NAME" ]; then
+            SESSION_ID=$(basename "$SESSION_NAME")
+            SESSION_URL="https://console.google.com/jules/session/$SESSION_ID"
             gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
           ➡️ **[Monitor Session]($SESSION_URL)**
