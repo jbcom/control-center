@@ -23,6 +23,9 @@ if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
   if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
     post_comment_and_exit "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
   fi
+  if [[ -z "$JULES_PROJECT_ID" ]]; then
+    post_comment_and_exit "⚠️ JULES_PROJECT_ID not configured. Cannot delegate to Jules."
+  fi
   if [[ -z "$REPOSITORY" ]]; then
     post_comment_and_exit "⚠️ REPOSITORY not configured. Cannot delegate to Jules."
   fi
@@ -35,7 +38,7 @@ if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
   TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
   [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
-  RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+  RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/projects/${JULES_PROJECT_ID}/sessions" \
     -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
     -H "Content-Type: application/json" \
     -d "$(jq -n \

@@ -22,6 +22,9 @@ inputs:
   jules_api_key:
     description: 'Jules API key'
     required: false
+  jules_project_id:
+    description: 'Jules project ID'
+    required: false
   cursor_api_key:
     description: 'Cursor API key'
     required: false
@@ -58,6 +61,7 @@ runs:
         GITHUB_TOKEN: ${{ inputs.github_token }}
         JULES_API_KEY: ${{ inputs.jules_api_key }}
         GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
+        JULES_PROJECT_ID: ${{ inputs.jules_project_id }}
         CURSOR_API_KEY: ${{ inputs.cursor_api_key }}
         COMMENT_BODY: ${{ inputs.comment_body }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
