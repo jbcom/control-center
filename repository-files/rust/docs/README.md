@@ -118,7 +118,7 @@ pub fn process(input: &str) -> Result<String, ProcessError> {
 pub struct Client {
     /// The base URL for API requests.
     pub base_url: String,
-    
+
     /// Request timeout duration.
     timeout: Duration,
 }

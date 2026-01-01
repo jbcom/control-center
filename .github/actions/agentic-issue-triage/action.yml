@@ -67,14 +67,14 @@ runs:
         # If /jules command is present, delegate to Google Jules
         if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
-          
+
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
             exit 1
           fi
 
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
+
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
           [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
@@ -99,11 +99,14 @@ runs:
           if [ -n "$SESSION_NAME" ]; then
             SESSION_ID=$(basename "$SESSION_NAME")
             SESSION_URL="https://console.google.com/jules/session/$SESSION_ID"
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
+            read -r -d '' COMMENT_TEXT << EOM
+## 🤖 Jules Session Created
 
-          ➡️ **[Monitor Session]($SESSION_URL)**
+➡️ **[Monitor Session]($SESSION_URL)**
 
-          Jules will analyze the issue and create a PR."
+Jules will analyze the issue and create a PR.
+EOM
+            gh issue comment "$ISSUE_NUMBER" --body "$COMMENT_TEXT"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."

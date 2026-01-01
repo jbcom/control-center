@@ -62,7 +62,7 @@ get_all_repos() {
 get_issue_node_id() {
   local repo="$1"
   local issue_num="$2"
-  
+
   gh api graphql -f query="
     query {
       repository(owner: \"$GITHUB_ORG\", name: \"$repo\") {
@@ -77,7 +77,7 @@ get_issue_node_id() {
 is_in_project() {
   local project_id="$1"
   local issue_id="$2"
-  
+
   # Check if issue is already in project
   result=$(gh api graphql -f query="
     query {
@@ -92,7 +92,7 @@ is_in_project() {
       }
     }
   " --jq ".data.node.projectItems.nodes[] | select(.project.id == \"$project_id\") | .project.id" 2>/dev/null || echo "")
-  
+
   [[ -n "$result" ]]
 }
 
@@ -100,12 +100,12 @@ add_to_project() {
   local project_id="$1"
   local issue_id="$2"
   local project_name="$3"
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_info "[DRY RUN] Would add to $project_name"
     return 0
   fi
-  
+
   result=$(gh api graphql -f query="
     mutation {
       addProjectV2ItemById(input: {projectId: \"$project_id\", contentId: \"$issue_id\"}) {
@@ -113,7 +113,7 @@ add_to_project() {
       }
     }
   " 2>&1)
-  
+
   if echo "$result" | grep -q '"item"'; then
     log_ok "Added to $project_name"
     return 0
@@ -128,51 +128,51 @@ sync_issue() {
   local issue_num="$2"
   local title="$3"
   local labels="$4"
-  
+
   log_info "Processing $repo#$issue_num: $title"
-  
+
   # Get issue node ID
   issue_id=$(get_issue_node_id "$repo" "$issue_num")
   if [[ -z "$issue_id" ]]; then
     log_warn "Could not get issue ID for $repo#$issue_num"
     return 1
   fi
-  
+
   # Determine which project(s) to add to based on labels/title
   local add_to_integration=false
   local add_to_roadmap=false
-  
+
   # EPICs and roadmap items go to Roadmap
   if [[ "$title" == *"EPIC"* ]] || [[ "$labels" == *"epic"* ]] || [[ "$labels" == *"roadmap"* ]]; then
     add_to_roadmap=true
   fi
-  
+
   # Integration-related issues
   if [[ "$title" == *"integration"* ]] || [[ "$title" == *"Integration"* ]] || \
      [[ "$labels" == *"integration"* ]] || [[ "$labels" == *"ecosystem"* ]]; then
     add_to_integration=true
   fi
-  
+
   # Feature requests go to both
   if [[ "$labels" == *"enhancement"* ]] || [[ "$title" == "feat:"* ]] || [[ "$title" == "feat("* ]]; then
     add_to_roadmap=true
   fi
-  
+
   # Bugs and fixes go to Integration for tracking
   if [[ "$labels" == *"bug"* ]] || [[ "$title" == "fix:"* ]] || [[ "$title" == "fix("* ]]; then
     add_to_integration=true
   fi
-  
+
   # CI/infra issues go to Integration
   if [[ "$labels" == *"ci"* ]] || [[ "$labels" == *"infrastructure"* ]]; then
     add_to_integration=true
   fi
-  
+
   # Default: add to Integration if no specific category
   if [[ "$add_to_integration" == "false" ]] && [[ "$add_to_roadmap" == "false" ]]; then
     add_to_integration=true
   fi
-  
+
   # Add to projects
   if [[ "$add_to_integration" == "true" ]]; then
     if ! is_in_project "$INTEGRATION_PROJECT_ID" "$issue_id"; then
@@ -181,7 +181,7 @@ sync_issue() {
       [[ "$VERBOSE" == "true" ]] && log_info "Already in Integration project"
     fi
   fi
-  
+
   if [[ "$add_to_roadmap" == "true" ]]; then
     if ! is_in_project "$ROADMAP_PROJECT_ID" "$issue_id"; then
       add_to_project "$ROADMAP_PROJECT_ID" "$issue_id" "Roadmap"
@@ -193,17 +193,17 @@ sync_issue() {
 
 sync_repo() {
   local repo="$1"
-  
+
   log_info "=== Syncing $repo ==="
-  
+
   # Get all open issues
   issues=$(gh issue list --repo "$GITHUB_ORG/$repo" --state open --json number,title,labels --jq '.[] | "\(.number)|\(.title)|\(.labels | map(.name) | join(","))"' 2>/dev/null || echo "")
-  
+
   if [[ -z "$issues" ]]; then
     log_info "No open issues in $repo"
     return 0
   fi
-  
+
   echo "$issues" | while IFS='|' read -r num title labels; do
     sync_issue "$repo" "$num" "$title" "$labels"
   done

@@ -27,11 +27,11 @@ enableGitInfo = true
   author = "Jon Bogaty"
   github_repo = "https://github.com/jbcom/control-center"
   go_pkg = "github.com/jbcom/control-center"
-  
+
   # Special status - only public Go release from jbcom
   is_flagship = true
   enterprise = "jbcom"
-  
+
   # jbcom brand colors (reference only - CSS handles actual styling)
   primary_color = "#06b6d4"
   background_color = "#0a0f1a"
@@ -42,7 +42,7 @@ enableGitInfo = true
     lineNos = false
     codeFences = true
     guessSyntax = true
-  
+
   [markup.goldmark]
     [markup.goldmark.renderer]
       unsafe = true  # Allow HTML in markdown (for doc2go output)
@@ -52,29 +52,29 @@ enableGitInfo = true
     name = "Home"
     url = "/"
     weight = 1
-  
+
   [[menu.main]]
     name = "Getting Started"
     url = "/getting-started/"
     weight = 2
-  
+
   [[menu.main]]
     name = "Commands"
     url = "/commands/"
     weight = 3
-  
+
   [[menu.main]]
     name = "API Reference"
     url = "/api/"
     weight = 4
-  
+
   [[menu.main]]
     name = "GitHub"
     url = "https://github.com/jbcom/control-center"
     weight = 5
     [menu.main.params]
       external = true
-  
+
   [[menu.main]]
     name = "Go Package"
     url = "https://pkg.go.dev/github.com/jbcom/control-center"

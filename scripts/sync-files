@@ -53,8 +53,8 @@ log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 get_repo_ecosystem() {
   local repo="$1"
   jq -r --arg repo "$repo" '
-    .ecosystems | to_entries[] | 
-    select(.value.repos | index($repo)) | 
+    .ecosystems | to_entries[] |
+    select(.value.repos | index($repo)) |
     .key
   ' "$CONFIG_FILE"
 }
@@ -103,29 +103,29 @@ sync_repo() {
   local repo="$1"
   local ecosystem
   local target_path="${ECOSYSTEM_ROOT}/${repo}"
-  
+
   # Get ecosystem for this repo
   ecosystem=$(get_repo_ecosystem "$repo")
-  
+
   if [[ -z "$ecosystem" ]]; then
     log_warn "Repo '$repo' not found in config, skipping"
     return 0
   fi
-  
+
   if [[ ! -d "$target_path" ]]; then
     log_warn "Submodule not found: $target_path"
     log_info "Run './scripts/ecosystem sync' to add missing submodules"
     return 0
   fi
-  
+
   log_info "Syncing: $repo (${ecosystem})"
-  
+
   # Build rsync options
   local rsync_opts="-av --exclude='.git'"
   if [[ "$DRY_RUN" == "true" ]]; then
     rsync_opts="$rsync_opts --dry-run"
   fi
-  
+
   # Sync always-sync files
   if [[ -d "${FILES_ROOT}/always-sync" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
@@ -133,7 +133,7 @@ sync_repo() {
     fi
     rsync $rsync_opts "${FILES_ROOT}/always-sync/" "${target_path}/" 2>/dev/null || true
   fi
-  
+
   # Sync ecosystem-specific files
   if [[ -d "${FILES_ROOT}/${ecosystem}" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
@@ -141,7 +141,7 @@ sync_repo() {
     fi
     rsync $rsync_opts "${FILES_ROOT}/${ecosystem}/" "${target_path}/" 2>/dev/null || true
   fi
-  
+
   # Sync initial-only files (only if requested and files don't exist)
   if [[ "$INCLUDE_INITIAL" == "true" ]] && [[ -d "${FILES_ROOT}/initial-only" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
@@ -153,15 +153,15 @@ sync_repo() {
 
   # Sync templated workflows
   sync_templated_workflows "$repo" "$ecosystem" "$target_path"
-  
+
   # Check if there are changes
   if [[ "$DRY_RUN" != "true" ]]; then
     local changes
     changes=$(git -C "$target_path" status --porcelain 2>/dev/null || echo "")
-    
+
     if [[ -n "$changes" ]]; then
       log_ok "  Changes synced"
-      
+
       if [[ "$PUSH_CHANGES" == "true" ]]; then
         log_info "  Committing and pushing..."
         git -C "$target_path" add -A
@@ -203,7 +203,7 @@ show_help() {
 main() {
   local repos=()
   local sync_all=false
-  
+
   # Parse arguments
   while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -242,32 +242,32 @@ main() {
         ;;
     esac
   done
-  
+
   # If no repos specified, sync all
   if [[ ${#repos[@]} -eq 0 ]] || [[ "$sync_all" == "true" ]]; then
     mapfile -t repos < <(get_all_repos)
   fi
-  
+
   echo ""
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo "  FILE SYNC: repository-files/ → ecosystems/oss/"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_warn "DRY RUN - no changes will be made"
     echo ""
   fi
-  
+
   local count=0
   for repo in "${repos[@]}"; do
     sync_repo "$repo"
     count=$((count + 1))
   done
-  
+
   echo ""
   log_ok "Synced $count repositories"
-  
+
   if [[ "$PUSH_CHANGES" != "true" ]] && [[ "$DRY_RUN" != "true" ]]; then
     log_info "Changes are local. Use --push to commit and push."
   fi

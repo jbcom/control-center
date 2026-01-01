@@ -34,7 +34,7 @@ try:
         except ImportError:
             tomllib = None
             print("Warning: tomli not installed, cannot read pyproject.toml on Python < 3.11", file=sys.stderr)
-    
+
     if tomllib is not None:
         pyproject_path = os.path.join(root_dir, "pyproject.toml")
         if os.path.exists(pyproject_path):

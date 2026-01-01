@@ -15,11 +15,11 @@ replacements = {
 def fix_file(path):
     with open(path, 'r') as f:
         content = f.read()
-    
+
     new_content = content
     for pattern, replacement in replacements.items():
         new_content = re.sub(pattern, replacement, new_content)
-    
+
     if new_content != content:
         with open(path, 'w') as f:
             f.write(new_content)

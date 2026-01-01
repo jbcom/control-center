@@ -1,6 +1,6 @@
 # Documentation
 
-This directory contains a complete Hugo-based documentation site with [doc2go](https://go.abhg.dev/doc2go/) 
+This directory contains a complete Hugo-based documentation site with [doc2go](https://go.abhg.dev/doc2go/)
 for API reference generation, fully branded with the jbcom design system.
 
 ## Architecture
@@ -88,29 +88,29 @@ jobs:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           fetch-depth: 0  # For git info
-      
+
       - name: Setup Go
         uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c
         with:
           go-version: stable
-      
+
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@6e295a6a0c9087bf374299e9d67f9d2edab9f18f
         with:
           hugo-version: 'latest'
           extended: true
-      
+
       - name: Install doc2go
         run: go install go.abhg.dev/doc2go@latest
-      
+
       - name: Generate API Documentation
         run: doc2go -embed -out docs/site/content/api -basename _index.md ./...
-      
+
       - name: Build Hugo Site
         run: |
           cd docs/site
           hugo --minify --baseURL "https://jbcom.github.io/${{ github.event.repository.name }}/"
-      
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
         with:

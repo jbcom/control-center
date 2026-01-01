@@ -83,7 +83,7 @@ class ValidationError extends Error {
 }
 
 // ✅ Result pattern for expected failures
-type Result<T, E = Error> = 
+type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 ```

@@ -105,11 +105,11 @@ jobs:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
           echo "🏛️ Syncing enterprise org settings to jbcom..."
-          
+
           if [ -f "enterprise/settings.json" ]; then
             # Remove comments and $schema before sending
             SETTINGS=$(jq 'del(."$schema", ._comment)' enterprise/settings.json)
-            
+
             if [[ "${{ inputs.dry_run }}" == "true" ]]; then
               echo "[DRY RUN] Would apply org settings:"
               echo "$SETTINGS" | jq '.'
@@ -144,15 +144,15 @@ jobs:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
           echo "🔧 Ensuring org .github repos exist with settings.yml..."
-          
+
           for org in jbcom arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
             # Skip if targeting specific org
             if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
               continue
             fi
-            
+
             echo "Processing $org/.github..."
-            
+
             # Check if .github repo exists
             if ! gh repo view "$org/.github" >/dev/null 2>&1; then
               echo "  Creating $org/.github repo..."
@@ -168,7 +168,7 @@ jobs:
             else
               echo "  ✅ Repo exists"
             fi
-            
+
             # INITIAL sync settings.yml (only if it doesn't exist)
             if [[ "${{ inputs.dry_run }}" != "true" ]]; then
               # Check if settings.yml already exists
@@ -176,21 +176,21 @@ jobs:
                 echo "  ✅ settings.yml already exists (preserving org customizations)"
               else
                 echo "  📝 Creating initial settings.yml..."
-                
+
                 # Clone and add settings.yml
                 rm -rf /tmp/org-github
                 git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$org/.github.git" /tmp/org-github 2>/dev/null || {
                   echo "  ⚠️ Could not clone (may be empty)"
                   continue
                 }
-                
+
                 cd /tmp/org-github
                 git config user.name "github-actions[bot]"
                 git config user.email "github-actions[bot]@users.noreply.github.com"
-                
+
                 # Copy org-level settings template
                 cp "$GITHUB_WORKSPACE/repository-files/org-github-repo/settings.yml" settings.yml
-                
+
                 git add settings.yml
                 if ! git diff --staged --quiet; then
                   git commit -m "chore: add organization-wide settings.yml
@@ -198,9 +198,9 @@ jobs:
           Initial settings from jbcom/control-center
           These settings apply to ALL repos in $org via repository-settings/app
           Individual repos can override with their own .github/settings.yml
-          
+
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                  
+
                   git push origin HEAD && echo "  ✅ Created settings.yml" || echo "  ⚠️ Push failed"
                 fi
                 cd - > /dev/null
@@ -209,7 +209,7 @@ jobs:
               echo "  [DRY RUN] Would create settings.yml if missing"
             fi
           done
-          
+
           echo "✅ Org .github repos sync complete"
 
       - name: Summary
@@ -264,23 +264,23 @@ jobs:
         run: |
           echo "🌐 Syncing global files DIRECTLY to repo roots..."
           echo "   global-sync/.github/* → repo/.github/* (for USE, not distribution)"
-          
+
           # Check if global-sync directory has content
           if [ ! -d "global-sync" ] || [ -z "$(ls -A global-sync 2>/dev/null)" ]; then
             echo "No global-sync files to sync"
             exit 0
           fi
-          
+
           REPOS="${{ steps.repos.outputs.repos }}"
           TOTAL=$(echo "$REPOS" | wc -w)
           COUNT=0
           UPDATED=0
           FAILED=0
-          
+
           for repo in $REPOS; do
             COUNT=$((COUNT + 1))
             echo "[$COUNT/$TOTAL] Processing $repo..."
-            
+
             # Clone repo
             rm -rf /tmp/target-repo
             if ! git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/$repo.git" /tmp/target-repo 2>/dev/null; then
@@ -288,15 +288,15 @@ jobs:
               FAILED=$((FAILED + 1))
               continue
             fi
-            
+
             cd /tmp/target-repo
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            
+
             # Copy global files DIRECTLY to repo root (preserving structure)
             # e.g. global-sync/.github/workflows/ai-*.yml → .github/workflows/ai-*.yml
             cp -r $GITHUB_WORKSPACE/global-sync/. . 2>/dev/null || true
-            
+
             # Commit and push
             git add -A
             if ! git diff --staged --quiet; then
@@ -305,7 +305,7 @@ jobs:
 
           Global sync from jbcom/control-center (direct to repo root)
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-                
+
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"
                   UPDATED=$((UPDATED + 1))
@@ -320,10 +320,10 @@ jobs:
             else
               echo "  ✓ No changes"
             fi
-            
+
             cd - > /dev/null
           done
-          
+
           echo ""
           echo "📊 Global sync complete: $UPDATED updated, $FAILED failed out of $TOTAL repos"
 
@@ -372,9 +372,9 @@ jobs:
             if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
               continue
             fi
-            
+
             echo "Checking $org/control-center..."
-            
+
             if gh repo view "$org/control-center" >/dev/null 2>&1; then
               echo "  ✅ Already exists"
             else
@@ -419,25 +419,25 @@ jobs:
           ORG: ${{ matrix.org }}
         run: |
           echo "🔄 Syncing enterprise files to $ORG/control-center..."
-          
+
           # Clone org control-center
           git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/control-center.git" /tmp/org-cc
           cd /tmp/org-cc
-          
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Ensure directory structure
           mkdir -p repository-files/always-sync/.github/workflows
           mkdir -p repository-files/always-sync/.cursor/rules
           mkdir -p repository-files/initial-only
           mkdir -p .github/workflows
-          
+
           # Copy enterprise always-sync files (these cascade down)
           echo "  Copying always-sync files..."
           cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* repository-files/always-sync/.github/workflows/ 2>/dev/null || true
           cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* repository-files/always-sync/.cursor/rules/ 2>/dev/null || true
-          
+
           # Copy language-specific rules
           for lang in python nodejs go terraform rust; do
             if [ -d "$GITHUB_WORKSPACE/repository-files/$lang" ]; then
@@ -445,13 +445,13 @@ jobs:
               cp -r "$GITHUB_WORKSPACE/repository-files/$lang/"* "repository-files/$lang/" 2>/dev/null || true
             fi
           done
-          
+
           # Copy initial-only files
           cp -r $GITHUB_WORKSPACE/repository-files/initial-only/* repository-files/initial-only/ 2>/dev/null || true
-          
+
           # Copy the org sync workflow from template
           cp $GITHUB_WORKSPACE/repository-files/org-control-center/.github/workflows/sync.yml .github/workflows/sync.yml
-          
+
           # Commit and push with retry
           git add -A
           if ! git diff --staged --quiet; then
@@ -460,7 +460,7 @@ jobs:
 
           Enterprise sync from jbcom/control-center
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              
+
               # Try to push, pull and retry if rejected
               for i in 1 2 3; do
                 if git push origin main 2>/dev/null; then
@@ -497,7 +497,7 @@ jobs:
             if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
               continue
             fi
-            
+
             echo "Triggering sync in $org/control-center..."
             gh workflow run sync.yml --repo "$org/control-center" 2>/dev/null || echo "  ⚠️ Could not trigger (workflow may not exist yet)"
           done
@@ -522,14 +522,14 @@ jobs:
         run: |
           echo "## 🔄 Ecosystem Sync Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "**Mode:** 🔍 Dry run" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Mode:** ⚡ Live sync" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Architecture" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "jbcom/control-center (PROGENITOR)" >> $GITHUB_STEP_SUMMARY

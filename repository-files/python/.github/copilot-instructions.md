@@ -76,11 +76,11 @@ from .module import function
 ```python
 def process_data(items: list[str], config: Config | None = None) -> dict[str, Any]:
     """Process items with optional config.
-    
+
     Args:
         items: List of items to process
         config: Optional configuration
-        
+
     Returns:
         Processed results
     """
@@ -108,15 +108,15 @@ import pytest
 
 class TestProcessor:
     """Tests for Processor class."""
-    
+
     @pytest.fixture
     def processor(self) -> Processor:
         return Processor(config=test_config)
-    
+
     def test_process_valid_input(self, processor: Processor) -> None:
         result = processor.process("valid")
         assert result.success is True
-    
+
     def test_process_invalid_input_raises(self, processor: Processor) -> None:
         with pytest.raises(ProcessingError, match="Invalid"):
             processor.process("")
