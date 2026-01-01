@@ -64,8 +64,9 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
+        set -eo pipefail
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" =~ ^/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,10 +74,27 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          # Parse the task from the command, trim whitespace
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | xargs | head -c 1000)
+
+          # Check if a task was provided
+          if [ -z "$TASK" ]; then
+            # No task provided, use the issue title as a fallback
+            echo "No task provided. Fetching issue title for issue #$ISSUE_NUMBER"
+            ISSUE_TITLE=$(gh issue view "$ISSUE_NUMBER" --json title -q '.title' 2>/dev/null || echo "")
+
+            if [ -z "$ISSUE_TITLE" ]; then
+              echo "Error: Could not fetch issue title for issue #$ISSUE_NUMBER" >&2
+              gh issue comment "$ISSUE_NUMBER" --body "❌ **Error:** Could not fetch issue title to use as a default task."
+              exit 1
+            fi
+
+            TASK="$ISSUE_TITLE"
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received `/jules` command with no task. Using issue title as default: \"**$TASK**\". Creating Jules session..."
+          else
+            # Task was provided, confirm it back to the user
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received `/jules` command with task: \"**$TASK**\". Creating Jules session..."
+          fi
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
