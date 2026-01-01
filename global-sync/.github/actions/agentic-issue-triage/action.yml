@@ -76,11 +76,12 @@ runs:
           TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | head -c 1000 | xargs)
 
           if [[ -z "$TASK" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Missing task for '/jules' command.
-
-            **Usage:** \`/jules <task description>\`
-
-            Please provide a description of the task for Jules to perform."
+            MSG="⚠️ Missing task for '/jules' command."
+            MSG+=$'\n\n'
+            MSG+="**Usage:** \`/jules <task description>\`"
+            MSG+=$'\n\n'
+            MSG+="Please provide a description of the task for Jules to perform."
+            gh issue comment "$ISSUE_NUMBER" --body "$MSG"
             exit 1
           fi
 
@@ -106,11 +107,12 @@ runs:
           SESSION_URL="https://jules.google.com/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue and create a PR."
+            MSG="## 🤖 Jules Session Created"
+            MSG+=$'\n\n'
+            MSG+="➡️ **[Monitor Session]($SESSION_URL)**"
+            MSG+=$'\n\n'
+            MSG+="Jules will analyze the issue and create a PR."
+            gh issue comment "$ISSUE_NUMBER" --body "$MSG"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
