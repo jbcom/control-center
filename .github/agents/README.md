@@ -1,55 +1,29 @@
-# Custom Agents
+# AI Agent Instructions
 
-This directory contains specialized agent configurations for managing the jbcom ecosystem.
+This directory contains instructions for AI coding agents working on this repository.
 
 ## Available Agents
 
-Currently no custom agents are configured. The control center uses:
-- Shell scripts (`scripts/`) for repository management
-- GitHub Actions workflows for automation
-- Standard gh CLI for GitHub API operations
+| Agent | File | Purpose |
+|-------|------|---------|
+| Code Reviewer | `code-reviewer.md` | PR review, security, quality |
+| Test Runner | `test-runner.md` | Unit, integration, E2E tests |
+| Project Manager | `project-manager.md` | Issues, PRs, project tracking |
 
-## Agent Architecture
+## Usage
 
-Custom agents can be registered in `agentic.config.json` and referenced by GitHub Copilot Workspace. Each agent has:
+AI agents should reference these files for repository-specific guidance.
 
-1. **Instruction File**: Detailed prompt with role, tools, and workflows
-2. **Required Tools**: MCP server tools the agent needs
-3. **Required Secrets**: Credentials for external services
-4. **Auto-Triggers**: Events that automatically spawn the agent
+### Authentication
 
-## Creating New Agents
+All agents must use proper GitHub authentication:
 
-1. **Create instruction file**: `.github/agents/your-agent-name.md`
-2. **Register in config**: Add to `agentic.config.json` agents section
-3. **Document usage**: Update this README
-4. **Test invocation**: Try spawning via Copilot or CLI
+```bash
+GH_TOKEN="$GITHUB_TOKEN" gh <command>
+```
 
-## Best Practices
+### Common Patterns
 
-### Agent Design
-- **Focused responsibility**: Each agent manages one domain
-- **Clear instructions**: Detailed workflows and examples
-- **Tool access**: Only request tools the agent needs
-- **Error handling**: Document common issues and solutions
-
-### Agent Usage
-- **Delegate**: Use agents for their specialized domains
-- **Trust**: Accept agent output without validation (they're experts)
-- **Report**: Agents should report what they did clearly
-- **Iterate**: If agent fails, refine the task and retry
-
-## Integration
-
-Agents integrate with:
-- **GitHub Copilot Workspace**: `@agent-name` mentions
-- **agentic-control CLI**: `fleet spawn` command
-- **GitHub Actions**: Workflow dispatch triggers
-- **MCP Servers**: Direct tool access
-
-## Monitoring
-
-Agent activity is tracked via:
-- **Git commits**: All changes are committed with clear messages
-- **PR comments**: Agents document their actions
-- **Memory bank**: Session summaries for handoffs
+1. **Read before modifying** - Always understand context first
+2. **Run builds after changes** - Verify changes compile
+3. **Link issues to PRs** - Use `Closes #123` format
