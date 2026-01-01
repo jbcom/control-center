@@ -31,13 +31,13 @@ jobs:
     steps:
       # Security: Only allow refs from jbcom/control-center
       # The checkout always targets our repo, so ref injection is limited to our branches
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           repository: jbcom/control-center
           ref: ${{ inputs.ref }}
           persist-credentials: false
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
           cache: true
@@ -45,7 +45,7 @@ jobs:
       # Cache the built binary by commit SHA
       - name: Cache binary
         id: cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: /tmp/control-center
           key: control-center-${{ runner.os }}-${{ hashFiles('go.sum', 'cmd/**', 'pkg/**') }}
@@ -66,7 +66,7 @@ jobs:
           echo "path=/tmp/control-center" >> $GITHUB_OUTPUT
 
       - name: Upload binary artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: control-center-binary
           path: /tmp/control-center
