@@ -102,7 +102,7 @@ jobs:
     env:
       TARGET_REPO: ${{ inputs.repository || github.repository }}
       PR_NUMBER: ${{ inputs.pr_number || github.event.pull_request.number }}
-      OLLAMA_HOST: ${{ vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+      OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
       OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
     steps:
       - uses: actions/checkout@v4

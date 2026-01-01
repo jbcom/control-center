@@ -15,7 +15,7 @@
  * - Manual workflow_dispatch
  */
 
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, appendFileSync } from 'fs';
 import { join } from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -387,7 +387,8 @@ ${finalResponse}
   writeFileSync('sage-response.md', formattedResponse);
   
   // Output for workflow_call
-  console.log(`::set-output name=response::${response.replace(/\n/g, '%0A')}`);
+  const outputFile = process.env.GITHUB_OUTPUT;
+  appendFileSync(outputFile, `response=${response.replace(/\n/g, '%0A')}\n`);
   
   console.log('\n✅ Sage complete');
 }

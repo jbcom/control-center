@@ -122,9 +122,12 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 		return nil, fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var session Session
+	var session *Session
 	if err := json.Unmarshal(respBody, &session); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if session == nil {
+		return nil, fmt.Errorf("Jules API returned an empty session")
 	}
 
 	log.WithFields(log.Fields{
@@ -132,7 +135,7 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 		"state":   session.State,
 	}).Info("Jules session created")
 
-	return &session, nil
+	return session, nil
 }
 
 // GetSession gets a Jules session by name
@@ -159,16 +162,19 @@ func (c *Client) GetSession(ctx context.Context, name string) (*Session, error) 
 		return nil, fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	var session Session
+	var session *Session
 	if err := json.Unmarshal(respBody, &session); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
+	if session == nil {
+		return nil, fmt.Errorf("Jules API returned an empty session for %s", name)
+	}
 
-	return &session, nil
+	return session, nil
 }
 
 // ListSessions lists Jules sessions
-func (c *Client) ListSessions(ctx context.Context) ([]Session, error) {
+func (c *Client) ListSessions(ctx context.Context) ([]*Session, error) {
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/sessions", nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
@@ -192,10 +198,14 @@ func (c *Client) ListSessions(ctx context.Context) ([]Session, error) {
 	}
 
 	var result struct {
-		Sessions []Session `json:"sessions"`
+		Sessions []*Session `json:"sessions"`
 	}
 	if err := json.Unmarshal(respBody, &result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+	if result.Sessions == nil {
+		// Return an empty slice instead of nil
+		return make([]*Session, 0), nil
 	}
 
 	return result.Sessions, nil
