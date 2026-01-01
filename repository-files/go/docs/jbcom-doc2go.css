@@ -1,15 +1,15 @@
 /* =============================================================================
    jbcom Design System - doc2go Theme Customization
    =============================================================================
-   
+
    This CSS customizes doc2go output to match the jbcom brand identity.
    Reference: docs/DESIGN-SYSTEM.md for complete brand specifications.
-   
+
    Usage:
    1. Generate docs: doc2go -out docs/api ./...
    2. Copy this file: cp jbcom-doc2go.css docs/api/custom.css
    3. Inject into HTML: sed -i 's|</head>|<link rel="stylesheet" href="custom.css"></head>|' docs/api/*.html
-   
+
    ============================================================================= */
 
 /* Import Google Fonts */
@@ -24,36 +24,36 @@
   --jb-bg-default: #0a0f1a;
   --jb-bg-paper: #111827;
   --jb-bg-elevated: #1e293b;
-  
+
   /* Primary - Cyan */
   --jb-primary: #06b6d4;
   --jb-primary-light: #22d3ee;
   --jb-primary-dark: #0891b2;
-  
+
   /* Secondary - Blue */
   --jb-secondary: #3b82f6;
   --jb-secondary-light: #60a5fa;
   --jb-secondary-dark: #2563eb;
-  
+
   /* Text */
   --jb-text-primary: #f1f5f9;
   --jb-text-secondary: #94a3b8;
   --jb-text-disabled: #475569;
-  
+
   /* Borders */
   --jb-border: #1e293b;
-  
+
   /* Semantic */
   --jb-success: #10b981;
   --jb-warning: #f59e0b;
   --jb-error: #ef4444;
   --jb-info: #06b6d4;
-  
+
   /* Typography */
   --jb-font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --jb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --jb-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  
+
   /* Radius */
   --jb-radius-sm: 4px;
   --jb-radius-md: 8px;
@@ -438,14 +438,14 @@ tr:hover td {
   h1 { font-size: 2rem; }
   h2 { font-size: 1.75rem; }
   h3 { font-size: 1.25rem; }
-  
+
   .Sidebar,
   .DocNav {
     position: fixed;
     transform: translateX(-100%);
     transition: transform 0.3s ease;
   }
-  
+
   .Sidebar.open,
   .DocNav.open {
     transform: translateX(0);

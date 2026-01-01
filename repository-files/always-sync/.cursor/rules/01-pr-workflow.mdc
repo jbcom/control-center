@@ -42,16 +42,16 @@ globs: "**/*"
 
 ```bash
 # Via GraphQL (preferred for batch resolution)
-gh api graphql -f query='mutation { 
-  resolveReviewThread(input: {threadId: "PRRT_xxx"}) { 
-    thread { isResolved } 
-  } 
+gh api graphql -f query='mutation {
+  resolveReviewThread(input: {threadId: "PRRT_xxx"}) {
+    thread { isResolved }
+  }
 }'
 ```
 
 ## Merging
 
 - ✅ Wait for CI to pass
-- ✅ Address all review comments  
+- ✅ Address all review comments
 - ✅ Squash if commits are messy
 - ❌ Never use `--admin` to bypass checks

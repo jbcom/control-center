@@ -28,15 +28,15 @@ source "${SCRIPT_DIR}/lib/ecosystem.sh"
 cmd_discover() {
   local format="${1:-table}"
   local org="${GITHUB_ORG:-jbcom}"
-  
+
   log_info "Discovering repositories in $org..."
-  
+
   local repos
   repos=$(gh repo list "$org" \
     --json name,description,primaryLanguage,pushedAt,isArchived \
     --limit 200 \
     --jq '.[] | select(.isArchived == false)')
-  
+
   if [[ "$format" == "json" ]]; then
     echo "$repos" | jq -s '.'
   else
@@ -45,11 +45,11 @@ cmd_discover() {
     echo "  JBCOM ECOSYSTEM REPOSITORIES"
     echo "═══════════════════════════════════════════════════════════════════════════════"
     echo ""
-    
+
     for lang in "Python" "TypeScript" "Go" "HCL" "Rust" "GDScript"; do
       local lang_repos
       lang_repos=$(echo "$repos" | jq -r "select(.primaryLanguage.name == \"$lang\") | .name" | sort)
-      
+
       if [[ -n "$lang_repos" ]]; then
         echo "  [$lang]"
         echo "$lang_repos" | while read -r repo; do
@@ -63,7 +63,7 @@ cmd_discover() {
         echo ""
       fi
     done
-    
+
     echo "  Legend: [managed] repo-name"
     echo ""
   fi
@@ -81,7 +81,7 @@ cmd_health() {
   echo "  ECOSYSTEM HEALTH CHECK"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
-  
+
   # Check gh authentication
   echo -n "  GitHub CLI authentication: "
   if gh auth status >/dev/null 2>&1; then
@@ -89,14 +89,14 @@ cmd_health() {
   else
     echo "✗ FAILED"
   fi
-  
+
   # Check managed repos
   local total_managed
   total_managed=$(list_managed_repos | wc -l)
-  
+
   echo ""
   echo "  Terragrunt-managed repos:  $total_managed"
-  
+
   # List managed repos by ecosystem
   echo ""
   echo "  Managed repositories:"
@@ -107,7 +107,7 @@ cmd_health() {
       echo "    $eco: $count repos"
     fi
   done
-  
+
   echo ""
   ecosystem_health
 }
@@ -115,7 +115,7 @@ cmd_health() {
 cmd_matrix() {
   # Build matrix dynamically from terragrunt stacks using jq for proper JSON
   local matrix_items=()
-  
+
   # Python repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/python/*/; do
     [[ -d "$repo_dir" ]] || continue
@@ -125,7 +125,7 @@ cmd_matrix() {
       --arg repo "${GITHUB_ORG}/${repo_name}" \
       '{ecosystem: $ecosystem, repo: $repo}')")
   done
-  
+
   # Node.js repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/nodejs/*/; do
     [[ -d "$repo_dir" ]] || continue
@@ -135,7 +135,7 @@ cmd_matrix() {
       --arg repo "${GITHUB_ORG}/${repo_name}" \
       '{ecosystem: $ecosystem, repo: $repo}')")
   done
-  
+
   # Go repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/go/*/; do
     [[ -d "$repo_dir" ]] || continue
@@ -145,7 +145,7 @@ cmd_matrix() {
       --arg repo "${GITHUB_ORG}/${repo_name}" \
       '{ecosystem: $ecosystem, repo: $repo}')")
   done
-  
+
   # Terraform repos
   for repo_dir in "${TERRAGRUNT_ROOT}"/terraform/*/; do
     [[ -d "$repo_dir" ]] || continue
@@ -155,7 +155,7 @@ cmd_matrix() {
       --arg repo "${GITHUB_ORG}/${repo_name}" \
       '{ecosystem: $ecosystem, repo: $repo}')")
   done
-  
+
   # Combine all items into a JSON array with jq
   printf '%s\n' "${matrix_items[@]}" | jq -s '{include: .}'
 }
@@ -163,7 +163,7 @@ cmd_matrix() {
 cmd_triage() {
   local subcommand="${1:-help}"
   shift || true
-  
+
   case "$subcommand" in
     issues)
       cmd_triage_issues "$@"
@@ -191,9 +191,9 @@ cmd_triage() {
 
 cmd_triage_issues() {
   local repo="${1:-}"
-  
+
   log_info "Triaging issues..."
-  
+
   if [[ -n "$repo" ]]; then
     # Triage specific repo
     npx agentic-triage sprint --repo "${GITHUB_ORG}/${repo}"
@@ -210,9 +210,9 @@ cmd_triage_issues() {
 
 cmd_triage_prs() {
   local action="${1:-list}"
-  
+
   log_info "Managing PRs from control center..."
-  
+
   case "$action" in
     list)
       # List all open PRs across ecosystem
@@ -242,7 +242,7 @@ cmd_triage_prs() {
 
 cmd_triage_roadmap() {
   log_info "Updating roadmap..."
-  
+
   # Run roadmap command for each managed repo
   list_managed_repos | while read -r entry; do
     local repo_name=$(basename "$entry")
@@ -253,7 +253,7 @@ cmd_triage_roadmap() {
 
 cmd_triage_cascade() {
   log_info "Running full cascade across ecosystem..."
-  
+
   # This is the main automation command
   list_managed_repos | while read -r entry; do
     local repo_name=$(basename "$entry")
@@ -264,20 +264,20 @@ cmd_triage_cascade() {
 
 cmd_deps() {
   local repo="${1:-}"
-  
+
   if [[ -z "$repo" ]]; then
     echo "Usage: ecosystem deps <repo-name>"
     echo ""
     echo "Shows dependency information from triage-hub.json"
     return 1
   fi
-  
+
   echo ""
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo "  DEPENDENCY ANALYSIS: $repo"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
-  
+
   # Check triage-hub.json for dependency info
   if [[ -f "${REPO_ROOT}/triage-hub.json" ]]; then
     for eco in python typescript go terraform; do
@@ -304,16 +304,16 @@ cmd_deps() {
 cmd_release() {
   local repo="${1:-}"
   local version="${2:-}"
-  
+
   if [[ -z "$repo" ]]; then
     echo "Usage: ecosystem release <repo-name> [version]"
     echo ""
     echo "Coordinates a release for a package and updates dependents."
     return 1
   fi
-  
+
   log_info "Coordinating release for: $repo"
-  
+
   # Run the agentic-triage release command
   if [[ -n "$version" ]]; then
     npx agentic-triage release --repo "${GITHUB_ORG}/${repo}" --version "$version"
@@ -362,7 +362,7 @@ cmd_help() {
 main() {
   local command="${1:-help}"
   shift || true
-  
+
   case "$command" in
     discover)
       cmd_discover "$@"

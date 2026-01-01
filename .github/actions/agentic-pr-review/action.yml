@@ -60,47 +60,47 @@ runs:
         GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
       run: |
         set +e  # Don't exit on errors, we handle them
-        
+
         # Fetch base branch to ensure git diff works
         git fetch origin "${INPUT_BASE:-main}" 2>/dev/null || true
         git branch "${INPUT_BASE:-main}" FETCH_HEAD 2>/dev/null || true
-        
+
         # Get the diff to a temp file to avoid broken pipe
         git diff "${INPUT_BASE:-main}"...HEAD > /tmp/pr_diff.txt 2>/dev/null || \
           git diff HEAD~1 > /tmp/pr_diff.txt 2>/dev/null || \
           echo "No diff available" > /tmp/pr_diff.txt
-        
+
         # Truncate to 50KB for API
         head -c 50000 /tmp/pr_diff.txt > /tmp/pr_diff_preview.txt
         DIFF_PREVIEW=$(cat /tmp/pr_diff_preview.txt)
-        
+
         # Try agentic-control first (now with fixed Ollama v3.0.0 support)
         if [ -n "$OLLAMA_HOST" ] && [ -n "$OLLAMA_API_KEY" ]; then
           echo "Using agentic-control with Ollama (ai-sdk-ollama v3.0.0)"
-          
+
           # Install agentic-control with Ollama provider
           npm install -g agentic-control@latest ai-sdk-ollama@^3.0.0 2>/dev/null || {
             echo "Failed to install agentic-control, falling back to curl"
             FALLBACK=true
           }
-          
+
           if [ -z "$FALLBACK" ]; then
             # Configure agentic-control for Ollama
             echo '{"triage": {"provider": "ollama"}}' > agentic.config.json
-            
+
             # Run agentic-control review (now with reliable structured output)
             REVIEW_OUTPUT=$(agentic triage review \
               --model "${INPUT_MODEL:-qwen3-coder:480b-cloud}" \
               --diff-file /tmp/pr_diff_preview.txt 2>&1) || REVIEW_OUTPUT=""
-            
+
             if [ -n "$REVIEW_OUTPUT" ] && ! echo "$REVIEW_OUTPUT" | grep -q "No object generated"; then
               echo "=== Code Review (agentic-control) ==="
               echo "$REVIEW_OUTPUT"
-              
+
               # Count suggestions
               SUGGESTION_COUNT=$(echo "$REVIEW_OUTPUT" | grep -c -E '🔴|🟠|🟡|⚪|critical|high|medium|low' || echo "0")
               echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
-              
+
               # Post review as PR comment
               PR_NUM=$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
               if [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ]; then
@@ -110,25 +110,25 @@ runs:
 
         ---
         <sub>Reviewed by agentic-control using ${INPUT_MODEL:-qwen3-coder:480b-cloud}</sub>"
-                
+
                 gh pr comment "$PR_NUM" --body "$BODY" 2>/dev/null || echo "Could not post comment"
               fi
               exit 0
             fi
             echo "agentic-control returned empty, falling back to curl"
           fi
-          
+
           # Fallback to direct Ollama API call
           PROMPT="You are an expert code reviewer. Review this diff and provide:
         1. A brief summary of changes
         2. Any issues found (bugs, security, performance)
         3. Suggestions for improvement
-        
+
         Be concise. Use emojis: 🔴 critical, 🟠 high, 🟡 medium, ⚪ low.
-        
+
         DIFF:
         $DIFF_PREVIEW"
-          
+
           RESPONSE=$(curl -sf --max-time 120 \
             -H "Authorization: Bearer $OLLAMA_API_KEY" \
             -H "Content-Type: application/json" \
@@ -145,17 +145,17 @@ runs:
                 options: { temperature: 0.1, num_ctx: 32768 }
               }')" \
             "$OLLAMA_HOST/api/chat" 2>/dev/null) || RESPONSE=""
-          
+
           if [ -n "$RESPONSE" ]; then
             REVIEW=$(echo "$RESPONSE" | jq -r '.message.content // empty')
             if [ -n "$REVIEW" ]; then
               echo "=== Code Review (curl fallback) ==="
               echo "$REVIEW"
-              
+
               # Count suggestions
               SUGGESTION_COUNT=$(echo "$REVIEW" | grep -c -E '🔴|🟠|🟡|⚪' || echo "0")
               echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
-              
+
               # Post review as PR comment
               PR_NUM=$(jq -r '.pull_request.number // empty' "$GITHUB_EVENT_PATH" 2>/dev/null)
               if [ -n "$PR_NUM" ] && [ "$PR_NUM" != "null" ]; then
@@ -165,26 +165,26 @@ runs:
 
         ---
         <sub>Reviewed by Ecosystem Reviewer using ${INPUT_MODEL:-glm-4.6:cloud}</sub>"
-                
+
                 gh pr comment "$PR_NUM" --body "$BODY" 2>/dev/null || echo "Could not post comment"
               fi
               exit 0
             fi
           fi
-          
+
           echo "⚠️ Ollama API returned empty response, skipping review"
           echo "suggestion_count=0" >> $GITHUB_OUTPUT
           exit 0
-          
+
         elif [ -n "$GOOGLE_JULES_API_KEY" ]; then
           echo "Using agentic-control with Google (Jules API key)"
           npm install -g agentic-control@latest @ai-sdk/google 2>/dev/null || true
           echo '{"triage": {"provider": "google"}}' > agentic.config.json
           export GOOGLE_API_KEY="$GOOGLE_JULES_API_KEY"
-          
+
           REVIEW_OUTPUT=$(agentic triage review --model gemini-1.5-pro 2>&1) || true
           echo "$REVIEW_OUTPUT"
-          
+
           SUGGESTION_COUNT=$(echo "$REVIEW_OUTPUT" | grep -c -E '🔴|🟠|🟡|⚪' || echo "0")
           echo "suggestion_count=$SUGGESTION_COUNT" >> $GITHUB_OUTPUT
           exit 0

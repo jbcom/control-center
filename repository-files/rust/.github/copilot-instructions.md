@@ -88,10 +88,10 @@ cargo doc --no-deps --document-private-items
 pub enum ProcessError {
     #[error("invalid input: {0}")]
     InvalidInput(String),
-    
+
     #[error("operation timed out")]
     Timeout,
-    
+
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }

@@ -79,9 +79,9 @@ jobs:
             if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
               continue
             fi
-            
+
             echo "Checking $org/control-center..."
-            
+
             if gh repo view "$org/control-center" >/dev/null 2>&1; then
               echo "  ✅ Already exists"
             else
@@ -124,25 +124,25 @@ jobs:
           ORG: ${{ matrix.org }}
         run: |
           echo "🔄 Syncing enterprise files to $ORG/control-center..."
-          
+
           # Clone org control-center
           git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/control-center.git" /tmp/org-cc
           cd /tmp/org-cc
-          
+
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          
+
           # Ensure directory structure
           mkdir -p repository-files/always-sync/.github/workflows
           mkdir -p repository-files/always-sync/.cursor/rules
           mkdir -p repository-files/initial-only
           mkdir -p .github/workflows
-          
+
           # Copy enterprise always-sync files (these cascade down)
           echo "  Copying always-sync files..."
           cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* repository-files/always-sync/.github/workflows/ 2>/dev/null || true
           cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* repository-files/always-sync/.cursor/rules/ 2>/dev/null || true
-          
+
           # Copy language-specific rules
           for lang in python nodejs go terraform rust; do
             if [ -d "$GITHUB_WORKSPACE/repository-files/$lang" ]; then
@@ -150,13 +150,13 @@ jobs:
               cp -r "$GITHUB_WORKSPACE/repository-files/$lang/"* "repository-files/$lang/" 2>/dev/null || true
             fi
           done
-          
+
           # Copy initial-only files
           cp -r $GITHUB_WORKSPACE/repository-files/initial-only/* repository-files/initial-only/ 2>/dev/null || true
-          
+
           # Copy the org sync workflow from template
           cp $GITHUB_WORKSPACE/repository-files/org-control-center/.github/workflows/sync.yml .github/workflows/sync.yml
-          
+
           # Commit and push with retry
           git add -A
           if ! git diff --staged --quiet; then
@@ -165,7 +165,7 @@ jobs:
 
           Enterprise sync from jbcom/control-center
           Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-              
+
               # Try to push, pull and retry if rejected
               for i in 1 2 3; do
                 if git push origin main 2>/dev/null; then
@@ -202,7 +202,7 @@ jobs:
             if [[ "${{ inputs.target_org }}" != "all" && "${{ inputs.target_org }}" != "" && "${{ inputs.target_org }}" != "$org" ]]; then
               continue
             fi
-            
+
             echo "Triggering sync in $org/control-center..."
             gh workflow run sync.yml --repo "$org/control-center" 2>/dev/null || echo "  ⚠️ Could not trigger (workflow may not exist yet)"
           done
@@ -227,14 +227,14 @@ jobs:
         run: |
           echo "## 🔄 Ecosystem Sync Complete" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           if [[ "${{ inputs.dry_run }}" == "true" ]]; then
             echo "**Mode:** 🔍 Dry run" >> $GITHUB_STEP_SUMMARY
           else
             echo "**Mode:** ⚡ Live sync" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          
+
           echo "### Architecture" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "jbcom/control-center (enterprise)" >> $GITHUB_STEP_SUMMARY
