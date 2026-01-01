@@ -18,19 +18,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout control-center
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: control-center
 
       - name: Checkout jbcom/docs
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: jbcom/docs
           token: ${{ secrets.CI_GITHUB_TOKEN }}
           path: docs
 
       - name: Download built docs artifact
-        uses: dawidd6/action-download-artifact@v6
+        uses: dawidd6/action-download-artifact@v12
         with:
           workflow: docs.yml
           name: github-pages
