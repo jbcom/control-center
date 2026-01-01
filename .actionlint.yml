@@ -1,0 +1,10 @@
+---
+# .actionlint.yml
+# Configuration for actionlint - https://github.com/rhysd/actionlint/blob/main/docs/config.md
+
+# Ignore specific files that are not valid workflows but are being incorrectly linted.
+# - actions/jules/action.yml: This is a composite action, not a workflow.
+# - repository-files/org-github-repo/settings.yml: This is a repository settings file.
+ignore:
+  - "actions/jules/action.yml"
+  - "repository-files/org-github-repo/settings.yml"
