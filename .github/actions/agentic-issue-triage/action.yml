@@ -51,6 +51,11 @@ runs:
       with:
         node-version: '22'
 
+    - name: Install GitHub CLI
+      shell: bash
+      run: |
+        type -p gh >/dev/null || (sudo apt-get update && sudo apt-get install -y gh)
+
     - name: Run issue triage
       shell: bash
       env:
@@ -64,6 +69,7 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
+        set -eo pipefail
         # If /jules command is present, delegate to Google Jules
         if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
