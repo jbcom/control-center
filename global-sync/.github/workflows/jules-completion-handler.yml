@@ -51,15 +51,15 @@ jobs:
 
           # Determine status icon and action
           case "${OUTCOME}" in
-            "success") 
+            "success")
               STATUS_ICON="✅"
               STATUS_TEXT="Completed successfully"
               ;;
-            "failure") 
+            "failure")
               STATUS_ICON="❌"
               STATUS_TEXT="Failed - manual review needed"
               ;;
-            "no_changes") 
+            "no_changes")
               STATUS_ICON="ℹ️"
               STATUS_TEXT="No changes needed"
               ;;
@@ -67,7 +67,7 @@ jobs:
               STATUS_ICON="🎉"
               STATUS_TEXT="Pull request created"
               ;;
-            *) 
+            *)
               STATUS_ICON="❓"
               STATUS_TEXT="Unknown outcome"
               ;;
@@ -93,7 +93,7 @@ jobs:
           COMMENT_BODY="${COMMENT_BODY}
           ---
           > 🤖 *Automated by Jules*
-          > 
+          >
           > This PR will be automatically reviewed and merged if approved.
           "
 

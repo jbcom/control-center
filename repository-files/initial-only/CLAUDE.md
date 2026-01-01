@@ -92,4 +92,3 @@ Before considering work complete:
 ## Repository-Specific Notes
 
 <!-- Add repository-specific context below -->
-

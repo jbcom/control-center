@@ -1,5 +1,5 @@
 # Org Internal Sync - Cascades from enterprise control-center
-# 
+#
 # MERGE STRATEGY:
 # 1. Apply enterprise files from repository-files/always-sync (from jbcom/control-center)
 # 2. Apply org-specific overrides from repository-files/org-overrides (org can customize)
@@ -39,14 +39,14 @@ jobs:
           echo "Syncing to all repos in $ORG..."
           echo "Strategy: Enterprise base + Org overrides"
           echo ""
-          
+
           # Get all non-archived, non-control-center repos
           repos=$(gh repo list "$ORG" --no-archived --json name --jq '.[].name' | grep -v "^control-center$" | grep -v "^\.github$")
-          
+
           for repo in $repos; do
             echo ""
             echo "=== $ORG/$repo ==="
-            
+
             # Clone target repo
             rm -rf /tmp/target
             if ! git clone "https://x-access-token:${GH_TOKEN}@github.com/$ORG/$repo.git" /tmp/target 2>/dev/null; then
@@ -54,20 +54,20 @@ jobs:
               continue
             fi
             cd /tmp/target
-            
+
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
-            
+
             # Ensure directories exist
             mkdir -p .github/workflows .cursor/rules
-            
+
             # LAYER 1: Enterprise always-sync (base)
             echo "  Layer 1: Enterprise files..."
             if [ -d "$GITHUB_WORKSPACE/repository-files/always-sync" ]; then
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* .github/workflows/ 2>/dev/null || true
               cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
-            
+
             # LAYER 2: Language-specific rules
             echo "  Layer 2: Language-specific..."
             if [ -f "pyproject.toml" ] || [ -f "setup.py" ] || [ -f "requirements.txt" ]; then
@@ -90,7 +90,7 @@ jobs:
               echo "    - Terraform detected"
               cp -r $GITHUB_WORKSPACE/repository-files/terraform/.cursor/rules/* .cursor/rules/ 2>/dev/null || true
             fi
-            
+
             # LAYER 3: Org-specific overrides (wins)
             echo "  Layer 3: Org overrides..."
             if [ -d "$GITHUB_WORKSPACE/repository-files/org-overrides" ]; then
@@ -104,7 +104,7 @@ jobs:
             else
               echo "    - No org overrides defined"
             fi
-            
+
             # LAYER 4: Initial-only (only if missing)
             echo "  Layer 4: Initial-only..."
             for file in CLAUDE.md AGENTS.md; do
@@ -118,7 +118,7 @@ jobs:
                 fi
               fi
             done
-            
+
             # Commit and push
             if ! git diff --quiet || [ -n "$(git status --porcelain)" ]; then
               git add -A
@@ -131,9 +131,9 @@ jobs:
             else
               echo "  Already up to date"
             fi
-            
+
             cd $GITHUB_WORKSPACE
           done
-          
+
           echo ""
           echo "Sync complete"

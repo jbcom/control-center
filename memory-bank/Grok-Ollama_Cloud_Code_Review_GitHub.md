@@ -2,7 +2,7 @@ Original URL: https://grok.com/c/f9f6465b-15ef-4b67-98f7-e74ba45268a2?rid=6058e7
 
 **[USER]**
 
-Find everything you can on running an ollama CLOUD model on GitHub Actions for code review 
+Find everything you can on running an ollama CLOUD model on GitHub Actions for code review
 
 **[ASSISTANT]**
 
@@ -102,7 +102,7 @@ If you provide more details (e.g., specific model or setup), I can refine this!
 
 **[USER]**
 
-Write  a workflow that will be the equivalent of ray5273's but for cloud 
+Write  a workflow that will be the equivalent of ray5273's but for cloud
 
 **[ASSISTANT]**
 
@@ -166,7 +166,7 @@ This setup gives you powerful, cloud-accelerated code reviews (equivalent or bet
 
 **[USER]**
 
-Yeah so again how can we INSTRAD do this but with the ollama cli which DOES support glm 4.6 cloud 
+Yeah so again how can we INSTRAD do this but with the ollama cli which DOES support glm 4.6 cloud
 
 **[ASSISTANT]**
 
@@ -275,7 +275,7 @@ This gives you powerful, cloud-accelerated code reviews directly via the CLI –
 
 **[USER]**
 
-Search online for how to get structured for glm 4.6 cloud and what specific optimizations are available such that we can tailor for or 
+Search online for how to get structured for glm 4.6 cloud and what specific optimizations are available such that we can tailor for or
 
 **[ASSISTANT]**
 
@@ -423,7 +423,7 @@ Beyond low temperature and schema grounding, here are more tailored optimization
 
 #### 5. **Structured Output Best Practices**
    - **Always ground with prompt**: "Respond ONLY with valid JSON matching this schema: [schema]. No extra text, explanations, or markdown."
-   - **Two-pass for complex reviews**: 
+   - **Two-pass for complex reviews**:
      1. Unconstrained call for deep reasoning.
      2. Follow-up with schema enforced.
    - Grammar enforces validity, but incomplete outputs possible – set `num_predict` to cap.
@@ -449,7 +449,7 @@ Want an updated full workflow with these? Just say!
 
 **[USER]**
 
-Full workflow 
+Full workflow
 
 **[ASSISTANT]**
 
@@ -615,7 +615,7 @@ Test on small PRs first (monitor quota). For even stricter outputs, add a valida
 
 **[USER]**
 
-What about with validation 
+What about with validation
 
 **[ASSISTANT]**
 
@@ -1109,7 +1109,7 @@ This setup gives you a powerful, multi-turn, cloud-accelerated code reviewer. St
 
 **[USER]**
 
-So can we smash all of this including follow ups and pushing out updates into the same PR with https://github.com/marketplace/actions/git-auto-commit 
+So can we smash all of this including follow ups and pushing out updates into the same PR with https://github.com/marketplace/actions/git-auto-commit
 
 **[ASSISTANT]**
 
@@ -1129,7 +1129,7 @@ This creates an **auto-fixing loop** — the AI reviews, suggests fixes, applies
 #### Important Notes & Safety
 - **Permissions**: Repository Settings → Actions → General → Workflow permissions → **Read and write permissions** (required for push).
 - **Branch protection**: If your PR branch is protected, disable "Require status checks to pass" temporarily or allow Actions to bypass.
-- **Risk mitigation**: 
+- **Risk mitigation**:
   - Only apply if `overall_score >= 8` or no high-severity issues.
   - Dry-run mode option.
   - Human review still needed — AI fixes can be wrong.
@@ -1262,7 +1262,7 @@ This is as "smashed together" as it gets — a fully autonomous AI code reviewer
 
 **[USER]**
 
-Do the full workflow no truncations ready to copy and paste 
+Do the full workflow no truncations ready to copy and paste
 
 **[ASSISTANT]**
 
@@ -1452,7 +1452,7 @@ jobs:
 
           gh pr comment ${{ github.event.pull_request.number }} --body "## GLM-4.6 Cloud Auto-Fix Review
 
-**Summary**: $SUMMARY  
+**Summary**: $SUMMARY
 **Overall Score**: $SCORE / 10
 
 $AUTO_APPLIED

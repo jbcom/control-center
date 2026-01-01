@@ -54,18 +54,18 @@ runs:
             PR_NUM=$(jq -r '.pull_request.number // .number // empty' "$GITHUB_EVENT_PATH")
           fi
         fi
-        
+
         if [ -z "$PR_NUM" ] || [ "$PR_NUM" = "null" ]; then
           echo "❌ Error: Could not determine PR number." >&2
           exit 1
         fi
-        
+
         REPO="${{ inputs.repo }}"
         if [ -z "$REPO" ]; then
           REPO="$GITHUB_REPOSITORY"
         fi
-        
+
         # Install peer dependencies first
         npm install -g agentic-control@1.1.0 @ai-sdk/anthropic @ai-sdk/google ai-sdk-ollama @ai-sdk/openai
-        
+
         agentic triage fix "$PR_NUM" --repo "$REPO" --iterations "${{ inputs.iterations }}"

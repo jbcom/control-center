@@ -2,7 +2,7 @@
 
 /**
  * Organization App Installation Manager
- * 
+ *
  * Tracks and reports on GitHub App installations across all managed organizations.
  * GitHub doesn't allow programmatic app installation - this generates installation URLs.
  */
@@ -61,30 +61,30 @@ async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
   console.log('║           ORGANIZATION APP INSTALLATION REPORT                   ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝\n');
-  
+
   if (!GITHUB_TOKEN) {
     console.error('❌ GITHUB_TOKEN required');
     process.exit(1);
   }
-  
+
   const report = {
     timestamp: new Date().toISOString(),
     organizations: {},
     missing: [],
     installUrls: []
   };
-  
+
   // Gather app installation status
   for (const org of ORGANIZATIONS) {
     console.log(`\n📦 ${org}`);
     const installedApps = await getOrgApps(org);
-    
+
     report.organizations[org] = {
       installed: installedApps,
       missing_required: [],
       missing_optional: []
     };
-    
+
     // Check required apps
     for (const app of REQUIRED_APPS) {
       if (installedApps.includes(app.slug)) {
@@ -102,7 +102,7 @@ async function main() {
         });
       }
     }
-    
+
     // Check optional apps
     for (const app of OPTIONAL_APPS) {
       if (!installedApps.includes(app.slug)) {
@@ -110,30 +110,30 @@ async function main() {
       }
     }
   }
-  
+
   // Summary
   console.log('\n' + '═'.repeat(70));
   console.log('INSTALLATION SUMMARY');
   console.log('═'.repeat(70));
-  
+
   const criticalMissing = report.missing.filter(m => m.priority === 'critical');
   const highMissing = report.missing.filter(m => m.priority === 'high');
-  
+
   console.log(`\n🔴 Critical Missing: ${criticalMissing.length}`);
   console.log(`🟠 High Priority Missing: ${highMissing.length}`);
   console.log(`📊 Total Missing: ${report.missing.length}`);
-  
+
   if (report.installUrls.length > 0) {
     console.log('\n📋 INSTALLATION URLS (click to install):');
     console.log('─'.repeat(70));
-    
+
     // Group by app for easier installation
     const byApp = {};
     for (const item of report.installUrls) {
       if (!byApp[item.slug]) byApp[item.slug] = [];
       byApp[item.slug].push(item.org);
     }
-    
+
     for (const [slug, orgs] of Object.entries(byApp)) {
       const app = [...REQUIRED_APPS, ...OPTIONAL_APPS].find(a => a.slug === slug);
       console.log(`\n${app?.name || slug} (${app?.priority || 'unknown'}):`);
@@ -141,7 +141,7 @@ async function main() {
       console.log(`  Missing on: ${orgs.join(', ')}`);
     }
   }
-  
+
   // Generate markdown report
   let markdown = `# GitHub App Installation Report
 
@@ -162,34 +162,34 @@ Generated: ${report.timestamp}
   for (const [org, status] of Object.entries(report.organizations)) {
     markdown += `### ${org}\n\n`;
     markdown += `| App | Status |\n|-----|--------|\n`;
-    
+
     for (const app of REQUIRED_APPS) {
       const installed = status.installed.includes(app.slug);
       markdown += `| ${app.name} | ${installed ? '✅' : '❌'} |\n`;
     }
     markdown += '\n';
   }
-  
+
   markdown += `## Installation Links\n\n`;
   markdown += `Click each link to install the app:\n\n`;
-  
+
   const byApp = {};
   for (const item of report.installUrls) {
     if (!byApp[item.slug]) byApp[item.slug] = { name: item.app, priority: item.priority, orgs: [] };
     byApp[item.slug].orgs.push(item.org);
   }
-  
+
   for (const [slug, data] of Object.entries(byApp)) {
     markdown += `### ${data.name} (${data.priority})\n\n`;
     markdown += `Install: https://github.com/apps/${slug}/installations/new\n\n`;
     markdown += `Missing on: ${data.orgs.join(', ')}\n\n`;
   }
-  
+
   await writeFile('org-apps-report.json', JSON.stringify(report, null, 2));
   await writeFile('org-apps-report.md', markdown);
-  
+
   console.log('\n\n📄 Reports saved: org-apps-report.json, org-apps-report.md');
-  
+
   // Exit with error if critical apps missing
   if (criticalMissing.length > 0) {
     console.log('\n⚠️  Critical apps missing - manual installation required');

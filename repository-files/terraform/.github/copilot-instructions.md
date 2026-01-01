@@ -102,7 +102,7 @@ terraform-docs markdown table --output-file README.md --output-mode inject .
 variable "environment" {
   description = "Deployment environment (dev, staging, prod)"
   type        = string
-  
+
   validation {
     condition     = contains(["dev", "staging", "prod"], var.environment)
     error_message = "Environment must be dev, staging, or prod."
@@ -129,7 +129,7 @@ variable "config" {
 ```hcl
 locals {
   name_prefix = "${var.project}-${var.environment}"
-  
+
   common_tags = merge(var.tags, {
     Environment = var.environment
     ManagedBy   = "terraform"
@@ -147,14 +147,14 @@ resource "aws_s3_bucket" "main" {
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "~> 5.0"
-  
+
   name = "${local.name_prefix}-vpc"
   cidr = var.vpc_cidr
-  
+
   azs             = var.availability_zones
   private_subnets = var.private_subnet_cidrs
   public_subnets  = var.public_subnet_cidrs
-  
+
   tags = local.common_tags
 }
 ```
@@ -164,7 +164,7 @@ module "vpc" {
 # Conditional resource creation
 resource "aws_cloudwatch_log_group" "main" {
   count = var.enable_logging ? 1 : 0
-  
+
   name              = "/aws/${local.name_prefix}"
   retention_in_days = var.log_retention_days
 }
@@ -179,7 +179,7 @@ locals {
 ```hcl
 resource "aws_iam_user" "users" {
   for_each = toset(var.user_names)
-  
+
   name = each.value
   tags = local.common_tags
 }
@@ -187,7 +187,7 @@ resource "aws_iam_user" "users" {
 # With maps
 resource "aws_ssm_parameter" "params" {
   for_each = var.parameters
-  
+
   name  = "/${var.project}/${each.key}"
   type  = each.value.type
   value = each.value.value

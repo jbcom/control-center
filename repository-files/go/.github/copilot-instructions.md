@@ -128,7 +128,7 @@ func ProcessData(ctx context.Context, data []byte) error {
         return ctx.Err()
     default:
     }
-    
+
     // Process...
     return nil
 }
@@ -140,7 +140,7 @@ package mypackage_test
 
 import (
     "testing"
-    
+
     "github.com/stretchr/testify/assert"
     "github.com/stretchr/testify/require"
 )
@@ -149,15 +149,15 @@ func TestProcessor_Process(t *testing.T) {
     t.Run("valid input", func(t *testing.T) {
         p := NewProcessor()
         result, err := p.Process([]byte("valid"))
-        
+
         require.NoError(t, err)
         assert.Equal(t, expected, result)
     })
-    
+
     t.Run("invalid input", func(t *testing.T) {
         p := NewProcessor()
         _, err := p.Process(nil)
-        
+
         assert.ErrorIs(t, err, ErrInvalidInput)
     })
 }
@@ -172,7 +172,7 @@ func TestValidate(t *testing.T) {
         {"valid", "good", false},
         {"empty", "", true},
     }
-    
+
     for _, tt := range tests {
         t.Run(tt.name, func(t *testing.T) {
             err := Validate(tt.input)

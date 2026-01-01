@@ -4,7 +4,7 @@ This directory contains additional documentation for this Terraform module.
 
 ## API Documentation
 
-Terraform modules are documented using [terraform-docs](https://terraform-docs.io/). 
+Terraform modules are documented using [terraform-docs](https://terraform-docs.io/).
 The README.md in the module root is auto-generated.
 
 ### Generating Documentation

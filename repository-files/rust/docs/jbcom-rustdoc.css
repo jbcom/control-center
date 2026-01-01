@@ -1,13 +1,13 @@
 /* =============================================================================
    jbcom Design System - Rustdoc Theme Customization
    =============================================================================
-   
+
    This CSS customizes rustdoc output to match the jbcom brand identity.
    Reference: docs/DESIGN-SYSTEM.md for complete brand specifications.
-   
+
    Usage:
    RUSTDOCFLAGS="--extend-css docs/jbcom-rustdoc.css" cargo doc --no-deps
-   
+
    ============================================================================= */
 
 /* Import Google Fonts */
@@ -23,19 +23,19 @@
   --sidebar-background-color: #111827;
   --settings-input-color: #111827;
   --stab-background-color: #1e293b;
-  
+
   /* Text */
   --main-color: #f1f5f9;
   --sidebar-link-color: #94a3b8;
-  
+
   /* Borders */
   --headings-border-bottom-color: #1e293b;
   --border-color: #1e293b;
-  
+
   /* Links & Accents */
   --search-input-focused-border-color: #06b6d4;
   --crate-search-hover-border: #06b6d4;
-  
+
   /* Code Highlighting */
   --code-highlight-kw-color: #c678dd;
   --code-highlight-kw-2-color: #e5c07b;

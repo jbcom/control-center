@@ -47,16 +47,16 @@ UNPROCESSED=0
 
 for session_dir in "$RECOVERY_BASE"/*/; do
     [ ! -d "$session_dir" ] && continue
-    
+
     SESSION_ID=$(basename "$session_dir")
     CONVERSATION="$session_dir/conversation.json"
     CONSOLIDATED="$session_dir/CONSOLIDATED_RECOVERY_REPORT.md"
-    
+
     if [ ! -f "$CONVERSATION" ]; then
         echo "   ⏭️  $SESSION_ID - No conversation.json (skipping)"
         continue
     fi
-    
+
     if [ -f "$CONSOLIDATED" ]; then
         echo "   ✅ $SESSION_ID - Already processed"
         ((PROCESSED++))
@@ -88,18 +88,18 @@ for SESSION_ID in "${SESSIONS[@]}"; do
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "Processing: $SESSION_ID"
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    
+
     # Run local triage
     "$SCRIPTS_DIR/agent-triage-local" "$SESSION_ID" analyze || {
         echo "⚠️  Analysis failed for $SESSION_ID"
         continue
     }
-    
+
     "$SCRIPTS_DIR/agent-triage-local" "$SESSION_ID" decompose || {
         echo "⚠️  Decomposition failed for $SESSION_ID"
         continue
     }
-    
+
     echo ""
 done
 
@@ -113,13 +113,13 @@ for SESSION_ID in "${SESSIONS[@]}"; do
     SESSION_DIR="$RECOVERY_BASE/$SESSION_ID"
     CONVERSATION="$SESSION_DIR/conversation.json"
     TASKS_DIR="$SESSION_DIR/tasks"
-    
+
     [ ! -f "$CONVERSATION" ] && continue
-    
+
     # Use replay script if available
     if [ -f "/workspace/scripts/replay_agent_session.py" ]; then
         echo "   Replaying $SESSION_ID to memory bank..."
-        
+
         python /workspace/scripts/replay_agent_session.py \
             --conversation "$CONVERSATION" \
             --tasks-dir "$TASKS_DIR" \
@@ -153,7 +153,7 @@ EOF
 
 for SESSION_ID in "${SESSIONS[@]}"; do
     SESSION_DIR="$RECOVERY_BASE/$SESSION_ID"
-    
+
     cat >> "$SUMMARY_FILE" << EOF
 ### $SESSION_ID
 
@@ -161,7 +161,7 @@ for SESSION_ID in "${SESSIONS[@]}"; do
 
 **Repository Tasks**:
 EOF
-    
+
     if [ -d "$SESSION_DIR/by-repo" ]; then
         for repo_dir in "$SESSION_DIR/by-repo"/*/; do
             [ ! -d "$repo_dir" ] && continue
@@ -171,7 +171,7 @@ EOF
     else
         echo "- (no repository decomposition)" >> "$SUMMARY_FILE"
     fi
-    
+
     echo "" >> "$SUMMARY_FILE"
 done
 
