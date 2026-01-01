@@ -51,11 +51,99 @@ runs:
       with:
         node-version: '22'
 
-    - name: Setup GitHub CLI
-      uses: actions/setup-gh@v2
-
     - name: Run issue triage
-      shell: bash
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { COMMENT_BODY, ISSUE_NUMBER, REPOSITORY, DEFAULT_BRANCH, GOOGLE_JULES_API_KEY } = process.env;
+
+          if (COMMENT_BODY.includes('/jules')) {
+            console.log("🤖 Received '/jules' command. Delegating to Google Jules...");
+
+            if (!GOOGLE_JULES_API_KEY) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ISSUE_NUMBER,
+                body: "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+              });
+              return;
+            }
+
+            const task = COMMENT_BODY.replace(/\/jules\s*/, '').trim().substring(0, 1000);
+
+            if (!task) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ISSUE_NUMBER,
+                body: "🤖 Received empty '/jules' command. Please provide a task.\n\n**Usage:** `/jules Implement the new login flow.`"
+              });
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ISSUE_NUMBER,
+              body: `🤖 Received '/jules' command: \`${task}\`. Creating Jules session...`
+            });
+
+            const [owner, repo] = REPOSITORY.split('/');
+            const response = await fetch("https://jules.googleapis.com/v1alpha/sessions", {
+              method: "POST",
+              headers: {
+                "X-Goog-Api-Key": GOOGLE_JULES_API_KEY,
+                "Content-Type": "application/json"
+              },
+              body: JSON.stringify({
+                prompt: `Fix issue #${ISSUE_NUMBER}: ${task}`,
+                sourceContext: {
+                  source: `sources/github/${owner}/${repo}`,
+                  githubRepoContext: { startingBranch: DEFAULT_BRANCH }
+                },
+                automationMode: "AUTO_CREATE_PR"
+              })
+            });
+
+            const data = await response.json();
+            const sessionId = data.id;
+            const sessionUrl = `https://jules.google.com/session/${sessionId}`;
+
+            if (sessionId) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ISSUE_NUMBER,
+                body: `## 🤖 Jules Session Created\n\n➡️ **[Monitor Session](${sessionUrl})**\n\nJules will analyze the issue and create a PR.`
+              });
+            } else {
+              console.error("Failed to create Jules session:", data);
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ISSUE_NUMBER,
+                body: "❌ Failed to create Jules session. Please check logs."
+              });
+              core.setFailed("Failed to create Jules session.");
+            }
+          } else if (COMMENT_BODY.includes('/cursor')) {
+            console.log("🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent...");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ISSUE_NUMBER,
+              body: "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+            });
+          } else {
+            console.log("Performing standard issue triage...");
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ISSUE_NUMBER,
+              body: "🤖 Issue received and queued for triage."
+            });
+          }
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
@@ -66,72 +154,3 @@ runs:
         ISSUE_NUMBER: ${{ inputs.issue_number }}
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
-      run: |
-        set -eo pipefail
-        # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
-          echo "🤖 Received '/jules' command. Delegating to Google Jules..."
-
-          if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
-            exit 1
-          fi
-
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs | head -c 1000)
-
-          if [ -z "$TASK" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received empty '/jules' command. Please provide a task.
-
-          **Usage:** \`/jules Implement the new login flow.\`"
-            exit 0
-          fi
-
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command: \`$TASK\`. Creating Jules session..."
-
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
-              --arg repo "$REPOSITORY" \
-              --arg branch "$DEFAULT_BRANCH" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "AUTO_CREATE_PR"
-              }')")
-
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
-
-          if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue and create a PR."
-          else
-            echo "Failed to create Jules session: $RESPONSE"
-            gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
-            exit 1
-          fi
-          exit 0
-        fi
-
-        # If /cursor command is present, delegate to Cursor
-        if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
-          echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
-          # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
-          exit 0
-        fi
-
-        # Fallback to standard triage if no specific command
-        echo "Performing standard issue triage..."
-        # agentic-control@1.1.0 doesn't have issue-triage command yet
-        # For now, we'll just acknowledge the issue
-        # agentic triage quick "$COMMENT_BODY"
-        gh issue comment "$ISSUE_NUMBER" --body "🤖 Issue received and queued for triage."
