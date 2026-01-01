@@ -65,7 +65,7 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" =~ ^/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,10 +73,14 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | xargs | head -c 1000)
+
+          if [ -z "$TASK" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "❌ Invalid command. Please provide a task for Jules. Example: \`/jules Implement the FizzBuzz algorithm\`"
+            exit 1
+          fi
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command with task: \`$TASK\`. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
@@ -95,14 +99,14 @@ runs:
               }')")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_URL="https://console.google.com/jules/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
           ➡️ **[Monitor Session]($SESSION_URL)**
 
-          Jules will analyze the issue and create a PR."
+          Jules will analyze the issue and create a PR to address: \`$TASK\`"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
