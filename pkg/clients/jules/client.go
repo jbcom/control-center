@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -43,6 +44,14 @@ func NewClient(cfg Config) *Client {
 			Timeout: 60 * time.Second,
 		},
 	}
+}
+
+// normalizeSessionName ensures the session name is in the format "sessions/..."
+func normalizeSessionName(name string) string {
+	if !strings.HasPrefix(name, "sessions/") {
+		return "sessions/" + name
+	}
+	return name
 }
 
 // Session represents a Jules session
@@ -137,7 +146,8 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 
 // GetSession gets a Jules session by name
 func (c *Client) GetSession(ctx context.Context, name string) (*Session, error) {
-	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/"+name, nil)
+	sessionName := normalizeSessionName(name)
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/"+sessionName, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
@@ -203,7 +213,8 @@ func (c *Client) ListSessions(ctx context.Context) ([]Session, error) {
 
 // ApprovePlan approves a pending Jules plan
 func (c *Client) ApprovePlan(ctx context.Context, sessionName string) error {
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/"+sessionName+":approvePlan", nil)
+	normalizedName := normalizeSessionName(sessionName)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/"+normalizedName+":approvePlan", nil)
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -221,7 +232,7 @@ func (c *Client) ApprovePlan(ctx context.Context, sessionName string) error {
 		return fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
 	}
 
-	log.WithField("session", sessionName).Info("Jules plan approved")
+	log.WithField("session", normalizedName).Info("Jules plan approved")
 	return nil
 }
 
