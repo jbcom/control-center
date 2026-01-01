@@ -1,3 +1,4 @@
+---
 # Release Please - Automated semver releases from conventional commits
 # This is THE way we do releases. No exceptions.
 name: Release Please

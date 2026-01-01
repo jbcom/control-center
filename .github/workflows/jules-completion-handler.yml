@@ -1,3 +1,4 @@
+---
 name: Jules Completion Handler
 
 # This workflow acts as a webhook handler for completed Jules sessions.

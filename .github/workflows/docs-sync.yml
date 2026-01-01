@@ -1,3 +1,4 @@
+---
 # Sync generated documentation to jbcom enterprise docs site
 # Control Center is the flagship Go release - it gets a special page
 name: Sync Docs to Enterprise Site

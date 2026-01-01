@@ -1,3 +1,4 @@
+---
 # Reusable workflow: Build and cache control-center binary
 # Called by our own ecosystem workflows AND by synced workflows in other repos
 name: Build Control Center

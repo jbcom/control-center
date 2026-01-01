@@ -1,3 +1,4 @@
+---
 # LOCAL ecosystem delegator - uses built Go binary
 # This validates the binary works in real-world CI
 name: AI Delegator (Local Binary)

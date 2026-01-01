@@ -1,3 +1,4 @@
+---
 # AI Curator - Daily/event-driven curation pipeline
 # Tier 1: Ollama (fast triage) via control-center
 # Tier 2: Claude (issue analysis, deduplication)

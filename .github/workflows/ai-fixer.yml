@@ -1,3 +1,4 @@
+---
 # AI CI Fixer - Tiered fix pipeline
 # Tier 1: Ollama (fast diagnosis) via control-center
 # Tier 2: Claude (complex fixes / flaky test detection)

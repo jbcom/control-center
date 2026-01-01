@@ -1,3 +1,4 @@
+---
 # AI Code Review - Tiered review pipeline
 # Tier 1: Ollama (fast, cheap) via control-center
 # Tier 2: Claude (escalation) for complex PRs

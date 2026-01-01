@@ -1,3 +1,4 @@
+---
 # AI Delegator - Routes AI agent requests from comments
 # Supports: @claude, /jules, /cursor
 name: AI Delegator
