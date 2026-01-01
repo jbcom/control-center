@@ -65,19 +65,27 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" =~ ^/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
+          TASK=$(echo "$COMMENT_BODY" | sed -E 's|^/jules[[:space:]]*||' | xargs | head -c 1000)
+
+          if [ -z "$TASK" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Invalid command. Please provide a task for Jules.
+
+        **Usage:** \`/jules <task description>\`
+
+        **Example:** \`/jules Implement a new feature to do X.\`"
+            exit 0
+          fi
+
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session for task: \`$TASK\`"
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
-
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
@@ -95,14 +103,19 @@ runs:
               }')")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
+
+          if [ -z "$SESSION_URL" ]; then
+              # Fallback for older API versions
+              SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          fi
 
           if [ -n "$SESSION_ID" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
           ➡️ **[Monitor Session]($SESSION_URL)**
 
-          Jules will analyze the issue and create a PR."
+          Jules will analyze the issue and create a PR for the task: \`$TASK\`"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
