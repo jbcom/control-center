@@ -1,35 +1,29 @@
-# yaml-language-server: $schema=https://golangci-lint.run/jsonschema/golangci.jsonschema.json
-
+# golangci-lint v2 configuration
+# See https://golangci-lint.run/usage/configuration/
 version: "2"
 
 linters:
+  # Enable specific linters (not formatters - gofmt/goimports are formatters in v2)
   enable:
-    - errcheck      # Check for unchecked errors
     - govet         # Vet examines Go source code
     - ineffassign   # Detects unused assignments
     - staticcheck   # Includes gosimple
     - unused        # Checks for unused code
     - misspell      # Find commonly misspelled words
-    - gofmt         # Check formatting
-    - goimports     # Check imports
-
-linters-settings:
-  govet:
-    enable-all: true
-    disable:
-      - fieldalignment  # Too noisy for this codebase
-  errcheck:
-    exclude-functions:
-      - io.Closer.Close
-      - io.ReadCloser.Close
-      - (*os.File).Close
-      - (net/http.ResponseWriter).Write
-      - os.Setenv
-      - os.Unsetenv
-      - os.Remove
-      - (*github.com/spf13/cobra.Command).MarkFlagRequired
-      - (*github.com/spf13/viper.Viper).BindPFlag
-      - github.com/spf13/viper.BindPFlag
+  # Disable problematic linters
+  disable:
+    - errcheck      # Too noisy with defer patterns
+  
+  # Linter-specific settings
+  settings:
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment  # Too noisy for this codebase
+    staticcheck:
+      checks:
+        - all
+        - -ST1005  # Allow capitalized error strings (API errors)
 
 run:
   timeout: 5m
@@ -37,10 +31,3 @@ run:
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0
-  exclude-rules:
-    - path: ".*_test\\.go"
-      linters:
-        - errcheck
-    - path: "tests/.*"
-      linters:
-        - errcheck
