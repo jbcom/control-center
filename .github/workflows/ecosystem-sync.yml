@@ -335,7 +335,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           if [ -d "global-sync" ]; then
             echo "**Global files:**" >> $GITHUB_STEP_SUMMARY
-            find global-sync -type f -name "*.yml" -o -name "*.md" 2>/dev/null | head -20 | while read f; do
+            find global-sync -type f -name "*.yml" -o -name "*.md" 2>/dev/null | head -20 | while read -r f; do
               echo "- \`${f#global-sync/}\`" >> $GITHUB_STEP_SUMMARY
             done
           fi
