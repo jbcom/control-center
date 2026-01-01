@@ -94,6 +94,7 @@ docker pull ghcr.io/jbcom/control-center:latest
 |--------|--------------|--------|
 | `GITHUB_TOKEN` | All | Automatic in Actions |
 | `OLLAMA_API_KEY` | reviewer, fixer, curator | [ollama.com](https://ollama.com) |
+| `OLLAMA_API_URL` | (Optional) reviewer, fixer, curator | Custom Ollama endpoint |
 | `GOOGLE_JULES_API_KEY` | delegator (/jules) | Google Cloud Console |
 | `CURSOR_API_KEY` | delegator (/cursor) | Cursor dashboard |
 
