@@ -184,21 +184,53 @@ control-center/
 | Organization | Domain | Purpose |
 |-------------|--------|---------|
 | jbcom | jonbogaty.com | Enterprise control plane |
+| arcade-cabinet | arcade-cabinet.dev | Game development |
 | agentic-dev-library | agentic.dev | AI agent orchestration |
 | strata-game-library | strata.game | 3D graphics library |
 | extended-data-library | extendeddata.dev | Enterprise data utilities |
 
-### Cascade Flow
+### Sync Architecture
+
+**See [docs/SYNC-ARCHITECTURE.md](docs/SYNC-ARCHITECTURE.md) for full details.**
 
 ```
-jbcom/control-center (ALPHA - source)
-    ↓ syncs DOWN to
-org control centers
-    ↓ syncs DOWN to
-individual repositories
-    ↓ escalates UP to
-jbcom/docs (OMEGA - terminus)
+jbcom/control-center (THE PROGENITOR)
+│
+├── enterprise/settings.json → jbcom org API settings
+│
+├── org-github-repo/settings.yml → org/.github repos (INITIAL)
+│   ↓ repository-settings/app inheritance
+│   ALL repos inherit these defaults (merge queue, branch protection, etc.)
+│   Individual repos OVERRIDE with their own .github/settings.yml
+│
+├── global-sync/* → ALL repo roots (DIRECT)
+│   AI workflows, ecosystem workflows, agent configs
+│
+└── repository-files/* → org control-centers (CASCADE)
+    ↓
+    org/* repos
 ```
+
+### Settings Inheritance (repository-settings/app)
+
+```
+org/.github/settings.yml     ← Organization defaults
+  └── repo/.github/settings.yml  ← Repo-specific overrides
+```
+
+**Example**: `arcade-cabinet/otterblade-odyssey` can have its own `settings.yml`
+with a custom release environment that overrides arcade-cabinet org defaults.
+
+### What Goes Where
+
+| Content | Location | Method |
+|---------|----------|--------|
+| Merge queue, branch protection | `org-github-repo/settings.yml` | INITIAL sync to org/.github |
+| AI workflows (ai-*.yml) | `global-sync/.github/workflows/` | DIRECT to all repos |
+| Ecosystem workflows | `global-sync/.github/workflows/` | DIRECT to all repos |
+| Agent configs | `global-sync/.github/agents/` | DIRECT to all repos |
+| Cursor rules | `repository-files/always-sync/.cursor/` | CASCADE via control-centers |
+| Language templates | `repository-files/initial-only/` | CASCADE (initial only) |
 
 ---
 

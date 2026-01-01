@@ -1,0 +1,165 @@
+# Organization-wide Repository Settings
+# ══════════════════════════════════════════════════════════════════════════════
+# This file is the ORGANIZATION DEFAULT inherited by all repos in the org.
+# Place in the org's .github repo to apply to all repos.
+#
+# INHERITANCE HIERARCHY:
+#   jbcom/.github/settings.yml         (enterprise defaults)
+#     └── org/.github/settings.yml     (org overrides) ← THIS FILE
+#           └── org/repo/settings.yml  (repo-specific overrides)
+#
+# Individual repos can override ANY setting by creating their own settings.yml
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Repository Settings
+# https://docs.github.com/en/rest/repos/repos#update-a-repository
+# ─────────────────────────────────────────────────────────────────────────────
+repository:
+  # Only allow squash merges for clean linear history
+  allow_squash_merge: true
+  allow_merge_commit: false
+  allow_rebase_merge: false
+  
+  # Auto-delete head branches after PR merge
+  delete_branch_on_merge: true
+  
+  # Security features
+  enable_automated_security_fixes: true
+  enable_vulnerability_alerts: true
+  
+  # Default to main branch
+  default_branch: main
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Repository Rulesets
+# https://docs.github.com/en/rest/repos/rules
+# ─────────────────────────────────────────────────────────────────────────────
+rulesets:
+  # ═══════════════════════════════════════════════════════════════════════════
+  # Main Branch Protection
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: Main Branch Protection
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include:
+          - "~DEFAULT_BRANCH"
+        exclude: []
+    rules:
+      # Prevent force pushes and deletions
+      - type: deletion
+      - type: non_fast_forward
+      
+      # Require linear history (squash/rebase only)
+      - type: required_linear_history
+      
+      # Require PRs with thread resolution
+      - type: pull_request
+        parameters:
+          required_approving_review_count: 0
+          dismiss_stale_reviews_on_push: false
+          require_code_owner_review: false
+          require_last_push_approval: false
+          required_review_thread_resolution: true
+      
+      # Enable merge queue
+      - type: merge_queue
+        parameters:
+          check_response_timeout_minutes: 60
+          grouping_strategy: ALLGREEN
+          max_entries_to_build: 5
+          max_entries_to_merge: 5
+          merge_method: SQUASH
+          min_entries_to_merge: 1
+          min_entries_to_merge_wait_minutes: 5
+    
+    # Bypass actors (admins and key integrations)
+    bypass_actors:
+      - actor_id: 5
+        actor_type: RepositoryRole  # Admin role
+        bypass_mode: always
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # PR Branch Code Quality
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: PR Code Quality
+    target: branch
+    enforcement: active
+    conditions:
+      ref_name:
+        include:
+          - "refs/heads/*"
+        exclude:
+          - "refs/heads/main"
+    rules:
+      # Copilot code review on PRs
+      - type: code_scanning
+        parameters:
+          code_scanning_tools:
+            - tool: CodeQL
+              security_alerts_threshold: high_or_higher
+              alerts_threshold: errors
+    bypass_actors:
+      - actor_id: 5
+        actor_type: RepositoryRole
+        bypass_mode: always
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Environments
+# https://docs.github.com/en/rest/deployments/environments
+# ─────────────────────────────────────────────────────────────────────────────
+environments:
+  # Release environment - gate for E2E tests before merge
+  - name: release
+    wait_timer: 0
+    deployment_branch_policy:
+      custom_branches:
+        - "*"  # Allow any branch to deploy to release for testing
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Labels (org-wide defaults)
+# ─────────────────────────────────────────────────────────────────────────────
+labels:
+  # AI/Automation labels
+  - name: jules-pr
+    color: "7057ff"
+    description: "Created by Jules AI"
+  - name: claude-pr
+    color: "6e40c9"
+    description: "Created by Claude AI"
+  - name: ai-triage
+    color: "0e8a16"
+    description: "Triaged by AI"
+  
+  # Priority labels
+  - name: priority/critical
+    color: "b60205"
+    description: "Critical priority"
+  - name: priority/high
+    color: "d93f0b"
+    description: "High priority"
+  - name: priority/medium
+    color: "fbca04"
+    description: "Medium priority"
+  - name: priority/low
+    color: "0e8a16"
+    description: "Low priority"
+  
+  # Type labels
+  - name: bug
+    color: "d73a4a"
+    description: "Something isn't working"
+  - name: enhancement
+    color: "a2eeef"
+    description: "New feature or request"
+  - name: documentation
+    color: "0075ca"
+    description: "Improvements or additions to documentation"
+  - name: security
+    color: "d73a4a"
+    description: "Security related"
+  - name: dependencies
+    color: "0366d6"
+    description: "Dependency updates"
