@@ -1,5 +1,15 @@
 # Active Context
 
+## Session: 2024-07-25
+
+### Completed
+- [x] Verified `v0.1.0` tag exists.
+
+### For Next Agent
+- [ ] Clean up duplicate draft PRs.
+
+---
+
 ## Session: 2025-12-31 (Full Release & Cascade Verification)
 
 ### Completed

@@ -92,3 +92,6 @@ build/
 .terraform/
 .settings-app-reference/
 control-center
+
+# Go
+coverage.out
