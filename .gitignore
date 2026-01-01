@@ -80,6 +80,7 @@ logs/
 *.egg-info/
 dist/
 build/
+coverage.out
 
 # Terragrunt
 .terragrunt-cache/
