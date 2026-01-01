@@ -115,11 +115,11 @@ export class MyClass {
 
   constructor(options: { apiKey?: string } = {}) {
     // Priority: options > COPILOT_MCP_* > standard
-    this.apiKey = options.apiKey 
-      ?? process.env.COPILOT_MCP_API_KEY 
-      ?? process.env.STANDARD_API_KEY 
+    this.apiKey = options.apiKey
+      ?? process.env.COPILOT_MCP_API_KEY
+      ?? process.env.STANDARD_API_KEY
       ?? "";
-    
+
     if (!this.apiKey) {
       throw new Error("API_KEY is required");
     }
@@ -131,8 +131,8 @@ export class MyClass {
 
 ```typescript
 async function doSomething(config: Config) {
-  const token = config.token 
-    ?? process.env.COPILOT_MCP_GITHUB_TOKEN 
+  const token = config.token
+    ?? process.env.COPILOT_MCP_GITHUB_TOKEN
     ?? process.env.GITHUB_TOKEN
     ?? process.env.CI_GITHUB_TOKEN;
 }
@@ -268,9 +268,9 @@ export interface NewServiceConfig {
 
 // 2. Priority pattern
 constructor(config: NewServiceConfig = {}) {
-  this.apiKey = config.apiKey 
-    ?? process.env.COPILOT_MCP_NEWSERVICE_API_KEY 
-    ?? process.env.NEWSERVICE_API_KEY 
+  this.apiKey = config.apiKey
+    ?? process.env.COPILOT_MCP_NEWSERVICE_API_KEY
+    ?? process.env.NEWSERVICE_API_KEY
     ?? "";
 }
 
@@ -289,5 +289,5 @@ console.log("Set COPILOT_MCP_NEWSERVICE_API_KEY or NEWSERVICE_API_KEY");
 
 ---
 
-**Last Updated:** 2024-11-30  
+**Last Updated:** 2024-11-30
 **Maintainer:** @copilot, @jbcom

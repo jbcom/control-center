@@ -207,7 +207,7 @@ Usage:
 2. Generate: `doc2go -out docs/api ./...`
 3. Apply branding: Copy `jbcom-doc2go.css` and inject into HTML
 
-Note: godoc is deprecated. Use [doc2go](https://go.abhg.dev/doc2go/) for modern, 
+Note: godoc is deprecated. Use [doc2go](https://go.abhg.dev/doc2go/) for modern,
 module-aware static documentation with pkg.go.dev-like styling.
 
 ### terraform-docs (Terraform)
@@ -363,37 +363,37 @@ Complete set of CSS variables for documentation sites:
   --bg-default: #0a0f1a;
   --bg-paper: #111827;
   --bg-elevated: #1e293b;
-  
+
   /* Primary - Cyan */
   --primary: #06b6d4;
   --primary-light: #22d3ee;
   --primary-dark: #0891b2;
-  
+
   /* Secondary - Blue */
   --secondary: #3b82f6;
   --secondary-light: #60a5fa;
   --secondary-dark: #2563eb;
-  
+
   /* Text */
   --text-primary: #f1f5f9;
   --text-secondary: #94a3b8;
   --text-disabled: #475569;
-  
+
   /* Borders */
   --border: #1e293b;
   --divider: #1e293b;
-  
+
   /* Semantic */
   --success: #10b981;
   --warning: #f59e0b;
   --error: #ef4444;
   --info: #06b6d4;
-  
+
   /* Typography */
   --font-heading: 'Space Grotesk', -apple-system, sans-serif;
   --font-body: 'Inter', -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
-  
+
   /* Spacing */
   --space-xs: 4px;
   --space-sm: 8px;
@@ -402,20 +402,20 @@ Complete set of CSS variables for documentation sites:
   --space-xl: 32px;
   --space-2xl: 48px;
   --space-3xl: 64px;
-  
+
   /* Radius */
   --radius-sm: 4px;
   --radius-md: 8px;
   --radius-lg: 12px;
   --radius-full: 9999px;
-  
+
   /* Language Colors */
   --lang-typescript: #3178c6;
   --lang-python: #3776ab;
   --lang-go: #00add8;
   --lang-terraform: #7b42bc;
   --lang-rust: #dea584;
-  
+
   /* Category Colors */
   --cat-ai: #8b5cf6;
   --cat-games: #06b6d4;

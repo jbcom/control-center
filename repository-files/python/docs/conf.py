@@ -75,7 +75,7 @@ source_suffix = {
 }
 
 # -- Options for HTML output -------------------------------------------------
-# 
+#
 # jbcom Brand Colors (reference):
 #   Primary (Cyan): #06b6d4
 #   Secondary (Blue): #3b82f6

@@ -59,24 +59,24 @@ release:
   prerelease: auto
   header: |
     ## control-center {{ .Tag }}
-    
+
     Enterprise AI orchestration for the jbcom ecosystem.
-    
+
     ### Installation
-    
+
     **Go:**
     ```bash
     go install github.com/jbcom/control-center/cmd/control-center@{{ .Version }}
     ```
-    
+
     **Docker:**
     ```bash
     docker pull ghcr.io/jbcom/control-center:{{ .Version }}
     ```
-    
+
     **Binary:**
     Download from the assets below for your platform.
-    
+
     **GitHub Action:**
     ```yaml
     - uses: jbcom/control-center@{{ .Tag }}

@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
  * Cursor-Jules Orchestrator
- * 
+ *
  * This script is designed to be run by Cursor Cloud Agents to:
  * 1. Monitor Jules sessions for completion
  * 2. Review PRs created by Jules
  * 3. Handle AI feedback integration
  * 4. Merge PRs when ready
- * 
+ *
  * Environment variables required:
  * - JULES_API_KEY: Google Jules API key
  * - CURSOR_API_KEY: Cursor Cloud Agent API key
@@ -100,9 +100,9 @@ async function checkPRStatus(owner, repo, prNumber) {
 
   const checks = await ghApi(`/repos/${owner}/${repo}/commits/${pr.head.sha}/check-runs`);
   const reviews = await ghApi(`/repos/${owner}/${repo}/pulls/${prNumber}/reviews`);
-  
+
   const checkRuns = checks.check_runs || [];
-  const allPassing = checkRuns.length > 0 && checkRuns.every(c => 
+  const allPassing = checkRuns.length > 0 && checkRuns.every(c =>
     c.status === 'completed' && (c.conclusion === 'success' || c.conclusion === 'neutral' || c.conclusion === 'skipped')
   );
 
@@ -141,7 +141,7 @@ async function orchestrate() {
   console.log(`JULES_API_KEY: ${JULES_API_KEY ? '✅' : '❌'}`);
   console.log(`CURSOR_API_KEY: ${CURSOR_API_KEY ? '✅' : '❌'}`);
   console.log(`GITHUB_TOKEN: ${GITHUB_TOKEN ? '✅' : '❌'}`);
-  
+
   let sessionsData;
   let activeAgents = [];
   try {
@@ -157,11 +157,11 @@ async function orchestrate() {
   }
 
   console.log(`\nFound ${sessionsData.sessions?.length || 0} sessions\n`);
-  
+
   for (const session of sessionsData.sessions || []) {
     try {
       const sessionId = session.name.split('/')[1];
-      
+
       // Validate sessionId format to prevent path traversal
       if (!sessionId || !/^[a-zA-Z0-9_-]+$/.test(sessionId)) {
         console.log(`  ⚠️ Skipping invalid session ID: ${sessionId}`);
@@ -170,13 +170,13 @@ async function orchestrate() {
 
       const details = await getSession(sessionId);
       console.log(`Session ${sessionId}: ${details.state || 'UNKNOWN'}`);
-      
+
       if (details.state === 'COMPLETED' && details.pullRequest) {
         console.log(`  PR: ${details.pullRequest}`);
         const match = details.pullRequest.match(/github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/);
         if (match) {
           const [, owner, repo, prNum] = match;
-          
+
           // Validate extracted parameters to prevent injection
           if (!/^[a-zA-Z0-9._-]+$/.test(owner) || !/^[a-zA-Z0-9._-]+$/.test(repo) || !/^\d+$/.test(prNum)) {
             console.log(`  ⚠️ Skipping PR with invalid parameters: ${owner}/${repo}#${prNum}`);
@@ -184,14 +184,14 @@ async function orchestrate() {
           }
 
           const status = await checkPRStatus(owner, repo, prNum);
-          
+
           if (!status) {
             console.log(`  ⚠️ PR not found or error fetching status`);
             continue;
           }
 
           console.log(`  CI: ${status.allPassing ? '✅' : '❌'} | Mergeable: ${status.mergeable ? '✅' : '❌'} | Review: ${status.hasChangesRequested ? '❌ Changes Requested' : (status.isApproved ? '✅ Approved' : '⏳ Pending Approval')}`);
-          
+
           if (status.allPassing && status.mergeable && status.isApproved && !status.hasChangesRequested) {
             console.log(`  🔀 Merging...`);
             const result = await mergePR(owner, repo, prNum);
@@ -199,11 +199,11 @@ async function orchestrate() {
           } else {
             if (!status.allPassing) {
               console.log(`  Waiting for CI to pass...`);
-              
+
               // If CI is failing and this is a Jules PR, spawn a Cursor agent to fix it
               if (status.checks.some(c => c.conclusion === 'failure')) {
-                const alreadyRunning = activeAgents.some(a => 
-                  a.source?.repository === `${owner}/${repo}` && 
+                const alreadyRunning = activeAgents.some(a =>
+                  a.source?.repository === `${owner}/${repo}` &&
                   a.prompt?.text?.includes(`#${prNum}`)
                 );
 
@@ -228,7 +228,7 @@ async function orchestrate() {
       console.error(`  Error processing session:`, err.message);
     }
   }
-  
+
   console.log('\n✅ Orchestration complete');
 }
 

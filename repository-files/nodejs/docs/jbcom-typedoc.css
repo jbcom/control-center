@@ -1,15 +1,15 @@
 /* =============================================================================
    jbcom Design System - TypeDoc Theme Customization
    =============================================================================
-   
+
    This CSS customizes TypeDoc documentation to match the jbcom brand identity.
    Reference: docs/DESIGN-SYSTEM.md for complete brand specifications.
-   
+
    Usage in typedoc.json:
    {
      "customCss": "jbcom-typedoc.css"
    }
-   
+
    ============================================================================= */
 
 /* Import Google Fonts */
@@ -24,36 +24,36 @@
   --jb-bg-default: #0a0f1a;
   --jb-bg-paper: #111827;
   --jb-bg-elevated: #1e293b;
-  
+
   /* Primary - Cyan */
   --jb-primary: #06b6d4;
   --jb-primary-light: #22d3ee;
   --jb-primary-dark: #0891b2;
-  
+
   /* Secondary - Blue */
   --jb-secondary: #3b82f6;
   --jb-secondary-light: #60a5fa;
   --jb-secondary-dark: #2563eb;
-  
+
   /* Text */
   --jb-text-primary: #f1f5f9;
   --jb-text-secondary: #94a3b8;
   --jb-text-disabled: #475569;
-  
+
   /* Borders */
   --jb-border: #1e293b;
-  
+
   /* Semantic */
   --jb-success: #10b981;
   --jb-warning: #f59e0b;
   --jb-error: #ef4444;
   --jb-info: #06b6d4;
-  
+
   /* Typography */
   --jb-font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --jb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --jb-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-  
+
   /* Radius */
   --jb-radius-sm: 4px;
   --jb-radius-md: 8px;
@@ -70,17 +70,17 @@
   --color-background: var(--jb-bg-default);
   --color-background-secondary: var(--jb-bg-paper);
   --color-background-warning: rgba(245, 158, 11, 0.1);
-  
+
   --color-text: var(--jb-text-primary);
   --color-text-aside: var(--jb-text-secondary);
-  
+
   --color-link: var(--jb-primary);
-  
+
   --color-accent: var(--jb-primary);
-  
+
   --color-icon-background: var(--jb-bg-paper);
   --color-icon-text: var(--jb-text-primary);
-  
+
   --color-ts-keyword: #c678dd;
   --color-ts-module: var(--jb-primary);
   --color-ts-namespace: var(--jb-primary);

@@ -61,7 +61,7 @@ jobs:
             CONTEXT: ${{ github.event.issue.pull_request && 'PR' || 'Issue' }} #${{ github.event.issue.number }}
 
             A user has mentioned @claude. Respond helpfully to their request.
-            
+
             Read the project's CLAUDE.md or AGENTS.md if available for context.
 
           claude_args: |

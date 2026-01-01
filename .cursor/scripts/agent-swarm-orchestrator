@@ -92,31 +92,31 @@ SPAWNED_AGENTS=()
 # Sub-agent for each PR
 if [ "$PR_COUNT" -gt 0 ]; then
   echo "📋 Spawning PR Recovery Agents..."
-  
+
   while read pr_num; do
     [ -z "$pr_num" ] && continue
-    
+
     echo "   Analyzing PR #$pr_num..."
-    
+
     # Get PR details
     PR_INFO=$(GH_TOKEN="$GITHUB_JBCOM_TOKEN" gh pr view "$pr_num" \
       --repo jbcom/jbcom-control-center \
       --json number,title,state,headRefName,repository 2>/dev/null || echo "{}")
-    
+
     if [ "$PR_INFO" = "{}" ]; then
       echo "   ⚠️  PR #$pr_num not found, skipping"
       continue
     fi
-    
+
     PR_TITLE=$(echo "$PR_INFO" | jq -r '.title // "Unknown"')
     PR_STATE=$(echo "$PR_INFO" | jq -r '.state // "UNKNOWN"')
     PR_BRANCH=$(echo "$PR_INFO" | jq -r '.headRefName // "unknown"')
     REPO=$(echo "$PR_INFO" | jq -r '.repository.nameWithOwner // "jbcom/jbcom-control-center"')
-    
+
     echo "   📌 PR #$pr_num: $PR_TITLE ($PR_STATE)"
     echo "   📁 Repository: $REPO"
     echo "   🌿 Branch: $PR_BRANCH"
-    
+
     # Create detailed sub-agent task
     AGENT_TASK="🔍 Forensic Recovery: PR #${pr_num}
 
@@ -176,22 +176,22 @@ What's missing or incomplete?
 
     # Save task for manual launch (cursor-agents create needs proper MCP setup)
     echo "$AGENT_TASK" > "$RECOVERY_DIR/tasks/PR_${pr_num}_task.md"
-    
+
     echo "   ✅ Task created: $RECOVERY_DIR/tasks/PR_${pr_num}_task.md"
     echo ""
-    
+
   done < "$RECOVERY_DIR/prs.txt"
 fi
 
 # Sub-agent for repository/branch combinations
 if [ "$BRANCH_COUNT" -gt 0 ]; then
   echo "🌿 Spawning Branch Recovery Agents..."
-  
+
   while read branch; do
     [ -z "$branch" ] && continue
-    
+
     echo "   Analyzing branch: $branch"
-    
+
     # Check if branch exists
     if git ls-remote --heads origin "$branch" 2>/dev/null | grep -q "$branch"; then
       BRANCH_EXISTS="yes"
@@ -200,7 +200,7 @@ if [ "$BRANCH_COUNT" -gt 0 ]; then
       BRANCH_EXISTS="no"
       echo "   ❌ Branch does not exist"
     fi
-    
+
     AGENT_TASK="🔍 Forensic Recovery: Branch ${branch}
 
 ## Context
@@ -239,7 +239,7 @@ What were they trying to do on this branch?
     echo "$AGENT_TASK" > "$RECOVERY_DIR/tasks/BRANCH_${branch//\//_}_task.md"
     echo "   ✅ Task created"
     echo ""
-    
+
   done < "$RECOVERY_DIR/branches.txt"
 fi
 
@@ -369,7 +369,7 @@ cat > "$RECOVERY_DIR/ORCHESTRATION_SUMMARY.md" << EOF
 
 ## Targets Extracted
 - **PRs**: $PR_COUNT
-- **Repositories**: $REPO_COUNT  
+- **Repositories**: $REPO_COUNT
 - **Branches**: $BRANCH_COUNT
 - **Files**: $FILE_COUNT
 

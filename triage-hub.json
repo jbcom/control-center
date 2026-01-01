@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "organization": "jbcom",
   "description": "Centralized triage hub for jbcom ecosystem - manages all AI agent operations from private control center",
-  
+
   "projects": {
     "roadmap": {
       "name": "Ecosystem Roadmap",
@@ -12,11 +12,11 @@
     },
     "integration": {
       "name": "Ecosystem Integration",
-      "id_var": "INTEGRATION_PROJECT_ID", 
+      "id_var": "INTEGRATION_PROJECT_ID",
       "description": "Cross-package integration and dependency tracking"
     }
   },
-  
+
   "ecosystems": {
     "python": {
       "language": "Python",
@@ -84,7 +84,7 @@
         }
       }
     },
-    
+
     "typescript": {
       "language": "TypeScript",
       "package_manager": "npm/pnpm",
@@ -195,7 +195,7 @@
         }
       }
     },
-    
+
     "go": {
       "language": "Go",
       "package_manager": "go modules",
@@ -227,7 +227,7 @@
         }
       }
     },
-    
+
     "terraform": {
       "language": "HCL",
       "package_manager": "terraform registry",
@@ -251,7 +251,7 @@
       }
     }
   },
-  
+
   "triage": {
     "centralized": true,
     "description": "All AI agent operations are managed from jbcom/control-center",
@@ -279,7 +279,7 @@
       "health_check": "0 6 * * *"
     }
   },
-  
+
   "documentation": {
     "lookup_strategy": "context7",
     "sources": {
