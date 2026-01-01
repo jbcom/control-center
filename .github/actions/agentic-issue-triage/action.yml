@@ -73,9 +73,10 @@ runs:
           fi
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000 | xargs)
           if [[ -z "$TASK" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received an empty \`/jules\` command.
-            **Usage:** \`/jules <your task description>\`
-            Please provide a description of the task you want me to work on."
+            BODY="🤖 Received an empty \`/jules\` command.%0A%0A"
+            BODY+="**Usage:** \`/jules <your task description>\`%0A%0A"
+            BODY+="Please provide a description of the task you want me to work on."
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
             exit 0
           fi
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session for task: \`$TASK\`"
