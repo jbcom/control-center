@@ -7,7 +7,8 @@
  * GitHub doesn't allow programmatic app installation - this generates installation URLs.
  */
 
-import { writeFile } from 'fs/promises';
+import { writeFile, readFile } from 'fs/promises';
+import { resolve } from 'path';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -31,6 +32,32 @@ const OPTIONAL_APPS = [
 ];
 
 const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
+
+/**
+ * Loads the list of managed organizations from the repo-config.json file.
+ * @returns {Promise<string[]>} A promise that resolves to an array of organization names.
+ */
+async function loadOrganizations() {
+  try {
+    const configPath = resolve(process.cwd(), 'repo-config.json');
+    const configFile = await readFile(configPath, 'utf8');
+    const config = JSON.parse(configFile);
+    const managedOrgs = config?.organizations?.managed;
+
+    if (!managedOrgs || !Array.isArray(managedOrgs) || managedOrgs.length === 0) {
+      throw new Error('`organizations.managed` is missing, not an array, or empty in repo-config.json');
+    }
+    if (!managedOrgs.includes('jbcom')) {
+      throw new Error('Primary organization "jbcom" is missing from `organizations.managed` in repo-config.json');
+    }
+
+    console.log('Successfully loaded managed organizations:', managedOrgs);
+    return managedOrgs;
+  } catch (error) {
+    console.error('Error loading or validating organizations from repo-config.json:', error.message);
+    process.exit(1);
+  }
+}
 
 async function ghApi(endpoint) {
   const res = await fetch(`https://api.github.com${endpoint}`, {
@@ -61,19 +88,21 @@ async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
   console.log('║           ORGANIZATION APP INSTALLATION REPORT                   ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝\n');
-  
+
   if (!GITHUB_TOKEN) {
     console.error('❌ GITHUB_TOKEN required');
     process.exit(1);
   }
-  
+
+  const ORGANIZATIONS = await loadOrganizations();
+
   const report = {
     timestamp: new Date().toISOString(),
     organizations: {},
     missing: [],
     installUrls: []
   };
-  
+
   // Gather app installation status
   for (const org of ORGANIZATIONS) {
     console.log(`\n📦 ${org}`);
