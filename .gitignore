@@ -92,3 +92,5 @@ build/
 .terraform/
 .settings-app-reference/
 control-center
+vendor/
+coverage.out
