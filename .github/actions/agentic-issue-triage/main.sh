@@ -1,13 +1,33 @@
 #!/bin/bash
-set -e
+set -euo pipefail
+
+# Function to post a comment and exit on failure
+post_comment_and_exit() {
+  local message="$1"
+  echo "$message"
+  gh issue comment "$ISSUE_NUMBER" --body "$message" || echo "Failed to post comment to issue #$ISSUE_NUMBER"
+  exit 1
+}
+
+# General validation for all commands
+if [[ -z "$ISSUE_NUMBER" ]]; then
+  echo "Error: Required environment variable ISSUE_NUMBER is not set."
+  exit 1
+fi
 
 # If /jules command is present, delegate to Google Jules
 if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
   echo "🤖 Received '/jules' command. Delegating to Google Jules..."
 
+  # Validate required environment variables for Jules
   if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-    gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
-    exit 1
+    post_comment_and_exit "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+  fi
+  if [[ -z "$REPOSITORY" ]]; then
+    post_comment_and_exit "⚠️ REPOSITORY not configured. Cannot delegate to Jules."
+  fi
+  if [[ -z "$DEFAULT_BRANCH" ]]; then
+    post_comment_and_exit "⚠️ DEFAULT_BRANCH not configured. Cannot delegate to Jules."
   fi
 
   gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
@@ -38,11 +58,10 @@ if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
 
   ➡️ **[Monitor Session]($SESSION_URL)**
 
-  Jules will analyze the issue and create a PR."
+  Jules will analyze the issue and create a PR." || post_comment_and_exit "❌ Failed to post Jules session URL to issue."
   else
     echo "Failed to create Jules session: $RESPONSE"
-    gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
-    exit 1
+    post_comment_and_exit "❌ Failed to create Jules session. Please check logs."
   fi
   exit 0
 fi
