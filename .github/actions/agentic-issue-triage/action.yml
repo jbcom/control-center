@@ -19,8 +19,8 @@ inputs:
   api_key:
     description: 'The API key for the model.'
     required: false
-  jules_api_key:
-    description: 'Jules API key'
+  google_jules_api_key:
+    description: 'Google Jules API key'
     required: false
   cursor_api_key:
     description: 'Cursor API key'
@@ -55,9 +55,25 @@ runs:
       uses: actions/github-script@v7
       with:
         script: |
-          const { COMMENT_BODY, ISSUE_NUMBER, REPOSITORY, DEFAULT_BRANCH, GOOGLE_JULES_API_KEY } = process.env;
+          const {
+            COMMENT_BODY,
+            ISSUE_NUMBER,
+            REPOSITORY,
+            DEFAULT_BRANCH,
+            GOOGLE_JULES_API_KEY
+          } = process.env;
 
-          if (COMMENT_BODY.includes('/jules')) {
+          // 1. Validate environment variables
+          if (!COMMENT_BODY || !ISSUE_NUMBER || !REPOSITORY || !DEFAULT_BRANCH) {
+            core.setFailed("Missing one or more required environment variables: COMMENT_BODY, ISSUE_NUMBER, REPOSITORY, DEFAULT_BRANCH");
+            return;
+          }
+
+          // 2. Use regex for stricter command parsing
+          const julesMatch = COMMENT_BODY.match(/^\/jules(\s+.*)?$/);
+          const cursorMatch = COMMENT_BODY.match(/^\/cursor(\s+.*)?$/);
+
+          if (julesMatch) {
             console.log("🤖 Received '/jules' command. Delegating to Google Jules...");
 
             if (!GOOGLE_JULES_API_KEY) {
@@ -67,10 +83,11 @@ runs:
                 issue_number: ISSUE_NUMBER,
                 body: "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
               });
+              core.setFailed("GOOGLE_JULES_API_KEY not configured.");
               return;
             }
 
-            const task = COMMENT_BODY.replace(/\/jules\s*/, '').trim().substring(0, 1000);
+            const task = (julesMatch[1] || '').trim().substring(0, 1000);
 
             if (!task) {
               await github.rest.issues.createComment({
@@ -89,45 +106,61 @@ runs:
               body: `🤖 Received '/jules' command: \`${task}\`. Creating Jules session...`
             });
 
-            const [owner, repo] = REPOSITORY.split('/');
-            const response = await fetch("https://jules.googleapis.com/v1alpha/sessions", {
-              method: "POST",
-              headers: {
-                "X-Goog-Api-Key": GOOGLE_JULES_API_KEY,
-                "Content-Type": "application/json"
-              },
-              body: JSON.stringify({
-                prompt: `Fix issue #${ISSUE_NUMBER}: ${task}`,
-                sourceContext: {
-                  source: `sources/github/${owner}/${repo}`,
-                  githubRepoContext: { startingBranch: DEFAULT_BRANCH }
+            // 3. Wrap fetch in try-catch
+            try {
+              const [owner, repo] = REPOSITORY.split('/');
+              const response = await fetch("https://jules.googleapis.com/v1alpha/sessions", {
+                method: "POST",
+                headers: {
+                  "X-Goog-Api-Key": GOOGLE_JULES_API_KEY,
+                  "Content-Type": "application/json"
                 },
-                automationMode: "AUTO_CREATE_PR"
-              })
-            });
+                body: JSON.stringify({
+                  prompt: `Fix issue #${ISSUE_NUMBER}: ${task}`,
+                  sourceContext: {
+                    source: `sources/github/${owner}/${repo}`,
+                    githubRepoContext: {
+                      startingBranch: DEFAULT_BRANCH
+                    }
+                  },
+                  automationMode: "AUTO_CREATE_PR"
+                })
+              });
 
-            const data = await response.json();
-            const sessionId = data.id;
-            const sessionUrl = `https://jules.google.com/session/${sessionId}`;
+              const data = await response.json();
+              const sessionId = data.id;
+              const sessionUrl = data.url || `https://jules.google.com/session/${sessionId}`;
 
-            if (sessionId) {
+              if (sessionId) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: ISSUE_NUMBER,
+                  body: `## 🤖 Jules Session Created\n\n➡️ **[Monitor Session](${sessionUrl})**\n\nJules will analyze the issue and create a PR.`
+                });
+              } else {
+                // 4. Remove raw API response from logs
+                console.error("Failed to create Jules session. The API response did not contain a session ID.");
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: ISSUE_NUMBER,
+                  body: "❌ Failed to create Jules session. The API response was invalid. Please check the action logs for details."
+                });
+                core.setFailed("Failed to create Jules session due to invalid API response.");
+              }
+            } catch (error) {
+              console.error("An error occurred while creating the Jules session:", error);
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: ISSUE_NUMBER,
-                body: `## 🤖 Jules Session Created\n\n➡️ **[Monitor Session](${sessionUrl})**\n\nJules will analyze the issue and create a PR.`
+                body: "❌ An unexpected error occurred while creating the Jules session. Please check the action logs for details."
               });
-            } else {
-              console.error("Failed to create Jules session:", data);
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: ISSUE_NUMBER,
-                body: "❌ Failed to create Jules session. Please check logs."
-              });
-              core.setFailed("Failed to create Jules session.");
+              core.setFailed(`An unexpected error occurred: ${error.message}`);
             }
-          } else if (COMMENT_BODY.includes('/cursor')) {
+
+          } else if (cursorMatch) {
             console.log("🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent...");
             await github.rest.issues.createComment({
               owner: context.repo.owner,
@@ -136,7 +169,7 @@ runs:
               body: "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
             });
           } else {
-            console.log("Performing standard issue triage...");
+            console.log("No command found. Performing standard issue triage...");
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -147,8 +180,7 @@ runs:
       env:
         GH_TOKEN: ${{ inputs.github_token }}
         GITHUB_TOKEN: ${{ inputs.github_token }}
-        JULES_API_KEY: ${{ inputs.jules_api_key }}
-        GOOGLE_JULES_API_KEY: ${{ inputs.jules_api_key }}
+        GOOGLE_JULES_API_KEY: ${{ inputs.google_jules_api_key }}
         CURSOR_API_KEY: ${{ inputs.cursor_api_key }}
         COMMENT_BODY: ${{ inputs.comment_body }}
         ISSUE_NUMBER: ${{ inputs.issue_number }}
