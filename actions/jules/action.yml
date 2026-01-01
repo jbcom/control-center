@@ -1,0 +1,157 @@
+---
+name: "Control Center - Jules Integration"
+author: "jbcom"
+description: "Google Jules AI agent integration for automated code changes"
+
+branding:
+  icon: "cpu"
+  color: "purple"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Setup Go
+      uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v6.0.0
+      with:
+        go-version: "1.23"
+
+    - name: Install control-center
+      shell: bash
+      run: |
+        go install github.com/jbcom/control-center/cmd/control-center@latest
+
+    - name: Run Jules Command
+      id: jules
+      shell: bash
+      env:
+        GOOGLE_JULES_API_KEY: ${{ inputs.api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        set -e
+        
+        case "${{ inputs.command }}" in
+          create)
+            control-center jules create \
+              --repo "${{ inputs.repo }}" \
+              --branch "${{ inputs.branch }}" \
+              --prompt "${{ inputs.prompt }}" \
+              --format github >> $GITHUB_OUTPUT
+            ;;
+          
+          get)
+            control-center jules get \
+              --session "${{ inputs.session }}" \
+              --format github >> $GITHUB_OUTPUT
+            ;;
+          
+          list)
+            FILTER_ARG=""
+            if [ -n "${{ inputs.filter }}" ]; then
+              FILTER_ARG="--filter ${{ inputs.filter }}"
+            fi
+            control-center jules list $FILTER_ARG --format github >> $GITHUB_OUTPUT
+            ;;
+          
+          patch)
+            # Patch outputs to stdout, metadata to GITHUB_OUTPUT
+            control-center jules patch \
+              --session "${{ inputs.session }}" \
+              --format github >> $GITHUB_OUTPUT 2> patch.diff
+            if [ -s patch.diff ]; then
+              echo "patch_file=patch.diff" >> $GITHUB_OUTPUT
+            fi
+            ;;
+          
+          message)
+            control-center jules message \
+              --session "${{ inputs.session }}" \
+              --message "${{ inputs.message }}" \
+              --format github >> $GITHUB_OUTPUT
+            ;;
+          
+          approve)
+            control-center jules approve \
+              --session "${{ inputs.session }}" \
+              --format github >> $GITHUB_OUTPUT
+            ;;
+          
+          *)
+            echo "::error::Unknown command: ${{ inputs.command }}"
+            exit 1
+            ;;
+        esac
+
+inputs:
+  api_key:
+    description: "Google Jules API key"
+    required: true
+  github_token:
+    description: "GitHub token for repository access"
+    required: false
+    default: ${{ github.token }}
+  command:
+    description: "Jules command: create, get, list, patch, message, approve"
+    required: true
+  repo:
+    description: "Repository (owner/name) - for create command"
+    required: false
+  branch:
+    description: "Starting branch - for create command"
+    required: false
+    default: "main"
+  prompt:
+    description: "Task prompt - for create command"
+    required: false
+  session:
+    description: "Session ID - for get, patch, message, approve commands"
+    required: false
+  filter:
+    description: "Filter for list command: completed, in_progress, orphaned, with_pr"
+    required: false
+  message:
+    description: "Message text - for message command"
+    required: false
+
+outputs:
+  session_id:
+    description: "Jules session ID"
+    value: ${{ steps.jules.outputs.session_id }}
+  session_url:
+    description: "Jules session monitor URL"
+    value: ${{ steps.jules.outputs.session_url }}
+  state:
+    description: "Session state"
+    value: ${{ steps.jules.outputs.state }}
+  has_pr:
+    description: "Whether session created a PR"
+    value: ${{ steps.jules.outputs.has_pr }}
+  pr_url:
+    description: "PR URL if created"
+    value: ${{ steps.jules.outputs.pr_url }}
+  has_changeset:
+    description: "Whether session has code changes"
+    value: ${{ steps.jules.outputs.has_changeset }}
+  target_repo:
+    description: "Target repository"
+    value: ${{ steps.jules.outputs.target_repo }}
+  target_branch:
+    description: "Target branch"
+    value: ${{ steps.jules.outputs.target_branch }}
+  base_commit:
+    description: "Base commit for changes"
+    value: ${{ steps.jules.outputs.base_commit }}
+  session_count:
+    description: "Number of sessions (for list command)"
+    value: ${{ steps.jules.outputs.session_count }}
+  session_ids:
+    description: "Comma-separated session IDs (for list command)"
+    value: ${{ steps.jules.outputs.session_ids }}
+  patch_file:
+    description: "Path to patch file (for patch command)"
+    value: ${{ steps.jules.outputs.patch_file }}
+  message_sent:
+    description: "Whether message was sent"
+    value: ${{ steps.jules.outputs.message_sent }}
+  plan_approved:
+    description: "Whether plan was approved"
+    value: ${{ steps.jules.outputs.plan_approved }}
