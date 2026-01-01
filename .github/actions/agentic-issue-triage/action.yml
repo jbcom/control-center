@@ -65,7 +65,7 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" =~ ^/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,10 +73,20 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          TASK=$(echo "$COMMENT_BODY" | sed 's|^/jules[[:space:]]*||' | xargs)
+
+          if [ -z "$TASK" ]; then
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Received an empty '/jules' command. Please provide a task.
+
+            **Usage:** \`/jules <your task description>\`
+
+            Example:
+            \`/jules refactor the authentication logic\`
+            "
+            exit 0
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command for task: \`$TASK\`. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
