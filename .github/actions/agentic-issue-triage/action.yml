@@ -73,8 +73,6 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
           [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
@@ -98,7 +96,7 @@ runs:
           SESSION_URL="https://jules.google.com/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
+            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created for: \`$TASK\`
 
           ➡️ **[Monitor Session]($SESSION_URL)**
 
