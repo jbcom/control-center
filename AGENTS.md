@@ -264,6 +264,81 @@ This means: Do it now. You have permission.
 
 ---
 
+## Jules Integration Best Practices
+
+### Creating Sessions via API
+
+**CRITICAL**: For Jules to auto-create PRs, these parameters are essential:
+
+```json
+{
+  "automationMode": "AUTO_CREATE_PR",
+  "requirePlanApproval": false,
+  "metadata": {
+    "labels": ["jules-pr", "ai-generated"]
+  }
+}
+```
+
+If `requirePlanApproval` is `true` (default), the session will wait for manual approval and **never create a PR**.
+
+### Prompts for Jules
+
+When delegating to Jules, prompts MUST be:
+
+1. **Clear and unambiguous** - State exactly what needs to be done
+2. **Contextual** - Provide repository, branch, and relevant file paths
+3. **Actionable** - Include specific success criteria
+4. **Self-contained** - Jules should NOT need to ask follow-up questions
+
+**Example prompt structure:**
+```
+## Task: [Clear title]
+
+### Context
+- Repository: owner/repo
+- Branch: feature-branch
+- Files: path/to/relevant/files
+
+### Problem
+[Describe what's wrong or what needs to change]
+
+### Requirements
+1. [Specific requirement]
+2. [Specific requirement]
+
+### Success Criteria
+- [ ] All tests pass
+- [ ] Lint passes
+- [ ] PR created with labels: jules-pr, bug-fix
+```
+
+### Managing Sessions
+
+| State | Action |
+|-------|--------|
+| `PLANNING` | Approve with `approvePlan` or send feedback |
+| `IN_PROGRESS` | Monitor or send message to guide |
+| `COMPLETED` | Check for PR URL, close issue if resolved |
+| `FAILED` | Analyze failure, retry with better prompt |
+
+### Orphaned Sessions
+
+Sessions that complete without PRs are "orphaned". Common causes:
+- `requirePlanApproval: true` (waiting forever)
+- Invalid source context
+- Plan rejected or timed out
+
+**Check for orphans:**
+```bash
+# Sessions completed without PRs
+curl "https://jules.googleapis.com/v1alpha/sessions" \
+  -H "X-Goog-Api-Key: $JULES_KEY" | \
+  jq '.sessions[] | select(.state=="COMPLETED" and .pullRequestUrl==null)'
+```
+
+---
+
 ## Quality Checklist
 
 Before completing work:

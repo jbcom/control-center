@@ -329,12 +329,46 @@ jobs:
           PR_NUM: ${{ needs.validate.outputs.pr_number }}
           HEAD_BRANCH: ${{ needs.validate.outputs.head_branch }}
         run: |
-          # All user-controlled values passed via env vars (head_branch validated in 'validate' job)
+          # ═══════════════════════════════════════════════════════════════════════
+          # JULES SESSION CREATION
+          # CRITICAL: requirePlanApproval MUST be false for AUTO_CREATE_PR to work
+          # Otherwise sessions complete without creating PRs!
+          # ═══════════════════════════════════════════════════════════════════════
+          
+          # Build structured, unambiguous prompt with full context
+          PROMPT=$(cat << PROMPT_EOF
+          ## Task: Fix CI Failure
+
+          **Repository:** ${REPO}
+          **PR Number:** #${PR_NUM}
+          **Branch:** ${HEAD_BRANCH}
+          **Failed Workflow:** ${WORKFLOW_URL}
+
+          ## Context
+          The automated CI fixers (Ollama and Claude) could not resolve this failure.
+          This requires a more comprehensive fix.
+
+          ## Instructions
+          1. First, read AGENTS.md and CLAUDE.md to understand project conventions
+          2. Analyze the CI failure logs at the workflow URL above
+          3. Identify the root cause of the failure
+          4. Implement a fix that:
+             - Addresses the root cause (not just symptoms)
+             - Follows project coding standards
+             - Includes appropriate tests if needed
+          5. Commit the fix with a conventional commit message
+          6. The PR will be automatically created with labels: jules-pr, bug-fix
+
+          ## Expected Outcome
+          A PR that fixes the CI failure and passes all checks.
+          PROMPT_EOF
+          )
+          
           RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "Fix CI failure in PR #${PR_NUM} - The automated fixers couldn't resolve this. Please analyze the failure at ${WORKFLOW_URL} and implement a comprehensive fix." \
+              --arg task "$PROMPT" \
               --arg repo "$REPO" \
               --arg branch "$HEAD_BRANCH" \
               '{
@@ -348,7 +382,25 @@ jobs:
               }')" || echo "{}")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
+          SESSION_STATE=$(echo "$RESPONSE" | jq -r '.state // "UNKNOWN"')
 
           if [ -n "$SESSION_ID" ]; then
-            gh pr comment "$PR_NUM" --body "🔧 **Jules major refactor session started**: https://jules.google.com/session/${SESSION_ID} - Both Ollama and Claude couldn't fix this CI failure. Jules will attempt a more comprehensive solution."
+            gh pr comment "$PR_NUM" --body "🔧 **Jules Session Created**
+
+          | Property | Value |
+          |----------|-------|
+          | Session | [${SESSION_ID}](https://jules.google.com/session/${SESSION_ID}) |
+          | State | ${SESSION_STATE} |
+          | Mode | AUTO_CREATE_PR |
+          | Plan Approval | Not Required |
+
+          Jules will analyze the failure and create a PR with the fix.
+          
+          > ⚠️ If no PR appears within 30 minutes, check the [Jules session](https://jules.google.com/session/${SESSION_ID}) for status."
+            
+            # Add label for triage pickup
+            gh pr edit "$PR_NUM" --add-label "jules-pending" 2>/dev/null || true
+          else
+            echo "::error::Failed to create Jules session"
+            echo "Response: $RESPONSE"
           fi
