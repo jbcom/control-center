@@ -1,3 +1,6 @@
+// Package cmd provides the command-line interface for control-center.
+// It includes commands for managing AI workflows, ecosystem sync,
+// Jules integration, and CodeQL analysis enhancement.
 package cmd
 
 import (

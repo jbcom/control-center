@@ -60,6 +60,17 @@
         "include": "*",
         "exclude": []
       }
+    },
+    {
+      "org": "arcade-cabinet",
+      "domain": "arcade-cabinet.org",
+      "controlCenter": "arcade-cabinet/control-center",
+      "languages": ["typescript", "python", "rust"],
+      "focus": ["Indie games", "Arcade experiences", "Game development"],
+      "repoFilter": {
+        "include": "*",
+        "exclude": []
+      }
     }
   ],
   
