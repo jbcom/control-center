@@ -49,9 +49,9 @@ jobs:
         run: |
           # Check if issue already exists
           EXISTING=$(gh issue list --label "apps,infrastructure" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
-          
+
           BODY=$(cat org-apps-report.md)
-          
+
           if [[ -n "$EXISTING" ]]; then
             gh issue edit "$EXISTING" --body "$BODY"
             echo "Updated existing issue #$EXISTING"

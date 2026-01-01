@@ -2,11 +2,11 @@
 
 /**
  * Organization Infrastructure Setup
- * 
+ *
  * Idempotently creates essential repos for each managed organization:
  * - .github - Org-wide settings and defaults
  * - <org>.github.io - Documentation site
- * 
+ *
  * Uses @agentic/control for AI-assisted doc site generation
  */
 
@@ -62,7 +62,7 @@ async function ghApi(endpoint, options = {}) {
     console.log(`  [DRY RUN] ${options.method} ${endpoint}`);
     return { dry_run: true };
   }
-  
+
   const res = await fetch(`https://api.github.com${endpoint}`, {
     ...options,
     headers: {
@@ -71,12 +71,12 @@ async function ghApi(endpoint, options = {}) {
       ...options.headers
     }
   });
-  
+
   if (!res.ok) {
     const error = await res.json().catch(() => ({ message: res.statusText }));
     throw new Error(`GitHub API ${res.status}: ${JSON.stringify(error)}`);
   }
-  
+
   return res.json();
 }
 
@@ -93,7 +93,7 @@ async function repoExists(org, repo) {
 // Create repository
 async function createRepo(org, name, description, options = {}) {
   console.log(`  Creating ${org}/${name}...`);
-  
+
   return ghApi(`/orgs/${org}/repos`, {
     method: 'POST',
     body: JSON.stringify({
@@ -114,17 +114,17 @@ async function createRepo(org, name, description, options = {}) {
 // Create .github repo for org-wide settings
 async function ensureGitHubRepo(org, config) {
   const repoName = '.github';
-  
+
   if (await repoExists(org, repoName)) {
     console.log(`  ✓ ${org}/${repoName} already exists`);
     return { exists: true };
   }
-  
+
   console.log(`  Creating ${org}/${repoName}...`);
   await createRepo(org, repoName, `Organization-wide GitHub settings for ${config.branding.name}`, {
     homepage: `https://github.com/${org}`
   });
-  
+
   // TODO: Initialize with profile README, FUNDING.yml, etc.
   return { created: true };
 }
@@ -132,18 +132,18 @@ async function ensureGitHubRepo(org, config) {
 // Create <org>.github.io documentation repo
 async function ensureDocsRepo(org, config) {
   const repoName = `${org}.github.io`;
-  
+
   if (await repoExists(org, repoName)) {
     console.log(`  ✓ ${org}/${repoName} already exists`);
     return { exists: true };
   }
-  
+
   console.log(`  Creating ${org}/${repoName}...`);
   await createRepo(org, repoName, `${config.branding.name} documentation and showcase`, {
     homepage: `https://${config.domain}`,
     has_discussions: true
   });
-  
+
   return { created: true, needs_docs: true };
 }
 
@@ -153,12 +153,12 @@ async function spawnJulesForDocs(org, config) {
     console.log(`  ⚠️ GOOGLE_JULES_API_KEY not set - skipping Jules for ${org}`);
     return;
   }
-  
+
   if (DRY_RUN) {
     console.log(`  [DRY RUN] Would spawn Jules for ${org}.github.io docs`);
     return;
   }
-  
+
   const prompt = `Create a modern documentation site for ${config.branding.name}.
 
 REQUIREMENTS:
@@ -198,7 +198,7 @@ Create a complete, production-ready documentation site.`;
         automationMode: 'AUTO_CREATE_PR'
       })
     });
-    
+
     if (res.ok) {
       const data = await res.json();
       console.log(`  ✓ Jules session created for ${org} docs: ${data.name}`);
@@ -245,7 +245,7 @@ async function main() {
   console.log('╔══════════════════════════════════════════════════════════════════╗');
   console.log('║              ORGANIZATION INFRASTRUCTURE SETUP                    ║');
   console.log('╚══════════════════════════════════════════════════════════════════╝\n');
-  
+
   console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : 'LIVE'}\n`);
 
   if (!GITHUB_TOKEN) {
@@ -254,7 +254,7 @@ async function main() {
   }
 
   await checkJulesInstallations();
-  
+
   const results = {
     orgs_processed: 0,
     github_repos_created: 0,
@@ -262,37 +262,37 @@ async function main() {
     jules_sessions: 0,
     errors: []
   };
-  
+
   for (const [org, config] of Object.entries(ORGANIZATIONS)) {
     console.log(`\n📦 Organization: ${org}`);
     console.log(`   Domain: ${config.domain}`);
-    
+
     try {
       // Ensure .github repo
       const githubResult = await ensureGitHubRepo(org, config);
       if (githubResult.created) results.github_repos_created++;
-      
+
       // Ensure docs repo
       const docsResult = await ensureDocsRepo(org, config);
       if (docsResult.created) {
         results.docs_repos_created++;
-        
+
         // Spawn Jules to build docs site
         if (docsResult.needs_docs) {
           await spawnJulesForDocs(org, config);
           results.jules_sessions++;
         }
       }
-      
+
       results.orgs_processed++;
     } catch (e) {
       console.error(`   Error: ${e.message}`);
       results.errors.push(`${org}: ${e.message}`);
     }
   }
-  
+
   await writeFile('org-infrastructure-report.json', JSON.stringify(results, null, 2));
-  
+
   console.log('\n' + JSON.stringify(results, null, 2));
   console.log('\n✅ Infrastructure setup complete');
 }

@@ -20,14 +20,14 @@ repository:
   allow_squash_merge: true
   allow_merge_commit: false
   allow_rebase_merge: false
-  
+
   # Auto-delete head branches after PR merge
   delete_branch_on_merge: true
-  
+
   # Security features
   enable_automated_security_fixes: true
   enable_vulnerability_alerts: true
-  
+
   # Default to main branch
   default_branch: main
 
@@ -51,10 +51,10 @@ rulesets:
       # Prevent force pushes and deletions
       - type: deletion
       - type: non_fast_forward
-      
+
       # Require linear history (squash/rebase only)
       - type: required_linear_history
-      
+
       # Require PRs with thread resolution
       - type: pull_request
         parameters:
@@ -63,7 +63,7 @@ rulesets:
           require_code_owner_review: false
           require_last_push_approval: false
           required_review_thread_resolution: true
-      
+
       # Enable merge queue
       - type: merge_queue
         parameters:
@@ -74,7 +74,7 @@ rulesets:
           merge_method: SQUASH
           min_entries_to_merge: 1
           min_entries_to_merge_wait_minutes: 5
-    
+
     # Bypass actors (admins and key integrations)
     bypass_actors:
       - actor_id: 5
@@ -132,7 +132,7 @@ labels:
   - name: ai-triage
     color: "0e8a16"
     description: "Triaged by AI"
-  
+
   # Priority labels
   - name: priority/critical
     color: "b60205"
@@ -146,7 +146,7 @@ labels:
   - name: priority/low
     color: "0e8a16"
     description: "Low priority"
-  
+
   # Type labels
   - name: bug
     color: "d73a4a"

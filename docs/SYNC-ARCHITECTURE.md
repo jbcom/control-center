@@ -82,9 +82,9 @@ rulesets:
 
 ### 1. Enterprise Org Settings (`enterprise/settings.json`)
 
-**Target**: jbcom organization API settings  
-**Method**: Direct API call to `/orgs/jbcom`  
-**Frequency**: On push to enterprise/ or scheduled  
+**Target**: jbcom organization API settings
+**Method**: Direct API call to `/orgs/jbcom`
+**Frequency**: On push to enterprise/ or scheduled
 
 Configures organization-level settings like:
 - Default repository permissions
@@ -93,17 +93,17 @@ Configures organization-level settings like:
 
 ### 2. Org .github Repos (`repository-files/org-github-repo/`)
 
-**Target**: `{org}/.github/settings.yml` in each organization  
-**Method**: INITIAL sync only (won't overwrite if exists)  
-**Effect**: All repos in org inherit these settings via repository-settings/app  
+**Target**: `{org}/.github/settings.yml` in each organization
+**Method**: INITIAL sync only (won't overwrite if exists)
+**Effect**: All repos in org inherit these settings via repository-settings/app
 
 This is where merge queues, branch protection, and other repo-level settings are defined as organization defaults.
 
 ### 3. Global Sync (`global-sync/`)
 
-**Target**: Root of ALL repos across ALL orgs  
-**Method**: Direct file copy to repo root  
-**What**: AI workflows, ecosystem workflows, agent configs  
+**Target**: Root of ALL repos across ALL orgs
+**Method**: Direct file copy to repo root
+**What**: AI workflows, ecosystem workflows, agent configs
 
 Files here go directly to:
 - `.github/workflows/ai-*.yml`
@@ -115,9 +115,9 @@ Control-centers receive these to USE them (not redistribute).
 
 ### 4. Cascade Sync (`repository-files/`)
 
-**Target**: Org control-center `repository-files/` directories  
-**Method**: Copy to control-center, then control-center syncs to org repos  
-**What**: Org-specific configs that cascade down  
+**Target**: Org control-center `repository-files/` directories
+**Method**: Copy to control-center, then control-center syncs to org repos
+**What**: Org-specific configs that cascade down
 
 Subdirectories:
 - `always-sync/` - Overwrite on every sync
