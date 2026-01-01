@@ -391,3 +391,340 @@ func (c *Client) ListOrphanedSessions(ctx context.Context) ([]Session, error) {
 	}
 	return orphaned, nil
 }
+
+// ========================================
+// Activity and ChangeSet Types
+// ========================================
+
+// Activity represents a Jules session activity
+type Activity struct {
+	Name             string              `json:"name"`
+	CreateTime       string              `json:"createTime"`
+	Originator       string              `json:"originator"`
+	ID               string              `json:"id"`
+	Artifacts        []Artifact          `json:"artifacts,omitempty"`
+	ProgressUpdated  *ProgressUpdate     `json:"progressUpdated,omitempty"`
+	SessionCompleted *SessionCompletion  `json:"sessionCompleted,omitempty"`
+	UserMessage      *UserMessage        `json:"userMessage,omitempty"`
+}
+
+// Artifact represents output from an activity
+type Artifact struct {
+	ChangeSet  *ChangeSet  `json:"changeSet,omitempty"`
+	BashOutput *BashOutput `json:"bashOutput,omitempty"`
+}
+
+// ChangeSet contains code changes from Jules
+type ChangeSet struct {
+	Source   string   `json:"source"`
+	GitPatch GitPatch `json:"gitPatch"`
+}
+
+// GitPatch contains the actual diff
+type GitPatch struct {
+	UnidiffPatch           string `json:"unidiffPatch"`
+	BaseCommitID           string `json:"baseCommitId"`
+	SuggestedCommitMessage string `json:"suggestedCommitMessage,omitempty"`
+}
+
+// BashOutput contains command execution results
+type BashOutput struct {
+	Command string `json:"command"`
+	Output  string `json:"output"`
+}
+
+// ProgressUpdate contains progress information
+type ProgressUpdate struct {
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// SessionCompletion marks session as completed
+type SessionCompletion struct{}
+
+// UserMessage is a message sent to the session
+type UserMessage struct {
+	Text string `json:"text"`
+}
+
+// SessionOutput contains the outputs from a completed session
+type SessionOutput struct {
+	PullRequest *PullRequestOutput `json:"pullRequest,omitempty"`
+}
+
+// PullRequestOutput contains PR information
+type PullRequestOutput struct {
+	URL         string `json:"url"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// FullSession includes outputs for completed sessions
+type FullSession struct {
+	Session
+	Outputs []SessionOutput `json:"outputs,omitempty"`
+	URL     string          `json:"url,omitempty"`
+	ID      string          `json:"id,omitempty"`
+}
+
+// GetFullSession gets complete session data including outputs
+func (c *Client) GetFullSession(ctx context.Context, name string) (*FullSession, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/"+name, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("X-Goog-Api-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var session FullSession
+	if err := json.Unmarshal(respBody, &session); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &session, nil
+}
+
+// GetActivities gets all activities for a session
+func (c *Client) GetActivities(ctx context.Context, sessionName string) ([]Activity, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/"+sessionName+"/activities", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("X-Goog-Api-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Activities []Activity `json:"activities"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result.Activities, nil
+}
+
+// GetLatestChangeSet returns the most recent changeset from a session
+func (c *Client) GetLatestChangeSet(ctx context.Context, sessionName string) (*ChangeSet, error) {
+	activities, err := c.GetActivities(ctx, sessionName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Walk backwards to find most recent changeset
+	for i := len(activities) - 1; i >= 0; i-- {
+		for _, artifact := range activities[i].Artifacts {
+			if artifact.ChangeSet != nil {
+				return artifact.ChangeSet, nil
+			}
+		}
+	}
+
+	return nil, fmt.Errorf("no changeset found in session activities")
+}
+
+// SendMessage sends a user message to an active session
+func (c *Client) SendMessage(ctx context.Context, sessionName, message string) error {
+	body, err := json.Marshal(map[string]interface{}{
+		"userMessage": map[string]string{
+			"text": message,
+		},
+	})
+	if err != nil {
+		return fmt.Errorf("failed to marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/"+sessionName+"/activities", bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("X-Goog-Api-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	log.WithField("session", sessionName).Info("Message sent to Jules session")
+	return nil
+}
+
+// GetPRURL returns the PR URL from a full session (checks outputs)
+func (s *FullSession) GetPRURL() string {
+	// First check the direct field
+	if s.PullRequestURL != "" {
+		return s.PullRequestURL
+	}
+	// Check outputs
+	for _, output := range s.Outputs {
+		if output.PullRequest != nil && output.PullRequest.URL != "" {
+			return output.PullRequest.URL
+		}
+	}
+	return ""
+}
+
+// ListFullSessions lists all sessions with full output data
+func (c *Client) ListFullSessions(ctx context.Context) ([]FullSession, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.host+"/v1alpha/sessions", nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	httpReq.Header.Set("X-Goog-Api-Key", c.apiKey)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, fmt.Errorf("Jules API error %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	var result struct {
+		Sessions []FullSession `json:"sessions"`
+	}
+	if err := json.Unmarshal(respBody, &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return result.Sessions, nil
+}
+
+// ========================================
+// GitHub Actions Output Helpers
+// ========================================
+
+// GitHubActionsOutput formats session data for GitHub Actions
+type GitHubActionsOutput struct {
+	SessionID      string `json:"session_id"`
+	SessionURL     string `json:"session_url"`
+	State          string `json:"state"`
+	HasPR          bool   `json:"has_pr"`
+	PRURL          string `json:"pr_url,omitempty"`
+	HasChangeSet   bool   `json:"has_changeset"`
+	Patch          string `json:"patch,omitempty"`
+	CommitMessage  string `json:"commit_message,omitempty"`
+	BaseCommit     string `json:"base_commit,omitempty"`
+	TargetRepo     string `json:"target_repo,omitempty"`
+	TargetBranch   string `json:"target_branch,omitempty"`
+}
+
+// ToGitHubActionsOutput converts session data for workflow consumption
+func (c *Client) ToGitHubActionsOutput(ctx context.Context, sessionName string) (*GitHubActionsOutput, error) {
+	session, err := c.GetFullSession(ctx, sessionName)
+	if err != nil {
+		return nil, err
+	}
+
+	output := &GitHubActionsOutput{
+		SessionID:    session.GetSessionID(),
+		SessionURL:   session.GetJulesURL(),
+		State:        session.State,
+		HasPR:        session.GetPRURL() != "",
+		PRURL:        session.GetPRURL(),
+		TargetBranch: session.SourceContext.GitHubRepoContext.StartingBranch,
+	}
+
+	// Extract repo from source
+	if len(session.SourceContext.Source) > 15 { // "sources/github/"
+		output.TargetRepo = session.SourceContext.Source[15:]
+	}
+
+	// Try to get changeset
+	changeSet, err := c.GetLatestChangeSet(ctx, sessionName)
+	if err == nil && changeSet != nil {
+		output.HasChangeSet = true
+		output.Patch = changeSet.GitPatch.UnidiffPatch
+		output.CommitMessage = changeSet.GitPatch.SuggestedCommitMessage
+		output.BaseCommit = changeSet.GitPatch.BaseCommitID
+	}
+
+	return output, nil
+}
+
+// PrintGitHubActionsOutputs prints outputs in GitHub Actions format
+func (o *GitHubActionsOutput) PrintGitHubActionsOutputs() {
+	fmt.Printf("::set-output name=session_id::%s\n", o.SessionID)
+	fmt.Printf("::set-output name=session_url::%s\n", o.SessionURL)
+	fmt.Printf("::set-output name=state::%s\n", o.State)
+	fmt.Printf("::set-output name=has_pr::%t\n", o.HasPR)
+	if o.PRURL != "" {
+		fmt.Printf("::set-output name=pr_url::%s\n", o.PRURL)
+	}
+	fmt.Printf("::set-output name=has_changeset::%t\n", o.HasChangeSet)
+	if o.TargetRepo != "" {
+		fmt.Printf("::set-output name=target_repo::%s\n", o.TargetRepo)
+	}
+	if o.TargetBranch != "" {
+		fmt.Printf("::set-output name=target_branch::%s\n", o.TargetBranch)
+	}
+	if o.BaseCommit != "" {
+		fmt.Printf("::set-output name=base_commit::%s\n", o.BaseCommit)
+	}
+}
+
+// PrintGitHubEnvOutputs prints outputs using GITHUB_OUTPUT file format (new style)
+func (o *GitHubActionsOutput) PrintGitHubEnvOutputs() {
+	fmt.Printf("session_id=%s\n", o.SessionID)
+	fmt.Printf("session_url=%s\n", o.SessionURL)
+	fmt.Printf("state=%s\n", o.State)
+	fmt.Printf("has_pr=%t\n", o.HasPR)
+	if o.PRURL != "" {
+		fmt.Printf("pr_url=%s\n", o.PRURL)
+	}
+	fmt.Printf("has_changeset=%t\n", o.HasChangeSet)
+	if o.TargetRepo != "" {
+		fmt.Printf("target_repo=%s\n", o.TargetRepo)
+	}
+	if o.TargetBranch != "" {
+		fmt.Printf("target_branch=%s\n", o.TargetBranch)
+	}
+	if o.BaseCommit != "" {
+		fmt.Printf("base_commit=%s\n", o.BaseCommit)
+	}
+}

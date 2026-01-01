@@ -91,4 +91,5 @@ build/
 *.tfstate.*
 .terraform/
 .settings-app-reference/
-control-center
+# Built binary (not the cmd directory)
+/control-center
