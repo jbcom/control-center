@@ -160,7 +160,7 @@ Before merging any PR, run security scans.
 
 Use these in order:
 1. `ruff check` for Python
-2. `npm audit` for Node.js  
+2. `npm audit` for Node.js
 3. `git secrets --scan` for secrets
 
 ## Process

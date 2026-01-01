@@ -82,7 +82,7 @@ Changes committed in <commit-hash>. Please verify the fix addresses your concern
 
 **Template for declining feedback:**
 ```markdown
-@gemini-code-assist Thank you for the suggestion to bump versions manually. 
+@gemini-code-assist Thank you for the suggestion to bump versions manually.
 
 However, this project uses automated versioning through CI/CD. Manual version changes are not needed.
 

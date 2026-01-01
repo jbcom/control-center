@@ -11,10 +11,10 @@ Background agents cannot use MCP servers directly because MCP uses stdio transpo
 ## Architecture
 
 ```
-MCP Server (stdio) 
+MCP Server (stdio)
     ↓
 mcp-proxy (converts to HTTP/SSE)
-    ↓  
+    ↓
 HTTP endpoint (localhost:300X)
     ↓
 CLI wrapper script (this directory)

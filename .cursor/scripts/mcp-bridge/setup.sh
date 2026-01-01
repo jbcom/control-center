@@ -16,7 +16,7 @@ echo "✅ Made wrappers executable"
 # Optionally symlink to /usr/local/bin for global access
 if [ "$1" = "--global" ]; then
   echo "🔗 Creating global symlinks in /usr/local/bin..."
-  
+
   for script in aws-iac aws-serverless aws-api aws-cdk aws-cfn aws-support aws-pricing billing-cost aws-docs github-mcp; do
     if [ -L "/usr/local/bin/$script" ]; then
       rm "/usr/local/bin/$script"
@@ -24,7 +24,7 @@ if [ "$1" = "--global" ]; then
     ln -s "$SCRIPT_DIR/$script" "/usr/local/bin/$script"
     echo "  ✓ $script"
   done
-  
+
   echo "✅ Global symlinks created"
 else
   echo "ℹ️  Run with --global to create symlinks in /usr/local/bin"

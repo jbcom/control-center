@@ -20,7 +20,7 @@ log_error() { echo -e "${RED}✗${NC} $*" >&2; }
 # Classify PR risk level
 classify_pr() {
   local title="$1"
-  
+
   # High risk - major versions, security
   if [[ "$title" =~ (major|breaking|security|CVE) ]]; then
     echo "high"
@@ -40,16 +40,16 @@ cmd_list() {
   echo "  Dependency PRs Across jbcom"
   echo "=============================================="
   echo ""
-  
+
   local total=0 low=0 medium=0 high=0
-  
+
   for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
     local prs
     prs=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
       --jq '.[] | select(.title | test("^chore|^Bump|deps";"i"))' 2>/dev/null) || continue
-    
+
     [[ -z "$prs" ]] && continue
-    
+
     echo "━━━ ${repo} ━━━"
     echo "$prs" | jq -r '"#\(.number): \(.title)"' | while read -r line; do
       local title="${line#*: }"
@@ -67,44 +67,44 @@ cmd_list() {
 cmd_merge_low() {
   local dry_run="${1:-}"
   [[ "$dry_run" == "--dry-run" ]] && log_info "DRY RUN" && echo ""
-  
+
   echo "Merging LOW-risk dependency PRs..."
   echo ""
-  
+
   local merged=0 skipped=0 failed=0
-  
+
   for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
     local prs
     prs=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
       --jq '.[] | select(.title | test("^chore|^Bump|deps";"i"))' 2>/dev/null) || continue
-    
+
     [[ -z "$prs" ]] && continue
-    
+
     echo "$prs" | jq -c '.' | while read -r pr; do
       local num=$(echo "$pr" | jq -r '.number')
       local title=$(echo "$pr" | jq -r '.title')
       local risk=$(classify_pr "$title")
-      
+
       if [[ "$risk" != "low" ]]; then
         continue
       fi
-      
+
       echo -n "  ${repo}#${num}: ${title:0:50}... "
-      
+
       if [[ "$dry_run" == "--dry-run" ]]; then
         echo -e "${BLUE}would merge${NC}"
         continue
       fi
-      
+
       # Check if PR is mergeable
       local mergeable
       mergeable=$(gh pr view "$num" --repo "${TARGET_ORG}/${repo}" --json mergeable -q '.mergeable' 2>/dev/null)
-      
+
       if [[ "$mergeable" != "MERGEABLE" ]]; then
         echo -e "${YELLOW}not mergeable${NC}"
         continue
       fi
-      
+
       # Enable auto-merge
       if gh pr merge "$num" --repo "${TARGET_ORG}/${repo}" --squash --auto 2>/dev/null; then
         echo -e "${GREEN}auto-merge enabled${NC}"
@@ -120,21 +120,21 @@ cmd_summary() {
   echo "  Dependency PR Summary"
   echo "=============================================="
   echo ""
-  
+
   local total=0
   declare -A counts
-  
+
   for repo in $(gh repo list "$TARGET_ORG" --json name -q '.[].name'); do
     local count
     count=$(gh pr list --repo "${TARGET_ORG}/${repo}" --state open --json number,title \
       --jq '[.[] | select(.title | test("^chore|^Bump|deps";"i"))] | length' 2>/dev/null) || continue
-    
+
     if [[ "$count" -gt 0 ]]; then
       printf "  %-35s %3d\n" "$repo" "$count"
       total=$((total + count))
     fi
   done
-  
+
   echo ""
   echo "  ─────────────────────────────────────────"
   printf "  %-35s %3d\n" "TOTAL" "$total"
@@ -165,7 +165,7 @@ EOF
 main() {
   local cmd="${1:-}"
   shift || true
-  
+
   case "$cmd" in
     list) cmd_list ;;
     summary) cmd_summary ;;

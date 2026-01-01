@@ -32,15 +32,15 @@ case "$ACTION" in
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listAgents","arguments":{}}}' 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
     ;;
-  
+
   create)
     TASK="$*"
     if [ -z "$TASK" ]; then
@@ -48,7 +48,7 @@ case "$ACTION" in
       echo "Example: cursor-agents create 'Review security implications in PR #169'"
       exit 1
     fi
-    
+
     echo "=== Creating New Background Agent ==="
     echo "Task: $TASK"
     echo ""
@@ -56,37 +56,37 @@ case "$ACTION" in
     echo "Example call structure:"
     echo '  {"prompt": {"text": "'"$TASK"'"}, "source": {"repository": "https://github.com/jbcom/jbcom-control-center", "ref": "main"}}'
     ;;
-  
+
   repos|repositories)
     echo "=== Available Repositories ==="
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listRepositories","arguments":{}}}' 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq -r '.result.content[0].text' | jq '.repositories[] | "\(.owner)/\(.name)"' | head -50
     echo ""
     echo "(Showing first 50 repositories)"
     ;;
-  
+
   models)
     echo "=== Available AI Models ==="
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d '{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"listModels","arguments":{}}}' 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
     ;;
-  
+
   status)
     AGENT_ID="$1"
     if [ -z "$AGENT_ID" ]; then
@@ -94,19 +94,19 @@ case "$ACTION" in
       exit 1
     fi
     echo "=== Agent Status: $AGENT_ID ==="
-    
+
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"getAgentStatus\",\"arguments\":{\"agentId\":\"$AGENT_ID\"}}}" 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
     ;;
-  
+
   conversation)
     AGENT_ID="$1"
     if [ -z "$AGENT_ID" ]; then
@@ -114,19 +114,19 @@ case "$ACTION" in
       exit 1
     fi
     echo "=== Agent Conversation: $AGENT_ID ==="
-    
+
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"getAgentConversation\",\"arguments\":{\"agentId\":\"$AGENT_ID\"}}}" 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq -r '.result.content[0].text' | jq
     ;;
-  
+
   followup)
     AGENT_ID="$1"
     shift
@@ -135,25 +135,25 @@ case "$ACTION" in
       echo "Usage: cursor-agents followup <agent-id> '<message>'"
       exit 1
     fi
-    
+
     echo "=== Sending Followup to Agent: $AGENT_ID ==="
     echo "Message: $MESSAGE"
-    
+
     ARGS=$(jq -n --arg id "$AGENT_ID" --arg msg "$MESSAGE" \
       '{agentId: $id, prompt: {text: $msg}}')
-    
+
     RESPONSE=$(curl -sf -X POST "${MCP_PROXY_URL}/mcp" \
       -H "Content-Type: application/json" \
       -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"addFollowup\",\"arguments\":$ARGS}}" 2>&1)
-    
+
     if [ $? -ne 0 ]; then
       echo "❌ Error calling MCP proxy: ${RESPONSE}"
       exit 1
     fi
-    
+
     echo "$RESPONSE" | jq
     ;;
-  
+
   help|--help|-h|"")
     echo "Cursor Background Agent Manager (via MCP Proxy)"
     echo ""
@@ -185,7 +185,7 @@ case "$ACTION" in
     echo "  MCP Proxy: ${MCP_PROXY_URL}"
     echo "  Backend: cursor-background-agent-mcp-server (stdio → HTTP)"
     ;;
-  
+
   *)
     echo "❌ Unknown action: $ACTION"
     echo "Run 'cursor-agents help' for usage information"

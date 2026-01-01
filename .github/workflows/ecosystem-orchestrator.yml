@@ -128,7 +128,7 @@ jobs:
         run: |
           SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
           ADDITIONS=$(gh pr view ${{ env.PR_NUMBER }} --repo ${{ env.TARGET_REPO }} --json additions --jq '.additions' 2>/dev/null || echo "0")
-          
+
           if [[ "$SUGGESTIONS" -gt 5 ]] || [[ "$ADDITIONS" -gt 500 ]] || [[ -z "$SUGGESTIONS" ]]; then
             echo "needs_escalation=true" >> $GITHUB_OUTPUT
           else
@@ -182,10 +182,10 @@ jobs:
   delegate_jules_cursor:
     name: Delegate (Jules/Cursor)
     if: |
-      (github.event_name == 'issue_comment' && 
-       (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
-      (github.event_name == 'workflow_call' && inputs.action == 'delegate' && 
-       (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor'))) ||
+      (github.event_name == 'issue_comment' &&
+       (startsWith(github.event.comment.body, '/jules') || startsWith(github.event.comment.body, '/cursor'))) ||
+      (github.event_name == 'workflow_call' && inputs.action == 'delegate' &&
+       (startsWith(inputs.comment_body, '/jules') || startsWith(inputs.comment_body, '/cursor'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate')
     runs-on: ubuntu-latest
     env:
@@ -215,10 +215,10 @@ jobs:
   delegate_claude_issue:
     name: Delegate (Claude Issue)
     if: |
-      (github.event_name == 'issue_comment' && 
-       github.event.issue.pull_request == null && 
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request == null &&
        contains(github.event.comment.body, '@claude')) ||
-      (github.event_name == 'workflow_call' && inputs.action == 'delegate' && 
+      (github.event_name == 'workflow_call' && inputs.action == 'delegate' &&
        contains(inputs.comment_body, '@claude'))
     runs-on: ubuntu-latest
     env:
@@ -243,12 +243,12 @@ jobs:
           direct_prompt: |
             Issue in ${{ env.TARGET_REPO }}: #${{ env.ISSUE_NUMBER }}
             Title: ${{ env.ISSUE_TITLE }}
-            
+
             Description:
             ${{ env.ISSUE_BODY }}
-            
+
             Triggering comment: ${{ env.COMMENT_BODY }}
-            
+
             Analyze and implement a fix or answer. Create a PR with changes.
 
   # ============================================================================
@@ -257,8 +257,8 @@ jobs:
   delegate_claude_pr:
     name: Delegate (Claude PR)
     if: |
-      github.event_name == 'issue_comment' && 
-      github.event.issue.pull_request != null && 
+      github.event_name == 'issue_comment' &&
+      github.event.issue.pull_request != null &&
       contains(github.event.comment.body, '@claude')
     runs-on: ubuntu-latest
     env:

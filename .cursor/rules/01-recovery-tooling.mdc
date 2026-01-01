@@ -57,7 +57,7 @@ if [ -f "$CONV_FILE" ]; then
   # Replay it
   python /workspace/scripts/replay_agent_session.py --conversation "$CONV_FILE"
 else
-  # ASK USER: "I need the conversation JSON for agent $AGENT_ID. 
+  # ASK USER: "I need the conversation JSON for agent $AGENT_ID.
   # Please export it from Cursor and provide the file or paste the contents."
 fi
 ```

@@ -5,7 +5,7 @@ description: "Complete documentation for this Go package"
 
 ## Overview
 
-Welcome to the documentation for this Go package. This site provides comprehensive 
+Welcome to the documentation for this Go package. This site provides comprehensive
 API reference documentation generated from source code comments.
 
 ## Quick Start

@@ -59,8 +59,8 @@ get_all_repos() {
 get_repo_ecosystem() {
   local repo="$1"
   jq -r --arg repo "$repo" '
-    .ecosystems | to_entries[] | 
-    select(.value.repos | index($repo)) | 
+    .ecosystems | to_entries[] |
+    select(.value.repos | index($repo)) |
     .key
   ' "$CONFIG_FILE"
 }
@@ -73,7 +73,7 @@ get_merge_setting() {
 get_feature() {
   local field="$1"
   local ecosystem="${2:-}"
-  
+
   # Check for ecosystem override first
   if [[ -n "$ecosystem" ]]; then
     local override
@@ -83,7 +83,7 @@ get_feature() {
       return
     fi
   fi
-  
+
   jq -r ".defaults.features.${field}" "$CONFIG_FILE"
 }
 
@@ -115,7 +115,7 @@ configure_repo_settings() {
   local repo="$1"
   local ecosystem="$2"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   # Build the update payload - merge settings + features
   # NEVER include: visibility, name, description, homepage, archived
   local payload
@@ -156,7 +156,7 @@ configure_repo_settings() {
       merge_commit_title: $merge_title,
       merge_commit_message: $merge_message
     }')
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_info "    [DRY RUN] Would apply repo settings"
     log_verbose "    Payload: $(echo "$payload" | jq -c '.')"
@@ -175,16 +175,16 @@ configure_discussions() {
   local ecosystem="$2"
   local full_repo="${GITHUB_ORG}/${repo}"
   local current_visibility="$3"
-  
+
   local enable_discussions
   enable_discussions=$(get_feature 'has_discussions' "$ecosystem")
-  
+
   # Discussions only work for public repos
   if [[ "$current_visibility" != "public" ]]; then
     log_verbose "    Skipping discussions (private repo)"
     return 0
   fi
-  
+
   if [[ "$enable_discussions" == "true" ]]; then
     if [[ "$DRY_RUN" == "true" ]]; then
       log_info "    [DRY RUN] Would enable discussions"
@@ -203,24 +203,24 @@ configure_discussions() {
 configure_security() {
   local repo="$1"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_info "    [DRY RUN] Would configure security settings"
     return 0
   fi
-  
+
   # Enable vulnerability alerts
   if [[ "$(get_security_setting 'vulnerability_alerts')" == "true" ]]; then
     gh api "repos/${full_repo}/vulnerability-alerts" -X PUT >/dev/null 2>&1 || true
     log_verbose "    Vulnerability alerts enabled"
   fi
-  
+
   # Enable Dependabot security updates
   if [[ "$(get_security_setting 'dependabot_security_updates')" == "enabled" ]]; then
     gh api "repos/${full_repo}/automated-security-fixes" -X PUT >/dev/null 2>&1 || true
     log_verbose "    Dependabot security updates enabled"
   fi
-  
+
   # Secret scanning settings (may require specific permissions)
   local security_payload
   security_payload=$(jq -n \
@@ -232,7 +232,7 @@ configure_security() {
         secret_scanning_push_protection: { status: $push_protection }
       }
     }')
-  
+
   gh api "repos/${full_repo}" -X PATCH --input - <<< "$security_payload" >/dev/null 2>&1 || true
   log_ok "    Security settings configured"
 }
@@ -240,7 +240,7 @@ configure_security() {
 configure_actions() {
   local repo="$1"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   local payload
   payload=$(jq -n \
     --argjson enabled "$(get_actions_setting 'enabled')" \
@@ -249,7 +249,7 @@ configure_actions() {
       enabled: $enabled,
       allowed_actions: $allowed_actions
     }')
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_info "    [DRY RUN] Would configure Actions permissions"
   else
@@ -352,30 +352,30 @@ sync_ruleset() {
   local ruleset_file="$2"
   local ecosystem="$3"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   # Skip non-JSON files (like .gitkeep)
   if [[ ! "$ruleset_file" =~ \.json$ ]]; then
     return 0
   fi
-  
+
   # Get ruleset key for ecosystem override lookup
   local ruleset_key
   ruleset_key=$(get_ruleset_key_from_file "$ruleset_file")
-  
+
   # Read base ruleset from file
   local base_config
   base_config=$(jq -c '.' "$ruleset_file" 2>/dev/null)
-  
+
   if [[ -z "$base_config" ]] || [[ "$base_config" == "null" ]]; then
     log_warn "      Failed to read ruleset from: $ruleset_file"
     return 1
   fi
-  
+
   # Check for ecosystem-specific overrides in repo-config.json
   local ruleset_config
   local override
   override=$(jq -c ".ecosystems.${ecosystem}.ruleset_overrides.${ruleset_key} // empty" "$CONFIG_FILE" 2>/dev/null)
-  
+
   if [[ -n "$override" ]] && [[ "$override" != "null" ]]; then
     # Merge override with base config from file
     ruleset_config=$(echo "$base_config" | jq -c --argjson override "$override" '. * $override')
@@ -383,14 +383,14 @@ sync_ruleset() {
   else
     ruleset_config="$base_config"
   fi
-  
+
   local ruleset_name
   ruleset_name=$(echo "$ruleset_config" | jq -r '.name')
-  
+
   # Check if ruleset already exists
   local existing_id
   existing_id=$(gh api "repos/${full_repo}/rulesets" --jq ".[] | select(.name == \"${ruleset_name}\") | .id" 2>/dev/null || echo "")
-  
+
   # Build the API payload
   local payload
   payload=$(echo "$ruleset_config" | jq '{
@@ -401,7 +401,7 @@ sync_ruleset() {
     bypass_actors: .bypass_actors,
     rules: .rules
   }')
-  
+
   if [[ -n "$existing_id" ]]; then
     if [[ "$DRY_RUN" == "true" ]]; then
       log_info "      [DRY RUN] Would update ruleset: $ruleset_name"
@@ -428,15 +428,15 @@ sync_ruleset() {
 sync_rulesets() {
   local repo="$1"
   local ecosystem="$2"
-  
+
   log_info "    Rulesets:"
-  
+
   # Check if rulesets directory exists
   if [[ ! -d "$RULESETS_DIR" ]]; then
     log_warn "      Rulesets directory not found: $RULESETS_DIR"
     return 0
   fi
-  
+
   # Iterate over JSON files in the rulesets directory
   local found_rulesets=false
   for ruleset_file in "$RULESETS_DIR"/*.json; do
@@ -447,7 +447,7 @@ sync_rulesets() {
     found_rulesets=true
     sync_ruleset "$repo" "$ruleset_file" "$ecosystem"
   done
-  
+
   if [[ "$found_rulesets" == "false" ]]; then
     log_warn "      No ruleset files found in: $RULESETS_DIR"
   fi
@@ -460,24 +460,24 @@ sync_rulesets() {
 sync_labels() {
   local repo="$1"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   if [[ "$SYNC_LABELS" != "true" ]]; then
     return 0
   fi
-  
+
   log_info "    Labels:"
-  
+
   # Get existing labels
   local existing_labels
   existing_labels=$(gh api "repos/${full_repo}/labels" --jq '.[].name' 2>/dev/null || echo "")
-  
+
   # Sync standard labels
   jq -c '.labels.standard[]' "$CONFIG_FILE" | while read -r label; do
     local name color description
     name=$(echo "$label" | jq -r '.name')
     color=$(echo "$label" | jq -r '.color')
     description=$(echo "$label" | jq -r '.description // ""')
-    
+
     if echo "$existing_labels" | grep -q "^${name}$"; then
       # Update existing
       if [[ "$DRY_RUN" == "true" ]]; then
@@ -500,14 +500,14 @@ sync_labels() {
       fi
     fi
   done
-  
+
   # Sync AI agent labels
   jq -c '.labels.ai_agents[]' "$CONFIG_FILE" | while read -r label; do
     local name color description
     name=$(echo "$label" | jq -r '.name')
     color=$(echo "$label" | jq -r '.color')
     description=$(echo "$label" | jq -r '.description // ""')
-    
+
     if ! echo "$existing_labels" | grep -q "^${name}$"; then
       if [[ "$DRY_RUN" == "true" ]]; then
         log_info "      [DRY RUN] Would create AI label: $name"
@@ -519,7 +519,7 @@ sync_labels() {
       fi
     fi
   done
-  
+
   log_ok "      Labels synced"
 }
 
@@ -530,82 +530,82 @@ sync_labels() {
 configure_repo() {
   local repo="$1"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   # Get ecosystem for this repo
   local ecosystem
   ecosystem=$(get_repo_ecosystem "$repo")
-  
+
   if [[ -z "$ecosystem" ]]; then
     log_warn "Repo '$repo' not found in config, skipping"
     return 0
   fi
-  
+
   log_info "Configuring: $repo ($ecosystem)"
-  
+
   # Get current state
   local current
   current=$(get_current_config "$repo")
-  
+
   if [[ "$current" == "{}" ]]; then
     log_warn "  Could not fetch current config"
     return 1
   fi
-  
+
   # Extract protected values
   local current_visibility
   current_visibility=$(echo "$current" | jq -r '.visibility // "public"')
   log_info "  Visibility: $current_visibility (PRESERVED)"
   log_info "  Description: $(echo "$current" | jq -r '.description // "(none)"' | head -c 50)... (PRESERVED)"
-  
+
   # Show diff if requested
   if [[ "$SHOW_DIFF" == "true" ]]; then
     show_config_diff "$repo" "$current"
     return 0
   fi
-  
+
   # Apply all configurations
   configure_repo_settings "$repo" "$ecosystem"
   configure_discussions "$repo" "$ecosystem" "$current_visibility"
-  
+
   if [[ "$current_visibility" == "public" ]]; then
     configure_security "$repo"
   fi
-  
+
   configure_actions "$repo"
   configure_pages "$repo" "$ecosystem"
   sync_rulesets "$repo" "$ecosystem"
   sync_labels "$repo"
-  
+
   log_ok "  Configuration complete"
 }
 
 show_config_diff() {
   local repo="$1"
   local current="$2"
-  
+
   echo "  Current vs Desired (managed fields only):"
-  
+
   local fields=("has_wiki" "allow_squash_merge" "allow_merge_commit" "allow_rebase_merge" "delete_branch_on_merge")
   local has_diff=false
-  
+
   for field in "${fields[@]}"; do
     local current_val desired_val
     current_val=$(echo "$current" | jq -r ".${field}")
     desired_val=$(get_merge_setting "$field" 2>/dev/null || get_feature "$field" 2>/dev/null || echo "")
-    
+
     if [[ -n "$desired_val" ]] && [[ "$current_val" != "$desired_val" ]]; then
       log_diff "    $field: $current_val → $desired_val"
       has_diff=true
     fi
   done
-  
+
   echo ""
   echo "  Protected (NEVER changed):"
   echo "    visibility: $(echo "$current" | jq -r '.visibility')"
   echo "    private: $(echo "$current" | jq -r '.private')"
   echo "    description: $(echo "$current" | jq -r '.description // "(none)"' | head -c 60)..."
   echo "    homepage: $(echo "$current" | jq -r '.homepage // "(none)"')"
-  
+
   if [[ "$has_diff" != "true" ]]; then
     log_ok "  No differences in managed fields"
   fi
@@ -643,7 +643,7 @@ show_help() {
 main() {
   local repos=()
   local configure_all=false
-  
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
       --dry-run)
@@ -681,11 +681,11 @@ main() {
         ;;
     esac
   done
-  
+
   if [[ ${#repos[@]} -eq 0 ]] || [[ "$configure_all" == "true" ]]; then
     mapfile -t repos < <(get_all_repos)
   fi
-  
+
   echo ""
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo "  COMPREHENSIVE REPOSITORY CONFIGURATION"
@@ -694,15 +694,15 @@ main() {
   echo "  Settings: merge, features, security, actions, pages, rulesets"
   echo "  Protected: visibility, name, description, homepage, archived"
   echo ""
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_warn "DRY RUN - no changes will be made"
     echo ""
   fi
-  
+
   local count=0
   local errors=0
-  
+
   for repo in "${repos[@]}"; do
     if configure_repo "$repo"; then
       ((count++))
@@ -711,7 +711,7 @@ main() {
     fi
     echo ""
   done
-  
+
   echo "═══════════════════════════════════════════════════════════════════════════════"
   log_ok "Processed $count repositories"
   if [[ $errors -gt 0 ]]; then

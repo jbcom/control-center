@@ -2,7 +2,7 @@
   "$schema": "./schemas/org-registry.schema.json",
   "enterprise": "jbcom",
   "description": "Enterprise control plane - ALPHA of the cascade (not OMEGA)",
-  
+
   "cascade": {
     "alpha": {
       "repo": "jbcom/control-center",
@@ -14,7 +14,7 @@
     },
     "principle": "Once it leaves control-center, it's not our problem. Escalations go to docs, not back here."
   },
-  
+
   "thisOrg": {
     "org": "jbcom",
     "domain": "jonbogaty.com",
@@ -26,7 +26,7 @@
       "codebases": []
     }
   },
-  
+
   "managedOrganizations": [
     {
       "org": "agentic-dev-library",
@@ -62,7 +62,7 @@
       }
     }
   ],
-  
+
   "conventions": {
     "testing": {
       "typescript": "vitest",
@@ -83,7 +83,7 @@
       "rust": "rustdoc"
     }
   },
-  
+
   "labels": {
     "priority": ["critical", "high", "medium", "low"],
     "type": ["bug", "feature", "docs", "chore", "refactor"],

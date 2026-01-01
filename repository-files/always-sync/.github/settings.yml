@@ -16,16 +16,16 @@ repository:
   has_projects: true
   has_wiki: false
   has_downloads: false
-  
+
   # Default branch
   default_branch: main
-  
+
   # Merge settings - squash only, clean PRs
   allow_squash_merge: true
   allow_merge_commit: false
   allow_rebase_merge: false
   delete_branch_on_merge: true
-  
+
   # Security
   enable_automated_security_fixes: true
   enable_vulnerability_alerts: true
@@ -45,7 +45,7 @@ labels:
   - name: "priority: medium"
     color: fbca04
     description: Medium priority
-  
+
   # Type labels
   - name: bug
     color: d73a4a
@@ -59,7 +59,7 @@ labels:
   - name: epic
     color: "7057ff"
     description: Epic issue tracking multiple sub-tasks
-  
+
   # Workflow labels
   - name: "good first issue"
     color: "7057ff"
@@ -79,7 +79,7 @@ labels:
   - name: ci
     color: d0cce4
     description: CI/CD related
-  
+
   # Queue labels
   - name: queued
     color: bdba7f
@@ -90,7 +90,7 @@ labels:
   - name: extraction
     color: 0E8A16
     description: Work being extracted from integration branch
-  
+
   # AI Agent labels
   - name: "Amazon Q development agent"
     color: 008dff
