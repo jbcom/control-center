@@ -50,6 +50,7 @@ type Session struct {
 	Name          string        `json:"name"`
 	State         string        `json:"state"`
 	Title         string        `json:"title"`
+	URL           string        `json:"url,omitempty"`
 	Prompt        string        `json:"prompt"`
 	SourceContext SourceContext `json:"sourceContext"`
 	CreateTime    string        `json:"createTime"`

@@ -130,7 +130,7 @@ func runCurator(cmd *cobra.Command, args []string) error {
 					log.WithError(err).Warn("Failed to create Jules session")
 				} else {
 					log.WithField("session", session.Name).Info("Created Jules session")
-					comment := fmt.Sprintf("🤖 **Delegated to Jules**\n\nSession: `%s`\n\nReasoning: %s", session.Name, triage.Reasoning)
+					comment := fmt.Sprintf("## 🤖 Jules Session Created\n\n  ➡️ **[Monitor Session](%s)**\n\nJules will analyze the issue and create a PR.", session.URL)
 					if err := ghClient.PostComment(ctx, curatorRepo, issue.Number, comment); err != nil {
 						log.WithError(err).Warn("Failed to post Jules comment")
 					}
