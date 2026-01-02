@@ -276,6 +276,7 @@ jobs:
           COUNT=0
           UPDATED=0
           FAILED=0
+          KILLED=0
           
           for repo in $REPOS; do
             COUNT=$((COUNT + 1))
@@ -293,8 +294,35 @@ jobs:
             git config user.name "github-actions[bot]"
             git config user.email "github-actions[bot]@users.noreply.github.com"
             
-            # Copy global files DIRECTLY to repo root (preserving structure)
+            # STEP 1: Process kill list FIRST (remove old workflows)
+            echo "  🗑️  Processing kill list..."
+            if [[ "${{ inputs.dry_run }}" != "true" ]]; then
+              $GITHUB_WORKSPACE/scripts/process-kill-list process . false 2>&1 | sed 's/^/    /'
+            else
+              $GITHUB_WORKSPACE/scripts/process-kill-list process . true 2>&1 | sed 's/^/    /'
+            fi
+            
+            # Check if files were deleted
+            git add -A
+            if ! git diff --staged --quiet; then
+              if [[ "${{ inputs.dry_run }}" != "true" ]]; then
+                git commit -m "chore(kill-list): remove deprecated workflows
+
+Automated cleanup via kill list from jbcom/control-center
+- Removed old ecosystem-* and ai-* workflows
+- Consolidated into 4 core workflows (triage, autoheal, review, delegator)
+- Removed Jules remote agent configurations
+
+Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                
+                git push origin HEAD 2>/dev/null || echo "    ⚠️ Kill list push failed"
+                KILLED=$((KILLED + 1))
+              fi
+            fi
+            
+            # STEP 2: Copy global files DIRECTLY to repo root (preserving structure)
             # e.g. global-sync/.github/workflows/ai-*.yml → .github/workflows/ai-*.yml
+            echo "  📦 Syncing new workflow files..."
             cp -r $GITHUB_WORKSPACE/global-sync/. . 2>/dev/null || true
             
             # Commit and push
@@ -303,8 +331,8 @@ jobs:
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
                 git commit -m "chore(global-sync): update AI/ecosystem workflows
 
-          Global sync from jbcom/control-center (direct to repo root)
-          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+Global sync from jbcom/control-center (direct to repo root)
+Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"
@@ -325,7 +353,11 @@ jobs:
           done
           
           echo ""
-          echo "📊 Global sync complete: $UPDATED updated, $FAILED failed out of $TOTAL repos"
+          echo "📊 Global sync complete:"
+          echo "   🗑️  Kill list processed: $KILLED repos"
+          echo "   ✅ Updated: $UPDATED repos"
+          echo "   ❌ Failed: $FAILED repos"
+          echo "   📦 Total: $TOTAL repos"
 
       - name: Summary
         run: |

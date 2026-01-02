@@ -55,7 +55,7 @@ on:
         type: string
 
 env:
-  OLLAMA_HOST: ${{ secrets.OLLAMA_API_URL || vars.OLLAMA_API_URL || vars.OLLAMA_HOST || 'https://ollama.com' }}
+  OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
   TARGET_REPO: ${{ inputs.repository || github.repository }}
   TARGET_PR: ${{ inputs.pr_number || github.event.pull_request.number || github.event.issue.number }}

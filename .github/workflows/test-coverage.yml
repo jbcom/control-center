@@ -1,0 +1,47 @@
+name: Test Coverage
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          
+      - name: Run tests with coverage
+        run: |
+          go test -race -coverprofile=coverage.out -covermode=atomic ./...
+          
+      - name: Generate coverage report
+        run: |
+          go tool cover -func=coverage.out | tee coverage.txt
+          echo "## Test Coverage" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -1 coverage.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage.out
+          fail_ci_if_error: false
+          
+      - name: Enforce minimum coverage
+        run: |
+          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print $3}' | sed 's/%//')
+          if (( $(echo "$COVERAGE < 70" | bc -l) )); then
+            echo "Coverage is below 70%: $COVERAGE%"
+            exit 1
+          fi
+          echo "Coverage: $COVERAGE%"
