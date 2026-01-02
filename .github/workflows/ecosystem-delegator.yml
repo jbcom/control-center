@@ -100,13 +100,29 @@ jobs:
       (github.event_name == 'workflow_dispatch' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor')))
     runs-on: ubuntu-latest
     steps:
+      - name: Parse Command
+        id: parse
+        run: |
+          TRIMMED_COMMENT=$(echo "${{ env.COMMENT_BODY }}" | xargs)
+          if [[ "$TRIMMED_COMMENT" == "/jules"* ]]; then
+            echo "is_jules=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_jules=false" >> $GITHUB_OUTPUT
+          fi
+          if [[ "$TRIMMED_COMMENT" == "/cursor"* ]]; then
+            echo "is_cursor=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_cursor=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+        if: steps.parse.outputs.is_jules == 'true' || steps.parse.outputs.is_cursor == 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Create Jules Session from Issue
-        if: contains(env.COMMENT_BODY, '/jules')
+        if: steps.parse.outputs.is_jules == 'true'
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}

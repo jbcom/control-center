@@ -193,12 +193,24 @@ jobs:
       ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
       COMMENT_BODY: ${{ inputs.comment_body || github.event.comment.body }}
     steps:
+      - name: Parse Command
+        id: parse
+        run: |
+          TRIMMED_COMMENT=$(echo "${{ env.COMMENT_BODY }}" | xargs)
+          if [[ "$TRIMMED_COMMENT" == "/jules"* || "$TRIMMED_COMMENT" == "/cursor"* ]]; then
+            echo "is_command=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_command=false" >> $GITHUB_OUTPUT
+          fi
+
       - uses: actions/checkout@v6
+        if: steps.parse.outputs.is_command == 'true'
         with:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Delegate Issue Command
+        if: steps.parse.outputs.is_command == 'true'
         uses: jbcom/control-center/.github/actions/agentic-issue-triage@main
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
