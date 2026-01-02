@@ -64,19 +64,35 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
+        # Trim leading/trailing whitespace from comment
+        COMMENT_TRIMMED=$(echo "$COMMENT_BODY" | xargs)
+
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_TRIMMED" == /jules* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
             exit 1
           fi
-
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          # Extract task from comment, removing the /jules prefix
+          TASK=$(echo "$COMMENT_TRIMMED" | sed 's|^/jules[[:space:]]*||' | head -c 1000)
+
+          # Check if the task is empty after trimming
+          if [[ -z "$TASK" ]]; then
+            # Post a comment explaining how to use the command and exit gracefully.
+            # This is not a CI failure, but user feedback.
+            gh issue comment "$ISSUE_NUMBER" --body-file - <<-EOF
+            🤖 Received an empty '/jules' command. To start a session, please provide a task description after the command.
+
+            **Example:**
+            \`/jules refactor the authentication logic to use a more secure method\`
+            EOF
+            exit 0
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session for task: \`$TASK\`"
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
@@ -86,26 +102,40 @@ runs:
               --arg repo "$REPOSITORY" \
               --arg branch "$DEFAULT_BRANCH" \
               '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
+                "prompt": $task,
+                "sourceContext": {
+                  "source": ("sources/github/" + ($repo | split("/") | .[0]) + "/" + ($repo | split("/") | .[1])),
+                  "githubRepoContext": { "startingBranch": $branch }
                 },
-                automationMode: "AUTO_CREATE_PR"
+                "automationMode": "AUTO_CREATE_PR"
               }')")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
 
-          if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
+          if [ -n "$SESSION_ID" ] && [ -n "$SESSION_URL" ]; then
+            # The multi-line body was causing actionlint failures.
+            # Using a heredoc is the cleanest way to fix this.
+            gh issue comment "$ISSUE_NUMBER" --body-file - <<-EOF
+            ## 🤖 Jules Session Created
 
-          ➡️ **[Monitor Session]($SESSION_URL)**
+            ➡️ **[Monitor Session]($SESSION_URL)**
 
-          Jules will analyze the issue and create a PR."
+            Jules will analyze the issue and create a PR to resolve it.
+            EOF
           else
+            ERROR_BODY=$(echo "$RESPONSE" | jq -r '.error.message // "An unknown error occurred."')
+            gh issue comment "$ISSUE_NUMBER" --body-file - <<-EOF
+            ❌ **Failed to create Jules session.**
+
+            **Reason:**
+            \`\`\`
+            $ERROR_BODY
+            \`\`\`
+
+            Please check the workflow logs for more details.
+            EOF
             echo "Failed to create Jules session: $RESPONSE"
-            gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
             exit 1
           fi
           exit 0
