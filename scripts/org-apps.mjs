@@ -8,6 +8,7 @@
  */
 
 import { writeFile } from 'fs/promises';
+import { readFileSync } from 'fs';
 
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 
@@ -30,7 +31,14 @@ const OPTIONAL_APPS = [
   { slug: 'render', name: 'Render', purpose: 'Deployment', priority: 'low' },
 ];
 
-const ORGANIZATIONS = ['jbcom', 'strata-game-library', 'agentic-dev-library', 'extended-data-library'];
+// Dynamically load managed organizations from the canonical source
+const config = JSON.parse(readFileSync('./repo-config.json', 'utf-8'));
+const ORGANIZATIONS = config.organizations.managed;
+
+if (!ORGANIZATIONS || !Array.isArray(ORGANIZATIONS) || ORGANIZATIONS.length === 0) {
+  console.error('❌ Validation Error: `organizations.managed` in repo-config.json is missing, empty, or not an array.');
+  process.exit(1);
+}
 
 async function ghApi(endpoint) {
   const res = await fetch(`https://api.github.com${endpoint}`, {
