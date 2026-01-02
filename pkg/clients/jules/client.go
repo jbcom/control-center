@@ -78,6 +78,10 @@ type CreateSessionRequest struct {
 
 // CreateSession creates a new Jules session
 func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string) (*Session, error) {
+	if prompt == "" {
+		return nil, fmt.Errorf("prompt cannot be empty")
+	}
+
 	req := CreateSessionRequest{
 		Prompt: prompt,
 		SourceContext: SourceContext{
