@@ -128,19 +128,19 @@ jobs:
               --arg repo "$TARGET_REPO" \
               --arg branch "$DEFAULT_BRANCH" \
               '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
+                "prompt": $task,
+                "sourceContext": {
+                  "source": ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  "githubRepoContext": { "startingBranch": $branch }
                 },
-                automationMode: "AUTO_CREATE_PR",
-                title: ("Jules: Address issue #" + env.TARGET_ISSUE)
+                "automationMode": "AUTO_CREATE_PR",
+                "title": ("Jules: Address issue #" + env.TARGET_ISSUE)
               }')")
 
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
+          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
 
-          if [[ -n "$SESSION_ID" ]]; then
-            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Jules session created**: https://jules.google.com/session/${SESSION_ID}"
+          if [[ -n "$SESSION_URL" ]]; then
+            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Jules session created**: ${SESSION_URL}"
           else
             gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "❌ **Error creating Jules session.**"
             echo "Failed to create Jules session. Response: $RESPONSE"
