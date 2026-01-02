@@ -15,38 +15,6 @@ if [[ -z "$ISSUE_NUMBER" ]]; then
   exit 1
 fi
 
-# Validate required environment variables
-MISSING_ENV=0
-
-if [[ -z "$COMMENT_BODY" ]]; then
-  echo "Error: COMMENT_BODY environment variable is required but not set." >&2
-  MISSING_ENV=1
-fi
-
-if [[ -z "$ISSUE_NUMBER" ]]; then
-  echo "Error: ISSUE_NUMBER environment variable is required but not set." >&2
-  MISSING_ENV=1
-fi
-
-if [[ -z "$REPOSITORY" ]]; then
-  echo "Error: REPOSITORY environment variable is required but not set." >&2
-  MISSING_ENV=1
-fi
-
-if [[ -z "$DEFAULT_BRANCH" ]]; then
-  echo "Error: DEFAULT_BRANCH environment variable is required but not set." >&2
-  MISSING_ENV=1
-fi
-
-if [[ -z "$GITHUB_TOKEN" ]]; then
-  echo "Error: GITHUB_TOKEN environment variable is required but not set." >&2
-  MISSING_ENV=1
-fi
-
-if [[ "$MISSING_ENV" -ne 0 ]]; then
-  echo "One or more required environment variables are missing. Exiting." >&2
-  exit 1
-fi
 # If /jules command is present, delegate to Google Jules
 if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
   echo "🤖 Received '/jules' command. Delegating to Google Jules..."
@@ -67,12 +35,7 @@ if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
 
   gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
 
-  TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | python - << 'PY'
-import sys
-s = sys.stdin.read()
-print(s[:1000])
-PY
-  )
+  TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
   [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
   RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/projects/${JULES_PROJECT_ID}/sessions" \
@@ -100,14 +63,7 @@ PY
 
   Jules will analyze the issue and create a PR." || post_comment_and_exit "❌ Failed to post Jules session URL to issue."
   else
-    # Avoid logging the full raw API response, which may contain sensitive information.
-    # Try to extract a minimal error message if the response is JSON.
-    ERROR_MESSAGE=$(echo "$RESPONSE" 2>/dev/null | jq -r '.error.message // empty' 2>/dev/null || true)
-    if [ -n "$ERROR_MESSAGE" ]; then
-      echo "Failed to create Jules session. Error: $ERROR_MESSAGE"
-    else
-      echo "Failed to create Jules session. The Jules API returned an unexpected response."
-    fi
+    echo "Failed to create Jules session: $RESPONSE"
     post_comment_and_exit "❌ Failed to create Jules session. Please check logs."
   fi
   exit 0

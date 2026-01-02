@@ -58,8 +58,6 @@ on:
         required: false
       GOOGLE_JULES_API_KEY:
         required: false
-      JULES_PROJECT_ID:
-        required: false
       OLLAMA_API_KEY:
         required: false
       CURSOR_API_KEY:
@@ -205,7 +203,7 @@ jobs:
         with:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
-          jules_project_id: ${{ secrets.JULES_PROJECT_ID }}
+          jules_project_id: ${{ vars.JULES_PROJECT_ID }}
           cursor_api_key: ${{ secrets.CURSOR_API_KEY }}
           comment_body: ${{ env.COMMENT_BODY }}
           issue_number: ${{ env.ISSUE_NUMBER }}
