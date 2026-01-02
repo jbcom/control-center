@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -78,6 +79,9 @@ type CreateSessionRequest struct {
 
 // CreateSession creates a new Jules session
 func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string) (*Session, error) {
+	if strings.TrimSpace(prompt) == "" {
+		return nil, fmt.Errorf("prompt cannot be empty")
+	}
 	req := CreateSessionRequest{
 		Prompt: prompt,
 		SourceContext: SourceContext{
