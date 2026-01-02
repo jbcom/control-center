@@ -76,13 +76,14 @@ runs:
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs | head -c 1000)
 
           if [ -z "$TASK" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Missing task for '/jules' command.
-
-To create a session, please provide a task description after the command.
-
-**Example:**
-\`/jules implement a new feature to do X\`
-"
+            BODY="⚠️ Missing task for '/jules' command."
+            BODY+=$'\n\n'
+            BODY+="To create a session, please provide a task description after the command."
+            BODY+=$'\n\n'
+            BODY+="**Example:**"
+            BODY+=$'\n'
+            BODY+="\`/jules implement a new feature to do X\`"
+            gh issue comment "$ISSUE_NUMBER" --body "$BODY"
             exit 1
           fi
 
