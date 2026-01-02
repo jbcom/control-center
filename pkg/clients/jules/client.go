@@ -20,14 +20,16 @@ const (
 // Client provides access to Google Jules API
 type Client struct {
 	apiKey     string
+	projectID  string
 	host       string
 	httpClient *http.Client
 }
 
 // Config holds Jules client configuration
 type Config struct {
-	APIKey string
-	Host   string
+	APIKey    string
+	ProjectID string
+	Host      string
 }
 
 // NewClient creates a new Jules client
@@ -37,8 +39,9 @@ func NewClient(cfg Config) *Client {
 	}
 
 	return &Client{
-		apiKey: cfg.APIKey,
-		host:   cfg.Host,
+		apiKey:    cfg.APIKey,
+		projectID: cfg.ProjectID,
+		host:      cfg.Host,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -48,6 +51,7 @@ func NewClient(cfg Config) *Client {
 // Session represents a Jules session
 type Session struct {
 	Name          string        `json:"name"`
+	URL           string        `json:"url"`
 	State         string        `json:"state"`
 	Title         string        `json:"title"`
 	Prompt        string        `json:"prompt"`
@@ -78,6 +82,10 @@ type CreateSessionRequest struct {
 
 // CreateSession creates a new Jules session
 func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string) (*Session, error) {
+	if c.projectID == "" {
+		return nil, fmt.Errorf("jules ProjectID is required")
+	}
+
 	req := CreateSessionRequest{
 		Prompt: prompt,
 		SourceContext: SourceContext{
@@ -90,8 +98,9 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 	}
 
 	log.WithFields(log.Fields{
-		"repo":   repo,
-		"branch": branch,
+		"repo":      repo,
+		"branch":    branch,
+		"projectID": c.projectID,
 	}).Debug("Creating Jules session")
 
 	body, err := json.Marshal(req)
@@ -99,7 +108,8 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/sessions", bytes.NewReader(body))
+	endpoint := fmt.Sprintf("%s/v1alpha/projects/%s/sessions", c.host, c.projectID)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", endpoint, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
