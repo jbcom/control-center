@@ -76,9 +76,7 @@ runs:
           TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs)
 
           if [ -z "$TASK" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Empty /jules command. Please provide a task.
-
-**Usage:** \`/jules <your task description>\`"
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Empty /jules command. Please provide a task.\n\n**Usage:** \`/jules <your task description>\`"
             exit 1
           fi
 
