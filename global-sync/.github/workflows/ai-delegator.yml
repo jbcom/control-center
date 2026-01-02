@@ -1,3 +1,4 @@
+---
 # AI Delegator - Routes AI agent requests from comments
 # Supports: @claude, /jules, /cursor
 name: AI Delegator
@@ -58,9 +59,9 @@ jobs:
           track_progress: true
           prompt: |
             You are helping with ${{ github.repository }}.
-            
+
             Context: ${{ github.event.issue.pull_request && 'Pull Request' || 'Issue' }} #${{ github.event.issue.number }}
-            
+
             First, read CLAUDE.md, AGENTS.md, or README.md to understand the project.
             Then address the user's request in their comment.
 
@@ -81,6 +82,7 @@ jobs:
 
   delegate:
     name: Delegate to AI
+    if: github.event.sender.type != 'Bot'
     needs: build
     runs-on: ubuntu-latest
     permissions:
