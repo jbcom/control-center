@@ -112,7 +112,7 @@ jobs:
                   --repo ${{ github.repository }} \
                   --message "🤖 **Automatic Rebase Complete**
 
-This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
+# This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
 
 ✅ No conflicts detected
 🔄 Branch is now up-to-date

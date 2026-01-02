@@ -308,7 +308,7 @@ jobs:
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
                 git commit -m "chore(kill-list): remove deprecated workflows
 
-Automated cleanup via kill list from jbcom/control-center
+# Automated cleanup via kill list from jbcom/control-center
 - Removed old ecosystem-* and ai-* workflows
 - Consolidated into 4 core workflows (triage, autoheal, review, delegator)
 - Removed Jules remote agent configurations
