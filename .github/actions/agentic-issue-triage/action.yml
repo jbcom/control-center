@@ -73,7 +73,10 @@ runs:
             exit 1
           fi
 
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs | head -c 1000)
+          TASK=$(echo "$COMMENT_BODY" \
+            | sed 's|/jules[[:space:]]*||' \
+            | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+            | head -c 1000)
 
           if [[ -z "$TASK" ]]; then
             gh issue comment "$ISSUE_NUMBER" --body "🤖 Received empty '/jules' command. Please provide a task.
