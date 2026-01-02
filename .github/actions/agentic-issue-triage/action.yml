@@ -65,7 +65,7 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" =~ ^\s*/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,16 +73,29 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          # Extract the task from the comment, trimming whitespace
+          TASK=$(echo "$COMMENT_BODY" | sed -e 's/^[[:space:]]*\/jules[[:space:]]*//' | xargs)
+
+          # Check if a task was provided
+          if [[ -z "$TASK" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Missing task for '/jules' command.
+
+        **Usage:** \`/jules <task description>\`
+
+        Please provide a description of the task for Jules to work on."
+            exit 1
+          fi
+
+          # Truncate for API
+          TASK_TRUNCATED=$(echo "$TASK" | head -c 1000)
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command with task: \`$TASK_TRUNCATED\`. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
             -H "Content-Type: application/json" \
             -d "$(jq -n \
-              --arg task "Fix issue #$ISSUE_NUMBER: $TASK" \
+              --arg task "Fix issue #$ISSUE_NUMBER: $TASK_TRUNCATED" \
               --arg repo "$REPOSITORY" \
               --arg branch "$DEFAULT_BRANCH" \
               '{
