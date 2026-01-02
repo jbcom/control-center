@@ -47,15 +47,17 @@ var fixerAnalyzeCmd = &cobra.Command{
 
 var fixerApplyCmd = &cobra.Command{
 	Use:   "apply",
-	Short: "Apply suggested fixes (placeholder)",
+	Short: "Apply suggested fixes (NOT YET IMPLEMENTED)",
+	Long:  "This command is a placeholder for future implementation. Use 'analyze' to get fix suggestions.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return fmt.Errorf("apply not yet implemented - use analyze to get suggestions")
+		return fmt.Errorf("apply not yet implemented - use analyze to get suggestions, then apply manually")
 	},
 }
 
 var fixerResolveConflictCmd = &cobra.Command{
 	Use:   "resolve-conflict",
-	Short: "Resolve merge conflicts (placeholder)",
+	Short: "Resolve merge conflicts (NOT YET IMPLEMENTED)",
+	Long:  "This command is a placeholder for future implementation. Manual conflict resolution is required.",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("resolve-conflict not yet implemented - manual resolution required")
 	},
