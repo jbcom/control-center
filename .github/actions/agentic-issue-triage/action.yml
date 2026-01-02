@@ -64,8 +64,11 @@ runs:
         REPOSITORY: ${{ inputs.repository }}
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
+        # Trim leading/trailing whitespace from comment body
+        COMMENT_BODY_TRIMMED=$(echo "$COMMENT_BODY" | xargs)
+
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY_TRIMMED" =~ ^/jules ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -75,7 +78,7 @@ runs:
 
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
           
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+          TASK=$(echo "$COMMENT_BODY_TRIMMED" | sed 's|/jules[[:space:]]*||' | head -c 1000)
           [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
