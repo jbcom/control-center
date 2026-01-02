@@ -183,9 +183,9 @@ jobs:
     name: Delegate (Jules/Cursor)
     if: |
       (github.event_name == 'issue_comment' && 
-       (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
+       (startsWith(github.event.comment.body, '/jules') || startsWith(github.event.comment.body, '/cursor'))) ||
       (github.event_name == 'workflow_call' && inputs.action == 'delegate' && 
-       (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor'))) ||
+       (startsWith(inputs.comment_body, '/jules') || startsWith(inputs.comment_body, '/cursor'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate')
     runs-on: ubuntu-latest
     env:
