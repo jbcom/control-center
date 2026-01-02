@@ -100,7 +100,14 @@ PY
 
   Jules will analyze the issue and create a PR." || post_comment_and_exit "❌ Failed to post Jules session URL to issue."
   else
-    echo "Failed to create Jules session: $RESPONSE"
+    # Avoid logging the full raw API response, which may contain sensitive information.
+    # Try to extract a minimal error message if the response is JSON.
+    ERROR_MESSAGE=$(echo "$RESPONSE" 2>/dev/null | jq -r '.error.message // empty' 2>/dev/null || true)
+    if [ -n "$ERROR_MESSAGE" ]; then
+      echo "Failed to create Jules session. Error: $ERROR_MESSAGE"
+    else
+      echo "Failed to create Jules session. The Jules API returned an unexpected response."
+    fi
     post_comment_and_exit "❌ Failed to create Jules session. Please check logs."
   fi
   exit 0
