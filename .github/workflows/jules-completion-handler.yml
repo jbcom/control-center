@@ -34,6 +34,7 @@ jobs:
           ISSUE_NUMBER: ${{ github.event.client_payload.issue_number }}
           AGENT_TYPE: ${{ github.event.client_payload.agent_type }}
           PR_URL: ${{ github.event.client_payload.pr_url }}
+          SESSION_URL: ${{ github.event.client_payload.session_url }}
           REPO: ${{ github.repository }}
         run: |
           set -eo pipefail
@@ -51,15 +52,15 @@ jobs:
 
           # Determine status icon and action
           case "${OUTCOME}" in
-            "success") 
+            "success")
               STATUS_ICON="✅"
               STATUS_TEXT="Completed successfully"
               ;;
-            "failure") 
+            "failure")
               STATUS_ICON="❌"
               STATUS_TEXT="Failed - manual review needed"
               ;;
-            "no_changes") 
+            "no_changes")
               STATUS_ICON="ℹ️"
               STATUS_TEXT="No changes needed"
               ;;
@@ -67,43 +68,49 @@ jobs:
               STATUS_ICON="🎉"
               STATUS_TEXT="Pull request created"
               ;;
-            *) 
+            *)
               STATUS_ICON="❓"
               STATUS_TEXT="Unknown outcome"
               ;;
           esac
 
-          # Construct the comment body
-          COMMENT_BODY="### ${EMOJI} Jules ${AGENT_NAME} Session Complete
+          # Construct the session link. Use a fallback for robustness.
+          SESSION_LINK="[${SESSION_ID}](${SESSION_URL:-https://console.cloud.google.com/jules/session/${SESSION_ID}})"
+
+          # Use a heredoc to build the main part of the comment body
+          # This is more robust for multiline content in YAML
+          COMMENT_BODY=$(cat <<EOF
+          ### ${EMOJI} Jules ${AGENT_NAME} Session Complete
 
           | Field | Value |
           |-------|-------|
-          | **Session ID** | \`${SESSION_ID}\` |
+          | **Session** | ${SESSION_LINK} |
           | **Agent** | ${AGENT_NAME} |
           | **Outcome** | ${STATUS_ICON} ${STATUS_TEXT} |
-          "
+          EOF
+          )
 
-          # Add PR link if available
+          # Add PR link if available, ensuring the table format is maintained
           if [[ -n "${PR_URL}" ]]; then
             COMMENT_BODY="${COMMENT_BODY}
-          | **Pull Request** | [View PR](${PR_URL}) |
-          "
+          | **Pull Request** | [View PR](${PR_URL}) |"
           fi
 
+          # Add the footer
           COMMENT_BODY="${COMMENT_BODY}
+
           ---
           > 🤖 *Automated by Jules*
-          > 
+          >
           > This PR will be automatically reviewed and merged if approved.
           "
 
+          # Post the comment to the appropriate location (PR or Issue)
           if [[ -n "${PR_NUMBER}" ]]; then
-            # Comment on PR and add labels for triage
             gh pr comment "${PR_NUMBER}" --repo "${REPO}" --body "$COMMENT_BODY"
             gh pr edit "${PR_NUMBER}" --repo "${REPO}" --add-label "jules-pr,auto-triage" || true
             echo "Posted completion comment to PR #${PR_NUMBER}"
           elif [[ -n "${ISSUE_NUMBER}" ]]; then
-            # Comment on Issue
             gh issue comment "${ISSUE_NUMBER}" --repo "${REPO}" --body "$COMMENT_BODY"
             echo "Posted completion comment to Issue #${ISSUE_NUMBER}"
           else
