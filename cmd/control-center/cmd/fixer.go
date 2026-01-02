@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,28 +33,51 @@ It uses Ollama to analyze failure logs and provide:
 
 Examples:
   # Analyze and suggest fix for a PR
-  control-center fixer --repo jbcom/control-center --pr 123
+  control-center fixer analyze --repo jbcom/control-center --pr 123
 
   # Analyze a specific workflow run
-  control-center fixer --repo jbcom/control-center --run-id 12345678
+  control-center fixer analyze --repo jbcom/control-center --run-id 12345678`,
+}
 
-  # Dry run
-  control-center fixer --repo jbcom/control-center --pr 123 --dry-run`,
-	RunE: runFixer,
+var fixerAnalyzeCmd = &cobra.Command{
+	Use:   "analyze",
+	Short: "Analyze CI failures and suggest fixes",
+	RunE:  runFixer,
+}
+
+var fixerApplyCmd = &cobra.Command{
+	Use:   "apply",
+	Short: "Apply suggested fixes (placeholder)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return fmt.Errorf("apply not yet implemented - use analyze to get suggestions")
+	},
+}
+
+var fixerResolveConflictCmd = &cobra.Command{
+	Use:   "resolve-conflict",
+	Short: "Resolve merge conflicts (placeholder)",
+	RunE: func(cmd *cobra.Command, args []string) error {
+		return fmt.Errorf("resolve-conflict not yet implemented - manual resolution required")
+	},
 }
 
 func init() {
 	rootCmd.AddCommand(fixerCmd)
+	fixerCmd.AddCommand(fixerAnalyzeCmd)
+	fixerCmd.AddCommand(fixerApplyCmd)
+	fixerCmd.AddCommand(fixerResolveConflictCmd)
 
-	fixerCmd.Flags().StringVar(&fixerRepo, "repo", "", "repository (owner/name)")
-	fixerCmd.Flags().IntVar(&fixerPR, "pr", 0, "pull request number")
-	fixerCmd.Flags().Int64Var(&fixerRunID, "run-id", 0, "workflow run ID")
+	// Flags for analyze subcommand
+	fixerAnalyzeCmd.Flags().StringVar(&fixerRepo, "repo", "", "repository (owner/name)")
+	fixerAnalyzeCmd.Flags().IntVar(&fixerPR, "pr", 0, "pull request number")
+	fixerAnalyzeCmd.Flags().Int64Var(&fixerRunID, "run-id", 0, "workflow run ID")
+	fixerAnalyzeCmd.Flags().StringVar(&outputFormat, "output", "markdown", "output format (markdown or json)")
 
-	fixerCmd.MarkFlagRequired("repo")
+	fixerAnalyzeCmd.MarkFlagRequired("repo")
 
-	viper.BindPFlag("fixer.repo", fixerCmd.Flags().Lookup("repo"))
-	viper.BindPFlag("fixer.pr", fixerCmd.Flags().Lookup("pr"))
-	viper.BindPFlag("fixer.run_id", fixerCmd.Flags().Lookup("run-id"))
+	viper.BindPFlag("fixer.repo", fixerAnalyzeCmd.Flags().Lookup("repo"))
+	viper.BindPFlag("fixer.pr", fixerAnalyzeCmd.Flags().Lookup("pr"))
+	viper.BindPFlag("fixer.run_id", fixerAnalyzeCmd.Flags().Lookup("run-id"))
 }
 
 func runFixer(cmd *cobra.Command, args []string) error {
@@ -115,6 +139,22 @@ func runFixer(cmd *cobra.Command, args []string) error {
 	suggestion := formatFixSuggestion(analysis)
 
 	log.WithField("confidence", analysis.Confidence).Info("Analysis completed")
+
+	if outputFormat == "json" {
+		// Output as JSON for programmatic use
+		output := map[string]interface{}{
+			"root_cause":            analysis.RootCause,
+			"fix_suggestion":        analysis.FixSuggestion,
+			"verification_commands": analysis.VerificationCommands,
+			"confidence":            analysis.Confidence,
+		}
+		jsonData, err := json.Marshal(output)
+		if err != nil {
+			return fmt.Errorf("failed to marshal analysis: %w", err)
+		}
+		fmt.Println(string(jsonData))
+		return nil
+	}
 
 	if dryRun {
 		fmt.Println("=== Fix Suggestion (Dry Run) ===")

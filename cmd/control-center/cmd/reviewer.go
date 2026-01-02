@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -32,24 +33,32 @@ It analyzes PR diffs and provides structured feedback on:
 
 Examples:
   # Review a specific PR
-  control-center reviewer --repo jbcom/control-center --pr 123
+  control-center reviewer review --repo jbcom/control-center --pr 123
 
   # Review with debug output
-  control-center reviewer --repo jbcom/control-center --pr 123 --log-level debug`,
-	RunE: runReviewer,
+  control-center reviewer review --repo jbcom/control-center --pr 123 --log-level debug`,
+}
+
+var reviewerReviewCmd = &cobra.Command{
+	Use:   "review",
+	Short: "Review a pull request",
+	RunE:  runReviewer,
 }
 
 func init() {
 	rootCmd.AddCommand(reviewerCmd)
+	reviewerCmd.AddCommand(reviewerReviewCmd)
 
-	reviewerCmd.Flags().StringVar(&reviewerRepo, "repo", "", "repository (owner/name)")
-	reviewerCmd.Flags().IntVar(&reviewerPR, "pr", 0, "pull request number")
+	// Flags for review subcommand
+	reviewerReviewCmd.Flags().StringVar(&reviewerRepo, "repo", "", "repository (owner/name)")
+	reviewerReviewCmd.Flags().IntVar(&reviewerPR, "pr", 0, "pull request number")
+	reviewerReviewCmd.Flags().StringVar(&outputFormat, "output", "markdown", "output format (markdown or json)")
 
-	reviewerCmd.MarkFlagRequired("repo")
-	reviewerCmd.MarkFlagRequired("pr")
+	reviewerReviewCmd.MarkFlagRequired("repo")
+	reviewerReviewCmd.MarkFlagRequired("pr")
 
-	viper.BindPFlag("reviewer.repo", reviewerCmd.Flags().Lookup("repo"))
-	viper.BindPFlag("reviewer.pr", reviewerCmd.Flags().Lookup("pr"))
+	viper.BindPFlag("reviewer.repo", reviewerReviewCmd.Flags().Lookup("repo"))
+	viper.BindPFlag("reviewer.pr", reviewerReviewCmd.Flags().Lookup("pr"))
 }
 
 func runReviewer(cmd *cobra.Command, args []string) error {
@@ -98,6 +107,16 @@ func runReviewer(cmd *cobra.Command, args []string) error {
 		"issues":   len(review.Issues),
 		"approval": review.Approval,
 	}).Info("Review completed")
+
+	if outputFormat == "json" {
+		// Output as JSON for programmatic use
+		reviewJSON, err := json.Marshal(review)
+		if err != nil {
+			return fmt.Errorf("failed to marshal review: %w", err)
+		}
+		fmt.Println(string(reviewJSON))
+		return nil
+	}
 
 	if dryRun {
 		fmt.Println("=== Review Comment (Dry Run) ===")
