@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0](https://github.com/jbcom/control-center/compare/v1.0.0...v1.1.0) (2026-01-02)
+
+
+### 🚀 Features
+
+* **cli:** add delegator command for AI agent routing ([695adbb](https://github.com/jbcom/control-center/commit/695adbbd36acdbfff02adbdfe9bb018442dbe248)), closes [#665](https://github.com/jbcom/control-center/issues/665)
+* Complete Imagen 3, Veo 3.1, LLM Proxy, testing infrastructure, workflow consolidation, and intelligent kill list system ([#672](https://github.com/jbcom/control-center/issues/672)) ([796372c](https://github.com/jbcom/control-center/commit/796372c1ab14b627a1fb3bcb255fc9c8577d26b6))
+* comprehensive Jules integration, CodeQL LLM packs, and workflow enhancements ([#625](https://github.com/jbcom/control-center/issues/625)) ([55551b8](https://github.com/jbcom/control-center/commit/55551b878ec18f4ff73332d6ab091d2059fd2efe))
+
 ## 1.0.0 (2026-01-01)
 
 
