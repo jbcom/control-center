@@ -65,7 +65,7 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" == /jules* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,10 +73,19 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          # Parse the task from the command, trimming whitespace
+          TASK=$(echo "$COMMENT_BODY" | sed -e 's/^\/jules[[:space:]]*//' | xargs)
+
+          # Check if a task was provided
+          if [[ -z "$TASK" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Invalid command. Please provide a task for Jules.
+
+        **Usage:** \`/jules <your task description>\`"
+            exit 1
+          fi
+
+          # Confirm the command and task before creating the session
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received command: \`/jules $TASK\`. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
@@ -94,15 +103,14 @@ runs:
                 automationMode: "AUTO_CREATE_PR"
               }')")
 
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
-          SESSION_URL="https://jules.google.com/session/$SESSION_ID"
+          SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
 
-          if [ -n "$SESSION_ID" ]; then
+          if [ -n "$SESSION_URL" ]; then
             gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
 
-          ➡️ **[Monitor Session]($SESSION_URL)**
+        ➡️ **[Monitor Session]($SESSION_URL)**
 
-          Jules will analyze the issue and create a PR."
+        Jules will analyze the issue and create a PR to address: \`$TASK\`"
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
@@ -112,10 +120,19 @@ runs:
         fi
 
         # If /cursor command is present, delegate to Cursor
-        if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
+        if [[ "$COMMENT_BODY" == /cursor* ]]; then
           echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
-          # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+
+          TASK=$(echo "$COMMENT_BODY" | sed -e 's/^\/cursor[[:space:]]*//' | xargs)
+
+          if [[ -z "$TASK" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "🤖 Invalid command. Please provide a task for Cursor.
+
+        **Usage:** \`/cursor <your task description>\`"
+            exit 1
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received command: \`/cursor $TASK\`. Cursor delegation is handled by the orchestrator."
           exit 0
         fi
 
