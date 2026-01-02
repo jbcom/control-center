@@ -69,7 +69,8 @@ runs:
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+            COMMENT_MSG="⚠️ GOOGLE_JULES_API_KEY not configured. Cannot delegate to Jules."
+            echo "$COMMENT_MSG" | gh issue comment "$ISSUE_NUMBER" --body-file -
             exit 1
           fi
 
@@ -119,7 +120,8 @@ runs:
             echo "$COMMENT_MSG" | gh issue comment "$ISSUE_NUMBER" --body-file -
           else
             echo "Failed to create Jules session: $RESPONSE"
-            gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
+            COMMENT_MSG="❌ Failed to create Jules session. Please check logs."
+            echo "$COMMENT_MSG" | gh issue comment "$ISSUE_NUMBER" --body-file -
             exit 1
           fi
           exit 0
@@ -129,7 +131,8 @@ runs:
         if [[ "$COMMENT_BODY" == *"/cursor"* ]]; then
           echo "🤖 Received '/cursor' command. Delegating to Cursor Cloud Agent..."
           # ... logic for Cursor delegation if needed ...
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+          COMMENT_MSG="🤖 Received '/cursor' command. Cursor delegation is handled by the orchestrator."
+          echo "$COMMENT_MSG" | gh issue comment "$ISSUE_NUMBER" --body-file -
           exit 0
         fi
 
@@ -138,4 +141,5 @@ runs:
         # agentic-control@1.1.0 doesn't have issue-triage command yet
         # For now, we'll just acknowledge the issue
         # agentic triage quick "$COMMENT_BODY"
-        gh issue comment "$ISSUE_NUMBER" --body "🤖 Issue received and queued for triage."
+        COMMENT_MSG="🤖 Issue received and queued for triage."
+        echo "$COMMENT_MSG" | gh issue comment "$ISSUE_NUMBER" --body-file -
