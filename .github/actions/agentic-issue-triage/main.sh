@@ -67,7 +67,12 @@ if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
 
   gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
 
-  TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
+  TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | python - << 'PY'
+import sys
+s = sys.stdin.read()
+print(s[:1000])
+PY
+  )
   [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
 
   RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/projects/${JULES_PROJECT_ID}/sessions" \
