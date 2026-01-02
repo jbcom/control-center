@@ -21,13 +21,15 @@ const (
 type Client struct {
 	apiKey     string
 	host       string
+	projectID  string
 	httpClient *http.Client
 }
 
 // Config holds Jules client configuration
 type Config struct {
-	APIKey string
-	Host   string
+	APIKey    string
+	Host      string
+	ProjectID string
 }
 
 // NewClient creates a new Jules client
@@ -37,8 +39,9 @@ func NewClient(cfg Config) *Client {
 	}
 
 	return &Client{
-		apiKey: cfg.APIKey,
-		host:   cfg.Host,
+		apiKey:     cfg.APIKey,
+		host:       cfg.Host,
+		projectID:  cfg.ProjectID,
 		httpClient: &http.Client{
 			Timeout: 60 * time.Second,
 		},
@@ -55,6 +58,7 @@ type Session struct {
 	CreateTime    string        `json:"createTime"`
 	UpdateTime    string        `json:"updateTime"`
 	PullRequestID string        `json:"pullRequestId,omitempty"`
+	URL           string        `json:"url"`
 }
 
 // SourceContext defines the repository context for a session
@@ -99,7 +103,8 @@ func (c *Client) CreateSession(ctx context.Context, repo, branch, prompt string)
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.host+"/v1alpha/sessions", bytes.NewReader(body))
+	url := fmt.Sprintf("%s/v1alpha/projects/%s/sessions", c.host, c.projectID)
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
