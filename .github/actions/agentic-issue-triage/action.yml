@@ -1,4 +1,3 @@
----
 name: 'Agentic Issue Triage'
 description: 'Triage a GitHub issue using an AI agent.'
 author: 'jbcom/agentic-control'
