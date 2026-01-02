@@ -18,7 +18,8 @@ func TestNewClient(t *testing.T) {
 				Model:  ModelGemini20Flash,
 			},
 			wantErr: false,
-		}{
+		},
+		{
 			name: "missing api key",
 			config: Config{
 				Model: ModelGemini20Flash,
