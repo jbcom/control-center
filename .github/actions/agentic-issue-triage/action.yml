@@ -73,7 +73,7 @@ runs:
           # Check if the task is empty
           if [[ -z "$TASK" ]] || [[ "$TRIMMED_COMMENT" == "/jules" ]]; then
             echo "❌ Empty prompt received for /jules command."
-            gh issue comment "$ISSUE_NUMBER" --body "$(echo -e "❌ **Empty prompt.** Please provide a task for Jules.\nUsage: \`/jules <your detailed prompt>\`")"
+            gh issue comment "$ISSUE_NUMBER" --body "❌ **Empty prompt.** Please provide a task for Jules.\nUsage: \`/jules <your detailed prompt>\`"
             exit 1
           fi
 
@@ -106,11 +106,7 @@ runs:
           SESSION_URL="https://jules.google.com/session/$SESSION_ID"
 
           if [ -n "$SESSION_ID" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created
-
-          ➡️ **[Monitor Session]($SESSION_URL)**
-
-          Jules will analyze the issue and create a PR."
+            gh issue comment "$ISSUE_NUMBER" --body "## 🤖 Jules Session Created\n\n➡️ **[Monitor Session]($SESSION_URL)**\n\nJules will analyze the issue and create a PR."
           else
             echo "Failed to create Jules session: $RESPONSE"
             gh issue comment "$ISSUE_NUMBER" --body "❌ Failed to create Jules session. Please check logs."
