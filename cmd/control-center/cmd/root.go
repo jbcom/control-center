@@ -40,10 +40,18 @@ It provides:
   - Reviewer: AI-powered code review coordination
   - Delegator: Task routing to appropriate AI agents
 
+AI Content Generation:
+  - Imagen: Google Imagen 3 text-to-image generation
+  - Veo: Google Veo 3.1 text-to-video generation
+  - Proxy: OpenAI-compatible LLM proxy for CodeQL integration
+
 Built-in AI integrations:
   - Ollama (GLM 4.6 Cloud) for fast analysis
   - Google Jules for multi-file refactoring
   - Cursor Cloud Agent for long-running tasks
+  - Google Gemini for advanced reasoning
+  - Google Imagen 3 for image generation
+  - Google Veo 3.1 for video generation
 
 Examples:
   # Run the gardener for all organizations
@@ -57,6 +65,15 @@ Examples:
 
   # Review a PR with Ollama
   control-center reviewer --repo jbcom/control-center --pr 456
+
+  # Generate images with Imagen 3
+  control-center imagen generate "cyberpunk city" --count 4
+
+  # Generate videos with Veo 3.1
+  control-center veo generate "ocean waves" --poll
+
+  # Start LLM proxy server
+  control-center proxy start --port 8080
 
   # Show version
   control-center version`,
