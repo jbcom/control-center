@@ -15,6 +15,38 @@ if [[ -z "$ISSUE_NUMBER" ]]; then
   exit 1
 fi
 
+# Validate required environment variables
+MISSING_ENV=0
+
+if [[ -z "$COMMENT_BODY" ]]; then
+  echo "Error: COMMENT_BODY environment variable is required but not set." >&2
+  MISSING_ENV=1
+fi
+
+if [[ -z "$ISSUE_NUMBER" ]]; then
+  echo "Error: ISSUE_NUMBER environment variable is required but not set." >&2
+  MISSING_ENV=1
+fi
+
+if [[ -z "$REPOSITORY" ]]; then
+  echo "Error: REPOSITORY environment variable is required but not set." >&2
+  MISSING_ENV=1
+fi
+
+if [[ -z "$DEFAULT_BRANCH" ]]; then
+  echo "Error: DEFAULT_BRANCH environment variable is required but not set." >&2
+  MISSING_ENV=1
+fi
+
+if [[ -z "$GITHUB_TOKEN" ]]; then
+  echo "Error: GITHUB_TOKEN environment variable is required but not set." >&2
+  MISSING_ENV=1
+fi
+
+if [[ "$MISSING_ENV" -ne 0 ]]; then
+  echo "One or more required environment variables are missing. Exiting." >&2
+  exit 1
+fi
 # If /jules command is present, delegate to Google Jules
 if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
   echo "🤖 Received '/jules' command. Delegating to Google Jules..."
