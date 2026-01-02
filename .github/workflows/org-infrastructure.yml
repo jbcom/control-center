@@ -1,3 +1,4 @@
+---
 name: Organization Infrastructure
 
 # Idempotent infrastructure setup for all managed organizations:

@@ -1,3 +1,4 @@
+---
 # jbcom-gardener.yml - Enterprise Level Orchestrator
 #
 # The GARDENER is the first-line orchestrator for the enterprise.
@@ -21,7 +22,7 @@ on:
   schedule:
     # Nightly at 3 AM UTC
     - cron: '0 3 * * *'
-  
+
   # On push to main - close the loop
   push:
     branches: [main]
@@ -29,7 +30,7 @@ on:
       - 'repository-files/**'
       - '.github/workflows/**'
       - '.github/org-registry.json'
-  
+
   # Manual with options
   workflow_dispatch:
     inputs:
@@ -103,10 +104,10 @@ jobs:
           TARGET: ${{ inputs.target || 'all' }}
         run: |
           echo "🌱 jbcom Gardener - Discovering organizations..."
-          
+
           # Read from org-registry.json
           MANAGED=$(jq -c '.managedOrganizations' .github/org-registry.json)
-          
+
           # Build matrix
           if [ "$TARGET" = "all" ]; then
             MATRIX=$(echo "$MANAGED" | jq -c '[.[] | {org: .org, control_center: .controlCenter}]')
@@ -114,7 +115,7 @@ jobs:
             # Filter to specific org
             MATRIX=$(echo "$MANAGED" | jq -c --arg t "$TARGET" '[.[] | select(.org == $t) | {org: .org, control_center: .controlCenter}]')
           fi
-          
+
           echo "matrix=$MATRIX" >> $GITHUB_OUTPUT
           echo "📋 Organizations: $(echo "$MATRIX" | jq -r '.[].org' | tr '\n' ' ')"
 
@@ -130,17 +131,17 @@ jobs:
           # Check if this is a prompt-queue issue
           if echo "$ISSUE_TITLE" | grep -qE "^🌱 PLANT:"; then
             echo "📬 Prompt queue issue detected: #$ISSUE_NUM"
-            
+
             # Parse the instruction
             INSTRUCTION=$(echo "$ISSUE_TITLE" | sed 's/^🌱 PLANT: //')
             TARGET=$(echo "$ISSUE_BODY" | grep -oP '🎯 TARGET: \K.*' | head -1 || echo "all")
             SCOPE=$(echo "$ISSUE_BODY" | grep -oP '📋 SCOPE: \K.*' | head -1 || echo "enterprise")
-            
+
             ITEM=$(jq -nc --arg inst "$INSTRUCTION" --arg target "$TARGET" --arg scope "$SCOPE" --arg num "$ISSUE_NUM" \
               '{instruction: $inst, target: $target, scope: $scope, issue: $num}')
-            
+
             echo "items=[$ITEM]" >> $GITHUB_OUTPUT
-            
+
             # Acknowledge
             COMMENT="🌱 **Gardener Processing**"
             COMMENT="$COMMENT\n\n| Field | Value |\n|-------|-------|\n| Instruction | $INSTRUCTION |\n| Target | $TARGET |\n| Scope | $SCOPE |\n\nProcessing cascade..."
@@ -178,9 +179,9 @@ jobs:
           CONTROL_CENTER: ${{ matrix.control_center }}
         run: |
           echo "🏥 Checking health of $CONTROL_CENTER..."
-          
+
           ISSUES=()
-          
+
           # Check if control center exists
           if ! gh repo view "$CONTROL_CENTER" > /dev/null 2>&1; then
             echo "❌ Control center not found: $CONTROL_CENTER"
@@ -189,7 +190,7 @@ jobs:
             exit 0
           fi
           echo "exists=true" >> $GITHUB_OUTPUT
-          
+
           # Check for required files
           REQUIRED_FILES=(
             ".github/workflows/ecosystem-triage.yml"
@@ -197,13 +198,13 @@ jobs:
             ".github/workflows/ecosystem-fixer.yml"
             ".github/org-context.json"
           )
-          
+
           for FILE in "${REQUIRED_FILES[@]}"; do
             if ! gh api "repos/$CONTROL_CENTER/contents/$FILE" > /dev/null 2>&1; then
               ISSUES+=("Missing: $FILE")
             fi
           done
-          
+
           # Check for stale sync (last sync > 7 days)
           LAST_SYNC=$(gh api "repos/$CONTROL_CENTER/commits?path=.github/workflows&per_page=1" --jq '.[0].commit.committer.date' 2>/dev/null || echo "")
           if [ -n "$LAST_SYNC" ]; then
@@ -212,7 +213,7 @@ jobs:
               ISSUES+=("Stale: Last sync was $DAYS_AGO days ago")
             fi
           fi
-          
+
           if [ ${#ISSUES[@]} -gt 0 ]; then
             echo "⚠️ Issues found:"
             printf '  - %s\n' "${ISSUES[@]}"
@@ -236,14 +237,14 @@ jobs:
             echo "healed=dry-run" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "🔧 Triggering sync for $CONTROL_CENTER..."
-          
+
           # Trigger the ecosystem-surveyor to sync this org
           gh workflow run ecosystem-surveyor.yml \
             --repo "${{ github.repository }}" \
             -f target_org="$ORG"
-          
+
           echo "healed=true" >> $GITHUB_OUTPUT
 
   # ════════════════════════════════════════════════════════════════
@@ -253,7 +254,7 @@ jobs:
     name: Backlog ${{ matrix.org }}
     needs: [discover, heal]
     if: |
-      always() && 
+      always() &&
       needs.discover.outputs.orgs != '[]' &&
       (inputs.process_backlog != false || github.event_name == 'schedule')
     runs-on: ubuntu-latest
@@ -274,25 +275,25 @@ jobs:
           CONTROL_CENTER: ${{ matrix.control_center }}
         run: |
           echo "📚 Processing backlog for $ORG..."
-          
+
           # Get stale PRs (configurable threshold, default 7 days)
           STALE_SECONDS=$((${STALE_DAYS:-7} * 86400))
           STALE_PRS=$(gh pr list --repo "$CONTROL_CENTER" --state open \
             --json number,title,updatedAt,isDraft \
             --jq "[.[] | select(.isDraft == false) | select((.updatedAt | fromdateiso8601) < (now - $STALE_SECONDS))]" 2>/dev/null || echo "[]")
-          
+
           STALE_COUNT=$(echo "$STALE_PRS" | jq 'length')
-          
+
           if [ "$STALE_COUNT" -gt 0 ]; then
             echo "📋 Found $STALE_COUNT stale PRs"
-            
+
             if [ "${{ env.DRY_RUN }}" = "true" ]; then
               echo "🔍 [DRY RUN] Would process: $(echo "$STALE_PRS" | jq -r '.[].number' | tr '\n' ' ')"
             else
               # Add 'stale' label and comment
               for PR_NUM in $(echo "$STALE_PRS" | jq -r '.[].number'); do
                 gh pr edit "$PR_NUM" --repo "$CONTROL_CENTER" --add-label "stale" 2>/dev/null || true
-                
+
                 STALE_MSG="⏰ **Stale PR Detected**\n\nThis PR has been inactive for >7 days. The Gardener will attempt to:\n1. Check if CI is passing\n2. Resolve any blockers\n3. Merge if ready\n\nIf you want to keep this PR open, please update it."
                 echo -e "$STALE_MSG" | gh pr comment "$PR_NUM" --repo "$CONTROL_CENTER" --body-file - 2>/dev/null || true
               done
@@ -300,12 +301,12 @@ jobs:
           else
             echo "✅ No stale PRs"
           fi
-          
+
           # Get unassigned issues
           UNASSIGNED=$(gh issue list --repo "$CONTROL_CENTER" --state open \
             --json number,title,labels,assignees \
             --jq '[.[] | select(.assignees | length == 0)]' 2>/dev/null || echo "[]")
-          
+
           UNASSIGNED_COUNT=$(echo "$UNASSIGNED" | jq 'length')
           echo "📋 Found $UNASSIGNED_COUNT unassigned issues"
 
@@ -316,7 +317,7 @@ jobs:
     name: Decompose to ${{ matrix.org }}
     needs: [discover, heal, backlog]
     if: |
-      always() && 
+      always() &&
       inputs.decompose == true &&
       needs.discover.outputs.orgs != '[]'
     runs-on: ubuntu-latest
@@ -336,12 +337,12 @@ jobs:
           CONTROL_CENTER: ${{ matrix.control_center }}
         run: |
           echo "🌿 Decomposing to $ORG repository level..."
-          
+
           if [ "${{ env.DRY_RUN }}" = "true" ]; then
             echo "🔍 [DRY RUN] Would trigger org-gardener in $CONTROL_CENTER"
             exit 0
           fi
-          
+
           # Trigger the org's gardener workflow
           gh workflow run "${ORG}-gardener.yml" \
             --repo "$CONTROL_CENTER" \

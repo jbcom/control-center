@@ -1,3 +1,4 @@
+---
 # AI Code Review - Tiered review pipeline
 # Tier 1: Ollama (fast, cheap) via control-center
 # Tier 2: Claude (escalation) for complex PRs
@@ -52,7 +53,7 @@ jobs:
             --repo "${{ github.repository }}" \
             --pr "${{ github.event.pull_request.number }}" \
             --log-level info 2>&1) || true
-          
+
           # Extract suggestion count from output
           SUGGESTIONS=$(echo "$OUTPUT" | grep -oP 'suggestions?: \K\d+' || echo "0")
           echo "suggestion_count=$SUGGESTIONS" >> $GITHUB_OUTPUT
@@ -65,7 +66,7 @@ jobs:
         run: |
           SUGGESTIONS="${{ steps.review.outputs.suggestion_count }}"
           ADDITIONS=$(gh pr view "$PR_NUM" --json additions --jq '.additions' || echo "0")
-          
+
           # Escalate if: >5 suggestions OR >500 lines changed
           if [[ "${SUGGESTIONS:-0}" -gt 5 ]] || [[ "${ADDITIONS:-0}" -gt 500 ]]; then
             echo "needs_escalation=true" >> $GITHUB_OUTPUT
@@ -80,7 +81,7 @@ jobs:
     name: Claude Review
     needs: ollama-review
     if: |
-      always() && 
+      always() &&
       needs.ollama-review.outputs.needs_escalation == 'true' &&
       needs.ollama-review.result != 'cancelled'
     runs-on: ubuntu-latest
@@ -122,11 +123,11 @@ jobs:
             actions: read
           prompt: |
             Review PR #${{ github.event.pull_request.number }} in ${{ github.repository }}.
-            
+
             This PR was escalated because it's large or complex.
-            
+
             Review for: correctness, security, performance, and maintainability.
-            
+
             Use inline comments for specific issues. Summarize in a PR comment.
 
           claude_args: |

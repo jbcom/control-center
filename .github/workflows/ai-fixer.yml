@@ -1,3 +1,4 @@
+---
 # AI CI Fixer - Tiered fix pipeline
 # Tier 1: Ollama (fast diagnosis) via control-center
 # Tier 2: Claude (complex fixes / flaky test detection)
@@ -46,14 +47,14 @@ jobs:
             echo "is_trusted=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           # Validate branch name
           if [[ ! "$HEAD_BRANCH" =~ ^[a-zA-Z0-9/_.-]+$ ]]; then
             echo "::error::Invalid branch name"
             echo "is_trusted=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
+
           echo "is_trusted=true" >> $GITHUB_OUTPUT
           echo "head_branch=$HEAD_BRANCH" >> $GITHUB_OUTPUT
           echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
@@ -96,12 +97,12 @@ jobs:
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         run: |
           chmod +x /tmp/control-center
-          
+
           OUTPUT=$(/tmp/control-center fixer \
             --repo "${{ github.repository }}" \
             --run-id "${{ github.event.workflow_run.id }}" \
             --log-level info 2>&1) || true
-          
+
           # Check if fix was applied
           if echo "$OUTPUT" | grep -q "fix applied\|commit created\|PR created"; then
             echo "fix_applied=true" >> $GITHUB_OUTPUT
@@ -188,7 +189,7 @@ jobs:
           fi
           IS_FLAKY=$(echo "$OUTPUT" | jq -r '.is_flaky // false')
           CONFIDENCE=$(echo "$OUTPUT" | jq -r '.confidence // 0')
-          
+
           # Auto-retry only if flaky AND high confidence
           if [ "$IS_FLAKY" = "true" ] && [ "$(echo "$CONFIDENCE >= 0.7" | bc -l)" = "1" ]; then
             echo "should_retry=true" >> $GITHUB_OUTPUT
@@ -265,7 +266,7 @@ jobs:
         run: |
           # Get failed job logs
           LOGS=$(gh run view ${{ github.event.workflow_run.id }} --log-failed 2>/dev/null | tail -200 || echo "Failed to fetch logs")
-          
+
           # Save to file for Claude
           echo "$LOGS" > /tmp/failure_logs.txt
           echo "logs_file=/tmp/failure_logs.txt" >> $GITHUB_OUTPUT
@@ -281,10 +282,10 @@ jobs:
             actions: read
           prompt: |
             Fix CI failure in ${{ github.repository }} PR #${{ needs.validate.outputs.pr_number }}.
-            
+
             Failed workflow: ${{ github.event.workflow_run.name }}
             Logs: /tmp/failure_logs.txt
-            
+
             Diagnose the failure, implement a fix, and commit directly to this branch.
             Verify your fix passes the build.
 

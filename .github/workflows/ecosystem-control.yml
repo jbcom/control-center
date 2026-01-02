@@ -1,3 +1,4 @@
+---
 # Ecosystem Control - AI Agent Orchestration
 # Routes @cascade commands to appropriate AI agents via pure curl
 #
@@ -53,15 +54,15 @@ jobs:
         run: |
           ISSUE_NUM="${{ github.event.issue.number }}"
           IS_PR="${{ github.event.issue.pull_request != null }}"
-          
+
           echo "issue_num=$ISSUE_NUM" >> $GITHUB_OUTPUT
           echo "is_pr=$IS_PR" >> $GITHUB_OUTPUT
           echo "repo=${{ github.repository }}" >> $GITHUB_OUTPUT
-          
+
           # Extract task (everything after @cascade)
           TASK=$(echo "$COMMENT" | sed 's/.*@cascade//' | xargs)
           echo "task=$TASK" >> $GITHUB_OUTPUT
-          
+
           # Get branch if PR
           if [ "$IS_PR" = "true" ]; then
             BRANCH=$(gh pr view $ISSUE_NUM --repo "${{ github.repository }}" --json headRefName --jq '.headRefName' 2>/dev/null || echo "main")
@@ -69,10 +70,10 @@ jobs:
             BRANCH="main"
           fi
           echo "branch=$BRANCH" >> $GITHUB_OUTPUT
-          
+
           # Route based on keywords
           AGENT="claude"  # default
-          
+
           if echo "$TASK" | grep -qiE "refactor|multi-file|large|migrate"; then
             AGENT="jules"
           elif echo "$TASK" | grep -qiE "debug|investigate|complex|fix ci"; then
@@ -80,7 +81,7 @@ jobs:
           elif echo "$TASK" | grep -qiE "quick|explain|what|why|how|question|\?"; then
             AGENT="ollama"
           fi
-          
+
           echo "agent=$AGENT" >> $GITHUB_OUTPUT
           echo "🎯 Routing to: $AGENT"
 
@@ -96,11 +97,11 @@ jobs:
           # All values passed via env to prevent code injection
           BODY=$(cat <<BODY_EOF
           🌊 **CASCADE** → **$AGENT**
-          
+
           Task: $TASK
           BODY_EOF
           )
-          
+
           if [ "$IS_PR" = "true" ]; then
             gh pr comment "$ISSUE_NUM" --repo "$REPO" --body "$BODY"
           else
@@ -153,7 +154,7 @@ jobs:
           echo "   Repo: $REPO"
           echo "   Branch: $BRANCH"
           echo "   Task: $TASK"
-          
+
           # Launch agent via Cursor API
           # https://cursor.com/docs/cloud-agent/api/endpoints#launch-an-agent
           RESPONSE=$(curl -sf -X POST "https://api.cursor.com/v0/agents" \
@@ -170,7 +171,7 @@ jobs:
                   branch: $branch
                 }
               }')" 2>&1) || RESPONSE=""
-          
+
           if [ -z "$RESPONSE" ]; then
             echo "❌ Failed to launch Cursor agent"
             BODY="❌ **Cursor Agent Failed**
@@ -179,9 +180,9 @@ jobs:
           else
             AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
             AGENT_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
-            
+
             echo "✅ Cursor agent launched: $AGENT_ID"
-            
+
             BODY="🤖 **Cursor Agent Launched**
 
           | Field | Value |
@@ -197,7 +198,7 @@ jobs:
           $TASK
           \`\`\`"
           fi
-          
+
           # Post result
           if [ "$IS_PR" = "true" ]; then
             gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
@@ -229,12 +230,12 @@ jobs:
           # Parse owner/repo
           OWNER="${REPO%%/*}"
           REPO_NAME="${REPO##*/}"
-          
+
           echo "🤖 Creating Jules session..."
           echo "   Source: sources/github/$OWNER/$REPO_NAME"
           echo "   Branch: $BRANCH"
           echo "   Task: $TASK"
-          
+
           # Create session via Jules API
           # https://developers.google.com/jules/api/reference/rest/v1alpha/sessions/create
           RESPONSE=$(curl -sf -X POST "https://jules.googleapis.com/v1alpha/sessions" \
@@ -254,7 +255,7 @@ jobs:
                 },
                 automationMode: "AUTO_CREATE_PR"
               }')" 2>&1) || RESPONSE=""
-          
+
           if [ -z "$RESPONSE" ]; then
             echo "❌ Failed to create Jules session"
             BODY="❌ **Jules Session Failed**
@@ -264,9 +265,9 @@ jobs:
             SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
             SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
             SESSION_STATE=$(echo "$RESPONSE" | jq -r '.state // "UNKNOWN"')
-            
+
             echo "✅ Jules session created: $SESSION_ID"
-            
+
             BODY="🤖 **Jules Session Created**
 
           | Field | Value |
@@ -286,7 +287,7 @@ jobs:
 
           Jules will create a PR when the work is complete."
           fi
-          
+
           # Post result
           if [ "$IS_PR" = "true" ]; then
             gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
@@ -315,7 +316,7 @@ jobs:
         run: |
           # All values passed via env to prevent code injection
           echo "🤖 Querying Ollama..."
-          
+
           # Call Ollama API
           RESPONSE=$(curl -sf --max-time 60 \
             -H "Authorization: Bearer $OLLAMA_API_KEY" \
@@ -329,20 +330,20 @@ jobs:
               stream: false
             }')" \
             "$OLLAMA_API_URL/api/chat" 2>&1) || RESPONSE=""
-          
+
           if [ -z "$RESPONSE" ]; then
             ANSWER="_(Ollama API unavailable)_"
           else
             ANSWER=$(echo "$RESPONSE" | jq -r '.message.content // "No response"')
           fi
-          
+
           BODY="🤖 **Ollama Response**
 
           $ANSWER
 
           ---
           <sub>Model: llama3.2 | Cost: ~$0.001</sub>"
-          
+
           # Post result
           if [ "$IS_PR" = "true" ]; then
             gh pr comment $ISSUE_NUM --repo "${{ github.repository }}" --body "$BODY"
@@ -367,9 +368,9 @@ jobs:
         run: |
           ISSUE_NUM="${{ github.event.issue.number }}"
           LABEL="${{ github.event.label.name }}"
-          
+
           echo "🏷️ Label added: $LABEL on issue #$ISSUE_NUM"
-          
+
           case "$LABEL" in
             queue-ready)
               echo "  → Triggering merge assessment"

@@ -1,3 +1,4 @@
+---
 name: Lint Configuration
 
 # Validates repo-config.json for correctness
@@ -21,20 +22,20 @@ jobs:
   validate-json:
     name: Validate repo-config.json
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-      
+
       - name: Check for symlinks
         run: |
           ./scripts/check-symlinks
-      
+
       - name: Validate JSON configuration
         run: |
           # Use shared validation script
           ./scripts/validate-config --verbose
-      
+
       - name: Display configuration summary
         run: |
           echo "Configuration Summary:"
