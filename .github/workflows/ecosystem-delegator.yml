@@ -105,78 +105,102 @@ jobs:
           repository: ${{ env.TARGET_REPO }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
-      - name: Create Jules Session from Issue
-        if: contains(env.COMMENT_BODY, '/jules')
+      - name: Delegate to Agent
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           DEFAULT_BRANCH: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}
         run: |
-          # Extract prompt from comment, removing the /jules command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/jules ||p')
+          set -euo pipefail
 
-          if [[ -z "$PROMPT" ]]; then
-            echo "Jules command used without a prompt. Exiting."
-            exit 0
-          fi
+          # Trim leading/trailing whitespace
+          COMMENT_TRIMMED=$(echo "${COMMENT_BODY}" | xargs)
 
-          RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
-            -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "$PROMPT" \
-              --arg repo "$TARGET_REPO" \
-              --arg branch "$DEFAULT_BRANCH" \
-              '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
-                },
-                automationMode: "AUTO_CREATE_PR",
-                title: ("Jules: Address issue #" + env.TARGET_ISSUE)
-              }')")
-
-          SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
-
-          if [[ -n "$SESSION_ID" ]]; then
-            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Jules session created**: https://jules.google.com/session/${SESSION_ID}"
-          else
-            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "❌ **Error creating Jules session.**"
-            echo "Failed to create Jules session. Response: $RESPONSE"
+          # --- Helper Functions ---
+          post_error() {
+            local message="$1"
+            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "❌ **Error:** ${message}"
             exit 1
-          fi
+          }
 
-      - name: Create Cursor Cloud Agent
-        if: contains(env.COMMENT_BODY, '/cursor')
-        env:
-          CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          # Extract prompt from comment, removing the /cursor command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/cursor ||p')
-
-          if [[ -z "$PROMPT" ]]; then
-            echo "Cursor command used without a prompt. Exiting."
+          post_usage() {
+            local command="$1"
+            local example_prompt="$2"
+            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "⚠️ **Invalid command.** Usage: \`/${command} ${example_prompt}\`"
+            # Exit successfully to avoid CI failure noise on typos
             exit 0
-          fi
+          }
 
-          RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
-            -u "$CURSOR_API_KEY:" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n \
-              --arg task "$PROMPT" \
-              --arg repo "$TARGET_REPO" \
-              '{"prompt":{"text":$task},"source":{"repository":$repo}}')")
+          # --- Command Routing ---
+          if [[ "$COMMENT_TRIMMED" == /jules || "$COMMENT_TRIMMED" == /jules* ]]; then
+            PROMPT=$(echo "$COMMENT_TRIMMED" | sed -E 's|^/jules[[:space:]]+||')
+            if [[ "$PROMPT" == "/jules" || -z "$PROMPT" ]]; then
+              post_usage "jules" "Fix this issue by implementing X"
+            fi
 
-          AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+            # Check for API key
+            if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
+              post_error "GOOGLE_JULES_API_KEY secret not configured for this repository."
+            fi
 
-          if [[ -n "$AGENT_ID" ]]; then
-            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Cursor agent spawned**: ID $AGENT_ID"
-          else
-            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "❌ **Error spawning Cursor agent.**"
-            echo "Failed to spawn Cursor agent. Response: $RESPONSE"
-            exit 1
+            # Create Jules Session
+            RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
+              -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n \
+                --arg task "$PROMPT" \
+                --arg repo "$TARGET_REPO" \
+                --arg branch "$DEFAULT_BRANCH" \
+                --arg issue_num "$TARGET_ISSUE" \
+                '{
+                  prompt: $task,
+                  sourceContext: {
+                    source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                    githubRepoContext: { startingBranch: $branch }
+                  },
+                  automationMode: "AUTO_CREATE_PR",
+                  title: ("Jules: Address issue #" + $issue_num)
+                }')")
+
+            SESSION_ID=$(echo "$RESPONSE" | jq -r '.name // empty' | sed 's|sessions/||')
+            SESSION_URL=$(echo "$RESPONSE" | jq -r '.url // empty')
+
+            if [[ -n "$SESSION_ID" && -n "$SESSION_URL" ]]; then
+              gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Jules session created**: [View Session](${SESSION_URL})"
+            else
+              echo "Error Response: $RESPONSE"
+              post_error "Failed to create Jules session. See workflow logs for details."
+            fi
+
+          elif [[ "$COMMENT_TRIMMED" == /cursor || "$COMMENT_TRIMMED" == /cursor* ]]; then
+            PROMPT=$(echo "$COMMENT_TRIMMED" | sed -E 's|^/cursor[[:space:]]+||')
+            if [[ "$PROMPT" == "/cursor" || -z "$PROMPT" ]]; then
+              post_usage "cursor" "Implement the feature described in this issue"
+            fi
+
+            # Check for API key
+            if [[ -z "$CURSOR_API_KEY" ]]; then
+              post_error "CURSOR_API_KEY secret not configured for this repository."
+            fi
+
+            # Create Cursor Agent
+            RESPONSE=$(curl -s -X POST "https://api.cursor.com/v0/agents" \
+              -u "$CURSOR_API_KEY:" \
+              -H "Content-Type: application/json" \
+              -d "$(jq -n \
+                --arg task "$PROMPT" \
+                --arg repo "$TARGET_REPO" \
+                '{"prompt":{"text":$task},"source":{"repository":$repo}}')")
+
+            AGENT_ID=$(echo "$RESPONSE" | jq -r '.id // empty')
+
+            if [[ -n "$AGENT_ID" ]]; then
+              gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "✅ **Cursor agent spawned**: ID \`${AGENT_ID}\`"
+            else
+              echo "Error Response: $RESPONSE"
+              post_error "Failed to spawn Cursor agent. See workflow logs for details."
+            fi
           fi
 
   # ============================================
