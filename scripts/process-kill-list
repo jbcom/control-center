@@ -1,0 +1,322 @@
+#!/usr/bin/env bash
+# Kill List Processor - Deletes files/directories matching patterns across repos
+# Supports: glob patterns, regex patterns, exact paths
+# Part of enterprise ecosystem sync
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/../agentic.config.json}"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Check if jq is installed
+if ! command -v jq &> /dev/null; then
+    echo -e "${RED}Error: jq is required but not installed${NC}"
+    exit 1
+fi
+
+# Load kill list from config
+KILL_LIST=$(jq -r '.ecosystem.killList.patterns' "$CONFIG_FILE")
+PROTECTED_PATTERNS=$(jq -r '.ecosystem.killList.protectedPatterns[]' "$CONFIG_FILE")
+
+# Function to check if a file is protected
+is_protected() {
+    local file="$1"
+    while IFS= read -r pattern; do
+        if [[ "$file" == "$pattern" ]]; then
+            return 0
+        fi
+    done <<< "$PROTECTED_PATTERNS"
+    return 1
+}
+
+# Function to match glob pattern
+match_glob() {
+    local file="$1"
+    local pattern="$2"
+    
+    # Use bash pattern matching
+    if [[ "$file" == $pattern ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Function to match regex pattern
+match_regex() {
+    local file="$1"
+    local pattern="$2"
+    
+    if [[ "$file" =~ $pattern ]]; then
+        return 0
+    fi
+    return 1
+}
+
+# Function to check if file should be deleted
+should_delete() {
+    local file="$1"
+    local pattern_count
+    
+    # Check if protected
+    if is_protected "$file"; then
+        echo -e "${BLUE}[PROTECTED]${NC} $file"
+        return 1
+    fi
+    
+    # Check against kill list patterns
+    pattern_count=$(echo "$KILL_LIST" | jq 'length')
+    
+    for ((i=0; i<pattern_count; i++)); do
+        local pattern=$(echo "$KILL_LIST" | jq -r ".[$i].pattern")
+        local type=$(echo "$KILL_LIST" | jq -r ".[$i].type")
+        local reason=$(echo "$KILL_LIST" | jq -r ".[$i].reason")
+        local exceptions=$(echo "$KILL_LIST" | jq -r ".[$i].exceptions[]" 2>/dev/null || echo "")
+        
+        # Check exceptions first
+        if [[ -n "$exceptions" ]]; then
+            while IFS= read -r exception; do
+                if [[ "$file" == "$exception" ]]; then
+                    echo -e "${BLUE}[EXCEPTION]${NC} $file (exception to: $pattern)"
+                    return 1
+                fi
+            done <<< "$exceptions"
+        fi
+        
+        # Match based on type
+        local matched=false
+        case "$type" in
+            glob)
+                if match_glob "$file" "$pattern"; then
+                    matched=true
+                fi
+                ;;
+            regex)
+                if match_regex "$file" "$pattern"; then
+                    matched=true
+                fi
+                ;;
+            exact)
+                if [[ "$file" == "$pattern" ]]; then
+                    matched=true
+                fi
+                ;;
+            *)
+                echo -e "${YELLOW}[WARN]${NC} Unknown pattern type: $type"
+                ;;
+        esac
+        
+        if $matched; then
+            echo -e "${RED}[DELETE]${NC} $file"
+            echo -e "  ${YELLOW}↳${NC} Reason: $reason"
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# Function to process kill list in a repository
+process_kill_list() {
+    local repo_path="$1"
+    local dry_run="${2:-false}"
+    local deleted_count=0
+    local protected_count=0
+    local exception_count=0
+    
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    echo -e "${BLUE}Processing kill list for:${NC} $repo_path"
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    
+    if [[ ! -d "$repo_path" ]]; then
+        echo -e "${RED}Error: Repository path does not exist: $repo_path${NC}"
+        return 1
+    fi
+    
+    cd "$repo_path"
+    
+    # Find all files in .github/workflows and .crew directories
+    local files_to_check=()
+    
+    if [[ -d ".github/workflows" ]]; then
+        while IFS= read -r file; do
+            files_to_check+=("$file")
+        done < <(find .github/workflows -type f 2>/dev/null || true)
+    fi
+    
+    if [[ -d ".crew" ]]; then
+        while IFS= read -r file; do
+            files_to_check+=("$file")
+        done < <(find .crew -type f 2>/dev/null || true)
+    fi
+    
+    echo -e "\n${YELLOW}Checking ${#files_to_check[@]} files against kill list...${NC}\n"
+    
+    # Check each file
+    for file in "${files_to_check[@]}"; do
+        if should_delete "$file"; then
+            if [[ "$dry_run" == "true" ]]; then
+                echo -e "  ${YELLOW}[DRY RUN]${NC} Would delete: $file"
+            else
+                if rm -f "$file"; then
+                    echo -e "  ${GREEN}[DELETED]${NC} $file"
+                    ((deleted_count++))
+                else
+                    echo -e "  ${RED}[ERROR]${NC} Failed to delete: $file"
+                fi
+            fi
+        fi
+    done
+    
+    # Clean up empty directories
+    if [[ "$dry_run" != "true" && $deleted_count -gt 0 ]]; then
+        echo -e "\n${YELLOW}Cleaning up empty directories...${NC}"
+        find .github/workflows -type d -empty -delete 2>/dev/null || true
+        find .crew -type d -empty -delete 2>/dev/null || true
+    fi
+    
+    # Summary
+    echo -e "\n${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}"
+    if [[ "$dry_run" == "true" ]]; then
+        echo -e "${YELLOW}DRY RUN SUMMARY:${NC}"
+        echo -e "  Files that would be deleted: ${RED}$deleted_count${NC}"
+    else
+        echo -e "${GREEN}SUMMARY:${NC}"
+        echo -e "  Files deleted: ${RED}$deleted_count${NC}"
+    fi
+    echo -e "${BLUE}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${NC}\n"
+    
+    return 0
+}
+
+# Function to generate kill list report
+generate_report() {
+    local output_file="${1:-kill-list-report.md}"
+    
+    echo -e "${BLUE}Generating kill list report...${NC}"
+    
+    cat > "$output_file" << 'EOF'
+# Kill List Report
+
+This report documents all file/directory patterns that will be deleted during ecosystem sync.
+
+## Kill List Patterns
+
+EOF
+    
+    local pattern_count=$(echo "$KILL_LIST" | jq 'length')
+    
+    for ((i=0; i<pattern_count; i++)); do
+        local pattern=$(echo "$KILL_LIST" | jq -r ".[$i].pattern")
+        local type=$(echo "$KILL_LIST" | jq -r ".[$i].type")
+        local reason=$(echo "$KILL_LIST" | jq -r ".[$i].reason")
+        local exceptions=$(echo "$KILL_LIST" | jq -r ".[$i].exceptions[]" 2>/dev/null || echo "")
+        
+        cat >> "$output_file" << EOF
+### Pattern ${i+1}: \`$pattern\`
+
+- **Type**: $type
+- **Reason**: $reason
+EOF
+        
+        if [[ -n "$exceptions" ]]; then
+            echo "- **Exceptions**:" >> "$output_file"
+            while IFS= read -r exception; do
+                echo "  - \`$exception\`" >> "$output_file"
+            done <<< "$exceptions"
+        fi
+        
+        echo "" >> "$output_file"
+    done
+    
+    cat >> "$output_file" << 'EOF'
+
+## Protected Patterns
+
+These files will NEVER be deleted, even if they match a kill pattern:
+
+EOF
+    
+    while IFS= read -r pattern; do
+        echo "- \`$pattern\`" >> "$output_file"
+    done <<< "$PROTECTED_PATTERNS"
+    
+    echo -e "${GREEN}Report generated: $output_file${NC}"
+}
+
+# Main execution
+main() {
+    local command="${1:-help}"
+    shift || true
+    
+    case "$command" in
+        process)
+            local repo_path="${1:-.}"
+            local dry_run="${2:-false}"
+            process_kill_list "$repo_path" "$dry_run"
+            ;;
+        report)
+            local output_file="${1:-kill-list-report.md}"
+            generate_report "$output_file"
+            ;;
+        list)
+            echo -e "${BLUE}Kill List Patterns:${NC}\n"
+            echo "$KILL_LIST" | jq -r '.[] | "[\(.type)] \(.pattern)\n  Reason: \(.reason)\n"'
+            ;;
+        test)
+            local test_file="${1:-}"
+            if [[ -z "$test_file" ]]; then
+                echo -e "${RED}Error: Please provide a file path to test${NC}"
+                exit 1
+            fi
+            echo -e "${BLUE}Testing file:${NC} $test_file\n"
+            if should_delete "$test_file"; then
+                echo -e "\n${RED}Result: File WOULD BE DELETED${NC}"
+            else
+                echo -e "\n${GREEN}Result: File would be kept${NC}"
+            fi
+            ;;
+        help|*)
+            cat << EOF
+${BLUE}Kill List Processor${NC}
+
+Usage: $0 <command> [options]
+
+Commands:
+  process <repo_path> [dry_run]  Process kill list in repository
+                                  dry_run: true|false (default: false)
+  
+  report [output_file]            Generate kill list report
+                                  output_file: path (default: kill-list-report.md)
+  
+  list                            List all kill patterns
+  
+  test <file_path>                Test if a file would be deleted
+  
+  help                            Show this help message
+
+Examples:
+  # Dry run in current directory
+  $0 process . true
+  
+  # Actually delete files in a repo
+  $0 process /path/to/repo false
+  
+  # Generate report
+  $0 report
+  
+  # Test specific file
+  $0 test .github/workflows/ai-reviewer.yml
+
+EOF
+            ;;
+    esac
+}
+
+main "$@"

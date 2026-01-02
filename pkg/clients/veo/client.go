@@ -296,20 +296,26 @@ func (c *Client) downloadHTTPURI(ctx context.Context, uri, destPath string) erro
 }
 
 // ListGenerations lists recent video generations
+// Note: This is a minimal implementation that returns an empty list.
+// In a production system, this would query a persistence layer (database, Cloud Storage)
+// or the Vertex AI API to retrieve historical generation jobs.
 func (c *Client) ListGenerations(ctx context.Context) ([]*Generation, error) {
 	log.Debug("Listing video generations")
 
-	// In a real implementation, this would query a database or Vertex AI API
-	// For now, return empty list
+	// Return empty list as this requires persistence layer integration
+	// Callers should track generations locally or implement persistence
 	return []*Generation{}, nil
 }
 
 // GetStatus gets the status of a generation job
+// Note: This is a minimal implementation that assumes immediate completion.
+// In a production system, this would query the actual job status from the
+// Vertex AI API using the Long Running Operations API or similar async job tracking.
 func (c *Client) GetStatus(ctx context.Context, generationID string) (*GenerationStatus, error) {
 	log.WithField("generationID", generationID).Debug("Getting generation status")
 
-	// In a real implementation, this would query the actual job status
-	// For now, assume completed
+	// For async video generation, implement LRO (Long Running Operations) API polling
+	// This minimal implementation assumes synchronous completion for testing purposes
 	return &GenerationStatus{
 		State:      GenerationStateSucceeded,
 		Progress:   100,
