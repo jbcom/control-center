@@ -1,0 +1,11 @@
+yaml-files:
+  - '*.yaml'
+  - '*.yml'
+  - '.yamllint'
+
+rules:
+  line-length: disable
+  truthy: disable
+  comments: disable
+  document-start: disable
+  trailing-spaces: disable
