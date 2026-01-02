@@ -91,5 +91,5 @@ build/
 *.tfstate.*
 .terraform/
 .settings-app-reference/
-control-center
+/control-center
 coverage.*
