@@ -1,7 +1,7 @@
 # jbcom Control Center - Agent Operating Manual
 
 > **This is the single source of truth for AI agents operating in the jbcom ecosystem.**
-> 
+>
 > Synced automatically from `jbcom/control-center` → org control-centers → all repositories.
 
 ---
@@ -14,7 +14,7 @@
 CONFIGURATION (↓ downward)
 jbcom/control-center → org/control-center → individual repos
 
-DOCUMENTATION (↑ upward)  
+DOCUMENTATION (↑ upward)
 individual repos → org.github.io → jbcom.github.io
 ```
 

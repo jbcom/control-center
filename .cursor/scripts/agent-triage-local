@@ -82,24 +82,24 @@ echo ""
 
 analyze_conversation() {
     echo "📊 Phase 1: Analyzing conversation..."
-    
+
     MSG_COUNT=$(jq '.messages | length' "$CONVERSATION" 2>/dev/null || echo "0")
     echo "   Messages: $MSG_COUNT"
-    
+
     if [ "$MSG_COUNT" -lt 3 ]; then
         echo "⚠️  Too few messages for meaningful analysis"
         return 1
     fi
-    
+
     # Extract artifacts
     mkdir -p "$RECOVERY_DIR"/{tasks,reports,by-repo}
-    
+
     # Extract repositories mentioned (GitHub URLs)
     jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
         grep -oE 'github\.com/[a-zA-Z0-9_-]+/[a-zA-Z0-9_-]+' | \
         sed 's|github\.com/||' | \
         sort -u > "$RECOVERY_DIR/repos.txt" 2>/dev/null || touch "$RECOVERY_DIR/repos.txt"
-    
+
     # Also extract repo references like "jbcom/extended-data-types"
     # Filter to valid GitHub org/repo patterns (must have lowercase org name typical of GitHub)
     jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
@@ -108,40 +108,40 @@ analyze_conversation() {
         grep -E '^(jbcom|github)' | \
         sort -u >> "$RECOVERY_DIR/repos.txt" 2>/dev/null
     sort -u -o "$RECOVERY_DIR/repos.txt" "$RECOVERY_DIR/repos.txt"
-    
+
     # Deduplicate and clean repos.txt
     grep -E '^[a-zA-Z][a-zA-Z0-9_-]*/[a-zA-Z][a-zA-Z0-9_-]+$' "$RECOVERY_DIR/repos.txt" | \
         grep -vE '(actions/toolkit|actions/tutorials)' | \
         sort -u > "$RECOVERY_DIR/repos_clean.txt" 2>/dev/null
     mv "$RECOVERY_DIR/repos_clean.txt" "$RECOVERY_DIR/repos.txt" 2>/dev/null || true
-    
+
     # Extract PRs mentioned
     jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
         grep -oE '(PR |#)[0-9]+' | \
         grep -oE '[0-9]+' | \
         sort -un > "$RECOVERY_DIR/prs.txt" 2>/dev/null || touch "$RECOVERY_DIR/prs.txt"
-    
+
     # Extract branches
     jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
         grep -oE '(feat|fix|docs|refactor|chore|agent|copilot|cursor)/[a-z0-9_-]+' | \
         sort -u > "$RECOVERY_DIR/branches.txt" 2>/dev/null || touch "$RECOVERY_DIR/branches.txt"
-    
+
     # Extract files
     jq -r '.messages[].text // empty' "$CONVERSATION" 2>/dev/null | \
         grep -oE '[a-zA-Z0-9_/.-]+\.(py|ts|tsx|js|jsx|md|yml|yaml|toml|json|sh)' | \
         sort -u > "$RECOVERY_DIR/files.txt" 2>/dev/null || touch "$RECOVERY_DIR/files.txt"
-    
+
     REPO_COUNT=$(wc -l < "$RECOVERY_DIR/repos.txt" 2>/dev/null || echo "0")
     PR_COUNT=$(wc -l < "$RECOVERY_DIR/prs.txt" 2>/dev/null || echo "0")
     BRANCH_COUNT=$(wc -l < "$RECOVERY_DIR/branches.txt" 2>/dev/null || echo "0")
     FILE_COUNT=$(wc -l < "$RECOVERY_DIR/files.txt" 2>/dev/null || echo "0")
-    
+
     echo "   Repositories: $REPO_COUNT"
     echo "   PRs: $PR_COUNT"
     echo "   Branches: $BRANCH_COUNT"
     echo "   Files: $FILE_COUNT"
     echo ""
-    
+
     # Generate summary
     cat > "$RECOVERY_DIR/ANALYSIS_SUMMARY.md" << EOF
 # Agent Triage Analysis: $AGENT_ID
@@ -167,7 +167,7 @@ $([ "$FILE_COUNT" -gt 20 ] && echo "- ... and $((FILE_COUNT - 20)) more")
 ## Last 5 Messages
 $(jq -r '.messages[-5:] | .[] | "[\(.type // "unknown")] \(.text[0:200] // "(empty)")..."' "$CONVERSATION" 2>/dev/null || echo "(could not extract)")
 EOF
-    
+
     echo "✅ Analysis complete: $RECOVERY_DIR/ANALYSIS_SUMMARY.md"
 }
 
@@ -178,41 +178,41 @@ EOF
 decompose_by_repo() {
     echo ""
     echo "📂 Phase 2: Decomposing tasks by repository..."
-    
+
     if [ ! -f "$RECOVERY_DIR/repos.txt" ]; then
         echo "⚠️  No repos.txt found. Run analyze first."
         return 1
     fi
-    
+
     mkdir -p "$RECOVERY_DIR/by-repo"
-    
+
     while read -r repo; do
         [ -z "$repo" ] && continue
-        
+
         # Sanitize repo name for filename
         REPO_SAFE=$(echo "$repo" | tr '/' '_')
         REPO_DIR="$RECOVERY_DIR/by-repo/$REPO_SAFE"
         mkdir -p "$REPO_DIR"
-        
+
         echo "   Processing: $repo"
-        
+
         # Extract messages mentioning this repo
         jq --arg repo "$repo" '
             .messages | map(select(.text | contains($repo)))
         ' "$CONVERSATION" > "$REPO_DIR/relevant_messages.json" 2>/dev/null
-        
+
         REPO_MSG_COUNT=$(jq 'length' "$REPO_DIR/relevant_messages.json" 2>/dev/null || echo "0")
-        
+
         # Extract files for this repo
         jq -r '.[].text // empty' "$REPO_DIR/relevant_messages.json" 2>/dev/null | \
             grep -oE '[a-zA-Z0-9_/.-]+\.(py|ts|md|yml|toml|json)' | \
             sort -u > "$REPO_DIR/files.txt" 2>/dev/null || touch "$REPO_DIR/files.txt"
-        
+
         # Extract PRs for this repo
         jq -r '.[].text // empty' "$REPO_DIR/relevant_messages.json" 2>/dev/null | \
             grep -oE '#[0-9]+' | \
             sort -u > "$REPO_DIR/prs.txt" 2>/dev/null || touch "$REPO_DIR/prs.txt"
-        
+
         # Generate repo-specific task
         cat > "$REPO_DIR/TASK.md" << EOF
 # Repository Task: $repo
@@ -252,11 +252,11 @@ $(cat "$REPO_DIR/files.txt" | head -5 | while read f; do echo "ls -la $f 2>/dev/
 ## Output
 Create: \`$REPO_DIR/RECOVERY_REPORT.md\`
 EOF
-        
+
         echo "      ✅ Task created: $REPO_DIR/TASK.md ($REPO_MSG_COUNT messages)"
-        
+
     done < "$RECOVERY_DIR/repos.txt"
-    
+
     echo ""
     echo "✅ Decomposition complete. Tasks in: $RECOVERY_DIR/by-repo/"
 }
@@ -268,24 +268,24 @@ EOF
 execute_with_aider() {
     echo ""
     echo "🤖 Phase 3: Executing tasks with aider..."
-    
+
     # Check for API key
     if [ -z "$ANTHROPIC_API_KEY" ] && [ -z "$OPENAI_API_KEY" ]; then
         echo "⚠️  No AI API key found"
         echo "   Set ANTHROPIC_API_KEY or OPENAI_API_KEY"
         echo "   Generating prompt files for manual execution instead..."
-        
+
         generate_aider_prompts
         return 0
     fi
-    
+
     # Check aider is available
     if ! command -v aider &> /dev/null; then
         echo "❌ aider not found in PATH"
         echo "   Install with: uv tool install --python python3.12 aider-chat@latest"
         return 1
     fi
-    
+
     # Execute main analysis
     AIDER_PROMPT="FORENSIC RECOVERY ANALYSIS
 
@@ -320,17 +320,17 @@ Use this structure:
 - Recommended Next Steps"
 
     echo "$AIDER_PROMPT" > "$RECOVERY_DIR/aider_prompt.txt"
-    
+
     echo "   Running aider analysis..."
     cd /workspace
-    
+
     aider \
         --model claude-sonnet-4-20250514 \
         --no-auto-commits \
         --yes \
         --message "$AIDER_PROMPT" \
         2>&1 | tee "$RECOVERY_DIR/aider_output.log"
-    
+
     echo ""
     echo "✅ Aider analysis complete"
     echo "   Log: $RECOVERY_DIR/aider_output.log"
@@ -338,7 +338,7 @@ Use this structure:
 
 generate_aider_prompts() {
     echo "   Generating aider prompt files..."
-    
+
     # Main recovery prompt
     cat > "$RECOVERY_DIR/RUN_WITH_AIDER.md" << EOF
 # Run This With Aider
@@ -355,7 +355,7 @@ aider --model claude-sonnet-4-20250514 --no-auto-commits --yes --message "\$(cat
 
 $(cat "$RECOVERY_DIR/aider_prompt.txt" 2>/dev/null || echo "Run 'analyze' mode first to generate prompt")
 EOF
-    
+
     echo "   ✅ Prompt file: $RECOVERY_DIR/RUN_WITH_AIDER.md"
 }
 

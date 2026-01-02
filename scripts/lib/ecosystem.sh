@@ -93,22 +93,22 @@ cache_clear() {
 gh_list_org_repos() {
   local org="${1:-$GITHUB_ORG}"
   local cache_key="repos_${org}"
-  
+
   if repos=$(cache_get "$cache_key" 2>/dev/null); then
     echo "$repos"
     return 0
   fi
-  
+
   log_info "Fetching repositories from GitHub org: $org"
   repos=$(gh repo list "$org" --json name,url,isArchived,primaryLanguage,pushedAt \
     --limit 1000 \
     --jq '.[] | select(.isArchived == false) | "\(.name)\t\(.url)\t\(.primaryLanguage.name // "unknown")\t\(.pushedAt)"' \
     2>/dev/null || echo "")
-  
+
   if [[ -n "$repos" ]]; then
     cache_set "$cache_key" "$repos"
   fi
-  
+
   echo "$repos"
 }
 
@@ -116,7 +116,7 @@ gh_list_org_repos() {
 gh_repo_info() {
   local repo="$1"
   local full_repo="${GITHUB_ORG}/${repo}"
-  
+
   gh repo view "$full_repo" --json name,url,description,primaryLanguage,defaultBranchRef,pushedAt,isArchived \
     2>/dev/null || echo "{}"
 }
@@ -135,7 +135,7 @@ gh_repo_exists() {
 # Detect language/ecosystem for a repository
 detect_repo_ecosystem() {
   local repo_path="$1"
-  
+
   if [[ -f "$repo_path/pyproject.toml" ]] || [[ -f "$repo_path/setup.py" ]] || [[ -f "$repo_path/requirements.txt" ]]; then
     echo "python"
   elif [[ -f "$repo_path/package.json" ]]; then
@@ -154,7 +154,7 @@ detect_repo_ecosystem() {
 # List all managed repositories (from terragrunt stacks)
 list_managed_repos() {
   local ecosystem="${1:-}"
-  
+
   if [[ -n "$ecosystem" ]]; then
     find "$TERRAGRUNT_ROOT/$ecosystem" -name "terragrunt.hcl" -type f 2>/dev/null | \
       xargs -I{} dirname {} | \
@@ -193,21 +193,21 @@ get_repos_by_ecosystem() {
 # Check ecosystem health
 ecosystem_health() {
   local errors=0
-  
+
   log_info "Running ecosystem health check..."
-  
+
   # Check if gh is available
   if ! command -v gh >/dev/null 2>&1; then
     log_error "GitHub CLI (gh) not found"
     errors=$((errors + 1))
   fi
-  
+
   # Check if authenticated
   if ! gh auth status >/dev/null 2>&1; then
     log_error "Not authenticated with GitHub CLI"
     errors=$((errors + 1))
   fi
-  
+
   if [[ $errors -eq 0 ]]; then
     log_info "Ecosystem health: OK"
     return 0

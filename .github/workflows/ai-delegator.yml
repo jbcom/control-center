@@ -58,9 +58,9 @@ jobs:
           track_progress: true
           prompt: |
             You are helping with ${{ github.repository }}.
-            
+
             Context: ${{ github.event.issue.pull_request && 'Pull Request' || 'Issue' }} #${{ github.event.issue.number }}
-            
+
             First, read CLAUDE.md, AGENTS.md, or README.md to understand the project.
             Then address the user's request in their comment.
 

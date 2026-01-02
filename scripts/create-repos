@@ -79,11 +79,11 @@ repo_exists() {
 
 get_repo_description() {
   local repo="$1"
-  
+
   # Try to get description from repo-config.json first
   local config_desc
   config_desc=$(jq -r --arg repo "$repo" '.repository_descriptions[$repo] // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
-  
+
   if [[ -n "$config_desc" ]]; then
     echo "$config_desc"
     return 0
@@ -111,20 +111,20 @@ create_repo() {
   local repo="$2"
   local description
   description=$(get_repo_description "$repo")
-  
+
   if repo_exists "$org" "$repo"; then
     log_verbose "Repository ${org}/${repo} already exists"
     return 0
   fi
-  
+
   log_info "Creating repository: ${org}/${repo}"
   log_verbose "  Description: $description"
-  
+
   if [[ "$DRY_RUN" == "true" ]]; then
     log_warn "[DRY RUN] Would create: ${org}/${repo}"
     return 0
   fi
-  
+
   # Create public repository with standard settings
   if gh repo create "${org}/${repo}" \
     --public \
@@ -145,13 +145,13 @@ main() {
   log_info "=== Idempotent Repository Creation ==="
   [[ "$DRY_RUN" == "true" ]] && log_warn "DRY RUN MODE - no changes will be made"
   echo ""
-  
+
   # Check if gh is installed and authenticated
   if ! command -v gh &>/dev/null; then
     log_error "GitHub CLI (gh) is not installed. Please install it first."
     exit 1
   fi
-  
+
   # Ensure GH_TOKEN is set for gh auth status to work in CI
   if [[ -z "${GH_TOKEN:-}" && -z "${GITHUB_TOKEN:-}" ]]; then
     log_error "No GitHub token found in GH_TOKEN or GITHUB_TOKEN environment variables."
@@ -170,12 +170,12 @@ main() {
     log_error "Not authenticated with GitHub CLI. Please check your token."
     exit 1
   fi
-  
+
   local created=0
   local skipped=0
   local failed=0
   local total=0
-  
+
   # Get all ecosystems or filter to specific one
   local ecosystems
   if [[ -n "$ECOSYSTEM_FILTER" ]]; then
@@ -183,10 +183,10 @@ main() {
   else
     ecosystems=$(jq -r '.ecosystems | keys[]' "$CONFIG_FILE")
   fi
-  
+
   for ecosystem in $ecosystems; do
     log_info "Processing ecosystem: $ecosystem"
-    
+
     # Get organization for this ecosystem, default to jbcom
     local org
     org=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].organization // \"$DEFAULT_ORG\"" "$CONFIG_FILE")
@@ -194,12 +194,12 @@ main() {
 
     local repos
     repos=$(jq -r --arg ecosystem "$ecosystem" ".ecosystems[\$ecosystem].repos[]" "$CONFIG_FILE" 2>/dev/null || echo "")
-    
+
     if [[ -z "$repos" ]]; then
       log_warn "  No repos configured for ecosystem: $ecosystem"
       continue
     fi
-    
+
     for repo in $repos; do
       total=$((total + 1))
       if repo_exists "$org" "$repo"; then
@@ -213,17 +213,17 @@ main() {
         fi
       fi
     done
-    
+
     echo ""
   done
-  
+
   # Summary
   echo ""
   log_info "=== Summary ==="
   log_ok "Created: $created"
   log_info "Skipped (already exist): $skipped"
   [[ $failed -gt 0 ]] && log_error "Failed: $failed"
-  
+
   return $failed
 }
 

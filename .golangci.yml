@@ -13,7 +13,7 @@ linters:
   # Disable problematic linters
   disable:
     - errcheck      # Too noisy with defer patterns
-  
+
   # Linter-specific settings
   settings:
     govet:

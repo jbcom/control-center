@@ -163,7 +163,7 @@ gh pr list --repo jbcom/<repo> --state open --json number,title | \
 - 24 migrated items from source org
 - Status: Todo (29), In Progress (1)
 
-### Roadmap Project (#2)  
+### Roadmap Project (#2)
 - 30 strata roadmap items
 - Covers: Surface materials, Biomes, Creatures, Traversal, Audio
 - Status: All Todo

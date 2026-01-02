@@ -132,7 +132,7 @@ The workflow runs in two sequential phases for safety:
 - **Safe:** Never overwrites existing customizations
 
 ### Phase 2: Always Sync 🔄
-- **Config:** `.github/sync-always.yml`  
+- **Config:** `.github/sync-always.yml`
 - **Behavior:** Overwrites existing files with latest
 - **Use for:** Shared workflows, cursor rules, settings
 - **Note:** Runs only after Phase 1 succeeds
@@ -325,7 +325,7 @@ cp repository-files/shared/workflow.yml repository-files/python/.github/workflow
 
 **Cause**: Repository doesn't exist or access token lacks permissions.
 
-**Solution**: 
+**Solution**:
 - Verify the repository exists: `gh repo view jbcom/REPO_NAME`
 - Ensure `CI_GITHUB_TOKEN` has write access to the repository
 - Check token has `repo` and `workflow` scopes

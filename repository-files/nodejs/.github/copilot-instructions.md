@@ -117,7 +117,7 @@ class ProcessingError extends Error {
 }
 
 // Result pattern (alternative to exceptions)
-type Result<T, E = Error> = 
+type Result<T, E = Error> =
   | { success: true; data: T }
   | { success: false; error: E };
 ```

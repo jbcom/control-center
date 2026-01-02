@@ -28,27 +28,27 @@ while IFS= read -r symlink; do
     if [[ -z "$symlink" ]]; then
         continue
     fi
-    
+
     target=$(readlink "$symlink" || echo "")
-    
+
     if [[ -z "$target" ]]; then
         echo "⚠️  Removing broken symlink: $symlink"
         rm "$symlink"
         continue
     fi
-    
+
     # Check if we can dereference the symlink
     if [[ -e "$symlink" ]]; then
         echo "🔄 Replacing $symlink with copy of target"
-        
+
         # Try to copy the dereferenced file
         if cp -L "$symlink" "${symlink}.tmp" 2>/tmp/cp_error.txt; then
             # Remove the symlink
             rm "$symlink"
-            
+
             # Move the copy to the symlink's location
             mv "${symlink}.tmp" "$symlink"
-            
+
             echo "   ✅ Replaced: $symlink"
         else
             echo "⚠️  Failed to copy target: $(cat /tmp/cp_error.txt)"

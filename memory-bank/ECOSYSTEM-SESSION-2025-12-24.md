@@ -125,7 +125,7 @@ Orchestration logic was 500+ lines of inline YAML instead of proper packages.
 ├── tools/          # Vercel AI SDK tools
 └── handlers/       # Structured outputs
        ↓
-@agentic/control (ORCHESTRATION)  
+@agentic/control (ORCHESTRATION)
 ├── orchestrators/  # Multi-agent routing
 ├── pipelines/      # CI resolution, PR lifecycle
 └── actions/        # GitHub Marketplace actions
