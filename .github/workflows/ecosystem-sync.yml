@@ -193,13 +193,7 @@ jobs:
                 
                 git add settings.yml
                 if ! git diff --staged --quiet; then
-                  git commit -m "chore: add organization-wide settings.yml
-
-          Initial settings from jbcom/control-center
-          These settings apply to ALL repos in $org via repository-settings/app
-          Individual repos can override with their own .github/settings.yml
-          
-          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                  git commit -m "chore: add organization-wide settings.yml\n\nInitial settings from jbcom/control-center\nThese settings apply to ALL repos in $org via repository-settings/app\nIndividual repos can override with their own .github/settings.yml\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                   
                   git push origin HEAD && echo "  ✅ Created settings.yml" || echo "  ⚠️ Push failed"
                 fi
@@ -306,14 +300,7 @@ jobs:
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(kill-list): remove deprecated workflows
-
-Automated cleanup via kill list from jbcom/control-center
-- Removed old ecosystem-* and ai-* workflows
-- Consolidated into 4 core workflows (triage, autoheal, review, delegator)
-- Removed Jules remote agent configurations
-
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "chore(kill-list): remove deprecated workflows\n\nAutomated cleanup via kill list from jbcom/control-center\n- Removed old ecosystem-* and ai-* workflows\n- Consolidated into 4 core workflows (triage, autoheal, review, delegator)\n- Removed Jules remote agent configurations\n\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 
                 git push origin HEAD 2>/dev/null || echo "    ⚠️ Kill list push failed"
                 KILLED=$((KILLED + 1))
@@ -329,10 +316,7 @@ Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.r
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(global-sync): update AI/ecosystem workflows
-
-Global sync from jbcom/control-center (direct to repo root)
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "chore(global-sync): update AI/ecosystem workflows\n\nGlobal sync from jbcom/control-center (direct to repo root)\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"
@@ -488,10 +472,7 @@ Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.r
           git add -A
           if ! git diff --staged --quiet; then
             if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-              git commit -m "chore(sync): update from jbcom/control-center
-
-          Enterprise sync from jbcom/control-center
-          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+              git commit -m "chore(sync): update from jbcom/control-center\n\nEnterprise sync from jbcom/control-center\nRun: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
               
               # Try to push, pull and retry if rejected
               for i in 1 2 3; do
