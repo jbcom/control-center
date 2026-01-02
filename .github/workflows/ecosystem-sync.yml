@@ -306,14 +306,12 @@ jobs:
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(kill-list): remove deprecated workflows
-
-Automated cleanup via kill list from jbcom/control-center
-- Removed old ecosystem-* and ai-* workflows
-- Consolidated into 4 core workflows (triage, autoheal, review, delegator)
-- Removed Jules remote agent configurations
-
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "chore(kill-list): remove deprecated workflows" \
+                  -m "Automated cleanup via kill list from jbcom/control-center" \
+                  -m "- Removed old ecosystem-* and ai-* workflows" \
+                  -m "- Consolidated into 4 core workflows (triage, autoheal, review, delegator)" \
+                  -m "- Removed Jules remote agent configurations" \
+                  -m "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 
                 git push origin HEAD 2>/dev/null || echo "    ⚠️ Kill list push failed"
                 KILLED=$((KILLED + 1))
@@ -329,10 +327,9 @@ Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.r
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(global-sync): update AI/ecosystem workflows
-
-Global sync from jbcom/control-center (direct to repo root)
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "chore(global-sync): update AI/ecosystem workflows" \
+                  -m "Global sync from jbcom/control-center (direct to repo root)" \
+                  -m "Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
                 
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"
