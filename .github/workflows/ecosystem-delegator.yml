@@ -95,9 +95,9 @@ jobs:
   delegate-command:
     name: Delegate to Jules/Cursor
     if: |
-      (github.event_name == 'issue_comment' && github.event.issue.pull_request == null && (contains(github.event.comment.body, '/jules') || contains(github.event.comment.body, '/cursor'))) ||
-      (github.event_name == 'workflow_call' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor'))) ||
-      (github.event_name == 'workflow_dispatch' && (contains(inputs.comment_body, '/jules') || contains(inputs.comment_body, '/cursor')))
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request == null && (startsWith(github.event.comment.body, '/jules') || startsWith(github.event.comment.body, '/cursor'))) ||
+      (github.event_name == 'workflow_call' && (startsWith(inputs.comment_body, '/jules') || startsWith(inputs.comment_body, '/cursor'))) ||
+      (github.event_name == 'workflow_dispatch' && (startsWith(inputs.comment_body, '/jules') || startsWith(inputs.comment_body, '/cursor')))
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
@@ -106,17 +106,18 @@ jobs:
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Create Jules Session from Issue
-        if: contains(env.COMMENT_BODY, '/jules')
+        if: startsWith(env.COMMENT_BODY, '/jules')
         env:
           GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
           DEFAULT_BRANCH: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}
         run: |
-          # Extract prompt from comment, removing the /jules command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/jules ||p')
+          # Extract prompt from comment, removing the /jules command and trimming whitespace
+          PROMPT=$(echo "${COMMENT_BODY}" | sed 's|^/jules[[:space:]]*||' | xargs)
 
           if [[ -z "$PROMPT" ]]; then
             echo "Jules command used without a prompt. Exiting."
+            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "⚠️ **Empty /jules command.** Please provide a task.\n\n**Usage:** \`/jules <your task description>\`"
             exit 0
           fi
 
@@ -148,16 +149,17 @@ jobs:
           fi
 
       - name: Create Cursor Cloud Agent
-        if: contains(env.COMMENT_BODY, '/cursor')
+        if: startsWith(env.COMMENT_BODY, '/cursor')
         env:
           CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
-          # Extract prompt from comment, removing the /cursor command
-          PROMPT=$(echo "${COMMENT_BODY}" | sed -n 's|/cursor ||p')
+          # Extract prompt from comment, removing the /cursor command and trimming whitespace
+          PROMPT=$(echo "${COMMENT_BODY}" | sed 's|^/cursor[[:space:]]*||' | xargs)
 
           if [[ -z "$PROMPT" ]]; then
             echo "Cursor command used without a prompt. Exiting."
+            gh issue comment "$TARGET_ISSUE" --repo "$TARGET_REPO" --body "⚠️ **Empty /cursor command.** Please provide a task.\n\n**Usage:** \`/cursor <your task description>\`"
             exit 0
           fi
 

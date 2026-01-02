@@ -65,7 +65,7 @@ runs:
         DEFAULT_BRANCH: ${{ inputs.default_branch }}
       run: |
         # If /jules command is present, delegate to Google Jules
-        if [[ "$COMMENT_BODY" == *"/jules"* ]]; then
+        if [[ "$COMMENT_BODY" == /jules* ]]; then
           echo "🤖 Received '/jules' command. Delegating to Google Jules..."
           
           if [[ -z "$GOOGLE_JULES_API_KEY" ]]; then
@@ -73,11 +73,12 @@ runs:
             exit 1
           fi
 
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs)
+          # Trim leading whitespace and the command itself
+          TASK=$(echo "$COMMENT_BODY" | sed -e 's/^[[:space:]]*\/jules[[:space:]]*//')
 
-          if [ -z "$TASK" ]; then
-            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Empty /jules command. Please provide a task.\n\n**Usage:** \`/jules <your task description>\`"
-            exit 1
+          if [[ -z "$TASK" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ **Empty /jules command.** Please provide a task.\n\n**Usage:** \`/jules <your task description>\`"
+            exit 0
           fi
 
           gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules ...' command. Creating Jules session..."
