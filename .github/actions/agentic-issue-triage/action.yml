@@ -73,10 +73,20 @@ runs:
             exit 1
           fi
 
-          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command. Creating Jules session..."
-          
-          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | head -c 1000)
-          [ -z "$TASK" ] && TASK="Fix issue #$ISSUE_NUMBER"
+          # Extract the task, removing the /jules command and trimming whitespace
+          TASK=$(echo "$COMMENT_BODY" | sed 's|/jules[[:space:]]*||' | xargs)
+
+          # Check if a task was provided
+          if [[ -z "$TASK" ]]; then
+            gh issue comment "$ISSUE_NUMBER" --body "⚠️ Invalid command. Please provide a task for Jules.
+
+**Usage:** \`/jules <your detailed task description>\`
+
+**Example:** \`/jules refactor the authentication logic to use a more secure method\`"
+            exit 0
+          fi
+
+          gh issue comment "$ISSUE_NUMBER" --body "🤖 Received '/jules' command with task: \`$TASK\`. Creating Jules session..."
 
           RESPONSE=$(curl -s -X POST "https://jules.googleapis.com/v1alpha/sessions" \
             -H "X-Goog-Api-Key: $GOOGLE_JULES_API_KEY" \
