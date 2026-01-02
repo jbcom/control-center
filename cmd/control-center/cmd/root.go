@@ -13,10 +13,11 @@ import (
 )
 
 var (
-	cfgFile   string
-	logLevel  string
-	logFormat string
-	dryRun    bool
+	cfgFile      string
+	logLevel     string
+	logFormat    string
+	dryRun       bool
+	outputFormat string
 )
 
 // Build information set via ldflags at build time
