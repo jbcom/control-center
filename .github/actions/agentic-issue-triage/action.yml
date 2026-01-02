@@ -92,12 +92,12 @@ runs:
               --arg repo "$REPOSITORY" \
               --arg branch "$DEFAULT_BRANCH" \
               '{
-                prompt: $task,
-                sourceContext: {
-                  source: ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
-                  githubRepoContext: { startingBranch: $branch }
+                "prompt": $task,
+                "sourceContext": {
+                  "source": ("sources/github/" + ($repo | split("/")[0]) + "/" + ($repo | split("/")[1])),
+                  "githubRepoContext": { "startingBranch": $branch }
                 },
-                automationMode: "AUTO_CREATE_PR"
+                "automationMode": "AUTO_CREATE_PR"
               }')")
 
           SESSION_ID=$(echo "$RESPONSE" | jq -r '.id // empty')

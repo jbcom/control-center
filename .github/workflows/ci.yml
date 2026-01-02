@@ -34,7 +34,7 @@ jobs:
         run: |
           echo "Linting all workflow files..."
           # Ignore SC2086, SC2129, SC2016, SC2001 (style)
-          actionlint -ignore 'SC2086' -ignore 'SC2129' -ignore 'SC2016' -ignore 'SC2001' -color
+          actionlint -config-file .actionlint.yml -ignore 'SC2086' -ignore 'SC2129' -ignore 'SC2016' -ignore 'SC2001' -color .github/workflows/*.yml
           echo "✅ All workflows pass linting"
 
   validate-expressions:

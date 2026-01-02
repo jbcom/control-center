@@ -1,0 +1,9 @@
+ignore:
+  - ".github/dependabot.yml"
+  - ".github/settings.yml"
+  - ".github/sync-always.yml"
+  - ".github/sync-initial.yml"
+  - "action.yml"
+  - ".github/actions/agentic-ci-resolution/action.yml"
+  - ".github/actions/agentic-pr-review/action.yml"
+  - ".github/actions/agentic-issue-triage/action.yml"
