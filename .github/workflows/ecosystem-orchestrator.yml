@@ -188,14 +188,10 @@ jobs:
        (startsWith(inputs.comment_body, '/jules') || startsWith(inputs.comment_body, '/cursor'))) ||
       (github.event_name == 'workflow_dispatch' && inputs.action == 'delegate')
     runs-on: ubuntu-latest
-    env:
-      TARGET_REPO: ${{ inputs.repository || github.repository }}
-      ISSUE_NUMBER: ${{ inputs.issue_number || github.event.issue.number }}
-      COMMENT_BODY: ${{ inputs.comment_body || github.event.comment.body }}
     steps:
       - uses: actions/checkout@v6
         with:
-          repository: ${{ env.TARGET_REPO }}
+          repository: ${{ inputs.repository || github.repository }}
           token: ${{ secrets.CI_GITHUB_TOKEN }}
 
       - name: Delegate Issue Command
@@ -204,9 +200,9 @@ jobs:
           github_token: ${{ secrets.CI_GITHUB_TOKEN }}
           jules_api_key: ${{ secrets.GOOGLE_JULES_API_KEY }}
           cursor_api_key: ${{ secrets.CURSOR_API_KEY }}
-          comment_body: ${{ env.COMMENT_BODY }}
-          issue_number: ${{ env.ISSUE_NUMBER }}
-          repository: ${{ env.TARGET_REPO }}
+          comment_body: ${{ inputs.comment_body || github.event.comment.body }}
+          issue_number: ${{ inputs.issue_number || github.event.issue.number }}
+          repository: ${{ inputs.repository || github.repository }}
           default_branch: ${{ inputs.default_branch || github.event.repository.default_branch || 'main' }}
 
   # ============================================================================
