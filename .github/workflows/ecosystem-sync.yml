@@ -142,7 +142,7 @@ jobs:
       - name: Ensure org .github repos exist & sync settings.yml
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
-        run: |
+        run: |-
           echo "🔧 Ensuring org .github repos exist with settings.yml..."
           
           for org in jbcom arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
@@ -193,13 +193,13 @@ jobs:
                 
                 git add settings.yml
                 if ! git diff --staged --quiet; then
-                  git commit -m "chore: add organization-wide settings.yml
-
+                  git commit -m "chore: add organization-wide settings.yml" -m "
           Initial settings from jbcom/control-center
           These settings apply to ALL repos in $org via repository-settings/app
           Individual repos can override with their own .github/settings.yml
           
-          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          "
                   
                   git push origin HEAD && echo "  ✅ Created settings.yml" || echo "  ⚠️ Push failed"
                 fi
@@ -261,7 +261,7 @@ jobs:
         if: hashFiles('global-sync/**') != ''
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
-        run: |
+        run: |-
           echo "🌐 Syncing global files DIRECTLY to repo roots..."
           echo "   global-sync/.github/* → repo/.github/* (for USE, not distribution)"
           
@@ -306,14 +306,14 @@ jobs:
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(kill-list): remove deprecated workflows
+                git commit -m "chore(kill-list): remove deprecated workflows" -m "
+          Automated cleanup via kill list from jbcom/control-center
+          - Removed old ecosystem-* and ai-* workflows
+          - Consolidated into 4 core workflows (triage, autoheal, review, delegator)
+          - Removed Jules remote agent configurations
 
-Automated cleanup via kill list from jbcom/control-center
-- Removed old ecosystem-* and ai-* workflows
-- Consolidated into 4 core workflows (triage, autoheal, review, delegator)
-- Removed Jules remote agent configurations
-
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          "
                 
                 git push origin HEAD 2>/dev/null || echo "    ⚠️ Kill list push failed"
                 KILLED=$((KILLED + 1))
@@ -329,10 +329,10 @@ Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.r
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(global-sync): update AI/ecosystem workflows
-
-Global sync from jbcom/control-center (direct to repo root)
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "chore(global-sync): update AI/ecosystem workflows" -m "
+          Global sync from jbcom/control-center (direct to repo root)
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          "
                 
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"

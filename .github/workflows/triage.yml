@@ -70,7 +70,7 @@ jobs:
 
       - name: Rebase and update each PR
         if: steps.get-prs.outputs.count > 0
-        run: |
+        run: |-
           echo "🔄 Found ${{ steps.get-prs.outputs.count }} open PRs to rebase"
           
           jq -c '.[]' open-prs.json | while read -r pr; do
@@ -112,13 +112,13 @@ jobs:
                   --repo ${{ github.repository }} \
                   --message "🤖 **Automatic Rebase Complete**
 
-This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
+          This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
 
-✅ No conflicts detected
-🔄 Branch is now up-to-date
+          ✅ No conflicts detected
+          🔄 Branch is now up-to-date
 
----
-<sub>Performed by Control Center Triage</sub>"
+          ---
+          <sub>Performed by Control Center Triage</sub>"
               
               elif [ "$REBASE_STATUS" = "conflicts" ]; then
                 echo "⚠️  Conflicts detected, triggering autoheal"
@@ -135,16 +135,16 @@ This PR was automatically rebased against the latest \`${{ github.ref_name }}\` 
                   --repo ${{ github.repository }} \
                   --message "🤖 **Automatic Rebase - Conflicts Detected**
 
-This PR has conflicts with the latest \`${{ github.ref_name }}\` branch.
+          This PR has conflicts with the latest \`${{ github.ref_name }}\` branch.
 
-⚠️  Conflicts found during automatic rebase
-🔧 Triggered autoheal workflow to resolve conflicts
-⏳ AI-powered conflict resolution in progress
+          ⚠️  Conflicts found during automatic rebase
+          🔧 Triggered autoheal workflow to resolve conflicts
+          ⏳ AI-powered conflict resolution in progress
 
-The autoheal workflow will analyze the conflicts and attempt to resolve them automatically. Check back soon for updates.
+          The autoheal workflow will analyze the conflicts and attempt to resolve them automatically. Check back soon for updates.
 
----
-<sub>Performed by Control Center Triage</sub>"
+          ---
+          <sub>Performed by Control Center Triage</sub>"
               
               else
                 echo "❌ Rebase failed: $REBASE_STATUS"
@@ -156,19 +156,19 @@ The autoheal workflow will analyze the conflicts and attempt to resolve them aut
                   --repo ${{ github.repository }} \
                   --message "🤖 **Automatic Rebase Failed**
 
-This PR could not be automatically rebased against \`${{ github.ref_name }}\`.
+          This PR could not be automatically rebased against \`${{ github.ref_name }}\`.
 
-❌ Error: $FAILURE_REASON
+          ❌ Error: $FAILURE_REASON
 
-Please manually rebase your branch or resolve conflicts locally:
-\`\`\`bash
-git fetch origin
-git rebase origin/${{ github.ref_name }}
-git push --force-with-lease
-\`\`\`
+          Please manually rebase your branch or resolve conflicts locally:
+          \`\`\`bash
+          git fetch origin
+          git rebase origin/${{ github.ref_name }}
+          git push --force-with-lease
+          \`\`\`
 
----
-<sub>Performed by Control Center Triage</sub>"
+          ---
+          <sub>Performed by Control Center Triage</sub>"
               fi
             else
               echo "✅ PR is up-to-date, no action needed"
