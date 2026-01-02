@@ -160,6 +160,44 @@ func (c *Client) TriggerWorkflow(ctx context.Context, repo, workflow string, inp
 	return err
 }
 
+// ClosePR closes a pull request on GitHub using the REST API
+func (c *Client) ClosePR(ctx context.Context, repo string, number int) error {
+	url := fmt.Sprintf("%s/repos/%s/pulls/%d", c.baseURL, repo, number)
+	body := []byte(`{"state": "closed"}`)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPatch, url, bytes.NewBuffer(body))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "token "+c.token)
+	req.Header.Set("Accept", "application/vnd.github.v3+json")
+	req.Header.Set("Content-Type", "application/json")
+
+	log.WithFields(log.Fields{
+		"repo":   repo,
+		"pr":     number,
+		"method": http.MethodPatch,
+		"url":    url,
+	}).Debug("Closing pull request via API")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		// To aid in debugging, read the response body
+		var responseBody bytes.Buffer
+		_, _ = responseBody.ReadFrom(resp.Body)
+		return fmt.Errorf("failed to close PR %d in %s: received status code %d. Body: %s", number, repo, resp.StatusCode, responseBody.String())
+	}
+
+	log.WithField("pr", number).Info("Successfully closed pull request")
+	return nil
+}
+
 // runGH runs the gh CLI command
 func (c *Client) runGH(ctx context.Context, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "gh", args...)

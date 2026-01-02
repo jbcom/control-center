@@ -1,6 +1,10 @@
 package github
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
@@ -110,5 +114,64 @@ func TestIssueStruct(t *testing.T) {
 	}
 	if issue.State != "open" {
 		t.Errorf("expected state 'open', got '%s'", issue.State)
+	}
+}
+
+func TestClosePR(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Check method and path
+		if r.Method != http.MethodPatch {
+			t.Errorf("Expected method PATCH, got %s", r.Method)
+		}
+		expectedPath := "/repos/jbcom/control-center/pulls/123"
+		if r.URL.Path != expectedPath {
+			t.Errorf("Expected path %s, got %s", expectedPath, r.URL.Path)
+		}
+
+		// Check headers
+		if r.Header.Get("Authorization") != "token test-token" {
+			t.Errorf("Missing or incorrect Authorization header")
+		}
+		if r.Header.Get("Accept") != "application/vnd.github.v3+json" {
+			t.Errorf("Missing or incorrect Accept header")
+		}
+
+		// Check body
+		var body map[string]string
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Fatalf("Failed to decode request body: %v", err)
+		}
+		if state, ok := body["state"]; !ok || state != "closed" {
+			t.Errorf("Expected state 'closed', got '%s'", state)
+		}
+
+		// Send response
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"state": "closed"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.baseURL = server.URL // Point client to the test server
+
+	err := client.ClosePR(context.Background(), "jbcom/control-center", 123)
+	if err != nil {
+		t.Errorf("ClosePR failed: %v", err)
+	}
+}
+
+func TestClosePR_Error(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message": "Not Found"}`))
+	}))
+	defer server.Close()
+
+	client := NewClient("test-token")
+	client.baseURL = server.URL
+
+	err := client.ClosePR(context.Background(), "jbcom/control-center", 456)
+	if err == nil {
+		t.Error("Expected an error for non-200 status code, but got nil")
 	}
 }
