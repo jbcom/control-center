@@ -306,14 +306,15 @@ jobs:
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(kill-list): remove deprecated workflows
+                COMMIT_MSG="chore(kill-list): remove deprecated workflows
 
-Automated cleanup via kill list from jbcom/control-center
-- Removed old ecosystem-* and ai-* workflows
-- Consolidated into 4 core workflows (triage, autoheal, review, delegator)
-- Removed Jules remote agent configurations
+          Automated cleanup via kill list from jbcom/control-center
+          - Removed old ecosystem-* and ai-* workflows
+          - Consolidated into 4 core workflows (triage, autoheal, review, delegator)
+          - Removed Jules remote agent configurations
 
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "$COMMIT_MSG"
                 
                 git push origin HEAD 2>/dev/null || echo "    ⚠️ Kill list push failed"
                 KILLED=$((KILLED + 1))
@@ -329,10 +330,11 @@ Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.r
             git add -A
             if ! git diff --staged --quiet; then
               if [[ "${{ inputs.dry_run }}" != "true" ]]; then
-                git commit -m "chore(global-sync): update AI/ecosystem workflows
+                COMMIT_MSG="chore(global-sync): update AI/ecosystem workflows
 
-Global sync from jbcom/control-center (direct to repo root)
-Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          Global sync from jbcom/control-center (direct to repo root)
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                git commit -m "$COMMIT_MSG"
                 
                 if git push origin HEAD 2>/dev/null; then
                   echo "  ✅ Updated"

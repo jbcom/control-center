@@ -107,18 +107,19 @@ jobs:
                 echo "✅ Successfully rebased and pushed"
                 
                 # Comment on PR
+                MESSAGE="🤖 **Automatic Rebase Complete**
+
+          This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
+
+          ✅ No conflicts detected
+          🔄 Branch is now up-to-date
+
+          ---
+          <sub>Performed by Control Center Triage</sub>"
                 ./control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
-                  --message "🤖 **Automatic Rebase Complete**
-
-This PR was automatically rebased against the latest \`${{ github.ref_name }}\` after recent changes were merged.
-
-✅ No conflicts detected
-🔄 Branch is now up-to-date
-
----
-<sub>Performed by Control Center Triage</sub>"
+                  --message "$MESSAGE"
               
               elif [ "$REBASE_STATUS" = "conflicts" ]; then
                 echo "⚠️  Conflicts detected, triggering autoheal"
@@ -130,45 +131,47 @@ This PR was automatically rebased against the latest \`${{ github.ref_name }}\` 
                   -f repository="${{ github.repository }}"
                 
                 # Comment on PR
+                MESSAGE="🤖 **Automatic Rebase - Conflicts Detected**
+
+          This PR has conflicts with the latest \`${{ github.ref_name }}\` branch.
+
+          ⚠️  Conflicts found during automatic rebase
+          🔧 Triggered autoheal workflow to resolve conflicts
+          ⏳ AI-powered conflict resolution in progress
+
+          The autoheal workflow will analyze the conflicts and attempt to resolve them automatically. Check back soon for updates.
+
+          ---
+          <sub>Performed by Control Center Triage</sub>"
                 ./control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
-                  --message "🤖 **Automatic Rebase - Conflicts Detected**
-
-This PR has conflicts with the latest \`${{ github.ref_name }}\` branch.
-
-⚠️  Conflicts found during automatic rebase
-🔧 Triggered autoheal workflow to resolve conflicts
-⏳ AI-powered conflict resolution in progress
-
-The autoheal workflow will analyze the conflicts and attempt to resolve them automatically. Check back soon for updates.
-
----
-<sub>Performed by Control Center Triage</sub>"
+                  --message "$MESSAGE"
               
               else
                 echo "❌ Rebase failed: $REBASE_STATUS"
                 
                 # Comment on PR with failure details
                 FAILURE_REASON=$(jq -r '.error' pr-$PR_NUM-rebase.json)
+                MESSAGE="🤖 **Automatic Rebase Failed**
+
+          This PR could not be automatically rebased against \`${{ github.ref_name }}\`.
+
+          ❌ Error: $FAILURE_REASON
+
+          Please manually rebase your branch or resolve conflicts locally:
+          \`\`\`bash
+          git fetch origin
+          git rebase origin/${{ github.ref_name }}
+          git push --force-with-lease
+          \`\`\`
+
+          ---
+          <sub>Performed by Control Center Triage</sub>"
                 ./control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
-                  --message "🤖 **Automatic Rebase Failed**
-
-This PR could not be automatically rebased against \`${{ github.ref_name }}\`.
-
-❌ Error: $FAILURE_REASON
-
-Please manually rebase your branch or resolve conflicts locally:
-\`\`\`bash
-git fetch origin
-git rebase origin/${{ github.ref_name }}
-git push --force-with-lease
-\`\`\`
-
----
-<sub>Performed by Control Center Triage</sub>"
+                  --message "$MESSAGE"
               fi
             else
               echo "✅ PR is up-to-date, no action needed"
