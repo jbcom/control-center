@@ -385,3 +385,64 @@ All components delivered and validated:
 - Adjust wait time if Docker Hub builds consistently take longer
 - Confirm Docker Hub automatic builds are properly configured
 
+
+---
+
+## Session: 2026-01-03 (Docker Hub Migration - Artifact Removal)
+
+### Completed
+- [x] Removed obsolete control-center-build.yml workflow
+- [x] Updated 4 AI workflows to use Docker directly (no artifacts)
+- [x] Removed all artifact upload/download steps
+- [x] Updated documentation (README, RELEASE-PROCESS, WORKFLOW_CONSOLIDATION)
+- [x] Created comprehensive DOCKER-HUB-MIGRATION.md
+- [x] Validated all YAML syntax (25 workflows)
+- [x] Ran CodeQL security scan (0 alerts)
+- [x] Addressed code review feedback
+- [x] Clarified Docker tag format and production considerations
+
+### Problem Solved
+GitHub Actions workflows were failing because they tried to download a 'control-center-binary' artifact that was never uploaded by control-center-build.yml.
+
+### Solution Implemented
+Migrated from artifact-based distribution to Docker Hub-based distribution:
+
+**Before**:
+1. Call control-center-build.yml → (artifact not uploaded!)
+2. Download artifact → ❌ Fails
+3. Run binary
+
+**After**:
+1. Run command: `docker run jbcom/control-center:latest <command>`
+
+### Key Changes
+- **Removed**: `.github/workflows/control-center-build.yml`
+- **Updated**: 4 workflows (ai-reviewer, ai-curator, ai-delegator, ai-fixer)
+- **Simplified**: Removed 40+ lines per workflow
+- **Performance**: Faster execution, no artifact overhead
+- **Standards**: Follows GitHub's Docker action best practices
+
+### Distribution Architecture
+- **GitHub Actions** → Pull from Docker Hub (jbcom/control-center:latest)
+- **CLI Users** → Download binaries from GitHub Releases
+- **Docker Users** → Pull images from Docker Hub
+- **Go Install** → Automatic via Go proxy
+
+### Docker Hub Configuration
+1. Automatic builds: Tag `/^v([0-9.]+)$/` → version number (strips 'v')
+2. Automatic builds: Branch `main` → `latest`
+3. Docker Scout: Enabled for vulnerability scanning
+4. Secrets: DOCKERHUB_USERNAME, DOCKERHUB_TOKEN
+
+### Documentation Created
+- `DOCKER-HUB-MIGRATION.md` - Complete migration summary
+- Updated `docs/RELEASE-PROCESS.md` - Architecture and tag format
+- Updated `README.md` - Docker usage examples
+- Updated `.github/WORKFLOW_CONSOLIDATION.md` - Workflow descriptions
+
+### For Next Agent
+- Monitor first workflow run to ensure Docker pulls work correctly
+- Verify Docker Hub automatic builds are configured
+- Test workflows with actual PR/issue/CI failure scenarios
+- Consider version-specific tags for mission-critical workflows
+
