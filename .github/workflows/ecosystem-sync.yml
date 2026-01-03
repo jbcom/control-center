@@ -14,9 +14,9 @@
 #   │  │ ORG .GITHUB    │ │ GLOBAL SYNC    │ │ CASCADE SYNC               │
 #   │  │ REPOS (1a)     │ │ (parallel)     │ │ (parallel)                 │
 #   │  │                │ │                │ │                            │
-#   │  │ Ensure each    │ │ global-sync/*  │ │ repository-files/* →       │
+#   │  │ Ensure each    │ │ sync-files/always-sync/global/*  │ │ sync-files/always-sync/* →       │
 #   │  │ org has        │ │ → ALL repo     │ │   org/control-center's     │
-#   │  │ .github repo   │ │   roots        │ │   repository-files/        │
+#   │  │ .github repo   │ │   roots        │ │   sync-files/always-sync/        │
 #   │  │                │ │                │ │                            │
 #   │  │ INITIAL sync   │ │ AI workflows,  │ │ Org-specific configs       │
 #   │  │ settings.yml   │ │ ecosystem,     │ │ that cascade to repos      │
@@ -35,7 +35,7 @@
 # 1a. Ensure org .github repos exist & INITIAL sync settings.yml
 # 1b. Global sync to ALL repo roots (PARALLEL)
 # 1c. Ensure org control-centers exist (PARALLEL)
-# 2.  Sync cascade files to org control-centers' repository-files/
+# 2.  Sync cascade files to org control-centers' sync-files/always-sync/
 # 3.  Trigger org control-centers to cascade to their repos
 
 name: Ecosystem Sync
@@ -75,11 +75,11 @@ on:
   push:
     branches: [main]
     paths:
-      - 'repository-files/**'
+      - 'sync-files/always-sync/**'
       - 'enterprise/**'
-      - 'global-sync/**'
+      - 'sync-files/always-sync/global/**'
       - 'repo-config.json'
-      # Note: org-github-repo is inside repository-files/ so already covered
+      # Note: org-github-repo is inside sync-files/always-sync/ so already covered
 
 permissions:
   contents: read
@@ -189,7 +189,7 @@ jobs:
                 git config user.email "github-actions[bot]@users.noreply.github.com"
                 
                 # Copy org-level settings template
-                cp "$GITHUB_WORKSPACE/repository-files/org-github-repo/settings.yml" settings.yml
+                cp "$GITHUB_WORKSPACE/sync-files/always-sync/org-github-repo/settings.yml" settings.yml
                 
                 git add settings.yml
                 if ! git diff --staged --quiet; then
@@ -258,12 +258,12 @@ jobs:
           echo "Found $(echo "$REPOS" | wc -w) repos for global sync"
 
       - name: Sync global files DIRECTLY to repo roots
-        if: hashFiles('global-sync/**') != ''
+        if: hashFiles('sync-files/always-sync/global/**') != ''
         env:
           GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
         run: |
           echo "🌐 Syncing global files DIRECTLY to repo roots..."
-          echo "   global-sync/.github/* → repo/.github/* (for USE, not distribution)"
+          echo "   sync-files/always-sync/global/.github/* → repo/.github/* (for USE, not distribution)"
           
           # Check if global-sync directory has content
           if [ ! -d "global-sync" ] || [ -z "$(ls -A global-sync 2>/dev/null)" ]; then
@@ -322,9 +322,9 @@ jobs:
             fi
             
             # STEP 2: Copy global files DIRECTLY to repo root (preserving structure)
-            # e.g. global-sync/.github/workflows/ai-*.yml → .github/workflows/ai-*.yml
+            # e.g. sync-files/always-sync/global/.github/workflows/ai-*.yml → .github/workflows/ai-*.yml
             echo "  📦 Syncing new workflow files..."
-            cp -r $GITHUB_WORKSPACE/global-sync/. . 2>/dev/null || true
+            cp -r $GITHUB_WORKSPACE/sync-files/always-sync/global/. . 2>/dev/null || true
             
             # Commit and push
             git add -A
@@ -370,7 +370,7 @@ jobs:
           if [ -d "global-sync" ]; then
             echo "**Global files:**" >> $GITHUB_STEP_SUMMARY
             find global-sync -type f -name "*.yml" -o -name "*.md" 2>/dev/null | head -20 | while read -r f; do
-              echo "- \`${f#global-sync/}\`" >> $GITHUB_STEP_SUMMARY
+              echo "- \`${f#sync-files/always-sync/global/}\`" >> $GITHUB_STEP_SUMMARY
             done
           fi
 
@@ -432,8 +432,8 @@ jobs:
           echo "Verified control-center repos exist for all managed orgs." >> $GITHUB_STEP_SUMMARY
 
   # =============================================================================
-  # Phase 2: Sync CASCADE files to Org Control-Centers' repository-files/
-  # These go into repository-files/ for DISTRIBUTION (not direct use)
+  # Phase 2: Sync CASCADE files to Org Control-Centers' sync-files/always-sync/
+  # These go into sync-files/always-sync/ for DISTRIBUTION (not direct use)
   # Org control-centers then cascade these to their repos
   # =============================================================================
   phase-2-sync-to-org-control-centers:
@@ -462,29 +462,29 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           # Ensure directory structure
-          mkdir -p repository-files/always-sync/.github/workflows
-          mkdir -p repository-files/always-sync/.cursor/rules
-          mkdir -p repository-files/initial-only
+          mkdir -p sync-files/always-sync/always-sync/.github/workflows
+          mkdir -p sync-files/always-sync/always-sync/.cursor/rules
+          mkdir -p sync-files/always-sync/initial-only
           mkdir -p .github/workflows
           
           # Copy enterprise always-sync files (these cascade down)
           echo "  Copying always-sync files..."
-          cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.github/workflows/* repository-files/always-sync/.github/workflows/ 2>/dev/null || true
-          cp -r $GITHUB_WORKSPACE/repository-files/always-sync/.cursor/rules/* repository-files/always-sync/.cursor/rules/ 2>/dev/null || true
+          cp -r $GITHUB_WORKSPACE/sync-files/always-sync/always-sync/.github/workflows/* sync-files/always-sync/always-sync/.github/workflows/ 2>/dev/null || true
+          cp -r $GITHUB_WORKSPACE/sync-files/always-sync/always-sync/.cursor/rules/* sync-files/always-sync/always-sync/.cursor/rules/ 2>/dev/null || true
           
           # Copy language-specific rules
           for lang in python nodejs go terraform rust; do
-            if [ -d "$GITHUB_WORKSPACE/repository-files/$lang" ]; then
-              mkdir -p "repository-files/$lang"
-              cp -r "$GITHUB_WORKSPACE/repository-files/$lang/"* "repository-files/$lang/" 2>/dev/null || true
+            if [ -d "$GITHUB_WORKSPACE/sync-files/always-sync/$lang" ]; then
+              mkdir -p "sync-files/always-sync/$lang"
+              cp -r "$GITHUB_WORKSPACE/sync-files/always-sync/$lang/"* "sync-files/always-sync/$lang/" 2>/dev/null || true
             fi
           done
           
           # Copy initial-only files
-          cp -r $GITHUB_WORKSPACE/repository-files/initial-only/* repository-files/initial-only/ 2>/dev/null || true
+          cp -r $GITHUB_WORKSPACE/sync-files/always-sync/initial-only/* sync-files/always-sync/initial-only/ 2>/dev/null || true
           
           # Copy the org sync workflow from template
-          cp $GITHUB_WORKSPACE/repository-files/org-control-center/.github/workflows/sync.yml .github/workflows/sync.yml
+          cp $GITHUB_WORKSPACE/sync-files/always-sync/org-control-center/.github/workflows/sync.yml .github/workflows/sync.yml
           
           # Commit and push with retry
           git add -A
@@ -575,10 +575,10 @@ jobs:
           echo "  │     ALL repos in org get these defaults" >> $GITHUB_STEP_SUMMARY
           echo "  │     Individual repos can OVERRIDE with own settings.yml" >> $GITHUB_STEP_SUMMARY
           echo "  │" >> $GITHUB_STEP_SUMMARY
-          echo "  ├── global-sync/* → ALL repo roots (DIRECT)" >> $GITHUB_STEP_SUMMARY
+          echo "  ├── sync-files/always-sync/global/* → ALL repo roots (DIRECT)" >> $GITHUB_STEP_SUMMARY
           echo "  │     AI workflows, ecosystem workflows, agent configs" >> $GITHUB_STEP_SUMMARY
           echo "  │" >> $GITHUB_STEP_SUMMARY
-          echo "  └── repository-files/* → org control-centers (CASCADE)" >> $GITHUB_STEP_SUMMARY
+          echo "  └── sync-files/always-sync/* → org control-centers (CASCADE)" >> $GITHUB_STEP_SUMMARY
           echo "        ├── arcade-cabinet/control-center → arcade-cabinet/*" >> $GITHUB_STEP_SUMMARY
           echo "        ├── agentic-dev-library/control-center → agentic-dev-library/*" >> $GITHUB_STEP_SUMMARY
           echo "        ├── extended-data-library/control-center → extended-data-library/*" >> $GITHUB_STEP_SUMMARY
