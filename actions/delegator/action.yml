@@ -9,7 +9,7 @@ branding:
 
 runs:
   using: "docker"
-  image: "docker://ghcr.io/jbcom/control-center:latest" # x-release-please-version
+  image: "docker://jbcom/control-center:latest" # x-release-please-version
   args: ["delegator"]
   env:
     CONTROL_CENTER_REPO: ${{ inputs.repo }}

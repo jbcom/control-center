@@ -25,7 +25,7 @@ go install github.com/jbcom/control-center/cmd/control-center@latest
 ### Docker
 
 ```bash
-docker pull ghcr.io/jbcom/control-center:latest
+docker pull jbcom/control-center:latest
 ```
 
 ### Binary

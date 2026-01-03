@@ -46,36 +46,49 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  docker:
-    name: Docker Release
+  docker-scout:
+    name: Docker Scout Analysis
     runs-on: ubuntu-latest
     needs: goreleaser
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
       
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@c47758b77c9736f4b2ef4073d4d51994fabfe349 # v3.7.1
-      
-      - name: Login to GitHub Container Registry
+      - name: Login to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
       
-      - name: Build and push
-        uses: docker/build-push-action@48aba3b46d1b1fec4febb7c5d0c644b249a11355 # v6.10.0
+      - name: Wait for Docker Hub build
+        run: |
+          echo "Waiting for Docker Hub automatic build to complete for version ${{ needs.goreleaser.outputs.version }}..."
+          sleep 60
+          echo "Proceeding with Scout analysis"
+      
+      - name: Docker Scout - Current Version
+        uses: docker/scout-action@cc6bf6a28cb66cbbb1001402c67bf6296c0d1a70 # v1.16.3
         with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            ghcr.io/${{ github.repository }}:${{ needs.goreleaser.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
-          build-args: |
-            VERSION=${{ needs.goreleaser.outputs.version }}
-            COMMIT=${{ github.sha }}
-            DATE=${{ github.event.head_commit.timestamp }}
+          command: quickview,cves
+          image: jbcom/control-center:${{ needs.goreleaser.outputs.version }}
+          sarif-file: sarif.output.json
+          summary: true
+      
+      - name: Upload SARIF results
+        uses: github/codeql-action/upload-sarif@48ab28a6f5dbc2a99bf1e0131198dd8f1df78169 # v3.28.0
+        if: always()
+        with:
+          sarif_file: sarif.output.json
+      
+      - name: Docker Scout - Compare with Latest
+        uses: docker/scout-action@cc6bf6a28cb66cbbb1001402c67bf6296c0d1a70 # v1.16.3
+        with:
+          command: compare
+          image: jbcom/control-center:${{ needs.goreleaser.outputs.version }}
+          to: jbcom/control-center:latest
+          summary: true
   
   # Tag actions for GitHub Marketplace
   # Creates floating major (v1) and minor (v1.1) tags for user convenience
@@ -120,7 +133,7 @@ jobs:
   trigger-ecosystem-sync:
     name: Trigger Ecosystem Sync
     runs-on: ubuntu-latest
-    needs: [goreleaser, docker, tag-actions]
+    needs: [goreleaser, docker-scout, tag-actions]
     if: github.repository == 'jbcom/control-center'
     steps:
       - name: Trigger sync workflow

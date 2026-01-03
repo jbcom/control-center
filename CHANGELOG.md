@@ -318,7 +318,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Distribution**:
   - Go module (`go install github.com/jbcom/control-center/cmd/control-center@latest`)
-  - Docker image (`ghcr.io/jbcom/control-center`)
+  - Docker image (`jbcom/control-center`)
   - GitHub releases (binaries for Linux, macOS, Windows)
 
 ### 📚 Documentation
