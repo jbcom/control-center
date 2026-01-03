@@ -94,7 +94,7 @@ jobs:
             exit 1
           fi
           echo "✅ Target validated: $TARGET_INPUT"
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Get Organizations
         id: orgs
@@ -168,7 +168,7 @@ jobs:
     outputs:
       healed: ${{ steps.heal.outputs.healed }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Check Control Center Health
         id: health

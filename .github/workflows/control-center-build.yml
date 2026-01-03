@@ -35,9 +35,7 @@ jobs:
       docker_image: ${{ steps.setup-docker.outputs.image }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
-      
-      # Docker path (default) - pull from GHCR
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
       - name: Setup Docker image
         id: setup-docker
         if: inputs.use_docker == true
@@ -50,7 +48,7 @@ jobs:
       # Local build path (fallback) - build Go binary
       - name: Setup Go
         if: inputs.use_docker == false
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
         with:
           go-version: '1.23'
           cache: true

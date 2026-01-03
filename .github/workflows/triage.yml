@@ -49,12 +49,12 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
         with:
           fetch-depth: 0 # Need full history for rebasing
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
         with:
           go-version: \'1.23\'
           cache: true
@@ -213,7 +213,7 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Setup Control Center
         run: |
@@ -250,10 +250,10 @@ jobs:
     if: github.event_name == 'issues' && github.event.action == 'opened'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
         with:
           go-version: \'1.23\'
           cache: true
@@ -282,7 +282,7 @@ jobs:
     if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.operation == 'health_check')
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Setup Control Center
         run: |
@@ -343,10 +343,10 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.operation != 'health_check'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
         with:
           go-version: \'1.23\'
           cache: true
