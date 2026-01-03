@@ -4,6 +4,8 @@
 **PR**: [Link to PR]  
 **Issue**: Artifact-based distribution causing workflow failures
 
+**Note**: The 60-second wait time in release workflows is based on typical Docker Hub build times. This can be adjusted if builds consistently take longer.
+
 ## Problem Statement
 
 The GitHub Actions workflows were failing because they attempted to download a `control-center-binary` artifact that was never uploaded. The workflow pattern was:
@@ -75,8 +77,10 @@ All four AI automation workflows now use Docker directly:
 ### Docker Hub Automatic Builds
 
 Docker Hub is configured to automatically build images when:
-- **Tags** matching `/^v([0-9.]+)$/` → Tagged as version number (e.g., `1.2.0`)
+- **Tags** matching `/^v([0-9.]+)$/` → Tagged as version number (strips 'v' prefix, e.g., v1.2.0 → 1.2.0)
 - **Main branch** commits → Tagged as `latest`
+
+**Wait Time**: The release workflow waits 60 seconds for Docker Hub to complete the build. This is based on typical build times and can be adjusted if builds consistently take longer.
 
 The GitHub Actions release workflow:
 1. Runs GoReleaser to create cross-platform binaries

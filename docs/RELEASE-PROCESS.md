@@ -111,8 +111,10 @@ sudo mv control-center /usr/local/bin/
 - Commits are pushed to `main` branch → Tagged as `latest`
 
 **Tags**:
-- `vX.Y.Z` or `X.Y.Z` - Specific version (e.g., `v1.2.0` or `1.2.0`)
+- `X.Y.Z` - Specific version without 'v' prefix (e.g., `1.2.0`, not `v1.2.0`)
 - `latest` - Latest stable release from `main` branch
+
+**Note on tag format**: Docker Hub automatic builds strip the 'v' prefix from git tags. A git tag `v1.2.0` becomes Docker image tag `1.2.0`.
 
 **Platforms** (via Docker Hub automatic builds):
 - `linux/amd64`
@@ -122,12 +124,18 @@ sudo mv control-center /usr/local/bin/
 
 **Usage**:
 ```bash
-# Run specific version
+# Run specific version (note: no 'v' prefix)
 docker run jbcom/control-center:1.2.0 version
 
 # Run latest
 docker run jbcom/control-center:latest reviewer --repo owner/repo --pr 123
 ```
+
+**Production Considerations**:
+- The `latest` tag is used in action.yml files for convenience
+- Risk: Breaking changes could affect all workflows using `latest`
+- Mitigation: Follow semantic versioning, test thoroughly before releases
+- For mission-critical workflows, consider pinning to specific versions after validating them
 
 **Required Configuration**:
 - Docker Hub automatic builds configured for repository
@@ -144,7 +152,14 @@ docker run jbcom/control-center:latest reviewer --repo owner/repo --pr 123
 - `jbcom/control-center@v1.2.0` - Exact version
 - `jbcom/control-center/actions/reviewer@v1` - Specific command action
 
-**Docker Image Reference**: All actions use `docker://jbcom/control-center:latest` from Docker Hub. The actions themselves are versioned via git tags, but they always pull the latest Docker image. This ensures workflows get the most up-to-date binary without having to rebuild or upload artifacts.
+**Docker Image Reference**: All actions use `docker://jbcom/control-center:latest` from Docker Hub. The actions themselves are versioned via git tags, but they always pull the latest Docker image. 
+
+**Trade-offs**:
+- ✅ **Pros**: Workflows get the most up-to-date binary without manual updates
+- ⚠️ **Cons**: Breaking changes could affect all workflows simultaneously
+- 🛡️ **Mitigation**: Semantic versioning, thorough testing, and rollback capability
+
+For mission-critical workflows, consider using version-specific Docker tags after validation.
 
 **Version Tags**:
 - `v1` - Floating major version tag (updated on each v1.x.x release)
