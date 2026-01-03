@@ -54,7 +54,7 @@ gh issue list --state open
 go install github.com/jbcom/control-center/cmd/control-center@latest
 
 # Docker
-docker pull ghcr.io/jbcom/control-center:latest
+docker pull jbcom/control-center:latest
 ```
 
 ### GitHub Actions (Recommended)

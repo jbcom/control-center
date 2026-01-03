@@ -298,16 +298,108 @@ All components delivered and validated:
 - No outstanding issues
 - Full integration testing will occur after merge to main
 
-## Session: 2026-01-03 (GitHub Actions SHA Update)
+---
+
+## Session: 2026-01-03 (Docker Hub Migration + Scout Integration)
+
+### Completed
+- [x] Migrated from GHCR to Docker Hub for container image hosting
+- [x] Integrated Docker Scout for vulnerability scanning
+- [x] Updated all workflows (ci.yml, release.yml, control-center-build.yml)
+- [x] Updated all GitHub Actions (6 action.yml files)
+- [x] Updated build configuration (Makefile, Dockerfile, .goreleaser.yaml)
+- [x] Updated all documentation files (8 files)
+- [x] Validated all YAML files are syntactically correct
+- [x] Verified no GHCR references remain in active files
+
+### Architecture Changes
+
+**Before**: GitHub Actions built and pushed to `ghcr.io/jbcom/control-center`
+
+**After**: Docker Hub automatic builds + GitHub Actions Scout analysis
+
+#### CI Workflow (main branch)
+1. Runs lint, test, build jobs
+2. Waits 60s for Docker Hub automatic build
+3. Logs into Docker Hub
+4. Runs Docker Scout CVE analysis on `jbcom/control-center:latest`
+5. Uploads SARIF results to GitHub Security tab
+
+#### Release Workflow (tags)
+1. Runs GoReleaser for binaries
+2. Waits 60s for Docker Hub automatic build
+3. Logs into Docker Hub
+4. Runs Docker Scout CVE analysis on `jbcom/control-center:vX.Y.Z`
+5. Compares new version against latest for vulnerability delta
+6. Uploads SARIF results to GitHub Security tab
+7. Tags actions for marketplace (v1, v1.x floating tags)
+8. Triggers ecosystem sync
+
+### Files Modified (20 total)
+- `.github/workflows/ci.yml` - Replaced GHCR job with Scout analysis
+- `.github/workflows/release.yml` - Replaced GHCR job with Scout analysis + comparison
+- `.github/workflows/control-center-build.yml` - Changed image reference
+- `.github/workflows/docs-sync.yml` - Updated Docker Hub link
+- `Makefile` - Updated docker-build/docker-run targets
+- `Dockerfile` - Changed OCI label source URL
+- `.goreleaser.yaml` - Updated Docker pull command
+- `action.yml` - Changed to Docker Hub image
+- `actions/curator/action.yml` - Changed to Docker Hub image
+- `actions/delegator/action.yml` - Changed to Docker Hub image
+- `actions/fixer/action.yml` - Changed to Docker Hub image
+- `actions/gardener/action.yml` - Changed to Docker Hub image
+- `actions/reviewer/action.yml` - Changed to Docker Hub image
+- `README.md` - Updated Docker references
+- `CLAUDE.md` - Updated Docker references
+- `AGENTS.md` - Updated Docker references
+- `CHANGELOG.md` - Updated Docker references
+- `docs/RELEASE-PROCESS.md` - Updated Docker references and architecture diagram
+- `docs/site/content/_index.md` - Updated Docker references
+- `docs/site/content/getting-started/_index.md` - Updated Docker references
+
+### Docker Scout Integration Details
+
+**Scout Action Version**: `docker/scout-action@cc6bf6a28cb66cbbb1001402c67bf6296c0d1a70` (v1.16.3)
+
+**Commands Used**:
+- `quickview,cves` - Quick vulnerability overview and CVE details
+- `compare` - Compare vulnerability delta between versions (release only)
+
+**SARIF Output**: Uploaded to GitHub Security tab for integration with GitHub Advanced Security
+
+### Required Docker Hub Configuration
+
+1. **Automatic Builds**:
+   - Source: `main` branch → Tag: `latest`
+   - Source: `/^v([0-9.]+)$/` → Tag: version number
+
+2. **Docker Scout**: Enable in Docker Hub repository settings
+
+3. **GitHub Secrets** (should already exist):
+   - `DOCKERHUB_USERNAME`
+   - `DOCKERHUB_TOKEN`
+
+### For Next Agent
+- Monitor first CI run to ensure Docker Hub build timing is adequate (60s wait)
+- Verify Scout SARIF results appear in GitHub Security tab
+- Adjust wait time if Docker Hub builds consistently take longer
+- Confirm Docker Hub automatic builds are properly configured
+
+
+---
+
+## Session: 2026-01-03 (GitHub Actions SHA Update - PR #761)
 
 ### Completed
 - [x] Updated `.github/workflows/ecosystem-sync-new-simple.yml` to use latest commit SHAs
 - [x] Changed `actions/checkout` from SHA 11bd71901bbe5b1630ceea73d27597364c9af683 to 8e8c483c2dbaedc1b2d9f2ce1a82b3b604df4555
 - [x] Changed `BetaHuhn/repo-file-sync-action` from SHA efa968d157126a6a16f2e72d1b801c1c4fb06a37 to 8b92be3
 - [x] Validated YAML syntax - confirmed valid
-- [x] Committed and pushed changes to PR branch
+- [x] Merged latest from main (88847b9) to resolve conflicts
+- [x] Resolved merge conflict in activeContext.md
 
 ### For Next Agent
 - All required changes completed
+- Branch is now up-to-date with main
 - Workflow now references current actual commit SHAs as requested
 - Ready for review and merge

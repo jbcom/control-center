@@ -59,10 +59,10 @@ deps:
 
 ## Docker targets
 docker-build:
-	docker build -t ghcr.io/jbcom/control-center:dev .
+	docker build -t jbcom/control-center:dev .
 
 docker-run:
-	docker run --rm ghcr.io/jbcom/control-center:dev --help
+	docker run --rm jbcom/control-center:dev --help
 
 ## Clean targets
 clean:

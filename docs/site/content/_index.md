@@ -26,7 +26,7 @@ Control Center is the **only public Go release** from the jbcom ecosystem, provi
 go install github.com/jbcom/control-center/cmd/control-center@latest
 
 # Docker
-docker pull ghcr.io/jbcom/control-center:latest
+docker pull jbcom/control-center:latest
 
 # Verify
 control-center version
