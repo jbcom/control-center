@@ -187,8 +187,32 @@ jobs:
           
           echo "✅ Created org-context.json for $ORG"
 
+      - name: Check Repository Archive Status
+        id: archive_check
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          REPO="${{ matrix.org }}/control-center"
+          
+          echo "🔍 Checking if $REPO is archived..."
+          
+          # Query GitHub API for repository archive status
+          ARCHIVED=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPO" | jq -r '.archived')
+          
+          if [ "$ARCHIVED" = "true" ]; then
+            echo "⚠️ Repository $REPO is ARCHIVED"
+            echo "⚠️ Skipping push to read-only repository"
+            echo "archived=true" >> $GITHUB_OUTPUT
+          else
+            echo "✅ Repository $REPO is active (not archived)"
+            echo "archived=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Commit and Push
-        if: ${{ !inputs.dry_run }}
+        if: ${{ !inputs.dry_run && steps.archive_check.outputs.archived != 'true' }}
         working-directory: target
         run: |
           git config user.name "Ecosystem Surveyor"
@@ -213,6 +237,14 @@ jobs:
           git push
           
           echo "✅ Changes pushed to ${{ matrix.org }}/control-center"
+
+      - name: Archive Repository Notice
+        if: ${{ steps.archive_check.outputs.archived == 'true' }}
+        run: |
+          echo "⚠️ ════════════════════════════════════════════════════════════"
+          echo "⚠️ Repository ${{ matrix.org }}/control-center is ARCHIVED"
+          echo "⚠️ Push operation skipped to prevent errors on read-only repo"
+          echo "⚠️ ════════════════════════════════════════════════════════════"
 
       - name: Dry Run Report
         if: ${{ inputs.dry_run }}
