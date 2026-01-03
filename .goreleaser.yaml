@@ -71,7 +71,7 @@ release:
     
     **Docker:**
     ```bash
-    docker pull ghcr.io/jbcom/control-center:{{ .Version }}
+    docker pull jbcom/control-center:{{ .Version }}
     ```
     
     **Binary:**
