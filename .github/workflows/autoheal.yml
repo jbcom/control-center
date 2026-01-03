@@ -76,8 +76,19 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ github.event.workflow_run.head_branch || github.ref }}
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: \'1.23\'
+          cache: true
+      
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Analyze failure with control-center
         id: analyze
@@ -161,8 +172,13 @@ jobs:
           git config --global user.name "Control Center Bot"
           git config --global user.email "control-center[bot]@users.noreply.github.com"
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Attempt automatic conflict resolution
         id: resolve

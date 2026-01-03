@@ -45,8 +45,19 @@ jobs:
           repository: ${{ inputs.repository || github.repository }}
           ref: ${{ github.event.pull_request.head.ref || github.ref }}
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: \'1.23\'
+          cache: true
+      
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Review with control-center
         id: review

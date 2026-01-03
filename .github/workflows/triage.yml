@@ -53,8 +53,19 @@ jobs:
         with:
           fetch-depth: 0 # Need full history for rebasing
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: \'1.23\'
+          cache: true
+      
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Get all open PRs
         id: get-prs
@@ -204,8 +215,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Triage PR
         run: |
@@ -236,8 +252,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: \'1.23\'
+          cache: true
+      
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Triage new issue
         run: |
@@ -257,8 +284,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Deduplicate issues
         run: |
@@ -313,8 +345,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Build control-center
-        uses: ./.github/workflows/control-center-build.yml
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: \'1.23\'
+          cache: true
+      
+      - name: Setup Control Center
+        run: |
+          # Build control-center binary
+          make build
+          # Make it available in PATH
+          echo "${{ github.workspace }}/bin" >> $GITHUB_PATH
+      
 
       - name: Execute operation
         run: |
