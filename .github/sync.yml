@@ -1,9 +1,15 @@
 # Ecosystem Sync Configuration
-# Strategy: Global profile first, language overlays for docs, see what's left
+# Using BetaHuhn/repo-file-sync-action
+#
+# Three Sync Types:
+# 1. always-sync: Files every repo MUST always have (auto-updates, versions in git history)
+# 2. initial-only: Files repos MUST start with (one-time sync, versions in repo as patches)
+# 3. patch-sync: Optional files repos CAN adopt (opt-in, multiple versions available)
+#
+# See docs/SYNC-FILE-VERSIONING.md for complete versioning policy
 
 # =============================================================================
-# GLOBAL PROFILE - Covers MOST repos (35 universal files)
-# Applied to ALL repos: .github workflows, cursor rules, CONTRIBUTING, etc.
+# ALWAYS-SYNC: Global Profile - Auto-updates ALL repos
 # =============================================================================
 group:
   - files:
@@ -84,9 +90,24 @@ strata-game-library/.github:
 #     dest: ./
 
 # =============================================================================
-# WHAT'S LEFT: Exceptions and edge cases
-# After global + language profiles, manually add any repos that need:
-# - Different sync patterns
-# - Excluded files
-# - Custom configurations
+# INITIAL-ONLY: Starter files (sync once, then repos own them)
+# Use PR labels to indicate one-time sync. Versioned files available as patches.
+# =============================================================================
+# Example:
+# your-org/new-repo:
+#   - source: sync-files/initial-only/global/
+#     dest: ./
+#     labels: [initial-only, manual-review]
+
+# =============================================================================
+# PATCH-SYNC: Optional files (repos opt-in to specific versions)
+# =============================================================================
+# Example:
+# your-org/repo-that-wants-feature:
+#   - source: sync-files/patch-sync/global/advanced-ci-v2.0.0.yml
+#     dest: .github/workflows/advanced-ci.yml
+#     labels: [patch-sync, optional]
+
+# =============================================================================
+# EXCEPTIONS: Special cases and custom configurations
 # =============================================================================

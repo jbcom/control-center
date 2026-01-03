@@ -1,0 +1,293 @@
+#!/usr/bin/env bash
+# File Version Manager for Ecosystem Sync
+#
+# Manages semantic versioning for sync files with YAML front matter
+# 
+# Usage:
+#   ./scripts/version-sync-file <action> <file> [version]
+#
+# Actions:
+#   init <file>              - Add v1.0.0 front matter to file
+#   bump <file> <type>       - Bump version (major|minor|patch)
+#   release-always <file>    - Release new always-sync version (git tag)
+#   release-patch <file>     - Create patch-sync versioned copy
+#   list <file>              - Show version history
+#
+# File Types (detected from path):
+#   sync-files/always-sync/  - Always synced (versions in git history)
+#   sync-files/initial-only/ - Initial sync (versioned copies in repo)
+#   sync-files/patch-sync/   - Patch sync (versioned copies in repo)
+
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+usage() {
+    echo "Usage: $0 <action> <file> [args]"
+    echo ""
+    echo "Actions:"
+    echo "  init <file>              Add v1.0.0 front matter"
+    echo "  bump <file> <type>       Bump version (major|minor|patch)"
+    echo "  release-always <file>    Release always-sync (creates git tag)"
+    echo "  release-patch <file>     Create patch-sync versioned copy"
+    echo "  list <file>              Show version history"
+    echo ""
+    echo "Examples:"
+    echo "  $0 init sync-files/always-sync/global/CONTRIBUTING.md"
+    echo "  $0 bump sync-files/always-sync/global/CONTRIBUTING.md patch"
+    echo "  $0 release-always sync-files/always-sync/global/CONTRIBUTING.md"
+    exit 1
+}
+
+# Get current version from file front matter
+get_version() {
+    local file="$1"
+    if [ ! -f "$file" ]; then
+        echo "1.0.0"
+        return
+    fi
+    
+    # Extract version from YAML front matter
+    local version=$(awk '/^---$/,/^---$/' "$file" | grep '^version:' | cut -d: -f2 | tr -d ' ')
+    if [ -z "$version" ]; then
+        echo "1.0.0"
+    else
+        echo "$version"
+    fi
+}
+
+# Bump semantic version
+bump_version() {
+    local version="$1"
+    local bump_type="$2"
+    
+    IFS='.' read -r major minor patch <<< "$version"
+    
+    case "$bump_type" in
+        major)
+            echo "$((major + 1)).0.0"
+            ;;
+        minor)
+            echo "${major}.$((minor + 1)).0"
+            ;;
+        patch)
+            echo "${major}.${minor}.$((patch + 1))"
+            ;;
+        *)
+            echo "Invalid bump type: $bump_type" >&2
+            exit 1
+            ;;
+    esac
+}
+
+# Add or update YAML front matter
+update_front_matter() {
+    local file="$1"
+    local version="$2"
+    local temp_file="${file}.tmp"
+    
+    # Check if file has front matter
+    if head -n1 "$file" | grep -q '^---$'; then
+        # Update existing front matter
+        awk -v ver="$version" '
+            BEGIN { in_fm=0; updated=0 }
+            /^---$/ { 
+                if (NR==1) { in_fm=1; print; next }
+                if (in_fm) { 
+                    if (!updated) { print "version: " ver }
+                    in_fm=0; print; next 
+                }
+            }
+            in_fm && /^version:/ { print "version: " ver; updated=1; next }
+            { print }
+        ' "$file" > "$temp_file"
+    else
+        # Add new front matter
+        {
+            echo "---"
+            echo "version: $version"
+            echo "last_updated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "sync_type: $(detect_sync_type "$file")"
+            echo "---"
+            echo ""
+            cat "$file"
+        } > "$temp_file"
+    fi
+    
+    mv "$temp_file" "$file"
+}
+
+# Detect sync type from path
+detect_sync_type() {
+    local file="$1"
+    if [[ "$file" == *"always-sync"* ]]; then
+        echo "always"
+    elif [[ "$file" == *"initial-only"* ]]; then
+        echo "initial"
+    elif [[ "$file" == *"patch-sync"* ]]; then
+        echo "patch"
+    else
+        echo "unknown"
+    fi
+}
+
+# Initialize file with version
+action_init() {
+    local file="$1"
+    
+    if [ ! -f "$file" ]; then
+        echo -e "${RED}Error: File not found: $file${NC}"
+        exit 1
+    fi
+    
+    echo "Initializing $file with version 1.0.0"
+    update_front_matter "$file" "1.0.0"
+    echo -e "${GREEN}✓ Initialized${NC}"
+}
+
+# Bump version
+action_bump() {
+    local file="$1"
+    local bump_type="$2"
+    
+    if [ ! -f "$file" ]; then
+        echo -e "${RED}Error: File not found: $file${NC}"
+        exit 1
+    fi
+    
+    local current_version=$(get_version "$file")
+    local new_version=$(bump_version "$current_version" "$bump_type")
+    
+    echo "Bumping $file: $current_version → $new_version"
+    update_front_matter "$file" "$new_version"
+    echo -e "${GREEN}✓ Version bumped${NC}"
+}
+
+# Release always-sync file
+action_release_always() {
+    local file="$1"
+    
+    if [[ "$file" != *"always-sync"* ]]; then
+        echo -e "${RED}Error: File is not in always-sync directory${NC}"
+        exit 1
+    fi
+    
+    local version=$(get_version "$file")
+    local basename=$(basename "$file")
+    local tag="sync-file/${basename}-v${version}"
+    
+    echo "Releasing always-sync file:"
+    echo "  File: $file"
+    echo "  Version: $version"
+    echo "  Tag: $tag"
+    echo ""
+    echo "Steps to complete:"
+    echo "  1. git add $file"
+    echo "  2. git commit -m 'chore(sync): release $basename v$version'"
+    echo "  3. git tag $tag"
+    echo "  4. git push origin main $tag"
+    echo ""
+    echo -e "${YELLOW}Note: Old versions are preserved in git history${NC}"
+}
+
+# Release patch-sync file
+action_release_patch() {
+    local file="$1"
+    
+    if [[ "$file" == *"always-sync"* ]]; then
+        echo -e "${RED}Error: Use release-always for always-sync files${NC}"
+        exit 1
+    fi
+    
+    local version=$(get_version "$file")
+    local dirname=$(dirname "$file")
+    local basename=$(basename "$file")
+    local filename="${basename%.*}"
+    local extension="${basename##*.}"
+    
+    # Create versioned copy
+    local versioned_file="${dirname}/${filename}-v${version}.${extension}"
+    
+    echo "Creating patch-sync versioned copy:"
+    echo "  Source: $file"
+    echo "  Versioned: $versioned_file"
+    echo "  Version: $version"
+    
+    cp "$file" "$versioned_file"
+    
+    echo ""
+    echo -e "${GREEN}✓ Created versioned copy${NC}"
+    echo ""
+    echo "Steps to complete:"
+    echo "  1. git add $versioned_file"
+    echo "  2. git commit -m 'chore(sync): release $basename v$version'"
+    echo "  3. Update .github/sync.yml to reference $versioned_file"
+    echo "  4. git push origin main"
+    echo ""
+    echo -e "${YELLOW}Note: All versions are kept in repository${NC}"
+}
+
+# List version history
+action_list() {
+    local file="$1"
+    
+    echo "Version history for $file:"
+    echo ""
+    
+    if [[ "$file" == *"always-sync"* ]]; then
+        echo "Type: always-sync (versions in git history)"
+        echo ""
+        git log --oneline --all -- "$file" | head -20
+    else
+        echo "Type: initial-only/patch-sync (versioned files in repo)"
+        echo ""
+        local dirname=$(dirname "$file")
+        local basename=$(basename "$file")
+        local filename="${basename%.*}"
+        local extension="${basename##*.}"
+        
+        find "$dirname" -name "${filename}*.${extension}" -o -name "${filename}-v*.${extension}" | sort
+    fi
+}
+
+# Main
+ACTION="${1:-}"
+FILE="${2:-}"
+
+if [ -z "$ACTION" ] || [ -z "$FILE" ]; then
+    usage
+fi
+
+case "$ACTION" in
+    init)
+        action_init "$FILE"
+        ;;
+    bump)
+        BUMP_TYPE="${3:-}"
+        if [ -z "$BUMP_TYPE" ]; then
+            echo -e "${RED}Error: bump type required (major|minor|patch)${NC}"
+            usage
+        fi
+        action_bump "$FILE" "$BUMP_TYPE"
+        ;;
+    release-always)
+        action_release_always "$FILE"
+        ;;
+    release-patch)
+        action_release_patch "$FILE"
+        ;;
+    list)
+        action_list "$FILE"
+        ;;
+    *)
+        echo -e "${RED}Unknown action: $ACTION${NC}"
+        usage
+        ;;
+esac
