@@ -15,15 +15,8 @@ jobs:
   # ════════════════════════════════════════════════════════════════
   # TIER 1: Ollama Quick Review (control-center)
   # ════════════════════════════════════════════════════════════════
-  build:
-    if: github.event.pull_request.draft == false
-    permissions:
-      contents: read
-    uses: jbcom/control-center/.github/workflows/control-center-build.yml@main
-
   ollama-review:
     name: Ollama Review
-    needs: build
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     permissions:
@@ -33,22 +26,17 @@ jobs:
       suggestion_count: ${{ steps.review.outputs.suggestion_count }}
       needs_escalation: ${{ steps.check.outputs.needs_escalation }}
     steps:
-      - name: Download binary
-        uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16 # v4.1.8
-        with:
-          name: control-center-binary
-          path: /tmp
-          run-id: ${{ github.run_id }}
-          github-token: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
-
       - name: Run reviewer
         id: review
         env:
           GITHUB_TOKEN: ${{ secrets.CI_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
         run: |
-          chmod +x /tmp/control-center
-          OUTPUT=$(/tmp/control-center reviewer \
+          OUTPUT=$(docker run --rm \
+            -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
+            -e OLLAMA_API_KEY="${OLLAMA_API_KEY}" \
+            jbcom/control-center:latest \
+            reviewer \
             --repo "${{ github.repository }}" \
             --pr "${{ github.event.pull_request.number }}" \
             --log-level info 2>&1) || true

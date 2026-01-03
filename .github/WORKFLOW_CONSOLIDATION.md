@@ -77,21 +77,17 @@ Following the pattern established in [arcade-cabinet/otterblade-odyssey#27](http
 
 #### 5. `ci.yml` - Continuous Integration
 - Lint, test, build control-center binary
+- Docker Scout vulnerability analysis (on main branch)
 
-#### 6. `go.yml` - Go Build & Test
-- Go-specific testing and building
-
-#### 7. `control-center-build.yml` - Reusable Build
-- Builds control-center binary for other workflows
-
-#### 8. `docs.yml` & `docs-sync.yml` - Documentation
+#### 6. `docs.yml` & `docs-sync.yml` - Documentation
 - Generate and sync documentation
 
-#### 9. `release-please.yml` & `release.yml` - Releases
+#### 7. `release-please.yml` & `release.yml` - Releases
 - Automated release management
-
-#### 10. `test-coverage.yml` - Coverage Enforcement
-- Enforce 70% minimum test coverage
+- GoReleaser for cross-platform binaries
+- Docker Hub automatic builds (triggered by tags)
+- GitHub Actions marketplace tagging
+- Ecosystem sync triggering
 
 ---
 
@@ -147,12 +143,12 @@ AI agents work **WITHIN** the existing PR/issue:
 - ✅ Direct commits to the current branch
 - ✅ Inline comments and reviews
 
-### ✅ Use control-center Binary
-All AI automation uses the control-center binary we're building in this PR:
-- Imagen 3 client
-- Veo 3.1 client
-- LLM Proxy server
-- Reviewer, Fixer, Curator commands
+### ✅ Use Docker Images from Docker Hub
+All AI automation workflows now use Docker images from Docker Hub:
+- No artifact upload/download steps
+- Direct Docker execution: `docker run jbcom/control-center:latest <command>`
+- Actions reference: `docker://jbcom/control-center:latest`
+- Simplified workflow logic, faster execution
 
 ### ✅ No Redundant Local Variants
 Removed all `-local` workflow variants - workflows now use workflow_call for reusability
@@ -194,28 +190,34 @@ ls -1 .github/workflows/*.yml | wc -l
 
 ---
 
-## Integration with Control Center Binary
+## Integration with Control Center
 
-All workflows now use the control-center binary features:
+All workflows now use the control-center Docker image from Docker Hub:
 
 ```bash
-# Review PR
-control-center reviewer --repo owner/repo --pr 123
+# Review PR (via Docker)
+docker run --rm -e GITHUB_TOKEN jbcom/control-center:latest \
+  reviewer --repo owner/repo --pr 123
 
-# Fix CI
-control-center fixer --repo owner/repo --run-id 456
+# Fix CI (via Docker)
+docker run --rm -e GITHUB_TOKEN jbcom/control-center:latest \
+  fixer --repo owner/repo --run-id 456
 
-# Triage issues
-control-center curator --repo owner/repo
+# Triage issues (via Docker)
+docker run --rm -e GITHUB_TOKEN jbcom/control-center:latest \
+  curator --repo owner/repo
 
-# Start LLM proxy
-control-center proxy start --port 8080
-
-# Generate images
-control-center imagen generate "prompt"
-
-# Generate videos
-control-center veo generate "prompt"
+# Or use the GitHub Actions
+- uses: jbcom/control-center@v1
+  with:
+    command: reviewer
+    repo: ${{ github.repository }}
+    pr: ${{ github.event.pull_request.number }}
 ```
 
-This establishes control-center as the **single source of truth** for AI automation across the ecosystem.
+**Distribution Model**:
+- **GitHub Actions**: Use Docker-based actions (pull from Docker Hub)
+- **CLI Users**: Download Go binaries from GitHub Releases
+- **Docker Users**: Pull images directly from Docker Hub
+
+This establishes control-center as the **single source of truth** for AI automation across the ecosystem, with Docker Hub as the distribution mechanism for GitHub Actions.
