@@ -412,3 +412,4 @@ attempting to execute the binary from the current directory with `./control-cent
 - Verify Scout SARIF results appear in GitHub Security tab
 - Adjust wait time if Docker Hub builds consistently take longer
 - Confirm Docker Hub automatic builds are properly configured
+
