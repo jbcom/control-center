@@ -413,3 +413,50 @@ attempting to execute the binary from the current directory with `./control-cent
 - Adjust wait time if Docker Hub builds consistently take longer
 - Confirm Docker Hub automatic builds are properly configured
 
+
+---
+
+## Session: 2026-01-03 (GitHub Actions SHA Update - PR #761)
+
+### Completed
+- [x] Updated `.github/workflows/ecosystem-sync-new-simple.yml` to use latest commit SHAs
+- [x] Changed `actions/checkout` from SHA 11bd71901bbe5b1630ceea73d27597364c9af683 to 8e8c483c2dbaedc1b2d9f2ce1a82b3b604df4555
+- [x] Changed `BetaHuhn/repo-file-sync-action` from SHA efa968d157126a6a16f2e72d1b801c1c4fb06a37 to 8b92be3
+- [x] Validated YAML syntax - confirmed valid
+- [x] Merged latest from main (88847b9) to resolve conflicts
+- [x] Resolved merge conflict in activeContext.md
+
+### For Next Agent
+- All required changes completed
+- Branch is now up-to-date with main
+- Workflow now references current actual commit SHAs as requested
+- Ready for review and merge
+---
+
+## Session: 2026-01-03 (Archive Status Check Implementation)
+
+### Completed
+- [x] Added archive status check to ecosystem-surveyor.yml workflow
+- [x] Implemented GitHub API query using curl and jq
+- [x] Added robust error handling for API failures and timeouts
+- [x] Updated conditional logic to skip push for archived repos
+- [x] Added informative output messages for all scenarios
+- [x] Addressed all code review feedback
+- [x] Added timeout settings (30s max-time, 10s connect-timeout)
+- [x] Validated YAML syntax
+- [x] Ran CodeQL security check (0 alerts)
+- [x] Tested with agentic-dev-library/control-center (confirmed archived)
+
+### Changes Summary
+- New step "Check Repository Archive Status" queries GitHub API
+- Modified "Commit and Push" to only proceed when status is explicitly 'false'
+- New step "Archive Repository Notice" displays appropriate warnings
+- Handles three states: 'false' (active), 'true' (archived), 'unknown' (error)
+- Fail-safe: any uncertainty results in skipped push operation
+
+### For Next Agent
+- PR ready for merge (all checks passing)
+- No outstanding issues
+- Consider testing with a live workflow run after merge
+
+
