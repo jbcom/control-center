@@ -297,3 +297,32 @@ All components delivered and validated:
 - PR is complete and ready for merge
 - No outstanding issues
 - Full integration testing will occur after merge to main
+
+---
+
+## Session: 2026-01-03 (Archive Status Check Implementation)
+
+### Completed
+- [x] Added archive status check to ecosystem-surveyor.yml workflow
+- [x] Implemented GitHub API query using curl and jq
+- [x] Added robust error handling for API failures and timeouts
+- [x] Updated conditional logic to skip push for archived repos
+- [x] Added informative output messages for all scenarios
+- [x] Addressed all code review feedback
+- [x] Added timeout settings (30s max-time, 10s connect-timeout)
+- [x] Validated YAML syntax
+- [x] Ran CodeQL security check (0 alerts)
+- [x] Tested with agentic-dev-library/control-center (confirmed archived)
+
+### Changes Summary
+- New step "Check Repository Archive Status" queries GitHub API
+- Modified "Commit and Push" to only proceed when status is explicitly 'false'
+- New step "Archive Repository Notice" displays appropriate warnings
+- Handles three states: 'false' (active), 'true' (archived), 'unknown' (error)
+- Fail-safe: any uncertainty results in skipped push operation
+
+### For Next Agent
+- PR ready for merge (all checks passing)
+- No outstanding issues
+- Consider testing with a live workflow run after merge
+
