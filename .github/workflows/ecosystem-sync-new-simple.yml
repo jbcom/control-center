@@ -1,0 +1,75 @@
+# Ecosystem Sync - Ultra-Simplified with repo-file-sync-action
+#
+# Replaces 590-line cascade workflow with simple action + 87-line config
+#
+# Strategy:
+# 1. Global profile covers MOST repos (35 files)
+# 2. Language profiles for docs tooling (1-13 files each) - add as needed
+# 3. See what's left - handle exceptions manually
+
+name: Ecosystem Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'sync-files/**'
+      - '.github/sync.yml'
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  # Archive old org control-centers (one-time cleanup)
+  cleanup:
+    name: Cleanup Old Control Centers
+    runs-on: ubuntu-latest
+    steps:
+      - name: Archive org control-centers
+        env:
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+        run: |
+          for org in arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
+            gh repo view "$org/control-center" >/dev/null 2>&1 && \
+              gh repo archive "$org/control-center" --yes 2>/dev/null && \
+              echo "Archived $org/control-center" || true
+          done
+
+  # Sync using repo-file-sync-action
+  sync:
+    name: Sync Files
+    runs-on: ubuntu-latest
+    needs: cleanup
+    steps:
+      - uses: actions/checkout@v6
+      
+      - name: Sync files to repos
+        uses: BetaHuhn/repo-file-sync-action@v1
+        with:
+          GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
+          CONFIG_PATH: .github/sync.yml
+          PR_LABELS: |
+            sync
+            automated
+          COMMIT_PREFIX: "chore(sync):"
+          COMMIT_BODY: |
+            Synced from jbcom/control-center
+            
+            Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ASSIGNEES: jbdevprimary
+
+  summary:
+    name: Summary
+    runs-on: ubuntu-latest
+    needs: sync
+    if: always()
+    steps:
+      - run: |
+          echo "## Ecosystem Sync" >> $GITHUB_STEP_SUMMARY
+          echo "Using repo-file-sync-action with simple config" >> $GITHUB_STEP_SUMMARY
+          echo "- Global profile: 35 files to ALL repos" >> $GITHUB_STEP_SUMMARY
+          echo "- Language profiles: 1-13 files each (as needed)" >> $GITHUB_STEP_SUMMARY
+          echo "- PRs created automatically in target repos" >> $GITHUB_STEP_SUMMARY

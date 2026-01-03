@@ -1,0 +1,92 @@
+# Ecosystem Sync Configuration
+# Strategy: Global profile first, language overlays for docs, see what's left
+
+# =============================================================================
+# GLOBAL PROFILE - Covers MOST repos (35 universal files)
+# Applied to ALL repos: .github workflows, cursor rules, CONTRIBUTING, etc.
+# =============================================================================
+group:
+  - files:
+      - source: sync-files/always-sync/global/
+        dest: ./
+    repos: |
+      jbcom/*
+      arcade-cabinet/*
+      agentic-dev-library/*
+      extended-data-library/*
+      strata-game-library/*
+    exclude: |
+      **/control-center
+      **/.github
+
+# =============================================================================
+# ORG .GITHUB REPOS - Settings inheritance
+# =============================================================================
+jbcom/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+arcade-cabinet/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+agentic-dev-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+extended-data-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+strata-game-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+# =============================================================================
+# LANGUAGE PROFILES - Just docs tooling (8-13 files each)
+# Add specific repos as we discover them
+# =============================================================================
+
+# Python repos - docs/conf.py, docs tooling (8 files)
+# Uncomment and add repo names as discovered:
+# jbcom/python-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/python/
+#     dest: ./
+
+# Node.js repos - typedoc config (4 files)
+# jbcom/nodejs-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/nodejs/
+#     dest: ./
+
+# Go repos - Hugo site, doc2go (13 files)
+# jbcom/go-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/go/
+#     dest: ./
+
+# Terraform repos - docs README (1 file)
+# jbcom/terraform-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/terraform/
+#     dest: ./
+
+# Rust repos - rustdoc styling (2 files)
+# jbcom/rust-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/rust/
+#     dest: ./
+
+# =============================================================================
+# WHAT'S LEFT: Exceptions and edge cases
+# After global + language profiles, manually add any repos that need:
+# - Different sync patterns
+# - Excluded files
+# - Custom configurations
+# =============================================================================
