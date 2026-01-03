@@ -1,79 +1,63 @@
-# Standard: Multi-Repo Domain Allocation
+# Multi-Repo Domain Standard
 
-## Definition
+This document outlines the standard for granting a dedicated domain to a project ecosystem.
 
-A **project ecosystem** is a collection of repositories that:
-1. Share a common namespace prefix (e.g., `nodejs-strata-*`, `*-agentic-*`)
-2. Have cross-repository dependencies
-3. Present a unified brand/API to users
-4. Are actively maintained together
+## Qualifying Criteria
 
-## Qualification Criteria
+A project qualifies for a dedicated domain when it meets the following criteria:
 
-A project ecosystem qualifies for a **dedicated domain** when it meets ALL of:
+1.  **3+ repositories** exist under the same namespace prefix.
+2.  **Cross-repo dependencies** exist (repos depend on each other).
+3.  **Unified brand identity** is maintained across repos.
+4.  **Public API surface** warrants dedicated documentation.
 
-| Criterion | Threshold | Example |
-|-----------|-----------|---------|
-| Repository count | ≥ 3 active repos | strata: 7 repos |
-| Cross-dependencies | ≥ 1 repo depends on another | strata-presets → strata |
-| Public packages | ≥ 2 published packages | @strata/core, @strata/shaders |
-| Documentation need | Would benefit from unified docs | API reference + tutorials |
+## Agentic Ecosystem Example
 
-## Current Qualified Ecosystems
+The `agentic` ecosystem is an example of a project that meets these criteria.
 
-| Ecosystem | Domain | npm Scope | Repos |
-|-----------|--------|-----------|-------|
-| Strata | `strata.game` | `@strata` | 7 |
-| Agentic | `agentic.dev` | `@agentic` | 6 |
+| Repository | Description | npm Package |
+|------------|-------------|-------------|
+| nodejs-agentic-triage | Primitives for AI-powered development | `@agentic/triage` |
+| nodejs-agentic-control | Orchestration layer | `@agentic/control` |
+| python-agentic-crew | AI crew orchestration | PyPI: agentic-crew |
+| python-agentic-game-development | Game dev with AI | (internal) |
+| rust-agentic-game-development | Core AI client libs | crates.io: agentic-ai |
+| rust-agentic-game-generator | RPG generation | (to merge) |
 
-## Domain Structure Convention
+## Proposed Domain Structure
+
+The following domain structure is proposed for the `agentic` ecosystem:
 
 ```
-[ecosystem].tld/                   # Apex - main documentation
-├── /docs                          # Core concepts
-├── /api                           # API reference
-└── /examples                      # Usage examples
+agentic.dev/                      # Apex - main documentation
+├── /docs                         # Core concepts
+├── /api                          # API reference
+└── /examples                     # Usage examples
 
-[package].[ecosystem].tld/         # Per-package subdomain
+triage.agentic.dev/               # Primitives package
+control.agentic.dev/              # Orchestration package
+crew.agentic.dev/                 # Crew package (Python)
 ```
 
-## settings.yml Configuration
+## Subdomain Configuration
 
-Each repository in a qualified ecosystem should have:
+To configure a subdomain for a specific repository, create a `.github/settings.yml` file in that repository with the following content:
 
 ```yaml
-# .github/settings.yml
-repository:
-  homepage: https://[package].[ecosystem].tld
+# Inherit all settings from the organization .github repository
+_extends: .github
 
+# =============================================================================
+# Pages
+# =============================================================================
 pages:
-  enabled: true
-  build_type: workflow
-  cname: [package].[ecosystem].tld
+  # The source branch and directory for GitHub Pages
+  source:
+    branch: main
+    path: "/docs" # Or the appropriate path for your documentation
+
+  # The custom domain for GitHub Pages
+  cname: triage.agentic.dev # Replace with your subdomain
 ```
 
-## Workflow Template
-
-```yaml
-# .github/workflows/docs.yml
-name: Deploy Documentation
-on:
-  push:
-    branches: [main]
-  release:
-    types: [published]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-      - run: pnpm install
-      - run: pnpm run docs:build
-      - uses: peaceiris/actions-gh-pages@v4
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          cname: '[package].[ecosystem].tld'
-```
+This will override the default GitHub Pages configuration and set the custom domain for the repository.

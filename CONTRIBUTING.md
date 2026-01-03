@@ -1,3 +1,9 @@
+---
+version: 1.0.1
+last_updated: 2026-01-03T02:21:30Z
+sync_type: always
+---
+
 # Contributing to Control Center
 
 Thank you for your interest in contributing! We are **stewards and servants of the open source community FIRST**.
