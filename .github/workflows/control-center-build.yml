@@ -40,7 +40,7 @@ jobs:
         id: setup-docker
         if: inputs.use_docker == true
         run: |
-          IMAGE="ghcr.io/${{ github.repository }}:${{ inputs.version }}"
+          IMAGE="jbcom/control-center:${{ inputs.version }}"
           echo "image=$IMAGE" >> $GITHUB_OUTPUT
           echo "Using Docker image: $IMAGE"
           docker pull $IMAGE

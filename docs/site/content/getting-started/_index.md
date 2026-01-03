@@ -25,13 +25,13 @@ go install github.com/jbcom/control-center/cmd/control-center@latest
 ### Option 2: Docker
 
 ```bash
-docker pull ghcr.io/jbcom/control-center:latest
+docker pull jbcom/control-center:latest
 
 # Run with environment variables
 docker run --rm \
   -e GITHUB_TOKEN="$GITHUB_TOKEN" \
   -e OLLAMA_API_KEY="$OLLAMA_API_KEY" \
-  ghcr.io/jbcom/control-center:latest reviewer --repo jbcom/my-project --pr 123
+  jbcom/control-center:latest reviewer --repo jbcom/my-project --pr 123
 ```
 
 ### Option 3: Build from Source

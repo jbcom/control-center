@@ -7,10 +7,10 @@ branding:
   icon: "cpu"
   color: "purple"
 
-# Docker-based action using GHCR
+# Docker-based action using Docker Hub
 runs:
   using: "docker"
-  image: "docker://ghcr.io/jbcom/control-center:latest" # x-release-please-version
+  image: "docker://jbcom/control-center:latest" # x-release-please-version
   args:
     - ${{ inputs.command }}
   env:
