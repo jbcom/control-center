@@ -1,5 +1,5 @@
 ---
-version: 1.0.0
+version: 1.0.1
 last_updated: 2026-01-03T02:21:30Z
 sync_type: always
 ---
