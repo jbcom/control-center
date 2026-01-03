@@ -8,15 +8,28 @@ on:
 permissions:
   contents: write
   packages: write
+  actions: write
 
 jobs:
   goreleaser:
     name: GoReleaser
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      major: ${{ steps.version.outputs.MAJOR }}
+      minor: ${{ steps.version.outputs.MINOR }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+      
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+          echo "MAJOR=$(echo $VERSION | cut -d. -f1)" >> $GITHUB_OUTPUT
+          echo "MINOR=$(echo $VERSION | cut -d. -f1-2)" >> $GITHUB_OUTPUT
       
       - name: Set up Go
         uses: actions/setup-go@v6
@@ -50,10 +63,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Extract version
-        id: version
-        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-      
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -61,9 +70,66 @@ jobs:
           push: true
           platforms: linux/amd64,linux/arm64
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.version.outputs.VERSION }}
+            ghcr.io/${{ github.repository }}:${{ needs.goreleaser.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
           build-args: |
-            VERSION=${{ steps.version.outputs.VERSION }}
+            VERSION=${{ needs.goreleaser.outputs.version }}
             COMMIT=${{ github.sha }}
             DATE=${{ github.event.head_commit.timestamp }}
+  
+  # Tag actions for GitHub Marketplace
+  # Creates floating major (v1) and minor (v1.1) tags for user convenience
+  tag-actions:
+    name: Tag Actions for Marketplace
+    runs-on: ubuntu-latest
+    needs: [goreleaser, docker]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      
+      - name: Update floating tags
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ needs.goreleaser.outputs.version }}"
+          MAJOR="v${{ needs.goreleaser.outputs.major }}"
+          MINOR="v${{ needs.goreleaser.outputs.minor }}"
+          
+          echo "Creating/updating floating tags for marketplace:"
+          echo "  $MAJOR -> v$VERSION"
+          echo "  $MINOR -> v$VERSION"
+          
+          # Configure git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Force update major version tag (e.g., v1)
+          git tag -f "$MAJOR"
+          git push -f origin "$MAJOR"
+          
+          # Force update minor version tag (e.g., v1.1)
+          git tag -f "$MINOR"
+          git push -f origin "$MINOR"
+          
+          echo "✅ Tags updated for marketplace"
+  
+  # Trigger ecosystem sync to propagate new version to all managed repos
+  trigger-ecosystem-sync:
+    name: Trigger Ecosystem Sync
+    runs-on: ubuntu-latest
+    needs: [goreleaser, docker, tag-actions]
+    if: github.repository == 'jbcom/control-center'
+    steps:
+      - name: Trigger sync workflow
+        env:
+          GH_TOKEN: ${{ secrets.JBCOM_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "🔄 Triggering ecosystem sync to propagate v${{ needs.goreleaser.outputs.version }}..."
+          
+          gh workflow run ecosystem-sync.yml \
+            --repo jbcom/control-center \
+            --ref main \
+            || echo "⚠️ Could not trigger sync (may need JBCOM_TOKEN configured)"
+          
+          echo "✅ Ecosystem sync triggered"
