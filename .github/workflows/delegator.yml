@@ -47,9 +47,11 @@ jobs:
 
       - name: Parse command
         id: parse
+        env:
+          COMMENT_BODY: ${{ github.event.comment.body }}
         run: |
           if [ "${{ github.event_name }}" = "issue_comment" ]; then
-            COMMAND=$(echo "${{ github.event.comment.body }}" | grep -oP '@claude\s+\K.*' || echo "")
+            COMMAND=$(echo "$COMMENT_BODY" | grep -oP '@claude\s+\K.*' || echo "")
             ISSUE_NUM="${{ github.event.issue.number }}"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             COMMAND="${{ inputs.command }}"
