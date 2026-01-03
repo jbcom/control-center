@@ -65,7 +65,7 @@ jobs:
           PR_NUM="${{ inputs.pr_number || github.event.pull_request.number }}"
           REPO="${{ inputs.repository || github.repository }}"
           
-          ./control-center reviewer review \
+          ${GITHUB_WORKSPACE}/bin/control-center reviewer review \
             --pr "$PR_NUM" \
             --repo "$REPO" \
             --output json > review-result.json

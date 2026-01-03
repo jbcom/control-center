@@ -70,7 +70,7 @@ jobs:
       - name: Get all open PRs
         id: get-prs
         run: |
-          ./control-center curator list-prs \
+          ${GITHUB_WORKSPACE}/bin/control-center curator list-prs \
             --repo ${{ github.repository }} \
             --state open \
             --output json > open-prs.json
@@ -94,7 +94,7 @@ jobs:
             echo "   Branch: $PR_BRANCH"
             
             # Check if PR has conflicts
-            ./control-center curator check-conflicts \
+            ${GITHUB_WORKSPACE}/bin/control-center curator check-conflicts \
               --pr "$PR_NUM" \
               --repo ${{ github.repository }} \
               --output json > pr-$PR_NUM-status.json
@@ -106,7 +106,7 @@ jobs:
               echo "⚠️  PR is behind base or has conflicts"
               
               # Attempt automatic rebase
-              ./control-center curator rebase-pr \
+              ${GITHUB_WORKSPACE}/bin/control-center curator rebase-pr \
                 --pr "$PR_NUM" \
                 --repo ${{ github.repository }} \
                 --auto-resolve \
@@ -127,7 +127,7 @@ jobs:
 
           ---
           <sub>Performed by Control Center Triage</sub>"
-                ./control-center curator comment \
+                ${GITHUB_WORKSPACE}/bin/control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
                   --message "$MESSAGE"
@@ -154,7 +154,7 @@ jobs:
 
           ---
           <sub>Performed by Control Center Triage</sub>"
-                ./control-center curator comment \
+                ${GITHUB_WORKSPACE}/bin/control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
                   --message "$MESSAGE"
@@ -179,7 +179,7 @@ jobs:
 
           ---
           <sub>Performed by Control Center Triage</sub>"
-                ./control-center curator comment \
+                ${GITHUB_WORKSPACE}/bin/control-center curator comment \
                   --pr "$PR_NUM" \
                   --repo ${{ github.repository }} \
                   --message "$MESSAGE"
@@ -197,7 +197,7 @@ jobs:
       - name: Generate health report
         if: always()
         run: |
-          ./control-center curator health-report \
+          ${GITHUB_WORKSPACE}/bin/control-center curator health-report \
             --repo ${{ github.repository }} \
             --output markdown > health-report.md
           
@@ -225,7 +225,7 @@ jobs:
 
       - name: Triage PR
         run: |
-          ./control-center curator triage-pr \
+          ${GITHUB_WORKSPACE}/bin/control-center curator triage-pr \
             --pr ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --action ${{ github.event.action }}
@@ -235,7 +235,7 @@ jobs:
       - name: Check if PR is behind base
         if: github.event.action == 'opened' || github.event.action == 'reopened'
         run: |
-          ./control-center curator check-conflicts \
+          ${GITHUB_WORKSPACE}/bin/control-center curator check-conflicts \
             --pr ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
             --notify-if-behind
@@ -268,7 +268,7 @@ jobs:
 
       - name: Triage new issue
         run: |
-          ./control-center curator triage \
+          ${GITHUB_WORKSPACE}/bin/control-center curator triage \
             --issue ${{ github.event.issue.number }} \
             --repo ${{ github.repository }}
         env:
@@ -294,7 +294,7 @@ jobs:
 
       - name: Deduplicate issues
         run: |
-          ./control-center curator deduplicate \
+          ${GITHUB_WORKSPACE}/bin/control-center curator deduplicate \
             --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -304,7 +304,7 @@ jobs:
           echo "🏥 Performing repository health check..."
           
           # Check all open PRs for staleness, conflicts, outdated branches
-          ./control-center curator health-check \
+          ${GITHUB_WORKSPACE}/bin/control-center curator health-check \
             --repo ${{ github.repository }} \
             --check-prs \
             --check-stale \
@@ -313,7 +313,7 @@ jobs:
             --output json > health-check.json
           
           # Generate report
-          ./control-center curator health-report \
+          ${GITHUB_WORKSPACE}/bin/control-center curator health-report \
             --input health-check.json \
             --output markdown > health-report.md
           
@@ -369,7 +369,7 @@ jobs:
               echo "Manual PR tracking not yet implemented"
               ;;
             deduplicate)
-              ./control-center curator deduplicate --repo ${{ github.repository }}
+              ${GITHUB_WORKSPACE}/bin/control-center curator deduplicate --repo ${{ github.repository }}
               ;;
             rebase_all_prs)
               echo "🔄 Manually triggered: Rebase all open PRs"

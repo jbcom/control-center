@@ -300,6 +300,33 @@ All components delivered and validated:
 
 ---
 
+## Session: 2026-01-03 (Fix Triage Workflow Binary Path References)
+
+### Completed
+- [x] Identified all workflow files with ./control-center references
+- [x] Updated triage.yml with 14 binary path corrections
+- [x] Updated review.yml with 1 binary path correction
+- [x] Updated autoheal.yml with 3 binary path corrections
+- [x] Updated ci.yml to build to bin/ and use proper verification path
+- [x] Validated all YAML syntax
+- [x] Validated shell script patterns
+- [x] Code review completed with no issues
+- [x] Security scan completed with no alerts
+
+### Summary
+Fixed 18 invocations across 4 workflow files to use `${GITHUB_WORKSPACE}/bin/control-center` 
+instead of `./control-center`. This aligns with the control-center architecture requirement 
+that binaries are always placed in ${GITHUB_WORKSPACE}/bin after build.
+
+The issue was that workflows were using `make build` (which outputs to bin/) but then 
+attempting to execute the binary from the current directory with `./control-center`.
+
+### For Next Agent
+- PR is ready for merge
+- All CI checks should pass once workflows run
+- No follow-up work needed for this fix
+
+---
 
 ## Session: 2026-01-03 (Docker Hub Migration + Scout Integration)
 
