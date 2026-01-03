@@ -20,10 +20,10 @@ git tag vX.Y.Z (manual or via release-please)
          │             │             │                │                  │
          ▼             ▼             ▼                ▼                  ▼
    GoReleaser      Docker        Action Tags    Ecosystem Sync     Go Proxy
-   (binaries)     (GHCR)       (marketplace)    (cascade)        (automatic)
+   (binaries)   (Docker Hub)    (marketplace)    (cascade)        (automatic)
          │             │             │                │
          ▼             ▼             ▼                ▼
-    GitHub         ghcr.io      v1, v1.1         All managed
+    GitHub       Docker Hub    v1, v1.1         All managed
     Release         image        tags            organizations
 ```
 
@@ -93,9 +93,9 @@ sudo mv control-center /usr/local/bin/
 
 **Go Proxy**: Binary metadata is automatically published to `proxy.golang.org` when users fetch via `go install`.
 
-### 2. Docker Image (GHCR)
+### 2. Docker Image (Docker Hub)
 
-**Registry**: `ghcr.io/jbcom/control-center`
+**Registry**: `jbcom/control-center`
 
 **Tags**:
 - `vX.Y.Z` - Specific version (e.g., `v1.2.0`)
@@ -108,10 +108,10 @@ sudo mv control-center /usr/local/bin/
 **Usage**:
 ```bash
 # Run specific version
-docker run ghcr.io/jbcom/control-center:v1.2.0 version
+docker run jbcom/control-center:v1.2.0 version
 
 # Run latest
-docker run ghcr.io/jbcom/control-center:latest reviewer --repo owner/repo --pr 123
+docker run jbcom/control-center:latest reviewer --repo owner/repo --pr 123
 ```
 
 ### 3. GitHub Actions (Marketplace)
@@ -229,8 +229,8 @@ docker buildx build --platform linux/amd64,linux/arm64 -t test:local .
 git ls-remote --tags origin
 
 # Verify Docker image tags
-docker pull ghcr.io/jbcom/control-center:latest
-docker inspect ghcr.io/jbcom/control-center:latest | jq '.[0].Config.Labels'
+docker pull jbcom/control-center:latest
+docker inspect jbcom/control-center:latest | jq '.[0].Config.Labels'
 ```
 
 ### Ecosystem Sync Not Triggered

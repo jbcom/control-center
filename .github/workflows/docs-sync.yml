@@ -87,7 +87,7 @@ jobs:
           - [📖 Full Documentation](https://jbcom.github.io/control-center/)
           - [📦 Go Package](https://pkg.go.dev/github.com/jbcom/control-center)
           - [🐙 GitHub Repository](https://github.com/jbcom/control-center)
-          - [🐳 Docker Image](https://ghcr.io/jbcom/control-center)
+          - [🐳 Docker Image](https://hub.docker.com/r/jbcom/control-center)
           
           ## Installation
           

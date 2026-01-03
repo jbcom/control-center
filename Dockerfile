@@ -53,7 +53,7 @@ ENV CONTROL_CENTER_VERSION=${VERSION}
 
 LABEL org.opencontainers.image.title="control-center" \
       org.opencontainers.image.description="Enterprise AI orchestration for the jbcom ecosystem" \
-      org.opencontainers.image.source="https://github.com/jbcom/control-center" \
+      org.opencontainers.image.source="https://hub.docker.com/r/jbcom/control-center" \
       org.opencontainers.image.vendor="jbcom" \
       org.opencontainers.image.licenses="MIT" \
       org.opencontainers.image.version=${VERSION}

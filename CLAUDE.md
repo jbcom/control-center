@@ -28,7 +28,7 @@ This repository exists because of the OSS community. Every decision should:
 go install github.com/jbcom/control-center/cmd/control-center@latest
 
 # Or Docker
-docker pull ghcr.io/jbcom/control-center:latest
+docker pull jbcom/control-center:latest
 
 # Commands
 control-center reviewer --repo owner/name --pr 123
@@ -96,7 +96,7 @@ control-center gardener --target all
 docker run --rm \
   -e GITHUB_TOKEN="$GITHUB_TOKEN" \
   -e OLLAMA_API_KEY="$OLLAMA_API_KEY" \
-  ghcr.io/jbcom/control-center:latest \
+  jbcom/control-center:latest \
   reviewer --repo owner/name --pr 123
 ```
 
