@@ -198,6 +198,8 @@ jobs:
           
           # Query GitHub API for repository archive status
           HTTP_CODE=$(curl -s -o /tmp/repo_response.json -w "%{http_code}" \
+            --max-time 30 \
+            --connect-timeout 10 \
             -H "Authorization: token $GH_TOKEN" \
             -H "Accept: application/vnd.github+json" \
             "https://api.github.com/repos/$REPO")
@@ -209,9 +211,9 @@ jobs:
             exit 0
           fi
           
-          ARCHIVED=$(jq -r '.archived // "null"' /tmp/repo_response.json)
+          ARCHIVED=$(jq -r '.archived // "error"' /tmp/repo_response.json)
           
-          if [ "$ARCHIVED" = "null" ] || [ -z "$ARCHIVED" ]; then
+          if [ "$ARCHIVED" = "error" ] || [ "$ARCHIVED" = "null" ] || [ -z "$ARCHIVED" ]; then
             echo "⚠️ Could not determine archive status"
             echo "⚠️ Skipping push as a safety precaution"
             echo "archived=unknown" >> $GITHUB_OUTPUT
