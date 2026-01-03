@@ -236,7 +236,7 @@ docker inspect ghcr.io/jbcom/control-center:latest | jq '.[0].Config.Labels'
 ### Ecosystem Sync Not Triggered
 
 **Check**:
-1. `JBCOM_TOKEN` secret is configured (or fallback to `GITHUB_TOKEN`)
+1. `CI_GITHUB_TOKEN` secret is configured
 2. Token has `workflow: write` permission
 3. Workflow trigger succeeded in Actions UI
 

@@ -116,7 +116,7 @@ jobs:
           echo "✅ Tags updated for marketplace"
   
   # Trigger ecosystem sync to propagate new version to all managed repos
-  # Requires JBCOM_TOKEN with workflow:write permission
+  # Requires CI_GITHUB_TOKEN with workflow:write permission
   trigger-ecosystem-sync:
     name: Trigger Ecosystem Sync
     runs-on: ubuntu-latest
@@ -125,11 +125,11 @@ jobs:
     steps:
       - name: Trigger sync workflow
         env:
-          GH_TOKEN: ${{ secrets.JBCOM_TOKEN }}
+          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "❌ JBCOM_TOKEN secret is required to trigger ecosystem sync"
-            echo "Please configure JBCOM_TOKEN with workflow:write permission"
+            echo "❌ CI_GITHUB_TOKEN secret is required to trigger ecosystem sync"
+            echo "Please configure CI_GITHUB_TOKEN with workflow:write permission"
             exit 1
           fi
           
