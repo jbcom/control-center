@@ -96,7 +96,7 @@ jobs:
           RUN_ID="${{ inputs.run_id || github.event.workflow_run.id }}"
           REPO="${{ inputs.repository || github.repository }}"
           
-          ./control-center fixer analyze \
+          ${GITHUB_WORKSPACE}/bin/control-center fixer analyze \
             --run-id "$RUN_ID" \
             --repo "$REPO" \
             --output json > fix-suggestion.json
@@ -110,7 +110,7 @@ jobs:
       - name: Apply quick fix
         if: steps.analyze.outputs.suggestion != ''
         run: |
-          ./control-center fixer apply \
+          ${GITHUB_WORKSPACE}/bin/control-center fixer apply \
             --suggestion-file fix-suggestion.json \
             --repo ${{ inputs.repository || github.repository }}
         env:
@@ -223,7 +223,7 @@ jobs:
             git show :3:"$FILE" > "$FILE.theirs" 2>/dev/null || echo "" > "$FILE.theirs"
             
             # Use control-center to resolve conflict with AI
-            ./control-center fixer resolve-conflict \
+            ${GITHUB_WORKSPACE}/bin/control-center fixer resolve-conflict \
               --file "$FILE" \
               --base "$FILE.base" \
               --ours "$FILE.ours" \

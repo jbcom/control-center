@@ -72,10 +72,12 @@ jobs:
           cache: true
       
       - name: Build
-        run: go build -v ./cmd/control-center
+        run: |
+          mkdir -p bin
+          go build -v -o bin/control-center ./cmd/control-center
       
       - name: Verify binary
-        run: ./control-center version
+        run: ${GITHUB_WORKSPACE}/bin/control-center version
 
   docker:
     name: Docker Build
