@@ -211,3 +211,44 @@ See `gh pr list --state open` - currently 46 open PRs, mostly duplicates that ne
 | `CONTRIBUTING.md` | Commit standards |
 | `release-please-config.json` | Semver automation |
 | `CHANGELOG.md` | Version history |
+
+---
+
+## Session: 2026-01-03 (Unified Release Workflow)
+
+### Completed
+- [x] Enhanced release workflow with ecosystem sync trigger
+- [x] Added GitHub Actions marketplace tagging (v1, v1.x floating tags)
+- [x] Updated all action.yml files with x-release-please-version markers
+- [x] Created comprehensive RELEASE-PROCESS.md documentation
+- [x] Updated ECOSYSTEM.md with release/installation section
+- [x] Updated SYNC-ARCHITECTURE.md with release-triggered sync
+- [x] Enhanced README.md with version pinning examples
+- [x] Validated all YAML files for syntax correctness
+
+### Current State
+- Release workflow now coordinates:
+  * GoReleaser for cross-platform binaries
+  * Docker multi-arch images to GHCR
+  * Floating action tags (v1, v1.1) for marketplace
+  * Automatic ecosystem sync trigger
+- Single source of truth: git tag drives everything
+- Documentation is comprehensive and maintainer-friendly
+
+### Architecture
+```
+git tag vX.Y.Z
+     │
+     ├─────────────┬─────────────┬────────────┬──────────────────┐
+     │             │             │            │                  │
+     ▼             ▼             ▼            ▼                  ▼
+GoReleaser     Docker      Action Tags  Ecosystem Sync    Go Proxy
+(binaries)     (GHCR)     (marketplace)  (cascade)      (automatic)
+```
+
+### For Next Agent
+- Test the workflow on next actual release
+- Monitor ecosystem sync propagation
+- Update version pinning in downstream repos if needed
+- Consider adding SBOM generation to releases
+
