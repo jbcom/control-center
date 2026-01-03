@@ -26,6 +26,21 @@ jbcom/control-center (THE PROGENITOR)
     org/* repos
 ```
 
+## Release-Triggered Sync
+
+When a new version of control-center is released:
+
+1. **Release Workflow** creates Go binaries, Docker images, and action tags
+2. **Ecosystem Sync** is automatically triggered (see `.github/workflows/release.yml`)
+3. **Cascade Propagation** updates all managed organizations with:
+   - New action version references
+   - Updated Docker image tags
+   - Latest Cursor rules and configurations
+
+This ensures the entire ecosystem stays synchronized with the latest control-center release.
+
+**See**: [`docs/RELEASE-PROCESS.md`](./RELEASE-PROCESS.md) for complete release details.
+
 ## Settings Inheritance via repository-settings/app
 
 The [repository-settings/app](https://github.com/apps/settings) is installed on all organizations and enables:

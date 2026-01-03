@@ -150,3 +150,54 @@ Each organization maintains its own domain:
 - **extended-data-library**: extendeddata.dev (data utilities docs)
 
 Documentation sites are built with Astro + Starlight and deploy to GitHub Pages with custom domain configuration.
+
+## Release Process
+
+Control Center uses a unified release process that publishes:
+
+1. **Go Binary** (OSS) - Cross-platform binaries via GoReleaser
+2. **Docker Images** - Multi-arch images to GHCR (`ghcr.io/jbcom/control-center`)
+3. **GitHub Actions** - Marketplace actions with floating version tags
+4. **Ecosystem Sync** - Automatic propagation to all managed organizations
+
+### Installation
+
+**Go:**
+```bash
+go install github.com/jbcom/control-center/cmd/control-center@latest
+```
+
+**Docker:**
+```bash
+docker pull ghcr.io/jbcom/control-center:latest
+docker run ghcr.io/jbcom/control-center:latest version
+```
+
+**GitHub Action:**
+```yaml
+- uses: jbcom/control-center@v1
+  with:
+    command: reviewer
+    repo: ${{ github.repository }}
+    pr: ${{ github.event.pull_request.number }}
+```
+
+**Binary Download:**
+Download from [Releases](https://github.com/jbcom/control-center/releases) for your platform.
+
+### Version Management
+
+- **Current Version**: See `.release-please-manifest.json` or `CHANGELOG.md`
+- **Releases**: https://github.com/jbcom/control-center/releases
+- **Go Proxy**: Automatically published when users run `go install`
+- **Semver**: Follows [Semantic Versioning 2.0.0](https://semver.org/)
+
+### Release Workflow
+
+On release (via release-please or manual tag):
+1. GoReleaser builds cross-platform binaries
+2. Docker images published to GHCR for `linux/amd64` and `linux/arm64`
+3. Action tags updated (`v1`, `v1.x`, `v1.x.y`) for marketplace
+4. Ecosystem sync triggered to propagate to all orgs
+
+**See**: [`docs/RELEASE-PROCESS.md`](./RELEASE-PROCESS.md) for complete details.

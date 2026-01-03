@@ -1,0 +1,453 @@
+/* =============================================================================
+   jbcom Design System - doc2go Theme Customization
+   =============================================================================
+   
+   This CSS customizes doc2go output to match the jbcom brand identity.
+   Reference: docs/DESIGN-SYSTEM.md for complete brand specifications.
+   
+   Usage:
+   1. Generate docs: doc2go -out docs/api ./...
+   2. Copy this file: cp jbcom-doc2go.css docs/api/custom.css
+   3. Inject into HTML: sed -i 's|</head>|<link rel="stylesheet" href="custom.css"></head>|' docs/api/*.html
+   
+   ============================================================================= */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+/* =============================================================================
+   CSS Custom Properties - jbcom Design Tokens
+   ============================================================================= */
+
+:root {
+  /* Backgrounds */
+  --jb-bg-default: #0a0f1a;
+  --jb-bg-paper: #111827;
+  --jb-bg-elevated: #1e293b;
+  
+  /* Primary - Cyan */
+  --jb-primary: #06b6d4;
+  --jb-primary-light: #22d3ee;
+  --jb-primary-dark: #0891b2;
+  
+  /* Secondary - Blue */
+  --jb-secondary: #3b82f6;
+  --jb-secondary-light: #60a5fa;
+  --jb-secondary-dark: #2563eb;
+  
+  /* Text */
+  --jb-text-primary: #f1f5f9;
+  --jb-text-secondary: #94a3b8;
+  --jb-text-disabled: #475569;
+  
+  /* Borders */
+  --jb-border: #1e293b;
+  
+  /* Semantic */
+  --jb-success: #10b981;
+  --jb-warning: #f59e0b;
+  --jb-error: #ef4444;
+  --jb-info: #06b6d4;
+  
+  /* Typography */
+  --jb-font-heading: 'Space Grotesk', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --jb-font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --jb-font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  
+  /* Radius */
+  --jb-radius-sm: 4px;
+  --jb-radius-md: 8px;
+  --jb-radius-lg: 12px;
+}
+
+/* =============================================================================
+   Base Styles
+   ============================================================================= */
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--jb-font-body);
+  background-color: var(--jb-bg-default);
+  color: var(--jb-text-secondary);
+  line-height: 1.6;
+}
+
+/* =============================================================================
+   Typography
+   ============================================================================= */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--jb-font-heading);
+  color: var(--jb-text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+h1 { font-size: 2.5rem; font-weight: 700; }
+h2 { font-size: 2rem; font-weight: 700; }
+h3 { font-size: 1.5rem; font-weight: 600; }
+h4 { font-size: 1.25rem; font-weight: 600; }
+
+code, pre {
+  font-family: var(--jb-font-mono);
+  font-size: 0.875rem;
+}
+
+/* =============================================================================
+   Links
+   ============================================================================= */
+
+a {
+  color: var(--jb-primary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+a:hover {
+  color: var(--jb-primary-light);
+}
+
+/* =============================================================================
+   Header/Navigation (doc2go specific)
+   ============================================================================= */
+
+header,
+.Header,
+.go-Header {
+  background-color: var(--jb-bg-paper);
+  border-bottom: 1px solid var(--jb-border);
+}
+
+nav,
+.Navigation {
+  background-color: var(--jb-bg-paper);
+}
+
+nav a,
+.Navigation a {
+  color: var(--jb-text-secondary);
+}
+
+nav a:hover,
+.Navigation a:hover {
+  color: var(--jb-text-primary);
+}
+
+nav a.active,
+.Navigation a.active {
+  color: var(--jb-primary);
+  border-color: var(--jb-primary);
+}
+
+/* =============================================================================
+   Sidebar (pkg.go.dev style)
+   ============================================================================= */
+
+.Sidebar,
+.DocNav,
+aside {
+  background-color: var(--jb-bg-paper);
+  border-right: 1px solid var(--jb-border);
+}
+
+.Sidebar a,
+.DocNav a {
+  color: var(--jb-text-secondary);
+  transition: color 0.2s ease;
+}
+
+.Sidebar a:hover,
+.DocNav a:hover {
+  color: var(--jb-text-primary);
+}
+
+.Sidebar a.active,
+.DocNav a.active,
+.Sidebar .selected {
+  color: var(--jb-primary);
+  background-color: rgba(6, 182, 212, 0.1);
+}
+
+/* =============================================================================
+   Documentation Content
+   ============================================================================= */
+
+.Documentation,
+.Content,
+main {
+  background-color: var(--jb-bg-default);
+  color: var(--jb-text-secondary);
+}
+
+.Documentation h1,
+.Documentation h2,
+.Documentation h3,
+.Documentation h4 {
+  color: var(--jb-text-primary);
+  border-bottom-color: var(--jb-border);
+}
+
+/* Package name styling */
+.Documentation-packageName,
+.UnitHeader-title {
+  font-family: var(--jb-font-heading);
+  color: var(--jb-text-primary);
+}
+
+/* =============================================================================
+   Code Blocks
+   ============================================================================= */
+
+pre {
+  background-color: var(--jb-bg-paper);
+  border: 1px solid var(--jb-border);
+  border-radius: var(--jb-radius-md);
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+code {
+  background-color: var(--jb-bg-paper);
+  padding: 2px 6px;
+  border-radius: var(--jb-radius-sm);
+  color: var(--jb-primary);
+}
+
+pre code {
+  background: transparent;
+  padding: 0;
+  color: var(--jb-text-primary);
+}
+
+/* Syntax highlighting (doc2go uses chroma) */
+.chroma {
+  background-color: var(--jb-bg-paper);
+}
+
+/* Keywords */
+.chroma .k,
+.chroma .kc,
+.chroma .kd,
+.chroma .kn,
+.chroma .kp,
+.chroma .kr,
+.chroma .kt {
+  color: #c678dd;
+}
+
+/* Strings */
+.chroma .s,
+.chroma .sa,
+.chroma .sb,
+.chroma .sc,
+.chroma .sd,
+.chroma .s2,
+.chroma .se,
+.chroma .sh,
+.chroma .si,
+.chroma .sx,
+.chroma .sr,
+.chroma .s1,
+.chroma .ss {
+  color: #98c379;
+}
+
+/* Numbers */
+.chroma .m,
+.chroma .mb,
+.chroma .mf,
+.chroma .mh,
+.chroma .mi,
+.chroma .il,
+.chroma .mo {
+  color: #d19a66;
+}
+
+/* Comments */
+.chroma .c,
+.chroma .ch,
+.chroma .cm,
+.chroma .c1,
+.chroma .cs,
+.chroma .cp,
+.chroma .cpf {
+  color: #5c6370;
+  font-style: italic;
+}
+
+/* Functions */
+.chroma .nf,
+.chroma .fm {
+  color: #61afef;
+}
+
+/* Types */
+.chroma .nc,
+.chroma .nn {
+  color: var(--jb-primary);
+}
+
+/* =============================================================================
+   Function/Type Signatures
+   ============================================================================= */
+
+.Documentation-declaration,
+.Documentation-signature {
+  background-color: var(--jb-bg-elevated);
+  border-radius: var(--jb-radius-md);
+  padding: 0.75rem 1rem;
+  border-left: 3px solid var(--jb-primary);
+}
+
+/* =============================================================================
+   Index/Table of Contents
+   ============================================================================= */
+
+.Documentation-index,
+.Documentation-indexSection {
+  background-color: var(--jb-bg-paper);
+  border-radius: var(--jb-radius-lg);
+  padding: 1rem;
+}
+
+.Documentation-indexSection h3 {
+  color: var(--jb-text-primary);
+  border-bottom: 1px solid var(--jb-border);
+}
+
+/* =============================================================================
+   Badges/Tags
+   ============================================================================= */
+
+.Badge,
+.go-Chip {
+  background-color: rgba(6, 182, 212, 0.15);
+  color: var(--jb-primary);
+  border-radius: var(--jb-radius-sm);
+  padding: 2px 8px;
+  font-size: 0.75rem;
+}
+
+/* =============================================================================
+   Search
+   ============================================================================= */
+
+input[type="search"],
+.SearchInput,
+.go-SearchForm input {
+  background-color: var(--jb-bg-paper);
+  border: 1px solid var(--jb-border);
+  border-radius: var(--jb-radius-md);
+  color: var(--jb-text-primary);
+  padding: 0.5rem 1rem;
+}
+
+input[type="search"]:focus,
+.SearchInput:focus {
+  border-color: var(--jb-primary);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(6, 182, 212, 0.2);
+}
+
+input[type="search"]::placeholder {
+  color: var(--jb-text-disabled);
+}
+
+/* =============================================================================
+   Tables
+   ============================================================================= */
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--jb-bg-paper);
+  border-radius: var(--jb-radius-md);
+  overflow: hidden;
+}
+
+th {
+  background-color: var(--jb-bg-elevated);
+  color: var(--jb-text-primary);
+  font-weight: 600;
+  text-align: left;
+  padding: 0.75rem 1rem;
+}
+
+td {
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--jb-border);
+  color: var(--jb-text-secondary);
+}
+
+tr:hover td {
+  background-color: rgba(6, 182, 212, 0.05);
+}
+
+/* =============================================================================
+   Accessibility
+   ============================================================================= */
+
+*:focus-visible {
+  outline: 2px solid var(--jb-primary);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =============================================================================
+   Scrollbar
+   ============================================================================= */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--jb-bg-paper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--jb-text-disabled);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--jb-text-secondary);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--jb-text-disabled) var(--jb-bg-paper);
+}
+
+/* =============================================================================
+   Responsive
+   ============================================================================= */
+
+@media (max-width: 900px) {
+  h1 { font-size: 2rem; }
+  h2 { font-size: 1.75rem; }
+  h3 { font-size: 1.25rem; }
+  
+  .Sidebar,
+  .DocNav {
+    position: fixed;
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+  }
+  
+  .Sidebar.open,
+  .DocNav.open {
+    transform: translateX(0);
+  }
+}

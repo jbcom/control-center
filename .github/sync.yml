@@ -1,0 +1,113 @@
+# Ecosystem Sync Configuration
+# Using BetaHuhn/repo-file-sync-action
+#
+# Three Sync Types:
+# 1. always-sync: Files every repo MUST always have (auto-updates, versions in git history)
+# 2. initial-only: Files repos MUST start with (one-time sync, versions in repo as patches)
+# 3. patch-sync: Optional files repos CAN adopt (opt-in, multiple versions available)
+#
+# See docs/SYNC-FILE-VERSIONING.md for complete versioning policy
+
+# =============================================================================
+# ALWAYS-SYNC: Global Profile - Auto-updates ALL repos
+# =============================================================================
+group:
+  - files:
+      - source: sync-files/always-sync/global/
+        dest: ./
+    repos: |
+      jbcom/*
+      arcade-cabinet/*
+      agentic-dev-library/*
+      extended-data-library/*
+      strata-game-library/*
+    exclude: |
+      **/control-center
+      **/.github
+
+# =============================================================================
+# ORG .GITHUB REPOS - Settings inheritance
+# =============================================================================
+jbcom/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+arcade-cabinet/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+agentic-dev-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+extended-data-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+strata-game-library/.github:
+  - source: sync-files/always-sync/global/.github/
+    dest: .github/
+
+# =============================================================================
+# LANGUAGE PROFILES - Just docs tooling (8-13 files each)
+# Add specific repos as we discover them
+# =============================================================================
+
+# Python repos - docs/conf.py, docs tooling (8 files)
+# Uncomment and add repo names as discovered:
+# jbcom/python-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/python/
+#     dest: ./
+
+# Node.js repos - typedoc config (4 files)
+# jbcom/nodejs-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/nodejs/
+#     dest: ./
+
+# Go repos - Hugo site, doc2go (13 files)
+# jbcom/go-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/go/
+#     dest: ./
+
+# Terraform repos - docs README (1 file)
+# jbcom/terraform-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/terraform/
+#     dest: ./
+
+# Rust repos - rustdoc styling (2 files)
+# jbcom/rust-project:
+#   - source: sync-files/always-sync/global/
+#     dest: ./
+#   - source: sync-files/always-sync/rust/
+#     dest: ./
+
+# =============================================================================
+# INITIAL-ONLY: Starter files (sync once, then repos own them)
+# Use PR labels to indicate one-time sync. Versioned files available as patches.
+# =============================================================================
+# Example:
+# your-org/new-repo:
+#   - source: sync-files/initial-only/global/
+#     dest: ./
+#     labels: [initial-only, manual-review]
+
+# =============================================================================
+# PATCH-SYNC: Optional files (repos opt-in to specific versions)
+# =============================================================================
+# Example:
+# your-org/repo-that-wants-feature:
+#   - source: sync-files/patch-sync/global/advanced-ci-v2.0.0.yml
+#     dest: .github/workflows/advanced-ci.yml
+#     labels: [patch-sync, optional]
+
+# =============================================================================
+# EXCEPTIONS: Special cases and custom configurations
+# =============================================================================

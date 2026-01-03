@@ -1,0 +1,64 @@
+# Reusable workflow for building control-center
+# Called by other workflows that need to use control-center commands
+#
+# This workflow ensures control-center is built and available for use
+# Supports both Docker (from GHCR) and local Go builds
+
+name: Build Control Center
+
+on:
+  workflow_call:
+    inputs:
+      use_docker:
+        description: 'Use Docker image from GHCR instead of building locally'
+        required: false
+        type: boolean
+        default: true
+      version:
+        description: 'Version/tag to use (defaults to latest)'
+        required: false
+        type: string
+        default: 'latest'
+    outputs:
+      binary_path:
+        description: 'Path to control-center binary (if built locally)'
+        value: ${{ jobs.build.outputs.binary_path }}
+      docker_image:
+        description: 'Docker image reference (if using Docker)'
+        value: ${{ jobs.build.outputs.docker_image }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      binary_path: ${{ steps.build-local.outputs.path }}
+      docker_image: ${{ steps.setup-docker.outputs.image }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
+      - name: Setup Docker image
+        id: setup-docker
+        if: inputs.use_docker == true
+        run: |
+          IMAGE="ghcr.io/${{ github.repository }}:${{ inputs.version }}"
+          echo "image=$IMAGE" >> $GITHUB_OUTPUT
+          echo "Using Docker image: $IMAGE"
+          docker pull $IMAGE
+      
+      # Local build path (fallback) - build Go binary
+      - name: Setup Go
+        if: inputs.use_docker == false
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
+        with:
+          go-version: '1.23'
+          cache: true
+      
+      - name: Build locally
+        id: build-local
+        if: inputs.use_docker == false
+        run: |
+          make build
+          BINARY_PATH="${GITHUB_WORKSPACE}/bin/control-center"
+          echo "path=$BINARY_PATH" >> $GITHUB_OUTPUT
+          echo "Built control-center at: $BINARY_PATH"
+          $BINARY_PATH --version

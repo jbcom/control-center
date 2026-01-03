@@ -100,6 +100,54 @@ Use Control Center in your workflows:
     OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
 ```
 
+Or use specific command actions:
+
+```yaml
+# AI Code Review
+- uses: jbcom/control-center/actions/reviewer@v1
+  with:
+    repo: ${{ github.repository }}
+    pr: ${{ github.event.pull_request.number }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+
+# CI Failure Analysis
+- uses: jbcom/control-center/actions/fixer@v1
+  with:
+    repo: ${{ github.repository }}
+    run_id: ${{ github.run_id }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
+
+# Nightly Triage
+- uses: jbcom/control-center/actions/curator@v1
+  with:
+    repo: ${{ github.repository }}
+  env:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
+    CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+```
+
+### Version Pinning
+
+**Recommended**: Use floating major version tags for automatic updates:
+```yaml
+- uses: jbcom/control-center@v1  # Latest v1.x.x
+```
+
+**Stable**: Pin to minor version for controlled updates:
+```yaml
+- uses: jbcom/control-center@v1.1  # Latest v1.1.x
+```
+
+**Locked**: Use exact version for reproducibility:
+```yaml
+- uses: jbcom/control-center@v1.1.0  # Exact version
+```
+
 ### Inputs
 
 | Input | Description | Required | Default |
