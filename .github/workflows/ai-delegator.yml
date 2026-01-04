@@ -78,8 +78,6 @@ jobs:
     permissions:
       contents: read
     uses: jbcom/control-center/.github/workflows/control-center-build.yml@main
-    with:
-      use_docker: false
 
   delegate:
     name: Delegate to AI
