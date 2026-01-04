@@ -14,23 +14,10 @@ group:
         deleteOrphaned: true
         exclude: |
           .gitkeep
-      # GitHub workflows (don't delete repo-specific ones)
-      - source: repository-files/always-sync/.github/workflows/
-        dest: .github/workflows/
+      # GitHub config files (syncs entire .github directory tree including all subdirectories)
+      - source: repository-files/always-sync/.github/
+        dest: .github/
         deleteOrphaned: false
-      # GitHub agents
-      - source: repository-files/always-sync/.github/agents/
-        dest: .github/agents/
-        deleteOrphaned: true
-      # GitHub config files
-      - source: repository-files/always-sync/.github/CODEOWNERS
-        dest: .github/CODEOWNERS
-      - source: repository-files/always-sync/.github/PULL_REQUEST_TEMPLATE.md
-        dest: .github/PULL_REQUEST_TEMPLATE.md
-      - source: repository-files/always-sync/.github/copilot-instructions.md
-        dest: .github/copilot-instructions.md
-      - source: repository-files/always-sync/.github/settings.yml
-        dest: .github/settings.yml
     repos: &all_repos |
       jbcom/python-agentic-crew
       jbcom/python-agentic-game-development
@@ -78,8 +65,9 @@ group:
       - source: repository-files/python/.cursor/
         dest: .cursor/
         deleteOrphaned: false
-      - source: repository-files/python/.github/copilot-instructions.md
-        dest: .github/copilot-instructions.md
+      - source: repository-files/python/.github/
+        dest: .github/
+        deleteOrphaned: false
     repos: &python_repos |
       jbcom/python-agentic-crew
       jbcom/python-agentic-game-development
@@ -100,8 +88,9 @@ group:
       - source: repository-files/nodejs/.cursor/
         dest: .cursor/
         deleteOrphaned: false
-      - source: repository-files/nodejs/.github/copilot-instructions.md
-        dest: .github/copilot-instructions.md
+      - source: repository-files/nodejs/.github/
+        dest: .github/
+        deleteOrphaned: false
     repos: &nodejs_repos |
       jbcom/jbcom.github.io
       jbcom/nodejs-agentic-control
@@ -135,8 +124,9 @@ group:
       - source: repository-files/go/.cursor/
         dest: .cursor/
         deleteOrphaned: false
-      - source: repository-files/go/.github/copilot-instructions.md
-        dest: .github/copilot-instructions.md
+      - source: repository-files/go/.github/
+        dest: .github/
+        deleteOrphaned: false
     repos: &go_repos |
       jbcom/go-secretsync
 
@@ -147,8 +137,9 @@ group:
       - source: repository-files/rust/.cursor/
         dest: .cursor/
         deleteOrphaned: false
-      - source: repository-files/rust/.github/copilot-instructions.md
-        dest: .github/copilot-instructions.md
+      - source: repository-files/rust/.github/
+        dest: .github/
+        deleteOrphaned: false
     repos: &rust_repos |
       jbcom/rust-cosmic-cults
       jbcom/rust-agentic-game-generator

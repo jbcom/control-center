@@ -43,6 +43,31 @@ Two separate config files for safety:
 | `.github/sync-always.yml` | Shared configs that must stay in sync | **Overwrites** existing files |
 | `.github/sync-initial.yml` | Templates repos can customize | Only creates if **missing** |
 
+### Directory-Based Syncing
+
+All sync configs use **directory-based syncing** instead of individual file syncing:
+
+✅ **Benefits:**
+- **Robust**: Works even when files are added or removed from source
+- **Flexible**: No config changes needed when adding new files to directories
+- **Maintainable**: Fewer config entries to manage
+- **Consistent**: Entire directory structures sync recursively
+
+```yaml
+# ✅ CORRECT - Directory sync (robust and flexible)
+- source: repository-files/always-sync/.github/
+  dest: .github/
+  deleteOrphaned: false
+
+# ❌ AVOID - Individual file sync (brittle, requires config updates)
+# - source: repository-files/always-sync/.github/CODEOWNERS
+#   dest: .github/CODEOWNERS
+# - source: repository-files/always-sync/.github/settings.yml
+#   dest: .github/settings.yml
+```
+
+**Note:** Individual file syncing should only be used for files at the root level that can't be grouped into a directory (e.g., `CLAUDE.md`, `AGENTS.md`).
+
 ### Key Config Options
 
 | Feature | Description |
@@ -75,11 +100,16 @@ group:
 # .github/sync-initial.yml - these files only created if MISSING
 group:
   - files:
+      # Sync entire directories (replace: false means only create if missing)
+      - source: repository-files/initial-only/.cursor/
+        dest: .cursor/
+        replace: false
+      - source: repository-files/initial-only/.github/
+        dest: .github/
+        replace: false
+      # Individual files at root level
       - source: repository-files/initial-only/CLAUDE.md
         dest: CLAUDE.md
-        replace: false  # <-- Key setting!
-      - source: repository-files/initial-only/.github/dependabot.yml
-        dest: .github/dependabot.yml
         replace: false
     repos: |
       jbcom/python-agentic-crew
