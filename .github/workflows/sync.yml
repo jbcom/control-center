@@ -7,7 +7,7 @@
 # 2. Language profiles for docs tooling (1-13 files each) - add as needed
 # 3. See what's left - handle exceptions manually
 
-name: Ecosystem Sync
+name: Sync
 
 on:
   push:
@@ -16,8 +16,6 @@ on:
       - 'sync-files/**'
       - '.github/sync.yml'
   workflow_dispatch:
-  schedule:
-    - cron: '0 3 * * *'
 
 permissions:
   contents: read
