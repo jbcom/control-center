@@ -67,8 +67,14 @@ jobs:
             CONTROL_CENTER=$(jq -r --arg org "$ORG" '.managedOrganizations[] | select(.org == $org) | .controlCenter' .github/org-registry.json)
             
             if gh repo view "$CONTROL_CENTER" > /dev/null 2>&1; then
-              ORGS=$(echo "$ORGS" | jq -c --arg org "$ORG" '. + [$org]')
-              echo "  ✅ $CONTROL_CENTER"
+              # Check if repo is archived
+              IS_ARCHIVED=$(gh repo view "$CONTROL_CENTER" --json isArchived -q '.isArchived' 2>/dev/null || echo "unknown")
+              if [ "$IS_ARCHIVED" = "false" ]; then
+                ORGS=$(echo "$ORGS" | jq -c --arg org "$ORG" '. + [$org]')
+                echo "  ✅ $CONTROL_CENTER"
+              else
+                echo "  ⏭️  $CONTROL_CENTER is archived, skipping"
+              fi
             else
               echo "  ⚠️ $CONTROL_CENTER not found or not accessible"
             fi
