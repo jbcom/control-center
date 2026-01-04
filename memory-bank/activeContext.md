@@ -416,7 +416,9 @@ attempting to execute the binary from the current directory with `./control-cent
 
 ---
 
-<<<<<<< HEAD
+
+---
+
 ## Session: 2026-01-03 (GitHub Actions SHA Update - PR #761)
 
 ### Completed
@@ -526,6 +528,7 @@ attempting to execute the binary from the current directory with `./control-cent
 - Workflow will be tested automatically when it runs after merge
 - Monitor first sync run after merge to ensure directory syncing works as expected
 
+<<<<<<< HEAD
 
 ---
 
@@ -557,7 +560,12 @@ Replaced with `actions/checkout@v4`, which is:
 - PR is ready for merge
 - Workflow will be testable once merged or when triggered on the PR branch
 - No follow-up work needed
+
+---
+
 =======
+---
+
 ## Session: 2026-01-03 (Docker Hub Migration - Artifact Removal)
 
 ### Completed
