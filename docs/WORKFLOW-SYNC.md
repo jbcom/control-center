@@ -100,10 +100,10 @@ group:
 # .github/sync-initial.yml - these files only created if MISSING
 group:
   - files:
-      # Sync entire directories
+      # Sync entire directories (replace: false means only create if missing)
       - source: repository-files/initial-only/.cursor/
         dest: .cursor/
-        replace: false  # <-- Key setting! Only creates if missing
+        replace: false
       - source: repository-files/initial-only/.github/
         dest: .github/
         replace: false

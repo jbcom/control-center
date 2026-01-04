@@ -14,7 +14,7 @@ group:
         deleteOrphaned: true
         exclude: |
           .gitkeep
-      # GitHub config files (syncs all root-level .github files like CODEOWNERS, settings.yml, etc.)
+      # GitHub config files (syncs entire .github directory tree including all subdirectories)
       - source: repository-files/always-sync/.github/
         dest: .github/
         deleteOrphaned: false
