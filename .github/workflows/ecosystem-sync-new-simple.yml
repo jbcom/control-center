@@ -47,7 +47,7 @@ jobs:
       - uses: actions/checkout@8e8c483c2dbaedc1b2d9f2ce1a82b3b604df4555 # v6.3.0
       
       - name: Sync files to repos
-        uses: BetaHuhn/repo-file-sync-action@8b92be3 # v1.23.1
+        uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.23.1
         with:
           GH_PAT: ${{ secrets.CI_GITHUB_TOKEN }}
           CONFIG_PATH: .github/sync.yml
