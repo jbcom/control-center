@@ -11,33 +11,12 @@ group:
   # ============================================================================
   - files:
       # Cursor environment config
-      - source: repository-files/initial-only/.cursor/Dockerfile
-        dest: .cursor/Dockerfile
+      - source: repository-files/initial-only/.cursor/
+        dest: .cursor/
         replace: false
-      - source: repository-files/initial-only/.cursor/environment.json
-        dest: .cursor/environment.json
-        replace: false
-      # Dependabot config (repos can customize)
-      - source: repository-files/initial-only/.github/dependabot.yml
-        dest: .github/dependabot.yml
-        replace: false
-      # Security policy
-      - source: repository-files/initial-only/.github/SECURITY.md
-        dest: .github/SECURITY.md
-        replace: false
-      # Issue templates
-      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/bug.yml
-        dest: .github/ISSUE_TEMPLATE/bug.yml
-        replace: false
-      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/feature.yml
-        dest: .github/ISSUE_TEMPLATE/feature.yml
-        replace: false
-      - source: repository-files/initial-only/.github/ISSUE_TEMPLATE/config.yml
-        dest: .github/ISSUE_TEMPLATE/config.yml
-        replace: false
-      # Documentation workflow
-      - source: repository-files/initial-only/.github/workflows/docs.yml
-        dest: .github/workflows/docs.yml
+      # GitHub configuration (includes dependabot, security, issue templates, workflows, agents)
+      - source: repository-files/initial-only/.github/
+        dest: .github/
         replace: false
       # AI agent instructions (repos can customize)
       - source: repository-files/initial-only/AGENTS.md
