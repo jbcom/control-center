@@ -187,47 +187,8 @@ jobs:
           
           echo "✅ Created org-context.json for $ORG"
 
-      - name: Check Repository Archive Status
-        id: archive_check
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-        run: |
-          REPO="${{ matrix.org }}/control-center"
-          
-          echo "🔍 Checking if $REPO is archived..."
-          
-          # Query GitHub API for repository archive status
-          HTTP_CODE=$(curl -s -o /tmp/repo_response.json -w "%{http_code}" \
-            --max-time 30 \
-            --connect-timeout 10 \
-            -H "Authorization: token $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/$REPO")
-          
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "⚠️ Failed to query GitHub API (HTTP $HTTP_CODE)"
-            echo "⚠️ Skipping push due to API error"
-            echo "archived=unknown" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          ARCHIVED=$(jq -r '.archived // "error"' /tmp/repo_response.json)
-          
-          if [ "$ARCHIVED" = "error" ] || [ "$ARCHIVED" = "null" ] || [ -z "$ARCHIVED" ]; then
-            echo "⚠️ Could not determine archive status"
-            echo "⚠️ Skipping push as a safety precaution"
-            echo "archived=unknown" >> $GITHUB_OUTPUT
-          elif [ "$ARCHIVED" = "true" ]; then
-            echo "⚠️ Repository $REPO is ARCHIVED"
-            echo "⚠️ Skipping push to read-only repository"
-            echo "archived=true" >> $GITHUB_OUTPUT
-          else
-            echo "✅ Repository $REPO is active (not archived)"
-            echo "archived=false" >> $GITHUB_OUTPUT
-          fi
-
       - name: Commit and Push
-        if: ${{ !inputs.dry_run && steps.archive_check.outputs.archived == 'false' }}
+        if: ${{ !inputs.dry_run }}
         working-directory: target
         run: |
           git config user.name "Ecosystem Surveyor"
@@ -252,21 +213,6 @@ jobs:
           git push
           
           echo "✅ Changes pushed to ${{ matrix.org }}/control-center"
-
-      - name: Archive Repository Notice
-        if: ${{ steps.archive_check.outputs.archived != 'false' }}
-        run: |
-          if [ "${{ steps.archive_check.outputs.archived }}" = "true" ]; then
-            echo "⚠️ ════════════════════════════════════════════════════════════"
-            echo "⚠️ Repository ${{ matrix.org }}/control-center is ARCHIVED"
-            echo "⚠️ Push operation skipped to prevent errors on read-only repo"
-            echo "⚠️ ════════════════════════════════════════════════════════════"
-          elif [ "${{ steps.archive_check.outputs.archived }}" = "unknown" ]; then
-            echo "⚠️ ════════════════════════════════════════════════════════════"
-            echo "⚠️ Could not verify archive status for ${{ matrix.org }}/control-center"
-            echo "⚠️ Push operation skipped as a safety precaution"
-            echo "⚠️ ════════════════════════════════════════════════════════════"
-          fi
 
       - name: Dry Run Report
         if: ${{ inputs.dry_run }}
