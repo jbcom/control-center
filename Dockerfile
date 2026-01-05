@@ -45,7 +45,7 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 ###
 # Runtime image: Alpine with gh CLI for GitHub operations
 ###
-FROM alpine:3.21 AS runtime
+FROM alpine:3.23 AS runtime
 
 ARG VERSION=dev
 

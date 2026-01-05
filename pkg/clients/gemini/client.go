@@ -179,12 +179,13 @@ func (c *Client) ChatMessages(ctx context.Context, messages []Message) (string, 
 		return "", fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/models/%s:generateContent?key=%s", c.endpoint, c.model, c.apiKey)
+	url := fmt.Sprintf("%s/models/%s:generateContent", c.endpoint, c.model)
 	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return "", fmt.Errorf("failed to create request: %w", err)
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -264,11 +265,12 @@ func (c *Client) ChatStream(ctx context.Context, prompt string) (<-chan string, 
 func (c *Client) ListModels(ctx context.Context) ([]string, error) {
 	log.Debug("Listing available Gemini models")
 
-	url := fmt.Sprintf("%s/models?key=%s", c.endpoint, c.apiKey)
+	url := fmt.Sprintf("%s/models", c.endpoint)
 	httpReq, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
+	httpReq.Header.Set("x-goog-api-key", c.apiKey)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
