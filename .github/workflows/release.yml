@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
         with:
-          go-version: '1.23'
+          go-version: '1.24'
           cache: true
       
       - name: Run GoReleaser
@@ -148,7 +148,7 @@ jobs:
           
           echo "🔄 Triggering ecosystem sync to propagate v${{ needs.goreleaser.outputs.version }}..."
           
-          gh workflow run ecosystem-sync.yml \
+          gh workflow run sync.yml \
             --repo jbcom/control-center \
             --ref main
           
