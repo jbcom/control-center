@@ -9,23 +9,6 @@
 # See docs/SYNC-FILE-VERSIONING.md for complete versioning policy
 
 # =============================================================================
-# ALWAYS-SYNC: Global Profile - Auto-updates ALL repos
-# =============================================================================
-group:
-  - files:
-      - source: sync-files/always-sync/global/
-        dest: ./
-    repos: |
-      jbcom/*
-      arcade-cabinet/*
-      agentic-dev-library/*
-      extended-data-library/*
-      strata-game-library/*
-    exclude: |
-      **/control-center
-      **/.github
-
-# =============================================================================
 # ORG .GITHUB REPOS - Settings inheritance
 # =============================================================================
 jbcom/.github:
@@ -49,8 +32,170 @@ strata-game-library/.github:
     dest: .github/
 
 # =============================================================================
-# LANGUAGE PROFILES - Just docs tooling (8-13 files each)
-# Add specific repos as we discover them
+# JBCOM ORG REPOS
+# =============================================================================
+jbcom/jbcom.github.io:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+# =============================================================================
+# ARCADE-CABINET ORG REPOS
+# =============================================================================
+arcade-cabinet/arcade-cabinet.github.io:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/protocol-silent-night:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/Beppo-Laughs:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/sky-hats:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/otterblade-odyssey:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/rivers-of-reckoning:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/realm-walker:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/otter-river-rush:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/otter-elite-force:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/ebb-and-bloom:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/dragons-labyrinth:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/rivermarsh:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/cosmic-cults:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+arcade-cabinet/echoes-of-beastlight:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+# =============================================================================
+# AGENTIC-DEV-LIBRARY ORG REPOS
+# =============================================================================
+agentic-dev-library/agentic-dev-library.github.io:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+agentic-dev-library/triage:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+agentic-dev-library/game-generator:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+agentic-dev-library/crew:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+agentic-dev-library/control:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+agentic-dev-library/asset-pipeline:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+# =============================================================================
+# EXTENDED-DATA-LIBRARY ORG REPOS
+# =============================================================================
+extended-data-library/extended-data-library.github.io:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+extended-data-library/vendor-connectors:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+extended-data-library/logging:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+extended-data-library/inputs:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+extended-data-library/core:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+extended-data-library/secretssync:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+# =============================================================================
+# STRATA-GAME-LIBRARY ORG REPOS
+# =============================================================================
+strata-game-library/strata-game-library.github.io:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/audio-synth:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/typescript-tutor:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/shaders:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/react-native-plugin:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/presets:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/model-synth:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/examples:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/core:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+strata-game-library/capacitor-plugin:
+  - source: sync-files/always-sync/global/
+    dest: ./
+
+# =============================================================================
+# LANGUAGE PROFILES - Add specific repos as discovered
 # =============================================================================
 
 # Python repos - docs/conf.py, docs tooling (8 files)
@@ -91,7 +236,6 @@ strata-game-library/.github:
 
 # =============================================================================
 # INITIAL-ONLY: Starter files (sync once, then repos own them)
-# Use PR labels to indicate one-time sync. Versioned files available as patches.
 # =============================================================================
 # Example:
 # your-org/new-repo:
