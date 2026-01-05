@@ -72,7 +72,6 @@ jobs:
         run: |
           ${GITHUB_WORKSPACE}/bin/control-center curator list-prs \
             --repo ${{ github.repository }} \
-            --state open \
             --output json > open-prs.json
           
           echo "count=$(jq length open-prs.json)" >> $GITHUB_OUTPUT
@@ -215,6 +214,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v6.3.0
 
+      - name: Setup Go
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v6.0.0
+        with:
+          go-version: '1.23'
+          cache: true
+      
       - name: Setup Control Center
         run: |
           # Build control-center binary
@@ -227,8 +232,7 @@ jobs:
         run: |
           ${GITHUB_WORKSPACE}/bin/control-center curator triage-pr \
             --pr ${{ github.event.pull_request.number }} \
-            --repo ${{ github.repository }} \
-            --action ${{ github.event.action }}
+            --repo ${{ github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -238,7 +242,17 @@ jobs:
           ${GITHUB_WORKSPACE}/bin/control-center curator check-conflicts \
             --pr ${{ github.event.pull_request.number }} \
             --repo ${{ github.repository }} \
-            --notify-if-behind
+            --output json > pr-status.json
+          
+          # Check if PR is behind and notify
+          IS_BEHIND=$(jq -r '.behind_base // false' pr-status.json)
+          if [ "$IS_BEHIND" = "true" ]; then
+            MESSAGE="ℹ️ This PR is behind the base branch. Consider rebasing to include the latest changes."
+            ${GITHUB_WORKSPACE}/bin/control-center curator comment \
+              --pr ${{ github.event.pull_request.number }} \
+              --repo ${{ github.repository }} \
+              --message "$MESSAGE"
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

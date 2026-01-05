@@ -7,9 +7,16 @@ This document describes the unified release process for control-center, covering
 Control Center uses a unified, automated release process that:
 
 1. **Builds Go Binaries** (OSS) - Cross-platform binaries via GoReleaser
-2. **Publishes Docker Images** - Multi-arch images to GHCR
+2. **Publishes Docker Images** - Multi-arch images to Docker Hub via automatic builds
 3. **Tags GitHub Actions** - Marketplace-ready actions with floating version tags
 4. **Triggers Ecosystem Sync** - Propagates updates to all managed organizations
+
+**Distribution Model**: 
+- **CLI Users**: Download Go binaries from GitHub Releases or use `go install`
+- **GitHub Actions**: Use Docker-based actions that pull from Docker Hub
+- **Docker Users**: Pull images directly from Docker Hub
+
+**Key Change**: Control Center no longer builds or uploads Docker images in GitHub Actions. Instead, Docker Hub automatically builds images when tags are pushed, and GitHub Actions reference these pre-built images.
 
 ## Architecture
 
@@ -21,10 +28,12 @@ git tag vX.Y.Z (manual or via release-please)
          ▼             ▼             ▼                ▼                  ▼
    GoReleaser      Docker        Action Tags    Ecosystem Sync     Go Proxy
    (binaries)   (Docker Hub)    (marketplace)    (cascade)        (automatic)
-         │             │             │                │
-         ▼             ▼             ▼                ▼
-    GitHub       Docker Hub    v1, v1.1         All managed
-    Release         image        tags            organizations
+         │         automatic          │                │
+         ▼           build            ▼                ▼
+    GitHub           │            v1, v1.1         All managed
+    Release          ▼              tags            organizations
+              Docker Hub image
+              (60s wait time)
 ```
 
 ## Release Workflow
@@ -85,34 +94,53 @@ Platforms:
 go install github.com/jbcom/control-center/cmd/control-center@latest
 go install github.com/jbcom/control-center/cmd/control-center@v1.2.0
 
-# Via binary download
+# Via binary download from GitHub Releases
 curl -LO https://github.com/jbcom/control-center/releases/download/v1.2.0/control-center_1.2.0_linux_amd64.tar.gz
 tar -xzf control-center_1.2.0_linux_amd64.tar.gz
 sudo mv control-center /usr/local/bin/
 ```
 
-**Go Proxy**: Binary metadata is automatically published to `proxy.golang.org` when users fetch via `go install`.
+**Note**: The Go binary is the traditional distribution method for CLI tools. For GitHub Actions workflows, use the Docker-based actions instead (see section 3).
 
 ### 2. Docker Image (Docker Hub)
 
-**Registry**: `jbcom/control-center`
+**Registry**: `jbcom/control-center` on Docker Hub
+
+**Automatic Builds**: Docker Hub is configured to automatically build images when:
+- Tags matching `/^v([0-9.]+)$/` are pushed → Tagged as version number (e.g., `1.2.0`)
+- Commits are pushed to `main` branch → Tagged as `latest`
 
 **Tags**:
-- `vX.Y.Z` - Specific version (e.g., `v1.2.0`)
-- `latest` - Latest stable release
+- `X.Y.Z` - Specific version without 'v' prefix (e.g., `1.2.0`, not `v1.2.0`)
+- `latest` - Latest stable release from `main` branch
 
-**Platforms**:
+**Note on tag format**: Docker Hub automatic builds strip the 'v' prefix from git tags. A git tag `v1.2.0` becomes Docker image tag `1.2.0`.
+
+**Platforms** (via Docker Hub automatic builds):
 - `linux/amd64`
 - `linux/arm64`
 
+**Security**: Docker Scout is integrated to scan images for vulnerabilities after each build.
+
 **Usage**:
 ```bash
-# Run specific version
-docker run jbcom/control-center:v1.2.0 version
+# Run specific version (note: no 'v' prefix)
+docker run jbcom/control-center:1.2.0 version
 
 # Run latest
 docker run jbcom/control-center:latest reviewer --repo owner/repo --pr 123
 ```
+
+**Production Considerations**:
+- The `latest` tag is used in action.yml files for convenience
+- Risk: Breaking changes could affect all workflows using `latest`
+- Mitigation: Follow semantic versioning, test thoroughly before releases
+- For mission-critical workflows, consider pinning to specific versions after validating them
+
+**Required Configuration**:
+- Docker Hub automatic builds configured for repository
+- GitHub secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`
+- Docker Scout enabled in Docker Hub repository settings
 
 ### 3. GitHub Actions (Marketplace)
 
@@ -123,6 +151,15 @@ docker run jbcom/control-center:latest reviewer --repo owner/repo --pr 123
 - `jbcom/control-center@v1.2` - Latest v1.2.x (floating)
 - `jbcom/control-center@v1.2.0` - Exact version
 - `jbcom/control-center/actions/reviewer@v1` - Specific command action
+
+**Docker Image Reference**: All actions use `docker://jbcom/control-center:latest` from Docker Hub. The actions themselves are versioned via git tags, but they always pull the latest Docker image. 
+
+**Trade-offs**:
+- ✅ **Pros**: Workflows get the most up-to-date binary without manual updates
+- ⚠️ **Cons**: Breaking changes could affect all workflows simultaneously
+- 🛡️ **Mitigation**: Semantic versioning, thorough testing, and rollback capability
+
+For mission-critical workflows, consider using version-specific Docker tags after validation.
 
 **Version Tags**:
 - `v1` - Floating major version tag (updated on each v1.x.x release)
@@ -206,15 +243,27 @@ Managed by these files:
 ### Docker Image Not Published
 
 **Check**:
-1. GHCR login succeeded (uses `GITHUB_TOKEN`)
-2. Multi-platform build completed
-3. Repository has packages enabled
+1. Docker Hub automatic build succeeded
+2. Docker Hub credentials (secrets.DOCKERHUB_USERNAME, secrets.DOCKERHUB_TOKEN) are valid
+3. Docker Hub repository has automatic builds enabled
+4. Wait up to 60 seconds for Docker Hub to complete the build after tag push
 
 **Debug**:
 ```bash
 # Test Docker build locally
 docker buildx build --platform linux/amd64,linux/arm64 -t test:local .
+
+# Check Docker Hub build status
+# Visit: https://hub.docker.com/r/jbcom/control-center/builds
 ```
+
+**Docker Hub Automatic Build Configuration**:
+- Source Type: Tag
+- Source: `/^v([0-9.]+)$/`
+- Docker Tag: Version number (without 'v' prefix)
+- Source Type: Branch
+- Source: `main`
+- Docker Tag: `latest`
 
 ### Actions Not Updating
 
@@ -295,8 +344,12 @@ For urgent fixes to released versions:
 
 The release workflow requires:
 - `contents: write` - Create releases and tags
-- `packages: write` - Push to GHCR
+- `packages: write` - Reserved for future use (not currently used)
 - `actions: write` - Update action tags
+
+Docker Hub credentials are required as secrets:
+- `DOCKERHUB_USERNAME` - Docker Hub username
+- `DOCKERHUB_TOKEN` - Docker Hub access token (not password)
 
 **Never** expose tokens in:
 - Logs or workflow outputs

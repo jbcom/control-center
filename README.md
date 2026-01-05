@@ -87,6 +87,10 @@ control-center fixer --repo jbcom/control-center --run-id 12345678
 
 ## GitHub Action
 
+Control Center is distributed as a Docker-based GitHub Action. All actions pull the Docker image from Docker Hub at runtime.
+
+### Basic Usage
+
 Use Control Center in your workflows:
 
 ```yaml
@@ -100,7 +104,9 @@ Use Control Center in your workflows:
     OLLAMA_API_KEY: ${{ secrets.OLLAMA_API_KEY }}
 ```
 
-Or use specific command actions:
+### Specific Command Actions
+
+Or use specific command actions for simpler interface:
 
 ```yaml
 # AI Code Review
@@ -129,6 +135,22 @@ Or use specific command actions:
     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     GOOGLE_JULES_API_KEY: ${{ secrets.GOOGLE_JULES_API_KEY }}
     CURSOR_API_KEY: ${{ secrets.CURSOR_API_KEY }}
+```
+
+### Direct Docker Usage
+
+You can also run Control Center directly via Docker:
+
+```bash
+# Pull the image
+docker pull jbcom/control-center:latest
+
+# Run a command
+docker run --rm \
+  -e GITHUB_TOKEN="$GITHUB_TOKEN" \
+  -e OLLAMA_API_KEY="$OLLAMA_API_KEY" \
+  jbcom/control-center:latest \
+  reviewer --repo owner/repo --pr 123
 ```
 
 ### Version Pinning
