@@ -285,7 +285,11 @@ func formatDelegationComment(result DelegationResult) string {
 	case "dry_run":
 		sb.WriteString(fmt.Sprintf("🔍 **Dry Run**: %s\n", result.Message))
 	default:
-		sb.WriteString(fmt.Sprintf("✅ **Delegated to %s**\n\n", strings.Title(result.Agent)))
+		agentName := result.Agent
+		if len(agentName) > 0 {
+			agentName = strings.ToUpper(agentName[:1]) + agentName[1:]
+		}
+		sb.WriteString(fmt.Sprintf("✅ **Delegated to %s**\n\n", agentName))
 		sb.WriteString(fmt.Sprintf("%s\n\n", result.Message))
 		if result.SessionID != "" {
 			sb.WriteString(fmt.Sprintf("📋 Session: `%s`\n", result.SessionID))

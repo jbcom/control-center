@@ -56,6 +56,9 @@ func TestImageRequest_Defaults(t *testing.T) {
 		Prompt: "a beautiful sunset",
 	}
 
+	if req.Prompt != "a beautiful sunset" {
+		t.Errorf("expected prompt 'a beautiful sunset', got %s", req.Prompt)
+	}
 	if req.AspectRatio != "" {
 		t.Errorf("expected empty AspectRatio, got %s", req.AspectRatio)
 	}

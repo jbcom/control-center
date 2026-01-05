@@ -270,8 +270,8 @@ func (c *Client) downloadHTTPURI(ctx context.Context, uri, destPath string) erro
 
 	// Create parent directory
 	dir := filepath.Dir(destPath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	if mkdirErr := os.MkdirAll(dir, 0755); mkdirErr != nil {
+		return fmt.Errorf("failed to create directory: %w", mkdirErr)
 	}
 
 	// Create file

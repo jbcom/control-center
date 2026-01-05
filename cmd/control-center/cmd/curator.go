@@ -494,23 +494,23 @@ var curatorHealthReportCmd = &cobra.Command{
 		}
 		
 		// Generate report
-		report := fmt.Sprintf("# Repository Health Report\n")
+		report := "# Repository Health Report\n"
 		report += fmt.Sprintf("**Repository:** %s\n", curatorRepo)
 		report += fmt.Sprintf("**Generated:** %s\n\n", time.Now().Format("2006-01-02 15:04:05"))
-		report += fmt.Sprintf("## Summary\n\n")
-		report += fmt.Sprintf("| Metric | Count |\n")
-		report += fmt.Sprintf("|--------|-------|\n")
+		report += "## Summary\n\n"
+		report += "| Metric | Count |\n"
+		report += "|--------|-------|\n"
 		report += fmt.Sprintf("| Open PRs | %d |\n", len(prs))
 		report += fmt.Sprintf("| Stale PRs (>30d) | %d |\n", stalePRs)
 		report += fmt.Sprintf("| Draft PRs | %d |\n", draftPRs)
 		report += fmt.Sprintf("| Open Issues | %d |\n\n", len(issues))
-		
+
 		healthScore := 100.0
 		if len(prs) > 0 {
 			healthScore -= float64(stalePRs) / float64(len(prs)) * 30
 		}
-		
-		report += fmt.Sprintf("## Health Score\n\n")
+
+		report += "## Health Score\n\n"
 		report += fmt.Sprintf("**%.0f/100**\n\n", healthScore)
 		
 		if healthScore >= 90 {

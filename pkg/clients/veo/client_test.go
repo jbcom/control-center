@@ -56,6 +56,9 @@ func TestVideoRequest_Defaults(t *testing.T) {
 		Prompt: "a beautiful cinematic scene",
 	}
 
+	if req.Prompt != "a beautiful cinematic scene" {
+		t.Errorf("expected prompt 'a beautiful cinematic scene', got %s", req.Prompt)
+	}
 	if req.Duration != 0 {
 		t.Errorf("expected 0 Duration, got %d", req.Duration)
 	}
