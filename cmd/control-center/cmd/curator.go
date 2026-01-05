@@ -107,32 +107,40 @@ var curatorTriagePRCmd = &cobra.Command{
 		}
 		
 		var prData struct {
-			Title  string   `json:"title"`
-			Body   string   `json:"body"`
-			State  string   `json:"state"`
-			Labels []string `json:"labels"`
+			Title  string `json:"title"`
+			Body   string `json:"body"`
+			State  string `json:"state"`
+			Labels []struct {
+				Name string `json:"name"`
+			} `json:"labels"`
 		}
 		if err := json.Unmarshal([]byte(out), &prData); err != nil {
 			return fmt.Errorf("failed to parse PR data: %w", err)
 		}
-		
+
+		// Extract label names
+		labelNames := make([]string, len(prData.Labels))
+		for i, l := range prData.Labels {
+			labelNames[i] = l.Name
+		}
+
 		log.WithFields(log.Fields{
 			"pr":    prNum,
 			"title": prData.Title,
 			"state": prData.State,
 		}).Info("PR triaged")
-		
+
 		if outputFormat == "json" {
 			jsonData, _ := json.Marshal(map[string]interface{}{
 				"pr":     prNum,
 				"title":  prData.Title,
 				"state":  prData.State,
-				"labels": prData.Labels,
+				"labels": labelNames,
 			})
 			fmt.Println(string(jsonData))
 		} else {
-			fmt.Printf("PR #%d: %s\nState: %s\nLabels: %v\n", 
-				prNum, prData.Title, prData.State, prData.Labels)
+			fmt.Printf("PR #%d: %s\nState: %s\nLabels: %v\n",
+				prNum, prData.Title, prData.State, labelNames)
 		}
 		
 		return nil
