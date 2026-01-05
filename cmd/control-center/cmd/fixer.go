@@ -92,7 +92,7 @@ var fixerApplyCmd = &cobra.Command{
 		prNum, _ := cmd.Flags().GetInt("pr")
 		
 		if prNum > 0 {
-			comment := fmt.Sprintf("## 🔧 Applying Suggested Fix\n\n")
+			comment := "## 🔧 Applying Suggested Fix\n\n"
 			comment += fmt.Sprintf("**Root Cause:** %s\n\n", analysis.RootCause)
 			comment += fmt.Sprintf("**Fix:**\n%s\n\n", analysis.FixSuggestion)
 			
@@ -171,7 +171,7 @@ var fixerResolveConflictCmd = &cobra.Command{
 		}
 		
 		// Provide resolution instructions
-		instructions := fmt.Sprintf("## 🔧 Merge Conflict Resolution Guide\n\n")
+		instructions := "## 🔧 Merge Conflict Resolution Guide\n\n"
 		instructions += fmt.Sprintf("**PR #%d:** %s\n\n", prNum, prData.Title)
 		instructions += fmt.Sprintf("**Base branch:** `%s`\n", prData.BaseRefName)
 		instructions += fmt.Sprintf("**Head branch:** `%s`\n\n", prData.HeadRefName)
