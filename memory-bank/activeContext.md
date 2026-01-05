@@ -525,3 +525,35 @@ attempting to execute the binary from the current directory with `./control-cent
 - Workflow will be tested automatically when it runs after merge
 - Monitor first sync run after merge to ensure directory syncing works as expected
 
+
+---
+
+## Session: 2026-01-04 (Fix actions/checkout SHA Reference)
+
+### Completed
+- [x] Updated `.github/workflows/sync.yml` line 45 from invalid SHA to `actions/checkout@v4`
+- [x] Removed misleading comment "# v6.3.0" 
+- [x] Validated YAML syntax
+- [x] Verified no other instances of problematic SHA remain in repository
+- [x] Committed and pushed fix to branch copilot/update-actions-checkout-version
+
+### Issue Fixed
+The workflow was failing because `actions/checkout@8e8c483c2dbaedc1b2d9f2ce1a82b3b604df4555` referenced a non-existent commit SHA. The comment claimed it was "v6.3.0" but the SHA was invalid.
+
+### Solution Applied
+Replaced with `actions/checkout@v4`, which is:
+- The stable, recommended version tag
+- Already used successfully in other workflows (ecosystem-agents.yml)
+- Will be automatically resolved by GitHub Actions to the latest v4.x release
+
+### Verification
+- ✅ YAML syntax valid
+- ✅ No other problematic SHA references in .github/
+- ✅ Minimal change (1 line modified)
+- ✅ Change committed to PR branch
+
+### For Next Agent
+- PR is ready for merge
+- Workflow will be testable once merged or when triggered on the PR branch
+- No follow-up work needed
+

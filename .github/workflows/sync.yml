@@ -42,7 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: cleanup
     steps:
-      - uses: actions/checkout@8e8c483c2dbaedc1b2d9f2ce1a82b3b604df4555 # v6.3.0
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       
       - name: Sync files to repos
         uses: BetaHuhn/repo-file-sync-action@8b92be3375cf1d1b0cd579af488a9255572e4619 # v1.23.1
