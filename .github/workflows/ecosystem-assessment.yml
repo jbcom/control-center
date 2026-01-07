@@ -49,7 +49,7 @@ jobs:
       branch: ${{ steps.branch.outputs.name }}
       improvements: ${{ steps.parse.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
           token: ${{ secrets.CI_GITHUB_TOKEN }}
@@ -118,7 +118,7 @@ jobs:
           git push -u origin "${{ steps.branch.outputs.name }}"
 
       - name: Upload reports artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: assessment-reports
           path: reports/
@@ -178,7 +178,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download reports
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: assessment-reports
           path: reports/
