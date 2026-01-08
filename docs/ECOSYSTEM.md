@@ -1,6 +1,6 @@
 # Ecosystem Workflows
 
-The **Ecosystem** is a unified family of GitHub Actions workflows powered by `@agentic/control`.
+The **Ecosystem** is a unified family of GitHub Actions workflows powered by **control-center**.
 
 ## Architecture
 
@@ -23,39 +23,29 @@ The **Ecosystem** is a unified family of GitHub Actions workflows powered by `@a
 
 | Workflow | Purpose | Uses |
 |----------|---------|------|
-| `ecosystem-curator` | Nightly orchestration | `agentic-orchestrator` |
-| `ecosystem-reviewer` | PR lifecycle | `agentic-pr-review` |
-| `ecosystem-fixer` | CI resolution | `agentic-ci-resolution` |
-| `ecosystem-delegator` | Issue delegation | `agentic-issue-triage` |
-| `ecosystem-harvester` | Agent monitoring | Direct fleet API |
-| `ecosystem-sage` | On-call advisor | Ollama |
+| `triage.yml` | Issue/PR triage & health | `control-center curator` |
+| `review.yml` | AI-assisted PR review | `control-center reviewer` |
+| `autoheal.yml` | CI failure analysis | `control-center fixer` |
+| `delegator.yml` | Command routing (@claude) | `control-center delegator` |
 
-## Actions from @agentic/control
+## Actions from control-center
 
 ```yaml
-# Fleet orchestration
-- uses: jbcom/nodejs-agentic-control/actions/agentic-orchestrator@main
-  with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
-    command: summary
-
 # PR review
-- uses: jbcom/nodejs-agentic-control/actions/agentic-pr-review@main
+- uses: jbcom/control-center/.github/workflows/review.yml@main
   with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
-    model: glm-4.6:cloud
-
-# Issue triage
-- uses: jbcom/nodejs-agentic-control/actions/agentic-issue-triage@main
-  with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
-    issue_number: ${{ github.event.issue.number }}
+    pr_number: ${{ github.event.pull_request.number }}
+    repository: ${{ github.repository }}
+  secrets:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 # CI resolution
-- uses: jbcom/nodejs-agentic-control/actions/agentic-ci-resolution@main
+- uses: jbcom/control-center/.github/workflows/autoheal.yml@main
   with:
-    github_token: ${{ secrets.GITHUB_TOKEN }}
     run_id: ${{ github.event.workflow_run.id }}
+    repository: ${{ github.repository }}
+  secrets:
+    GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
 ## Required Secrets
@@ -68,7 +58,4 @@ The **Ecosystem** is a unified family of GitHub Actions workflows powered by `@a
 
 ## Related Packages
 
-- `@agentic/control` - Orchestration and fleet management
-- `@agentic/triage` - AI triage primitives (Zod schemas, Vercel AI SDK)
-- `python-agentic-crew` - CrewAI integration
-- `python-vendor-connectors` - Vendor API clients (Cursor, GitHub, etc.)
+- `jbcom/control-center` - Central CLI + GitHub Actions workflows

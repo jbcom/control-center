@@ -77,7 +77,7 @@ This script will:
 
 1. **Pre-commit**: Local git hook (optional, recommended)
 2. **CI Lint**: `lint-config.yml` workflow checks on every PR
-3. **Sync Guard**: `ecosystem-sync.yml` checks before syncing files
+3. **Sync Guard**: `sync.yml` checks before syncing files
 
 ### Manual Check
 

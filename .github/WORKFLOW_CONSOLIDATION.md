@@ -116,7 +116,7 @@ Following the pattern established in [arcade-cabinet/otterblade-odyssey#27](http
 - ecosystem-merge.yml (not used with squash-only)
 - ecosystem-orchestrator.yml (gardener handles this)
 - ecosystem-sage.yml (use delegator instead)
-- ecosystem-surveyor.yml (use ecosystem-sync)
+- ecosystem-surveyor.yml (use sync.yml)
 - jules-completion-handler.yml (Jules removed)
 - jules-supervisor.yml (Jules removed)
 - lint-config.yml (moved to ci.yml)

@@ -19,7 +19,7 @@ Changes made in control-center are automatically synced to all managed repositor
 control-center/
 ├── .github/
 │   ├── workflows/
-│   │   └── ecosystem-sync.yml  # Main sync orchestrator
+│   │   └── sync.yml  # Main sync orchestrator
 │   └── sync.yml                # Sync configuration (what files → which repos)
 ├── repository-files/           # Files to sync to managed repos
 │   ├── always-sync/            # Always overwrite in target repos

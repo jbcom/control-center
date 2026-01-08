@@ -184,7 +184,7 @@ For mission-critical workflows, consider using version-specific Docker tags afte
 
 ### 4. Ecosystem Sync
 
-After successful release, the workflow triggers `ecosystem-sync.yml` to propagate the new version across all managed organizations:
+After successful release, the workflow triggers `sync.yml` to propagate the new version across all managed organizations:
 
 **Organizations**:
 - `arcade-cabinet`
@@ -291,7 +291,7 @@ docker inspect jbcom/control-center:latest | jq '.[0].Config.Labels'
 
 **Manual Trigger**:
 ```bash
-gh workflow run ecosystem-sync.yml --repo jbcom/control-center --ref main
+gh workflow run sync.yml --repo jbcom/control-center --ref main
 ```
 
 ## Best Practices

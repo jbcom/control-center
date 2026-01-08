@@ -9,14 +9,14 @@
 - Organized by language (global, python, nodejs, go, terraform, rust)
 
 ### 🚧 In Progress  
-- Updating `ecosystem-sync.yml` to use new structure
+- Updating `sync.yml` to use new structure
 - Adding Phase 0 cleanup for org control-centers
 - Removing cascade phases (1c, 2, 3)
 - Implementing direct sync logic
 
 ### 📋 Next Steps
 
-1. **Update ecosystem-sync.yml**:
+1. **Update sync.yml**:
    - Replace `global-sync/` references with `sync-files/always-sync/global/`
    - Replace `repository-files/` references with `sync-files/always-sync/`
    - Add language detection logic for repos

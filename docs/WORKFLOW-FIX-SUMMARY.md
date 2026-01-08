@@ -32,7 +32,7 @@ REPOS=$(jq -c '[.ecosystems | to_entries[] | .value.repos[]? as $repo | {name: $
 
 **Created Scripts:**
 - `scripts/validate-config` - Validates JSON syntax, structure, and required fields
-- Integrated into both `ecosystem-sync.yml` and `lint-config.yml` workflows
+- Integrated into both `sync.yml` and `lint-config.yml` workflows
 
 **Checks:**
 - JSON syntax validity
@@ -68,7 +68,7 @@ REPOS=$(jq -c '[.ecosystems | to_entries[] | .value.repos[]? as $repo | {name: $
 ## Files Changed
 
 ### Workflows (2)
-1. `.github/workflows/ecosystem-sync.yml` - Major refactor
+1. `.github/workflows/sync.yml` - Major refactor
    - Fixed JSON parsing logic
    - Added comprehensive error handling
    - Updated to use ecosystem instead of language

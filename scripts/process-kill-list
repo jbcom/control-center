@@ -312,7 +312,7 @@ Examples:
   $0 report
   
   # Test specific file
-  $0 test .github/workflows/ai-reviewer.yml
+  $0 test .github/workflows/review.yml
 
 EOF
             ;;
