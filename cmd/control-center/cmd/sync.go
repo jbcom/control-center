@@ -210,7 +210,7 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 		// Branch might already exist, try to update it
 		updateRefReq := github.UpdateRef{
 			SHA:   ref.Object.GetSHA(),
-			Force: github.Bool(false),
+			Force: github.Ptr(false),
 		}
 		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 		if err != nil {
@@ -236,9 +236,9 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 		if !shouldDelete {
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path: github.String(path),
-				Mode: github.String(entry.GetMode()),
-				Type: github.String(entry.GetType()),
+				Path: github.Ptr(path),
+				Mode: github.Ptr(entry.GetMode()),
+				Type: github.Ptr(entry.GetType()),
 				SHA:  entry.SHA,
 			})
 		}
@@ -252,7 +252,7 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 	// Create commit
 	commitMessage := "chore(sync): cleanup deprecated workflows\n\n[skip ci]"
 	commitReq := github.Commit{
-		Message: github.String(commitMessage),
+		Message: github.Ptr(commitMessage),
 		Tree:    newTree,
 		Parents: []*github.Commit{{SHA: commit.SHA}},
 	}
@@ -264,7 +264,7 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 	// Update branch reference
 	updateRefReq := github.UpdateRef{
 		SHA:   newCommit.GetSHA(),
-		Force: github.Bool(false),
+		Force: github.Ptr(false),
 	}
 	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 	if err != nil {
@@ -273,10 +273,10 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 	// Create PR
 	pr, _, err := client.PullRequests.Create(ctx, org, repo, &github.NewPullRequest{
-		Title: github.String("chore(sync): cleanup deprecated workflows"),
-		Head:  github.String(branchName),
-		Base:  github.String(defaultBranch),
-		Body: github.String("Removes legacy ai/ecosystem workflow files per the control-center kill list.\n\n" +
+		Title: github.Ptr("chore(sync): cleanup deprecated workflows"),
+		Head:  github.Ptr(branchName),
+		Base:  github.Ptr(defaultBranch),
+		Body: github.Ptr("Removes legacy ai/ecosystem workflow files per the control-center kill list.\n\n" +
 			"Files deleted:\n" + formatFileList(filesToDelete)),
 	})
 	if err != nil {
@@ -324,9 +324,9 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	var filesToSync []syncFile
 	for _, dir := range syncDirs {
-		files, err := readSyncDirectory(ctx, client, "jbcom", "control-center", dir)
-		if err != nil {
-			log.WithError(err).WithField("dir", dir).Warn("Failed to read sync directory")
+		files, readErr := readSyncDirectory(ctx, client, "jbcom", "control-center", dir)
+		if readErr != nil {
+			log.WithError(readErr).WithField("dir", dir).Warn("Failed to read sync directory")
 			continue
 		}
 		filesToSync = append(filesToSync, files...)
@@ -357,7 +357,7 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 		// Branch might already exist, try to update it
 		updateRefReq := github.UpdateRef{
 			SHA:   targetRef.Object.GetSHA(),
-			Force: github.Bool(false),
+			Force: github.Ptr(false),
 		}
 		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 		if err != nil {
@@ -369,19 +369,19 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 	var treeEntries []*github.TreeEntry
 	for _, file := range filesToSync {
 		blobReq := github.Blob{
-			Content:  github.String(file.content),
-			Encoding: github.String("utf-8"),
+			Content:  github.Ptr(file.content),
+			Encoding: github.Ptr("utf-8"),
 		}
-		blob, _, err := client.Git.CreateBlob(ctx, org, repo, blobReq)
-		if err != nil {
-			log.WithError(err).WithField("path", file.path).Warn("Failed to create blob")
+		blob, _, blobErr := client.Git.CreateBlob(ctx, org, repo, blobReq)
+		if blobErr != nil {
+			log.WithError(blobErr).WithField("path", file.path).Warn("Failed to create blob")
 			continue
 		}
 
 		treeEntries = append(treeEntries, &github.TreeEntry{
-			Path: github.String(file.path),
-			Mode: github.String("100644"),
-			Type: github.String("blob"),
+			Path: github.Ptr(file.path),
+			Mode: github.Ptr("100644"),
+			Type: github.Ptr("blob"),
 			SHA:  blob.SHA,
 		})
 	}
@@ -401,7 +401,7 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 	// Create commit
 	commitMessage := "chore(sync): sync files from control-center\n\nSynced from jbcom/control-center\n\n[skip ci]"
 	commitReq := github.Commit{
-		Message: github.String(commitMessage),
+		Message: github.Ptr(commitMessage),
 		Tree:    newTree,
 		Parents: []*github.Commit{{SHA: targetCommit.SHA}},
 	}
@@ -413,7 +413,7 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 	// Update branch reference
 	updateRefReq := github.UpdateRef{
 		SHA:   newCommit.GetSHA(),
-		Force: github.Bool(false),
+		Force: github.Ptr(false),
 	}
 	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 	if err != nil {
@@ -433,10 +433,10 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	// Create PR
 	pr, _, err := client.PullRequests.Create(ctx, org, repo, &github.NewPullRequest{
-		Title: github.String("chore(sync): sync files from control-center"),
-		Head:  github.String(branchName),
-		Base:  github.String(defaultBranch),
-		Body:  github.String(fmt.Sprintf("Synced from jbcom/control-center\n\nFiles synced: %d", len(filesToSync))),
+		Title: github.Ptr("chore(sync): sync files from control-center"),
+		Head:  github.Ptr(branchName),
+		Base:  github.Ptr(defaultBranch),
+		Body:  github.Ptr(fmt.Sprintf("Synced from jbcom/control-center\n\nFiles synced: %d", len(filesToSync))),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create PR: %w", err)
@@ -581,7 +581,8 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 		switch patternConfig.Type {
 		case "regex":
 			// Match regex patterns using string operations for safety
-			if patternConfig.Pattern == "^\\.github/workflows/(ai|ecosystem)-.*\\.ya?ml$" {
+			switch patternConfig.Pattern {
+			case "^\\.github/workflows/(ai|ecosystem)-.*\\.ya?ml$":
 				if filepath.Dir(path) == ".github/workflows" {
 					base := filepath.Base(path)
 					hasAIPrefix := len(base) >= 3 && base[:3] == "ai-"
@@ -591,7 +592,7 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 						matched = true
 					}
 				}
-			} else if patternConfig.Pattern == "^\\.github/workflows/.*-local\\.ya?ml$" {
+			case "^\\.github/workflows/.*-local\\.ya?ml$":
 				if filepath.Dir(path) == ".github/workflows" {
 					base := filepath.Base(path)
 					hasLocalYML := len(base) >= 10 && base[len(base)-10:] == "-local.yml"
@@ -600,7 +601,7 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 						matched = true
 					}
 				}
-			} else if patternConfig.Pattern == "^\\.github/workflows/jules-.*\\.ya?ml$" {
+			case "^\\.github/workflows/jules-.*\\.ya?ml$":
 				if filepath.Dir(path) == ".github/workflows" {
 					base := filepath.Base(path)
 					hasJulesPrefix := len(base) >= 6 && base[:6] == "jules-"
