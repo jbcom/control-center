@@ -221,10 +221,6 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 	// Create new tree without deleted files
 	var treeEntries []*github.TreeEntry
 	for _, entry := range tree.Entries {
-		if entry.GetType() != "blob" {
-			continue
-		}
-
 		path := entry.GetPath()
 		shouldDelete := false
 		for _, delPath := range filesToDelete {
@@ -236,15 +232,15 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 		if !shouldDelete {
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path: github.Ptr(path),
-				Mode: github.Ptr(entry.GetMode()),
-				Type: github.Ptr(entry.GetType()),
+				Path: github.String(path),
+				Mode: github.String(entry.GetMode()),
+				Type: github.String(entry.GetType()),
 				SHA:  entry.SHA,
 			})
 		}
 	}
 
-	newTree, _, err := client.Git.CreateTree(ctx, org, repo, "", treeEntries)
+	newTree, _, err := client.Git.CreateTree(ctx, org, repo, commit.Tree.GetSHA(), treeEntries)
 	if err != nil {
 		return fmt.Errorf("failed to create tree: %w", err)
 	}
