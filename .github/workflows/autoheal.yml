@@ -77,12 +77,14 @@ jobs:
           REPO="${{ inputs.repository || github.repository }}"
           
           docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OLLAMA_API_KEY="${OLLAMA_API_KEY}" \
             jbcom/control-center:latest fixer analyze \
             --run-id "$RUN_ID" \
             --repo "$REPO" \
-            --output json > fix-suggestion.json
+            --output json > /workspace/fix-suggestion.json
           
           echo "suggestion<<EOF" >> $GITHUB_OUTPUT
           cat fix-suggestion.json >> $GITHUB_OUTPUT
