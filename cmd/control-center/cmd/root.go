@@ -118,11 +118,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.control-center.yaml)")
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "log level (debug, info, warn, error)")
 	rootCmd.PersistentFlags().StringVar(&logFormat, "log-format", "text", "log format (text, json)")
+	rootCmd.PersistentFlags().StringVarP(&outputFormat, "output", "o", "", "output format (json)")
 	rootCmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false, "run without making changes")
 
 	// Bind to viper
 	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 	viper.BindPFlag("log.format", rootCmd.PersistentFlags().Lookup("log-format"))
+	viper.BindPFlag("output", rootCmd.PersistentFlags().Lookup("output"))
 	viper.BindPFlag("dry_run", rootCmd.PersistentFlags().Lookup("dry-run"))
 }
 

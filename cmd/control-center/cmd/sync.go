@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v66/github"
+	"github.com/google/go-github/v81/github"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
@@ -200,18 +200,19 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 	// Create branch for cleanup
 	branchName := fmt.Sprintf("repo-sync/cleanup-kill-list-%d", time.Now().Unix())
-	newRef := &github.Reference{
-		Ref: github.String("refs/heads/" + branchName),
-		Object: &github.GitObject{
-			SHA: ref.Object.SHA,
-		},
+	createRefReq := github.CreateRef{
+		Ref: "refs/heads/" + branchName,
+		SHA: ref.Object.GetSHA(),
 	}
 
-	_, _, err = client.Git.CreateRef(ctx, org, repo, newRef)
+	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefReq)
 	if err != nil {
 		// Branch might already exist, try to update it
-		newRef.Ref = github.String("heads/" + branchName)
-		_, _, err = client.Git.UpdateRef(ctx, org, repo, newRef, false)
+		updateRefReq := github.UpdateRef{
+			SHA:   ref.Object.GetSHA(),
+			Force: github.Bool(false),
+		}
+		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 		if err != nil {
 			return fmt.Errorf("failed to create/update branch: %w", err)
 		}
@@ -250,19 +251,22 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 	// Create commit
 	commitMessage := "chore(sync): cleanup deprecated workflows\n\n[skip ci]"
-	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, &github.Commit{
+	commitReq := github.Commit{
 		Message: github.String(commitMessage),
 		Tree:    newTree,
 		Parents: []*github.Commit{{SHA: commit.SHA}},
-	}, nil)
+	}
+	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
 	// Update branch reference
-	newRef.Object.SHA = newCommit.SHA
-	newRef.Ref = github.String("heads/" + branchName)
-	_, _, err = client.Git.UpdateRef(ctx, org, repo, newRef, false)
+	updateRefReq := github.UpdateRef{
+		SHA:   newCommit.GetSHA(),
+		Force: github.Bool(false),
+	}
+	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 	if err != nil {
 		return fmt.Errorf("failed to update ref: %w", err)
 	}
@@ -343,18 +347,19 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	// Create branch for sync
 	branchName := fmt.Sprintf("repo-sync/control-center-%d", time.Now().Unix())
-	newRef := &github.Reference{
-		Ref: github.String("refs/heads/" + branchName),
-		Object: &github.GitObject{
-			SHA: targetRef.Object.SHA,
-		},
+	createRefReq := github.CreateRef{
+		Ref: "refs/heads/" + branchName,
+		SHA: targetRef.Object.GetSHA(),
 	}
 
-	_, _, err = client.Git.CreateRef(ctx, org, repo, newRef)
+	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefReq)
 	if err != nil {
 		// Branch might already exist, try to update it
-		newRef.Ref = github.String("heads/" + branchName)
-		_, _, err = client.Git.UpdateRef(ctx, org, repo, newRef, false)
+		updateRefReq := github.UpdateRef{
+			SHA:   targetRef.Object.GetSHA(),
+			Force: github.Bool(false),
+		}
+		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 		if err != nil {
 			return fmt.Errorf("failed to create/update branch: %w", err)
 		}
@@ -363,10 +368,11 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 	// Create blobs for each file
 	var treeEntries []*github.TreeEntry
 	for _, file := range filesToSync {
-		blob, _, err := client.Git.CreateBlob(ctx, org, repo, &github.Blob{
+		blobReq := github.Blob{
 			Content:  github.String(file.content),
 			Encoding: github.String("utf-8"),
-		})
+		}
+		blob, _, err := client.Git.CreateBlob(ctx, org, repo, blobReq)
 		if err != nil {
 			log.WithError(err).WithField("path", file.path).Warn("Failed to create blob")
 			continue
@@ -394,19 +400,22 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	// Create commit
 	commitMessage := "chore(sync): sync files from control-center\n\nSynced from jbcom/control-center\n\n[skip ci]"
-	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, &github.Commit{
+	commitReq := github.Commit{
 		Message: github.String(commitMessage),
 		Tree:    newTree,
 		Parents: []*github.Commit{{SHA: targetCommit.SHA}},
-	}, nil)
+	}
+	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
 	// Update branch reference
-	newRef.Object.SHA = newCommit.SHA
-	newRef.Ref = github.String("heads/" + branchName)
-	_, _, err = client.Git.UpdateRef(ctx, org, repo, newRef, false)
+	updateRefReq := github.UpdateRef{
+		SHA:   newCommit.GetSHA(),
+		Force: github.Bool(false),
+	}
+	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
 	if err != nil {
 		return fmt.Errorf("failed to update ref: %w", err)
 	}
@@ -620,7 +629,12 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 
 // readSyncDirectory reads files from a sync directory in control-center
 func readSyncDirectory(ctx context.Context, client *github.Client, org, repo, dir string) ([]syncFile, error) {
-	_, dirContent, _, err := client.Repositories.GetContents(ctx, org, repo, dir, nil)
+	return readSyncDirectoryRecursive(ctx, client, org, repo, dir, dir)
+}
+
+// readSyncDirectoryRecursive reads files recursively, preserving the root directory for relative path calculation
+func readSyncDirectoryRecursive(ctx context.Context, client *github.Client, org, repo, currentDir, rootDir string) ([]syncFile, error) {
+	_, dirContent, _, err := client.Repositories.GetContents(ctx, org, repo, currentDir, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get directory contents: %w", err)
 	}
@@ -640,21 +654,21 @@ func readSyncDirectory(ctx context.Context, client *github.Client, org, repo, di
 				continue
 			}
 
-			// Calculate relative path from sync directory
+			// Calculate relative path from root sync directory
 			itemPath := item.GetPath()
-			if len(itemPath) < len(dir)+2 {
+			if len(itemPath) < len(rootDir)+2 {
 				log.WithField("path", itemPath).Warn("Invalid path length")
 				continue
 			}
-			relativePath := itemPath[len(dir)+1:]
+			relativePath := itemPath[len(rootDir)+1:]
 
 			files = append(files, syncFile{
 				path:    relativePath,
 				content: decodedContent,
 			})
 		} else if item.GetType() == "dir" {
-			// Recursively read subdirectories
-			subFiles, err := readSyncDirectory(ctx, client, org, repo, item.GetPath())
+			// Recursively read subdirectories, preserving root directory
+			subFiles, err := readSyncDirectoryRecursive(ctx, client, org, repo, item.GetPath(), rootDir)
 			if err != nil {
 				log.WithError(err).WithField("path", item.GetPath()).Warn("Failed to read subdirectory")
 				continue
