@@ -192,9 +192,10 @@ jobs:
           
           # Check for required files
           REQUIRED_FILES=(
-            ".github/workflows/ecosystem-triage.yml"
-            ".github/workflows/ecosystem-merge.yml"
-            ".github/workflows/ecosystem-fixer.yml"
+            ".github/workflows/triage.yml"
+            ".github/workflows/review.yml"
+            ".github/workflows/autoheal.yml"
+            ".github/workflows/delegator.yml"
             ".github/org-context.json"
           )
           
@@ -239,10 +240,10 @@ jobs:
           
           echo "🔧 Triggering sync for $CONTROL_CENTER..."
           
-          # Trigger the ecosystem-surveyor to sync this org
-          gh workflow run ecosystem-surveyor.yml \
+          # Trigger the sync workflow to reconcile files
+          gh workflow run sync.yml \
             --repo "${{ github.repository }}" \
-            -f target_org="$ORG"
+            --ref main
           
           echo "healed=true" >> $GITHUB_OUTPUT
 
@@ -347,8 +348,8 @@ jobs:
             --repo "$CONTROL_CENTER" \
             -f process_backlog=true \
             2>/dev/null || {
-            echo "⚠️ Org gardener not found, using ecosystem-sync"
-            gh workflow run ecosystem-sync.yml \
+            echo "⚠️ Org gardener not found, using sync"
+            gh workflow run sync.yml \
               --repo "$CONTROL_CENTER" \
               2>/dev/null || echo "⚠️ No sync workflow found"
           }

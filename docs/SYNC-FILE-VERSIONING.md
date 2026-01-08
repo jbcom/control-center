@@ -127,9 +127,9 @@ chmod +x scripts/version-sync-file
 
 ```bash
 # Always-sync workflow file
-./scripts/version-sync-file init sync-files/always-sync/global/.github/workflows/ai-reviewer.yml
-./scripts/version-sync-file bump sync-files/always-sync/global/.github/workflows/ai-reviewer.yml patch
-./scripts/version-sync-file release-always sync-files/always-sync/global/.github/workflows/ai-reviewer.yml
+./scripts/version-sync-file init sync-files/always-sync/global/.github/workflows/review.yml
+./scripts/version-sync-file bump sync-files/always-sync/global/.github/workflows/review.yml patch
+./scripts/version-sync-file release-always sync-files/always-sync/global/.github/workflows/review.yml
 
 # Initial-only documentation
 ./scripts/version-sync-file init sync-files/initial-only/global/CLAUDE.md

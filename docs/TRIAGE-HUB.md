@@ -56,7 +56,7 @@ jbcom-control-center/
 ├── triage-hub.json           # Ecosystem configuration
 └── .github/workflows/
     ├── agentic-triage.yml    # Centralized triage workflow
-    └── ecosystem-sync.yml    # File sync workflow
+    └── sync.yml    # File sync workflow
 ```
 
 ## Configuration
@@ -104,7 +104,7 @@ Runs triage operations across all managed repos:
 | Issue opened | Auto-assess and label |
 | PR opened | Auto-review |
 
-### Ecosystem Sync (`ecosystem-sync.yml`)
+### Ecosystem Sync (`sync.yml`)
 
 Syncs repository files to all managed repos:
 
@@ -263,7 +263,7 @@ Two projects track the ecosystem:
 
 4. **Add to sync configs** (`.github/sync-initial.yml` and `.github/sync-always.yml`)
 
-5. **Commit and push** - The ecosystem-sync workflow will sync files
+5. **Commit and push** - The sync workflow will sync files
 
 ## Migration to jbcom
 

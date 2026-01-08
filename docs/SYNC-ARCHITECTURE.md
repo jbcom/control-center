@@ -122,7 +122,7 @@ This is where merge queues, branch protection, and other repo-level settings are
 
 Files here go directly to:
 - `.github/workflows/ai-*.yml`
-- `.github/workflows/ecosystem-*.yml`
+- `.github/workflows/{triage,review,autoheal,delegator}.yml`
 - `.github/agents/*`
 - `.github/actions/agentic-*`
 
@@ -194,9 +194,9 @@ Phases 1a, 1b, and 1c run in PARALLEL after Phase 0.
 
 ## Adding a New Organization
 
-1. Add org name to `MANAGED_ORGS` in ecosystem-sync.yml
+1. Add org name to `MANAGED_ORGS` in sync.yml
 2. Add org to target_org choice options
-3. Run ecosystem-sync workflow
+3. Run sync workflow
 4. Workflow will:
    - Create `org/.github` repo with settings.yml
    - Create `org/control-center` repo
@@ -215,7 +215,7 @@ Phases 1a, 1b, and 1c run in PARALLEL after Phase 0.
 
 1. Check if repo is in the correct org
 2. Verify global-sync contains the workflow
-3. Run ecosystem-sync manually with dry_run=false
+3. Run sync manually with dry_run=false
 4. Check git history for sync commits
 
 ### Merge queue not working

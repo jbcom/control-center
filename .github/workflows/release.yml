@@ -128,10 +128,10 @@ jobs:
           
           echo "✅ Tags updated for marketplace"
   
-  # Trigger ecosystem sync to propagate new version to all managed repos
+  # Trigger sync to propagate new version to all managed repos
   # Requires CI_GITHUB_TOKEN with workflow:write permission
-  trigger-ecosystem-sync:
-    name: Trigger Ecosystem Sync
+  trigger-sync:
+    name: Trigger Sync
     runs-on: ubuntu-latest
     needs: [goreleaser, docker-scout, tag-actions]
     if: github.repository == 'jbcom/control-center'
@@ -141,15 +141,15 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "❌ CI_GITHUB_TOKEN secret is required to trigger ecosystem sync"
-            echo "Please configure CI_GITHUB_TOKEN with workflow:write permission"
-            exit 1
-          fi
-          
-          echo "🔄 Triggering ecosystem sync to propagate v${{ needs.goreleaser.outputs.version }}..."
+          echo "❌ CI_GITHUB_TOKEN secret is required to trigger sync"
+          echo "Please configure CI_GITHUB_TOKEN with workflow:write permission"
+          exit 1
+        fi
+        
+        echo "🔄 Triggering sync to propagate v${{ needs.goreleaser.outputs.version }}..."
           
           gh workflow run sync.yml \
             --repo jbcom/control-center \
             --ref main
           
-          echo "✅ Ecosystem sync triggered"
+        echo "✅ Sync triggered"

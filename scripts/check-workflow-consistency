@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check that workflow files in .github/workflows match those in repository-files
+# Check that workflow files in .github/workflows match those in sync-files
 # This ensures we're syncing what we use
 
 set -euo pipefail
@@ -17,7 +17,7 @@ EXIT_CODE=0
 # NOTE: Update this list when adding new control-center-only workflows
 # These workflows are only used in control-center and should not be synced to managed repos
 CONTROL_CENTER_WORKFLOWS=(
-    "ecosystem-sync.yml"    # Orchestrates file syncing
+    "sync.yml"    # Orchestrates file syncing
     "lint-config.yml"       # Validates repo-config.json
     "agentic-triage.yml"    # Triage automation
     "ci.yml"                # Control center CI
@@ -37,7 +37,7 @@ is_control_center_workflow() {
     return 1
 }
 
-# Check if workflows in .github/workflows exist in repository-files/always-sync
+# Check if workflows in .github/workflows exist in sync-files/always-sync
 if [[ -d ".github/workflows" ]]; then
     for workflow in .github/workflows/*.yml; do
         filename=$(basename "$workflow")
@@ -47,7 +47,7 @@ if [[ -d ".github/workflows" ]]; then
             continue
         fi
         
-        sync_file="repository-files/always-sync/.github/workflows/$filename"
+        sync_file="sync-files/always-sync/global/.github/workflows/$filename"
         
         if [[ ! -f "$sync_file" ]]; then
             echo "⚠️  WARNING: $workflow exists but not in sync directory"
@@ -66,8 +66,8 @@ if [[ -d ".github/workflows" ]]; then
 fi
 
 # Check if synced workflows are actually used
-if [[ -d "repository-files/always-sync/.github/workflows" ]]; then
-    for sync_workflow in repository-files/always-sync/.github/workflows/*.yml; do
+if [[ -d "sync-files/always-sync/global/.github/workflows" ]]; then
+    for sync_workflow in sync-files/always-sync/global/.github/workflows/*.yml; do
         filename=$(basename "$sync_workflow")
         local_file=".github/workflows/$filename"
         

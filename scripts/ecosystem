@@ -71,7 +71,7 @@ cmd_discover() {
 
 cmd_sync() {
   log_info "Submodules have been removed from this repository."
-  log_info "Use the ecosystem-sync workflow to sync files to managed repos."
+log_info "Use the sync workflow to sync files to managed repos."
   log_info "Run './scripts/ecosystem discover' to see managed repositories."
 }
 
