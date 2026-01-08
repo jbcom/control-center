@@ -44,6 +44,8 @@ Examples:
 	RunE: runSync,
 }
 
+// init registers the `sync` command with the root command and configures its CLI flags:
+// `--org`, `--repo`, `--all`, and `--config`; it also marks the `org` flag as required.
 func init() {
 	rootCmd.AddCommand(syncCmd)
 
@@ -69,6 +71,16 @@ type syncConfig struct {
 	} `json:"ecosystem"`
 }
 
+// runSync executes the "sync" command: it obtains a GitHub token from the
+// environment, loads the sync configuration, determines the target repositories
+// (from --repo or --all and the config), and for each repository runs three
+// stages—kill-list processing, file synchronization, and an attempt to enable
+// automerge—while logging progress and errors.
+// 
+// It returns an error when required credentials or configuration cannot be
+// obtained or when repository selection is invalid. Errors encountered during
+// per-repository processing are logged and cause the function to continue with
+// the next repository rather than returning.
 func runSync(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
@@ -149,6 +161,13 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
+// processKillList processes the configured kill list for the given repository by removing files that match
+// kill-list patterns. It creates a cleanup branch containing a commit that omits the matched files, opens a
+// pull request to merge the cleanup branch into the repository's default branch, and attempts to apply
+// labels to the PR.
+// 
+// If no files match the kill list, the function returns without making changes. It returns an error if any
+// required GitHub operation (repository/tree/commit/branch/PR creation or update) fails.
 func processKillList(ctx context.Context, client *github.Client, org, repo string, config syncConfig) error {
 	log.WithFields(log.Fields{
 		"org":  org,
@@ -293,6 +312,9 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 	return nil
 }
 
+// syncFiles syncs files from jbcom/control-center into the specified repository by creating a sync branch, committing the files, and opening a pull request.
+//
+// It reads the control-center sync directories (global and optional language-specific), creates blobs and a new tree on a dedicated branch, and creates a pull request targeting the repository's default branch. It attempts to add labels to the created PR. Returns nil on success or an error if required GitHub operations (refs, blobs, tree, commit, or PR creation) fail.
 func syncFiles(ctx context.Context, client *github.Client, org, repo string) error {
 	log.WithFields(log.Fields{
 		"org":  org,
@@ -447,6 +469,8 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 	return nil
 }
 
+// enableAutomerge enables automerge on open pull requests in the given repository that have the "automerge" label.
+// It returns an error if listing pull requests fails; failures to enable automerge for individual PRs are logged and do not abort processing.
 func enableAutomerge(ctx context.Context, client *github.Client, org, repo string) error {
 	log.WithFields(log.Fields{
 		"org":  org,
@@ -490,7 +514,15 @@ func enableAutomerge(ctx context.Context, client *github.Client, org, repo strin
 	return nil
 }
 
-// enablePRAutomerge enables automerge on a PR using GraphQL
+// enablePRAutomerge prepares a GraphQL mutation to enable automerge for the given pull request node ID but does not execute the mutation.
+// 
+// The function constructs the GraphQL mutation and variables for enabling auto-merge with the squash method and logs that the
+// enablement was prepared. It does not make any network calls or modify GitHub state; it is a no-op placeholder that always returns nil.
+// 
+// Parameters:
+//   - ctx: request context (used for cancellation in a full implementation).
+//   - client: GitHub REST client (unused in this placeholder).
+//   - nodeID: the GraphQL node ID of the pull request to enable automerge for.
 func enablePRAutomerge(ctx context.Context, client *github.Client, nodeID string) error {
 	mutation := `
 		mutation($pullRequestId: ID!) {
@@ -535,7 +567,8 @@ type syncFile struct {
 	content string
 }
 
-// shouldDeleteFile checks if a file should be deleted based on kill list patterns
+// shouldDeleteFile reports whether the given repository path should be removed according to the configured kill list.
+// It returns true when the path matches a kill-list pattern (regex or glob) and is not in the hardcoded protected list or the pattern's exceptions, false otherwise.
 func shouldDeleteFile(path string, config syncConfig) bool {
 	// Check if protected
 	for _, pattern := range []string{
@@ -618,7 +651,11 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 	return false
 }
 
-// readSyncDirectory reads files from a sync directory in control-center
+// readSyncDirectory reads all files under dir in the given repository and returns their contents
+// with paths relative to dir.
+// It traverses subdirectories recursively. If listing the target directory fails the error is
+// returned; individual files or subdirectories that cannot be retrieved or decoded are skipped
+// and a warning is logged.
 func readSyncDirectory(ctx context.Context, client *github.Client, org, repo, dir string) ([]syncFile, error) {
 	_, dirContent, _, err := client.Repositories.GetContents(ctx, org, repo, dir, nil)
 	if err != nil {
@@ -666,7 +703,8 @@ func readSyncDirectory(ctx context.Context, client *github.Client, org, repo, di
 	return files, nil
 }
 
-// formatFileList formats a list of files for display in PR body
+// formatFileList formats a slice of file paths as a markdown list suitable for inclusion in a pull request body.
+// Each file becomes a line of the form "- `path`" terminated with a newline.
 func formatFileList(files []string) string {
 	result := ""
 	for _, file := range files {
