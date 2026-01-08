@@ -57,36 +57,22 @@
       "description": "Patterns for files/directories to delete across all managed repos during sync",
       "patterns": [
         {
-          "pattern": ".github/workflows/ecosystem-*.yml",
-          "type": "glob",
+          "pattern": "^\\.github/workflows/(ai|ecosystem)-.*\\.ya?ml$",
+          "type": "regex",
           "reason": "Consolidated into triage.yml, autoheal.yml, review.yml, delegator.yml",
           "exceptions": []
         },
         {
-          "pattern": ".github/workflows/ai-*.yml",
-          "type": "glob",
-          "reason": "Consolidated into core workflows using control-center binary",
+          "pattern": "^\\.github/workflows/.*-local\\.ya?ml$",
+          "type": "regex",
+          "reason": "No more local variants - all workflows use control-center",
           "exceptions": []
         },
         {
-          "pattern": ".github/workflows/*-local.yml",
-          "type": "glob",
-          "reason": "No more local variants - all workflows use control-center binary",
-          "exceptions": []
-        },
-        {
-          "pattern": ".github/workflows/jules-*.yml",
-          "type": "glob",
+          "pattern": "^\\.github/workflows/jules-.*\\.ya?ml$",
+          "type": "regex",
           "reason": "Jules remote agent removed - agents work within PRs using control-center",
           "exceptions": []
-        },
-        {
-          "pattern": "^.github/workflows/(ecosystem|ai)-(curator|delegator|fixer|reviewer|sage|triage|harvester|surveyor|assessment|control|merge|orchestrator)",
-          "type": "regex",
-          "reason": "All AI/ecosystem workflows consolidated into 4 core workflows",
-          "exceptions": [
-            ".github/workflows/ecosystem-sync.yml"
-          ]
         },
         {
           "pattern": ".crew/agents/jules/**",
@@ -106,9 +92,9 @@
         ".github/workflows/docs-sync.yml",
         ".github/workflows/release.yml",
         ".github/workflows/release-please.yml",
+        ".github/workflows/sync.yml",
         ".github/workflows/test-coverage.yml",
-        ".github/workflows/control-center-build.yml",
-        ".github/workflows/ecosystem-sync.yml"
+        ".github/workflows/control-center-build.yml"
       ]
     },
     "managedRepos": [

@@ -33,6 +33,7 @@ DRY_RUN=false
 INCLUDE_INITIAL=false
 PUSH_CHANGES=false
 VERBOSE=false
+CLEANUP=true
 
 # Colors
 RED='\033[0;31m'
@@ -103,6 +104,7 @@ sync_repo() {
   local repo="$1"
   local ecosystem
   local target_path="${ECOSYSTEM_ROOT}/${repo}"
+  local cleanup_script="${SCRIPT_DIR}/process-kill-list"
   
   # Get ecosystem for this repo
   ecosystem=$(get_repo_ecosystem "$repo")
@@ -153,6 +155,18 @@ sync_repo() {
 
   # Sync templated workflows
   sync_templated_workflows "$repo" "$ecosystem" "$target_path"
+
+  # Apply kill list cleanup (removes deprecated workflow files)
+  if [[ "$CLEANUP" == "true" ]]; then
+    if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
+      log_info "  → cleanup: kill list"
+    fi
+    if [[ -x "$cleanup_script" ]]; then
+      "$cleanup_script" process "$target_path" "$DRY_RUN"
+    else
+      log_warn "  Cleanup script not executable: $cleanup_script"
+    fi
+  fi
   
   # Check if there are changes
   if [[ "$DRY_RUN" != "true" ]]; then
@@ -185,6 +199,7 @@ show_help() {
   echo "  --initial     Also sync initial-only files (for new repos)"
   echo "  --push        Commit and push changes to each repo"
   echo "  --verbose     Show detailed output"
+  echo "  --no-cleanup  Skip kill list cleanup"
   echo "  --all         Sync all repos (default if no repo specified)"
   echo "  --help        Show this help"
   echo ""
@@ -193,6 +208,7 @@ show_help() {
   echo "  ./scripts/sync-files strata                 # Sync specific repo"
   echo "  ./scripts/sync-files --dry-run --all        # Preview changes"
   echo "  ./scripts/sync-files --initial --push strata # Full sync with push"
+  echo "  ./scripts/sync-files --no-cleanup --all     # Sync without cleanup"
   echo ""
 }
 
@@ -217,6 +233,10 @@ main() {
         ;;
       --push)
         PUSH_CHANGES=true
+        shift
+        ;;
+      --no-cleanup)
+        CLEANUP=false
         shift
         ;;
       --verbose|-v)
