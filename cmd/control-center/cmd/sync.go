@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -93,8 +94,8 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	var config syncConfig
-	if err := json.Unmarshal(configData, &config); err != nil {
-		return fmt.Errorf("failed to parse sync config: %w", err)
+	if unmarshalErr := json.Unmarshal(configData, &config); unmarshalErr != nil {
+		return fmt.Errorf("failed to parse sync config: %w", unmarshalErr)
 	}
 
 	// Determine repositories to sync
@@ -112,6 +113,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 		"repos": len(repos),
 	}).Info("Starting sync operation")
 
+	// Validate organization exists
+	_, _, err = client.Organizations.Get(ctx, syncOrg)
+	if err != nil {
+		return fmt.Errorf("failed to validate organization %s: %w (ensure org exists and token has access)", syncOrg, err)
+	}
+
 	for _, repoName := range repos {
 		// Extract repo name without org prefix if present
 		if filepath.Dir(repoName) != "." {
@@ -122,6 +129,16 @@ func runSync(cmd *cobra.Command, args []string) error {
 			"org":  syncOrg,
 			"repo": repoName,
 		}).Info("Processing repository")
+
+		// Validate repository exists and is accessible
+		_, _, err := client.Repositories.Get(ctx, syncOrg, repoName)
+		if err != nil {
+			log.WithError(err).WithFields(log.Fields{
+				"org":  syncOrg,
+				"repo": repoName,
+			}).Error("Repository not found or not accessible - skipping")
+			continue
+		}
 
 		// Step 1: Process kill list (deletions first)
 		if err := processKillList(ctx, client, syncOrg, repoName, config); err != nil {
@@ -232,9 +249,9 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 		if !shouldDelete {
 			treeEntries = append(treeEntries, &github.TreeEntry{
-				Path: github.String(path),
-				Mode: github.String(entry.GetMode()),
-				Type: github.String(entry.GetType()),
+				Path: github.Ptr(path),
+				Mode: github.Ptr(entry.GetMode()),
+				Type: github.Ptr(entry.GetType()),
 				SHA:  entry.SHA,
 			})
 		}
@@ -576,43 +593,18 @@ func shouldDeleteFile(path string, config syncConfig) bool {
 		matched := false
 		switch patternConfig.Type {
 		case "regex":
-			// Match regex patterns using string operations for safety
-			switch patternConfig.Pattern {
-			case "^\\.github/workflows/(ai|ecosystem)-.*\\.ya?ml$":
-				if filepath.Dir(path) == ".github/workflows" {
-					base := filepath.Base(path)
-					hasAIPrefix := len(base) >= 3 && base[:3] == "ai-"
-					hasEcoPrefix := len(base) >= 10 && base[:10] == "ecosystem-"
-					hasYAMLExt := filepath.Ext(path) == ".yml" || filepath.Ext(path) == ".yaml"
-					if (hasAIPrefix || hasEcoPrefix) && hasYAMLExt {
-						matched = true
-					}
-				}
-			case "^\\.github/workflows/.*-local\\.ya?ml$":
-				if filepath.Dir(path) == ".github/workflows" {
-					base := filepath.Base(path)
-					hasLocalYML := len(base) >= 10 && base[len(base)-10:] == "-local.yml"
-					hasLocalYAML := len(base) >= 11 && base[len(base)-11:] == "-local.yaml"
-					if hasLocalYML || hasLocalYAML {
-						matched = true
-					}
-				}
-			case "^\\.github/workflows/jules-.*\\.ya?ml$":
-				if filepath.Dir(path) == ".github/workflows" {
-					base := filepath.Base(path)
-					hasJulesPrefix := len(base) >= 6 && base[:6] == "jules-"
-					hasYAMLExt := filepath.Ext(path) == ".yml" || filepath.Ext(path) == ".yaml"
-					if hasJulesPrefix && hasYAMLExt {
-						matched = true
-					}
-				}
+			// Use Go's regexp package for robust pattern matching
+			re, err := regexp.Compile(patternConfig.Pattern)
+			if err != nil {
+				// If pattern fails to compile, skip it
+				log.WithError(err).WithField("pattern", patternConfig.Pattern).Warn("Invalid regex pattern")
+				continue
 			}
+			matched = re.MatchString(path)
 		case "glob":
-			// Simple glob matching
+			// Simple glob matching for specific patterns
 			if patternConfig.Pattern == ".crew/agents/jules/**" {
-				if len(path) >= 19 && path[:19] == ".crew/agents/jules/" {
-					matched = true
-				}
+				matched = strings.HasPrefix(path, ".crew/agents/jules/")
 			}
 		}
 
