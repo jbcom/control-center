@@ -15,6 +15,11 @@ on:
         description: 'Repository (owner/repo)'
         required: true
         type: string
+      docker_image_tag:
+        description: 'Docker image tag to use'
+        required: false
+        type: string
+        default: 'latest'
   workflow_dispatch:
     inputs:
       pr_number:
@@ -25,10 +30,16 @@ on:
         description: 'Repository (owner/repo)'
         required: false
         type: string
+      docker_image_tag:
+        description: 'Docker image tag to use'
+        required: false
+        type: string
+        default: 'latest'
 
 env:
   OLLAMA_HOST: ${{ vars.OLLAMA_HOST || 'https://ollama.com' }}
   OLLAMA_MODEL: ${{ vars.OLLAMA_MODEL || 'glm-4.6:cloud' }}
+  DOCKER_IMAGE_TAG: ${{ inputs.docker_image_tag || vars.DOCKER_IMAGE_TAG || 'latest' }}
 
 permissions:
   contents: read
@@ -44,6 +55,7 @@ jobs:
         run: |
           PR_NUM="${{ inputs.pr_number || github.event.pull_request.number }}"
           REPO="${{ inputs.repository || github.repository }}"
+          IMAGE_TAG="${DOCKER_IMAGE_TAG}"
           
           # Run docker command and capture all output
           docker run --rm \
@@ -53,7 +65,7 @@ jobs:
             -e OLLAMA_API_KEY="${OLLAMA_API_KEY}" \
             -e OLLAMA_HOST="${OLLAMA_HOST}" \
             -e OLLAMA_MODEL="${OLLAMA_MODEL}" \
-            jbcom/control-center:latest reviewer review \
+            "jbcom/control-center:${IMAGE_TAG}" reviewer review \
             --pr "$PR_NUM" \
             --repo "$REPO" \
             --output json 2>&1 | tee review-output.txt

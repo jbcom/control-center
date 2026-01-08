@@ -2,9 +2,13 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -119,10 +123,28 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("failed to validate organization %s: %w (ensure org exists and token has access)", syncOrg, err)
 	}
 
-	for _, repoName := range repos {
+	// Rate limiting configuration
+	const (
+		initialDelay    = 2 * time.Second
+		maxDelay        = 60 * time.Second
+		backoffMultiplier = 2.0
+	)
+	
+	currentDelay := initialDelay
+
+	for i, repoName := range repos {
 		// Extract repo name without org prefix if present
 		if filepath.Dir(repoName) != "." {
 			repoName = filepath.Base(repoName)
+		}
+
+		// Apply rate limiting with exponential backoff (skip for first repo)
+		if i > 0 {
+			log.WithField("delay", currentDelay).Debug("Rate limiting - waiting before next repository")
+			time.Sleep(currentDelay)
+			
+			// Exponential backoff for next iteration
+			currentDelay = time.Duration(math.Min(float64(maxDelay), float64(currentDelay)*backoffMultiplier))
 		}
 
 		log.WithFields(log.Fields{
@@ -534,18 +556,65 @@ func enablePRAutomerge(ctx context.Context, client *github.Client, nodeID string
 		"pullRequestId": nodeID,
 	}
 
-	// Note: This is a placeholder for GraphQL automerge enablement
-	// Full implementation would require:
-	// 1. A GraphQL client library (e.g., github.com/shurcooL/graphql)
-	// 2. Making raw HTTP POST to https://api.github.com/graphql
-	// 3. Or using gh CLI: gh pr merge --auto --squash <PR_NUMBER>
-	//
-	// The mutation and variables are prepared but not executed.
-	// This function currently only identifies PRs that should have automerge enabled.
-	_ = mutation
-	_ = variables
-	
-	log.WithField("nodeId", nodeID).Info("Automerge enablement prepared (requires GraphQL implementation)")
+	// Prepare GraphQL request
+	graphqlRequest := map[string]interface{}{
+		"query":     mutation,
+		"variables": variables,
+	}
+
+	requestBody, err := json.Marshal(graphqlRequest)
+	if err != nil {
+		return fmt.Errorf("failed to marshal GraphQL request: %w", err)
+	}
+
+	// Get token from client transport
+	token := os.Getenv("GITHUB_TOKEN")
+	if token == "" {
+		return fmt.Errorf("GITHUB_TOKEN environment variable not set")
+	}
+
+	// Make GraphQL API request
+	req, err := http.NewRequestWithContext(ctx, "POST", "https://api.github.com/graphql", bytes.NewReader(requestBody))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+
+	httpClient := &http.Client{Timeout: 30 * time.Second}
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to execute GraphQL request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("GraphQL request failed with status %d: %s", resp.StatusCode, string(body))
+	}
+
+	// Parse response to check for errors
+	var graphqlResponse struct {
+		Data   interface{}            `json:"data"`
+		Errors []struct {
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+
+	if err := json.Unmarshal(body, &graphqlResponse); err != nil {
+		return fmt.Errorf("failed to parse GraphQL response: %w", err)
+	}
+
+	if len(graphqlResponse.Errors) > 0 {
+		return fmt.Errorf("GraphQL errors: %s", graphqlResponse.Errors[0].Message)
+	}
+
+	log.WithField("nodeId", nodeID).Info("Automerge enabled successfully")
 	
 	return nil
 }
