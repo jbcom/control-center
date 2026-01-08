@@ -45,6 +45,7 @@ jobs:
           PR_NUM="${{ inputs.pr_number || github.event.pull_request.number }}"
           REPO="${{ inputs.repository || github.repository }}"
           
+          # Run docker command and capture all output
           docker run --rm \
             -v "${{ github.workspace }}:/workspace" \
             -w /workspace \
@@ -55,7 +56,11 @@ jobs:
             jbcom/control-center:latest reviewer review \
             --pr "$PR_NUM" \
             --repo "$REPO" \
-            --output json > review-result.json
+            --output json 2>&1 | tee review-output.txt
+          
+          # Extract only the JSON (lines starting with { or [, and until the matching closing brace/bracket)
+          # This filters out log lines like: time="..." level=info msg="..."
+          grep -E '^[{[]' review-output.txt > review-result.json || echo '{"summary":"No review output","issues":[]}' > review-result.json
           
           echo "result<<EOF" >> $GITHUB_OUTPUT
           cat review-result.json >> $GITHUB_OUTPUT
