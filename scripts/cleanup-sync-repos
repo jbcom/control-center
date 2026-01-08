@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# Cleanup sync repos using the kill list patterns.
+# Creates PRs to remove deprecated files (workflows, agents, etc.).
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="${SCRIPT_DIR}/.."
+CONFIG_FILE="${CONFIG_FILE:-$REPO_ROOT/agentic.config.json}"
+SYNC_CONFIG="${SYNC_CONFIG:-$REPO_ROOT/.github/sync.yml}"
+RUN_ID_SUFFIX="${GITHUB_RUN_ID:-local}"
+BRANCH_PREFIX="${BRANCH_PREFIX:-repo-sync/cleanup-kill-list}"
+BASE_BRANCH="${BASE_BRANCH:-main}"
+
+if ! command -v gh >/dev/null 2>&1; then
+  echo "Error: gh CLI is required" >&2
+  exit 1
+fi
+
+if ! command -v ruby >/dev/null 2>&1; then
+  echo "Error: ruby is required to parse sync.yml" >&2
+  exit 1
+fi
+
+if [[ ! -f "$SYNC_CONFIG" ]]; then
+  echo "Error: sync config not found at $SYNC_CONFIG" >&2
+  exit 1
+fi
+
+if [[ ! -f "$CONFIG_FILE" ]]; then
+  echo "Error: kill list config not found at $CONFIG_FILE" >&2
+  exit 1
+fi
+
+REPOS=$(ruby -ryaml -e "puts YAML.load_file('$SYNC_CONFIG').keys")
+
+if [[ -z "$REPOS" ]]; then
+  echo "No repositories found in $SYNC_CONFIG"
+  exit 0
+fi
+
+TMP_ROOT=$(mktemp -d)
+trap 'rm -rf "$TMP_ROOT"' EXIT
+
+for repo in $REPOS; do
+  echo "🔍 Processing $repo"
+  repo_dir="$TMP_ROOT/${repo//\//-}"
+
+  gh repo clone "$repo" "$repo_dir" -- --quiet
+  git -C "$repo_dir" checkout -b "${BRANCH_PREFIX}-${RUN_ID_SUFFIX}"
+
+  "$SCRIPT_DIR/process-kill-list" process "$repo_dir" false
+
+  if git -C "$repo_dir" diff --quiet; then
+    echo "✅ No cleanup changes for $repo"
+    continue
+  fi
+
+  git -C "$repo_dir" add -A
+  git -C "$repo_dir" commit -m "chore(sync): cleanup deprecated workflows"
+
+  git -C "$repo_dir" push -u origin "${BRANCH_PREFIX}-${RUN_ID_SUFFIX}"
+
+  existing_pr=$(gh pr list --repo "$repo" --head "${BRANCH_PREFIX}-${RUN_ID_SUFFIX}" --json number --jq 'length')
+  if [[ "$existing_pr" -gt 0 ]]; then
+    echo "ℹ️ Cleanup PR already exists for $repo"
+    continue
+  fi
+
+  gh pr create \
+    --repo "$repo" \
+    --base "$BASE_BRANCH" \
+    --head "${BRANCH_PREFIX}-${RUN_ID_SUFFIX}" \
+    --title "chore(sync): cleanup deprecated workflows" \
+    --body "Removes legacy ai/ecosystem workflow files per the control-center kill list." \
+    --label "sync" \
+    --label "automated"
+
+done
