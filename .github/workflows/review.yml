@@ -55,7 +55,7 @@ jobs:
             jbcom/control-center:latest reviewer review \
             --pr "$PR_NUM" \
             --repo "$REPO" \
-            --output json > /workspace/review-result.json
+            --output json > review-result.json
           
           echo "result<<EOF" >> $GITHUB_OUTPUT
           cat review-result.json >> $GITHUB_OUTPUT
