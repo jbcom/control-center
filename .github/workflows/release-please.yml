@@ -18,12 +18,16 @@ jobs:
         id: fetch-version
         run: |
           set -e  # Exit on any error
+          set -o pipefail  # Catch errors in pipes
           
           # Fetch the latest stable release (not pre-release) tag
           echo "Fetching latest stable release of googleapis/release-please-action..."
           
           # Use releases/latest to get only stable releases (excludes pre-releases/drafts)
-          LATEST_TAG=$(gh api repos/googleapis/release-please-action/releases/latest --jq '.tag_name')
+          LATEST_TAG=$(gh api repos/googleapis/release-please-action/releases/latest --jq '.tag_name') || {
+            echo "❌ Failed to fetch release data from GitHub API"
+            exit 1
+          }
           
           # Validate that we got a valid tag
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
@@ -40,14 +44,27 @@ jobs:
           echo "Found latest stable release: $LATEST_TAG"
           
           # Fetch the git ref to get the SHA (handles both lightweight and annotated tags)
-          TAG_REF_RESPONSE=$(gh api "repos/googleapis/release-please-action/git/refs/tags/$LATEST_TAG")
+          TAG_REF_RESPONSE=$(gh api "repos/googleapis/release-please-action/git/refs/tags/$LATEST_TAG") || {
+            echo "❌ Failed to fetch git ref for tag $LATEST_TAG"
+            exit 1
+          }
+          
           TAG_SHA=$(echo "$TAG_REF_RESPONSE" | jq -r '.object.sha')
           TAG_TYPE=$(echo "$TAG_REF_RESPONSE" | jq -r '.object.type')
+          
+          # Validate ref response
+          if [ -z "$TAG_SHA" ] || [ "$TAG_SHA" = "null" ] || [ -z "$TAG_TYPE" ] || [ "$TAG_TYPE" = "null" ]; then
+            echo "❌ Invalid git ref response for tag $LATEST_TAG"
+            exit 1
+          fi
           
           # If it's an annotated tag, we need to dereference it to get the commit SHA
           if [ "$TAG_TYPE" = "tag" ]; then
             echo "Dereferencing annotated tag..."
-            TAG_OBJECT=$(gh api "repos/googleapis/release-please-action/git/tags/$TAG_SHA")
+            TAG_OBJECT=$(gh api "repos/googleapis/release-please-action/git/tags/$TAG_SHA") || {
+              echo "❌ Failed to dereference annotated tag $TAG_SHA"
+              exit 1
+            }
             LATEST_SHA=$(echo "$TAG_OBJECT" | jq -r '.object.sha')
           else
             # It's a lightweight tag, SHA points directly to commit
