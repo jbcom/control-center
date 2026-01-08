@@ -14,8 +14,25 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      - name: Fetch latest release-please-action version
+        id: fetch-version
+        run: |
+          # Fetch the latest release tag and commit SHA from googleapis/release-please-action
+          echo "Fetching latest release-please-action version..."
+          LATEST_TAG=$(gh api repos/googleapis/release-please-action/tags --jq '.[0].name')
+          LATEST_SHA=$(gh api repos/googleapis/release-please-action/tags --jq '.[0].commit.sha')
+          
+          echo "Latest tag: $LATEST_TAG"
+          echo "Latest SHA: $LATEST_SHA"
+          
+          # Export for use in subsequent steps
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "sha=$LATEST_SHA" >> $GITHUB_OUTPUT
+        env:
+          GH_TOKEN: ${{ github.token }}
+      
       - name: Run release-please
-        uses: googleapis/release-please-action@0a04c0b3f8b1416f4f92c2bb33f55e76136b5e64 # v4.1.0
+        uses: googleapis/release-please-action@${{ steps.fetch-version.outputs.sha }}
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
