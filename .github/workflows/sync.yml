@@ -21,26 +21,27 @@ permissions:
   contents: read
 
 jobs:
-  # Archive old org control-centers (one-time cleanup)
-  cleanup:
-    name: Cleanup Old Control Centers
+  # CRITICAL: Deletions MUST happen FIRST before sync events
+  cleanup-kill-list:
+    name: Cleanup Deprecated Workflows
     runs-on: ubuntu-latest
+    if: github.repository == 'jbcom/control-center'
     steps:
-      - name: Archive org control-centers
+      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
+
+      - name: Run kill list cleanup
         env:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
+          BRANCH_PREFIX: repo-sync/cleanup-kill-list
+          BASE_BRANCH: main
         run: |
-          for org in arcade-cabinet agentic-dev-library extended-data-library strata-game-library; do
-            gh repo view "$org/control-center" >/dev/null 2>&1 && \
-              gh repo archive "$org/control-center" --yes 2>/dev/null && \
-              echo "Archived $org/control-center" || true
-          done
+          ./scripts/cleanup-sync-repos
 
   # Sync using repo-file-sync-action
   sync:
     name: Sync Files
     runs-on: ubuntu-latest
-    needs: cleanup
+    needs: cleanup-kill-list
     steps:
       - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
       
@@ -53,31 +54,16 @@ jobs:
             sync
             automated
             automerge
-          COMMIT_PREFIX: "chore(sync): [skip actions]"
+          COMMIT_PREFIX: "chore(sync):"
           COMMIT_BODY: |
             Synced from jbcom/control-center
             
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
             
-            [skip actions]
+            [skip ci]
           ASSIGNEES: jbdevprimary
           OVERWRITE_EXISTING_PR: true
-
-  cleanup-kill-list:
-    name: Cleanup Deprecated Workflows
-    runs-on: ubuntu-latest
-    needs: sync
-    if: github.repository == 'jbcom/control-center'
-    steps:
-      - uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v6.0.1
-
-      - name: Run kill list cleanup
-        env:
-          GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
-          BRANCH_PREFIX: repo-sync/cleanup-kill-list
-          BASE_BRANCH: main
-        run: |
-          ./scripts/cleanup-sync-repos
+          SKIP_CI: "[skip ci]"
 
   summary:
     name: Summary
@@ -91,3 +77,4 @@ jobs:
           echo "- Global profile: 35 files to ALL repos" >> $GITHUB_STEP_SUMMARY
           echo "- Language profiles: 1-13 files each (as needed)" >> $GITHUB_STEP_SUMMARY
           echo "- PRs created automatically in target repos" >> $GITHUB_STEP_SUMMARY
+          echo "- Deletions processed FIRST, then sync" >> $GITHUB_STEP_SUMMARY

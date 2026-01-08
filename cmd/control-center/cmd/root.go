@@ -94,6 +94,12 @@ Examples:
 				FullTimestamp: true,
 			})
 		}
+
+		// When --output json is specified, redirect logs to stderr
+		// so that stdout contains only valid JSON output
+		if outputFormat == "json" {
+			log.SetOutput(os.Stderr)
+		}
 	},
 }
 
