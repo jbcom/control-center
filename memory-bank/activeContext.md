@@ -619,3 +619,83 @@ Migrated from artifact-based distribution to Docker Hub-based distribution:
 - Test workflows with actual PR/issue/CI failure scenarios
 - Consider version-specific tags for mission-critical workflows
 
+
+---
+
+## Session: 2026-01-08 (Sync Workflow Improvements)
+
+### Problem Statement
+Three critical issues with ecosystem sync workflow:
+1. Workflow failing when PRs already exist for sync branches
+2. Missing sync target: arcade-cabinet/winged-daemon
+3. File deletion order not guaranteed (should delete BEFORE adding)
+
+Additional requirements:
+4. Enable auto-merging of sync PRs
+5. Add [skip actions] to prevent CI loops
+
+### Solution Implemented
+
+#### Changes to .github/workflows/sync.yml
+- Added `OVERWRITE_EXISTING_PR: true` - Updates existing PRs instead of failing
+- Added `automerge` to PR_LABELS - Enables auto-merge support
+- Modified COMMIT_PREFIX: `"chore(sync): [skip actions]"` - Prevents CI triggers
+- Added `[skip actions]` to COMMIT_BODY - Additional CI skip protection
+
+#### Changes to .github/sync.yml
+- Added `arcade-cabinet/winged-daemon` as 44th sync target
+- Added `deleteOrphaned: true` to ALL 43 sync targets:
+  * 5 org .github repos (profile inheritance)
+  * 38 regular repositories across all organizations
+- Ensures file deletions happen BEFORE additions
+
+### Technical Details
+
+**OVERWRITE_EXISTING_PR Behavior**:
+- When true: Updates existing PR with new changes
+- When false (default): Fails if PR already exists
+- Source: BetaHuhn/repo-file-sync-action@v1.23.1 documentation
+
+**deleteOrphaned Behavior**:
+- When true: Files removed from source are deleted in target BEFORE new files are synced
+- Only works for directory syncs (not individual files)
+- Ensures clean state before applying updates
+
+**[skip actions] Pattern**:
+- GitHub Actions skips workflow runs when commit message contains [skip actions], [skip ci], or [ci skip]
+- Prevents infinite loops where sync commits trigger workflows that trigger syncs
+
+### Validation Results
+- ✅ YAML syntax validated for both files
+- ✅ Code review: 1 comment (addressed)
+- ✅ Security scan: 0 alerts
+- ✅ 43 repositories configured with deleteOrphaned
+- ✅ winged-daemon successfully added
+
+### Files Modified
+1. `.github/workflows/sync.yml` (6 lines changed)
+2. `.github/sync.yml` (48 lines added - mostly deleteOrphaned flags)
+
+### Impact
+- Prevents "A pull request already exists" failures
+- Adds arcade-cabinet/winged-daemon to ecosystem sync
+- Guarantees file deletion order (delete → add)
+- Enables auto-merge for sync PRs
+- Prevents CI trigger loops
+
+### For Next Agent
+- Monitor first sync run after merge to verify:
+  * Existing PRs are updated successfully
+  * File deletions happen before additions
+  * CI loops don't occur with [skip actions]
+  * winged-daemon receives sync PR
+- If issues occur, check:
+  * BetaHuhn/repo-file-sync-action logs
+  * Target repo PR activity
+  * CI workflow runs
+
+### References
+- Failed workflow run: https://github.com/jbcom/control-center/actions/runs/20807016544/job/59763216998
+- repo-file-sync-action: https://github.com/BetaHuhn/repo-file-sync-action
+- PR branch: copilot/update-sync-workflow-logic
+
