@@ -23,18 +23,22 @@ jobs:
           echo "Fetching latest stable release of googleapis/release-please-action..."
           
           # Use releases/latest to get only stable releases (excludes pre-releases/drafts)
-          RESPONSE=$(gh api repos/googleapis/release-please-action/releases/latest)
-          LATEST_TAG=$(echo "$RESPONSE" | jq -r '.tag_name')
-          LATEST_SHA=$(echo "$RESPONSE" | jq -r '.target_commitish')
+          LATEST_TAG=$(gh api repos/googleapis/release-please-action/releases/latest --jq '.tag_name')
           
-          # Validate that we got valid responses
+          # Validate that we got a valid tag
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
             echo "❌ Failed to fetch latest tag"
             exit 1
           fi
           
+          echo "Found latest stable release: $LATEST_TAG"
+          
+          # Fetch the actual commit SHA for this tag (more reliable than target_commitish)
+          LATEST_SHA=$(gh api repos/googleapis/release-please-action/git/refs/tags/$LATEST_TAG --jq '.object.sha')
+          
+          # Validate that we got a valid SHA
           if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "null" ]; then
-            echo "❌ Failed to fetch latest SHA"
+            echo "❌ Failed to fetch commit SHA for tag $LATEST_TAG"
             exit 1
           fi
           
