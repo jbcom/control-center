@@ -699,3 +699,45 @@ Additional requirements:
 - repo-file-sync-action: https://github.com/BetaHuhn/repo-file-sync-action
 - PR branch: copilot/update-sync-workflow-logic
 
+
+---
+
+## Session: 2026-01-08 (Release Please Workflow SHA Fix)
+
+### Problem Statement
+The release-please workflow was failing because it used a hardcoded commit SHA (`0a04c0b3f8b1416f4f92c2bb33f55e76136b5e64`) for googleapis/release-please-action v4.1.0 that was no longer fetchable.
+
+Reference: https://github.com/jbcom/control-center/actions/runs/20834201499/job/59855420514
+
+### Solution Implemented
+Updated `.github/workflows/release-please.yml` to dynamically fetch the latest stable release of googleapis/release-please-action using GitHub CLI.
+
+### Key Changes
+- Added "Fetch latest release-please-action version" step that:
+  - Uses `gh api repos/googleapis/release-please-action/releases/latest` to get latest stable release
+  - Validates tag format (v[0-9]+.[0-9]+.[0-9]+)
+  - Handles both lightweight and annotated tags
+  - Fetches actual commit SHA from git refs
+  - Validates SHA format (40 hex characters)
+  - Includes comprehensive error handling with descriptive messages
+- Updated action reference to use dynamically fetched SHA: `googleapis/release-please-action@${{ steps.fetch-version.outputs.sha }}`
+
+### Technical Details
+- **Old approach**: Hardcoded SHA `0a04c0b3f8b1416f4f92c2bb33f55e76136b5e64` (v4.1.0)
+- **New approach**: Dynamic SHA fetching from latest stable release (currently v4.4.0 with SHA `16a9c90856f42705d54a6fda1823352bdc62cf38`)
+- **Error handling**: `set -e`, `set -o pipefail`, explicit error handlers for all API calls
+- **Validation**: Tag format, SHA format, API responses, git ref responses
+
+### Testing & Validation
+- ✅ YAML syntax validated
+- ✅ Logic tested locally with curl (simulating gh api)
+- ✅ Security scan passed (0 alerts)
+- ✅ All code review feedback addressed (3 rounds of improvements)
+- ✅ Handles both lightweight and annotated tags
+- ✅ Comprehensive error messages for debugging
+
+### For Next Agent
+- Monitor first workflow run after merge to ensure dynamic fetching works correctly
+- If issues occur, check GitHub Actions workflow logs for specific error messages
+- The workflow will automatically update to new stable releases as they're published
+
