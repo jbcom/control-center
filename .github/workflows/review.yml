@@ -46,6 +46,8 @@ jobs:
           REPO="${{ inputs.repository || github.repository }}"
           
           docker run --rm \
+            -v "${{ github.workspace }}:/workspace" \
+            -w /workspace \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             -e OLLAMA_API_KEY="${OLLAMA_API_KEY}" \
             -e OLLAMA_HOST="${OLLAMA_HOST}" \
@@ -53,7 +55,7 @@ jobs:
             jbcom/control-center:latest reviewer review \
             --pr "$PR_NUM" \
             --repo "$REPO" \
-            --output json > review-result.json
+            --output json > /workspace/review-result.json
           
           echo "result<<EOF" >> $GITHUB_OUTPUT
           cat review-result.json >> $GITHUB_OUTPUT
