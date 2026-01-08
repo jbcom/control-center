@@ -141,15 +141,15 @@ jobs:
           GH_TOKEN: ${{ secrets.CI_GITHUB_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-          echo "❌ CI_GITHUB_TOKEN secret is required to trigger sync"
-          echo "Please configure CI_GITHUB_TOKEN with workflow:write permission"
-          exit 1
-        fi
-        
-        echo "🔄 Triggering sync to propagate v${{ needs.goreleaser.outputs.version }}..."
+            echo "❌ CI_GITHUB_TOKEN secret is required to trigger sync"
+            echo "Please configure CI_GITHUB_TOKEN with workflow:write permission"
+            exit 1
+          fi
+
+          echo "🔄 Triggering sync to propagate v${{ needs.goreleaser.outputs.version }}..."
           
           gh workflow run sync.yml \
             --repo jbcom/control-center \
             --ref main
           
-        echo "✅ Sync triggered"
+          echo "✅ Sync triggered"
