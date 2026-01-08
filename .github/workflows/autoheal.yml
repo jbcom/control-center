@@ -101,7 +101,7 @@ jobs:
             -w /workspace \
             -e GITHUB_TOKEN="${GITHUB_TOKEN}" \
             jbcom/control-center:latest fixer apply \
-            --suggestion-file fix-suggestion.json \
+            --suggestion-file /workspace/fix-suggestion.json \
             --repo ${{ inputs.repository || github.repository }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
