@@ -19,7 +19,7 @@ jobs:
         run: |
           set -e  # Exit on any error
           
-          # Fetch the latest stable release (not pre-release) tag and commit SHA
+          # Fetch the latest stable release (not pre-release) tag
           echo "Fetching latest stable release of googleapis/release-please-action..."
           
           # Use releases/latest to get only stable releases (excludes pre-releases/drafts)
@@ -27,18 +27,41 @@ jobs:
           
           # Validate that we got a valid tag
           if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
-            echo "❌ Failed to fetch latest tag"
+            echo "❌ Failed to fetch latest tag from API"
+            exit 1
+          fi
+          
+          # Validate tag format (should be like v4.4.0)
+          if ! echo "$LATEST_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Invalid tag format: $LATEST_TAG"
             exit 1
           fi
           
           echo "Found latest stable release: $LATEST_TAG"
           
-          # Fetch the actual commit SHA for this tag (more reliable than target_commitish)
-          LATEST_SHA=$(gh api repos/googleapis/release-please-action/git/refs/tags/$LATEST_TAG --jq '.object.sha')
+          # Fetch the git ref to get the SHA (handles both lightweight and annotated tags)
+          TAG_REF_RESPONSE=$(gh api "repos/googleapis/release-please-action/git/refs/tags/$LATEST_TAG")
+          TAG_SHA=$(echo "$TAG_REF_RESPONSE" | jq -r '.object.sha')
+          TAG_TYPE=$(echo "$TAG_REF_RESPONSE" | jq -r '.object.type')
           
-          # Validate that we got a valid SHA
+          # If it's an annotated tag, we need to dereference it to get the commit SHA
+          if [ "$TAG_TYPE" = "tag" ]; then
+            echo "Dereferencing annotated tag..."
+            TAG_OBJECT=$(gh api "repos/googleapis/release-please-action/git/tags/$TAG_SHA")
+            LATEST_SHA=$(echo "$TAG_OBJECT" | jq -r '.object.sha')
+          else
+            # It's a lightweight tag, SHA points directly to commit
+            LATEST_SHA="$TAG_SHA"
+          fi
+          
+          # Validate that we got a valid SHA (should be 40 hex characters)
           if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "null" ]; then
             echo "❌ Failed to fetch commit SHA for tag $LATEST_TAG"
+            exit 1
+          fi
+          
+          if ! echo "$LATEST_SHA" | grep -qE '^[0-9a-f]{40}$'; then
+            echo "❌ Invalid SHA format: $LATEST_SHA"
             exit 1
           fi
           
