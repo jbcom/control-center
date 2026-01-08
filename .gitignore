@@ -80,6 +80,7 @@ logs/
 *.egg-info/
 dist/
 build/
+bin/
 
 # Terragrunt
 .terragrunt-cache/
