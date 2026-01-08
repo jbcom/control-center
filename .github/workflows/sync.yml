@@ -52,12 +52,16 @@ jobs:
           PR_LABELS: |
             sync
             automated
-          COMMIT_PREFIX: "chore(sync):"
+            automerge
+          COMMIT_PREFIX: "chore(sync): [skip actions]"
           COMMIT_BODY: |
             Synced from jbcom/control-center
             
             Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            
+            [skip actions]
           ASSIGNEES: jbdevprimary
+          OVERWRITE_EXISTING_PR: true
 
   cleanup-kill-list:
     name: Cleanup Deprecated Workflows

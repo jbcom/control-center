@@ -14,22 +14,27 @@
 jbcom/.github:
   - source: sync-files/always-sync/global/.github/
     dest: .github/
+    deleteOrphaned: true
 
 arcade-cabinet/.github:
   - source: sync-files/always-sync/global/.github/
     dest: .github/
+    deleteOrphaned: true
 
 agentic-dev-library/.github:
   - source: sync-files/always-sync/global/.github/
     dest: .github/
+    deleteOrphaned: true
 
 extended-data-library/.github:
   - source: sync-files/always-sync/global/.github/
     dest: .github/
+    deleteOrphaned: true
 
 strata-game-library/.github:
   - source: sync-files/always-sync/global/.github/
     dest: .github/
+    deleteOrphaned: true
 
 # =============================================================================
 # JBCOM ORG REPOS
@@ -37,6 +42,7 @@ strata-game-library/.github:
 jbcom/jbcom.github.io:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 # =============================================================================
 # ARCADE-CABINET ORG REPOS
@@ -44,58 +50,77 @@ jbcom/jbcom.github.io:
 arcade-cabinet/arcade-cabinet.github.io:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/protocol-silent-night:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/Beppo-Laughs:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/sky-hats:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/otterblade-odyssey:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/rivers-of-reckoning:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/realm-walker:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/otter-river-rush:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/otter-elite-force:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/ebb-and-bloom:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/dragons-labyrinth:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/rivermarsh:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/cosmic-cults:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 arcade-cabinet/echoes-of-beastlight:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
+
+arcade-cabinet/winged-daemon:
+  - source: sync-files/always-sync/global/
+    dest: ./
+    deleteOrphaned: true
 
 # =============================================================================
 # AGENTIC-DEV-LIBRARY ORG REPOS
@@ -103,26 +128,32 @@ arcade-cabinet/echoes-of-beastlight:
 agentic-dev-library/agentic-dev-library.github.io:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 agentic-dev-library/triage:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 agentic-dev-library/game-generator:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 agentic-dev-library/crew:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 agentic-dev-library/control:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 agentic-dev-library/asset-pipeline:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 # =============================================================================
 # EXTENDED-DATA-LIBRARY ORG REPOS
@@ -130,26 +161,32 @@ agentic-dev-library/asset-pipeline:
 extended-data-library/extended-data-library.github.io:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 extended-data-library/vendor-connectors:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 extended-data-library/logging:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 extended-data-library/inputs:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 extended-data-library/core:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 extended-data-library/secretssync:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 # =============================================================================
 # STRATA-GAME-LIBRARY ORG REPOS
@@ -157,42 +194,52 @@ extended-data-library/secretssync:
 strata-game-library/strata-game-library.github.io:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/audio-synth:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/typescript-tutor:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/shaders:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/react-native-plugin:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/presets:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/model-synth:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/examples:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/core:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 strata-game-library/capacitor-plugin:
   - source: sync-files/always-sync/global/
     dest: ./
+    deleteOrphaned: true
 
 # =============================================================================
 # LANGUAGE PROFILES - Add specific repos as discovered
