@@ -17,13 +17,29 @@ jobs:
       - name: Fetch latest release-please-action version
         id: fetch-version
         run: |
-          # Fetch the latest release tag and commit SHA from googleapis/release-please-action
-          echo "Fetching latest release-please-action version..."
-          LATEST_TAG=$(gh api repos/googleapis/release-please-action/tags --jq '.[0].name')
-          LATEST_SHA=$(gh api repos/googleapis/release-please-action/tags --jq '.[0].commit.sha')
+          set -e  # Exit on any error
           
-          echo "Latest tag: $LATEST_TAG"
-          echo "Latest SHA: $LATEST_SHA"
+          # Fetch the latest stable release (not pre-release) tag and commit SHA
+          echo "Fetching latest stable release of googleapis/release-please-action..."
+          
+          # Use releases/latest to get only stable releases (excludes pre-releases/drafts)
+          RESPONSE=$(gh api repos/googleapis/release-please-action/releases/latest)
+          LATEST_TAG=$(echo "$RESPONSE" | jq -r '.tag_name')
+          LATEST_SHA=$(echo "$RESPONSE" | jq -r '.target_commitish')
+          
+          # Validate that we got valid responses
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "null" ]; then
+            echo "❌ Failed to fetch latest tag"
+            exit 1
+          fi
+          
+          if [ -z "$LATEST_SHA" ] || [ "$LATEST_SHA" = "null" ]; then
+            echo "❌ Failed to fetch latest SHA"
+            exit 1
+          fi
+          
+          echo "✅ Latest stable release: $LATEST_TAG"
+          echo "✅ Commit SHA: $LATEST_SHA"
           
           # Export for use in subsequent steps
           echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
@@ -32,6 +48,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       
       - name: Run release-please
+        # Uses dynamically fetched latest stable release SHA for strong pinning
         uses: googleapis/release-please-action@${{ steps.fetch-version.outputs.sha }}
         with:
           config-file: release-please-config.json
