@@ -26,7 +26,7 @@ def fix_file(path):
         print(f"Fixed {path}")
 
 # Workflows to check
-dirs = ['.github/workflows', 'repository-files/always-sync/.github/workflows']
+dirs = ['.github/workflows', 'sync-files/always-sync/global/.github/workflows']
 for d in dirs:
     if not os.path.isdir(d):
         continue

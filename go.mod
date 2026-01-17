@@ -1,8 +1,6 @@
 module github.com/jbcom/control-center
 
-go 1.24.0
-
-toolchain go1.24.11
+go 1.23.4
 
 require (
 	github.com/google/go-github/v81 v81.0.0

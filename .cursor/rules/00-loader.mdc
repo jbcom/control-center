@@ -40,7 +40,7 @@ gh issue create --repo jbcom/agentic-control
 | Path | Purpose |
 |------|---------|
 | `packages/` | All jbcom packages |
-| `repository-files/` | Files synced to public repos |
+| `sync-files/` | Files synced to public repos |
 | `memory-bank/` | Session context |
 | `.github/workflows/` | CI/CD |
 

@@ -21,27 +21,23 @@ control-center/
 │   ├── workflows/
 │   │   └── sync.yml  # Main sync orchestrator
 │   └── sync.yml                # Sync configuration (what files → which repos)
-├── repository-files/           # Files to sync to managed repos
+├── sync-files/                 # Files to sync to managed repos
 │   ├── always-sync/            # Always overwrite in target repos
-│   │   ├── .github/workflows/  # Shared workflows
-│   │   └── .cursor/            # Cursor AI rules
+│   │   ├── global/             # Shared across all repos
+│   │   ├── python/             # Python-specific files
+│   │   ├── nodejs/             # Node.js/TypeScript files
+│   │   ├── go/                 # Go-specific files
+│   │   └── terraform/          # Terraform-specific files
 │   ├── initial-only/           # Only sync if file doesn't exist
-│   │   └── .github/dependabot.yml
-│   ├── python/                 # Python-specific files
-│   ├── nodejs/                 # Node.js/TypeScript files
-│   ├── go/                     # Go-specific files
-│   └── terraform/              # Terraform-specific files
+│   │   ├── global/
+│   │   │   └── .github/dependabot.yml
+│   └── patch-sync/             # Optional files
 └── repo-config.json            # Repository configuration
 ```
 
 ## Sync Configuration
 
-Two separate config files for safety:
-
-| Config File | Purpose | Behavior |
-|-------------|---------|----------|
-| `.github/sync-always.yml` | Shared configs that must stay in sync | **Overwrites** existing files |
-| `.github/sync-initial.yml` | Templates repos can customize | Only creates if **missing** |
+The primary configuration file is `.github/sync.yml`. It defines mapping rules for which files in `sync-files/` go to which repositories or ecosystems.
 
 ### Directory-Based Syncing
 
@@ -55,14 +51,14 @@ All sync configs use **directory-based syncing** instead of individual file sync
 
 ```yaml
 # ✅ CORRECT - Directory sync (robust and flexible)
-- source: repository-files/always-sync/.github/
+- source: sync-files/always-sync/.github/
   dest: .github/
   deleteOrphaned: false
 
 # ❌ AVOID - Individual file sync (brittle, requires config updates)
-# - source: repository-files/always-sync/.github/CODEOWNERS
+# - source: sync-files/always-sync/.github/CODEOWNERS
 #   dest: .github/CODEOWNERS
-# - source: repository-files/always-sync/.github/settings.yml
+# - source: sync-files/always-sync/.github/settings.yml
 #   dest: .github/settings.yml
 ```
 
@@ -78,70 +74,29 @@ All sync configs use **directory-based syncing** instead of individual file sync
 | `deleteOrphaned: true` | Remove files deleted from source |
 | `exclude` | Glob patterns to exclude from directory sync |
 
-### Example: Always-Sync Config
+### Example: Sync Config
 
 ```yaml
-# .github/sync-always.yml - these files OVERWRITE existing
-group:
-  - files:
-      - source: repository-files/always-sync/.cursor/
-        dest: .cursor/
-        deleteOrphaned: true
-      - source: repository-files/always-sync/.github/workflows/
-        dest: .github/workflows/
-    repos: |
-      jbcom/python-agentic-crew
-      jbcom/nodejs-strata
-```
-
-### Example: Initial-Only Config
-
-```yaml
-# .github/sync-initial.yml - these files only created if MISSING
-group:
-  - files:
-      # Sync entire directories (replace: false means only create if missing)
-      - source: repository-files/initial-only/.cursor/
-        dest: .cursor/
-        replace: false
-      - source: repository-files/initial-only/.github/
-        dest: .github/
-        replace: false
-      # Individual files at root level
-      - source: repository-files/initial-only/CLAUDE.md
-        dest: CLAUDE.md
-        replace: false
-    repos: |
-      jbcom/python-agentic-crew
+# .github/sync.yml
+jbcom/python-agentic-crew:
+  - source: sync-files/always-sync/global/
+    dest: ./
+    deleteOrphaned: true
+  - source: sync-files/always-sync/python/
+    dest: ./
+    deleteOrphaned: true
 ```
 
 ## Sync Behavior
 
-### Always Sync (`always-sync/`)
+### Always Sync (`sync-files/always-sync/`)
 
-Files in this directory **always overwrite** target repository files:
-- `.github/workflows/*.yml` - Shared workflow files
-- `.cursor/*` - Cursor AI rules
-- `.github/CODEOWNERS` - Code ownership rules
+Files in this directory **always overwrite** target repository files.
+It is organized by scope: `global`, `python`, `nodejs`, etc.
 
-**Use for:** Files that must remain consistent across all repositories.
+### Initial Only (`sync-files/initial-only/`)
 
-### Initial Only (`initial-only/`)
-
-Files are copied **only if they don't exist** in the target repository:
-- `.github/dependabot.yml` - Allows repo-specific configuration
-- `CLAUDE.md` - Can be customized per repo
-- Environment files - Can be customized per repo
-
-**Use for:** Templates that repos can customize after initial setup.
-
-### Ecosystem-Specific
-
-Files synced only to repositories in a specific ecosystem:
-- `python/` → Python repositories
-- `nodejs/` → Node.js/TypeScript repositories
-- `go/` → Go repositories
-- `terraform/` → Terraform repositories
+Files are copied **only if they don't exist** in the target repository.
 
 ## Authentication
 
@@ -155,17 +110,7 @@ The token is passed to repo-file-sync-action via the `GH_PAT` input.
 
 The workflow runs in two sequential phases for safety:
 
-### Phase 1: Initial Sync 📦
-- **Config:** `.github/sync-initial.yml`
-- **Behavior:** Only creates files that don't exist
-- **Use for:** Templates, configs that repos can customize
-- **Safe:** Never overwrites existing customizations
-
-### Phase 2: Always Sync 🔄
-- **Config:** `.github/sync-always.yml`  
-- **Behavior:** Overwrites existing files with latest
-- **Use for:** Shared workflows, cursor rules, settings
-- **Note:** Runs only after Phase 1 succeeds
+The workflow uses `BetaHuhn/repo-file-sync-action` which handles syncing in a single pass based on `.github/sync.yml`.
 
 ## Workflow Modes
 
@@ -225,10 +170,9 @@ on:
   push:
     branches: [main]
     paths:
-      - 'repository-files/**'
+      - 'sync-files/**'
       - 'repo-config.json'
-      - '.github/sync-always.yml'
-      - '.github/sync-initial.yml'
+      - '.github/sync.yml'
 ```
 
 ## Validation
@@ -239,7 +183,7 @@ Before syncing, the workflow validates:
 
 1. **JSON Syntax**: `repo-config.json` must be valid JSON
 2. **YAML Syntax**: `.github/sync.yml` must be valid YAML
-3. **No Symlinks**: Fails if symlinks detected in repository-files
+3. **No Symlinks**: Fails if symlinks detected in sync-files
 
 ### Manual Validation
 
@@ -253,8 +197,7 @@ Run locally before committing:
 ./scripts/check-symlinks
 
 # Validate sync configs
-python3 -c "import yaml; yaml.safe_load(open('.github/sync-always.yml'))"
-python3 -c "import yaml; yaml.safe_load(open('.github/sync-initial.yml'))"
+python3 -c "import yaml; yaml.safe_load(open('.github/sync.yml'))"
 ```
 
 ## Adding a New Repository
@@ -273,30 +216,23 @@ python3 -c "import yaml; yaml.safe_load(open('.github/sync-initial.yml'))"
 }
 ```
 
-2. Add the repository to BOTH sync configs:
+2. Add the repository to sync config:
 
 ```yaml
-# .github/sync-always.yml - add to relevant groups
-group:
-  - files:
-      # ... existing files ...
-    repos: |
-      jbcom/python-agentic-crew
-      jbcom/python-my-new-repo  # Add here
-
-# .github/sync-initial.yml - add to initial-only group
-group:
-  - files:
-      # ... existing files ...
-    repos: |
-      jbcom/python-agentic-crew
-      jbcom/python-my-new-repo  # Add here
+# .github/sync.yml
+jbcom/python-my-new-repo:
+  - source: sync-files/always-sync/global/
+    dest: ./
+    deleteOrphaned: true
+  - source: sync-files/always-sync/python/
+    dest: ./
+    deleteOrphaned: true
 ```
 
 3. Commit and push:
 
 ```bash
-git add repo-config.json .github/sync-always.yml .github/sync-initial.yml
+git add repo-config.json .github/sync.yml
 git commit -m "feat: add python-my-new-repo to ecosystem"
 git push
 ```
@@ -309,26 +245,25 @@ git push
 
 ### To update a shared workflow:
 
-1. Edit the file in `repository-files/always-sync/.github/workflows/`
+1. Edit the file in `sync-files/always-sync/global/.github/workflows/`
 2. Commit and push
-3. Next sync will update all repositories (via PR or direct push)
+3. Next sync will update all repositories
 
 ### To add a new workflow:
 
-1. Create the workflow in `repository-files/always-sync/.github/workflows/`
-2. Add it to `.github/sync.yml` if not already covered by directory sync
-3. Commit and push
-4. Next sync will deploy to all repositories
+1. Create the workflow in `sync-files/always-sync/global/.github/workflows/`
+2. Commit and push
+3. Next sync will deploy to all repositories
 
 ### To update an ecosystem-specific workflow:
 
-1. Edit in `repository-files/{ecosystem}/.github/workflows/`
+1. Edit in `sync-files/always-sync/{ecosystem}/.github/workflows/`
 2. Commit and push
 3. Only repos in that ecosystem will receive the update
 
 ## Why No Symlinks?
 
-**Symlinks must NEVER be used in repository-files/.**
+**Symlinks must NEVER be used in sync-files/.**
 
 ### Problems with Symlinks
 
@@ -343,10 +278,10 @@ If you need the same file in multiple places:
 
 ```bash
 # ❌ WRONG - Do not use symlinks
-ln -s ../shared/workflow.yml repository-files/python/.github/workflows/
+ln -s ../global/workflow.yml sync-files/always-sync/python/.github/workflows/
 
 # ✅ CORRECT - Copy the file
-cp repository-files/shared/workflow.yml repository-files/python/.github/workflows/
+cp sync-files/always-sync/global/workflow.yml sync-files/always-sync/python/.github/workflows/
 ```
 
 ## Troubleshooting
@@ -366,7 +301,7 @@ cp repository-files/shared/workflow.yml repository-files/python/.github/workflow
 
 **Solution**:
 - Check workflow logs for which files were synced
-- Verify changes exist in `repository-files/`
+- Verify changes exist in `sync-files/`
 - Check if `skip_pr` was enabled
 
 ### Files Not Syncing

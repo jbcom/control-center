@@ -139,7 +139,7 @@ control-center/
 │   ├── delegator/action.yml
 │   └── gardener/action.yml
 ├── docs/site/              # Hugo + doc2go documentation
-├── repository-files/       # Files synced to managed repos
+├── sync-files/             # Files synced to managed repos
 │   └── always-sync/        # Always overwrite
 ├── Dockerfile              # Multi-stage Alpine build
 ├── action.yml              # Root action (composite)

@@ -24,6 +24,10 @@ CONTROL_CENTER_WORKFLOWS=(
     "generate-tests.yml"    # Test generation
     "sync-ruler.yml"        # Ruler sync
     "triage.yml"            # Triage workflow
+    "jbcom-gardener.yml"    # Enterprise gardener
+    "docs-sync.yml"         # Docs sync
+    "release.yml"           # Release workflow
+    "release-please.yml"    # Release automation
 )
 
 # Function to check if workflow is control-center specific
@@ -82,7 +86,7 @@ if [[ $EXIT_CODE -eq 0 ]]; then
 else
     echo ""
     echo "To fix inconsistencies:"
-    echo "  1. Copy updated workflows to repository-files/always-sync/.github/workflows/"
+    echo "  1. Copy updated workflows to sync-files/always-sync/global/.github/workflows/"
     echo "  2. Ensure local .github/workflows/ matches what you want to sync"
     echo "  3. Never use symlinks - always use actual file copies"
 fi

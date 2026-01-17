@@ -37,7 +37,7 @@ See `CLAUDE.md` and `AGENTS.md` for complete integration documentation.
    - Defines merge rules, security policies, branch protection, labels
    - Maps repository names to projects and dependencies
 
-2. **File Sync System** (`repository-files/`, `.github/workflows/sync.yml`)
+2. **File Sync System** (`sync-files/`, `.github/workflows/sync.yml`)
    - Syncs Cursor rules, GitHub workflows, and CI configs to 20+ repos
    - Three tiers: `always-sync/` (overwrites), `initial-only/` (first PR only), language-specific (`python/`, `nodejs/`, `go/`, `terraform/`)
    - Triggered by `sync.yml` workflow → creates PRs to repos
@@ -88,7 +88,7 @@ EOF
 ```
 
 **Example:** Adding a new Cursor rule
-- Add file to `repository-files/always-sync/.cursor/rules/new-rule.mdc`
+- Add file to `sync-files/always-sync/global/.cursor/rules/new-rule.mdc`
 - Run sync command above
 - Inspect the generated PRs
 
@@ -135,14 +135,14 @@ jq empty repo-config.json agentic.config.json
 
 **Key directories to understand:**
 
-- `repository-files/` — Files synced to managed repos
+- `sync-files/` — Files synced to managed repos
   - `always-sync/` — Overwrites every time (Cursor rules, workflows)
   - `initial-only/` — Only sync on first PR (licenses, base configs)
   - `python/`, `nodejs/`, `go/`, `terraform/` — Language-specific rules
 - `scripts/` — Bash CLI tools for repo management
 - `docs/` — Architecture and runbook docs
 - `memory-bank/` — Session context for AI agents
-- `.cursor/rules/` — Cursor IDE rules (don't edit—synced via `repository-files/`)
+- `.cursor/rules/` — Cursor IDE rules (don't edit—synced via `sync-files/`)
 
 ## Patterns & Conventions
 
@@ -172,7 +172,7 @@ docs: update token management procedures
 4. Run `./scripts/ecosystem discover` to verify
 
 **Updating a Cursor rule across all repos:**
-1. Edit `repository-files/always-sync/.cursor/rules/*.mdc`
+1. Edit `sync-files/always-sync/global/.cursor/rules/*.mdc`
 2. Run `./scripts/sync-files --dry-run --all` to preview
 3. Review generated PR changes
 4. Run `./scripts/sync-files --all` to apply
@@ -213,4 +213,4 @@ docs: update token management procedures
 - `../docs/TRIAGE-HUB.md` — Triage workflow and issue tracking
 - `../docs/MIGRATION.md` — jbdevprimary → jbcom migration (completed)
 - `../CLAUDE.md` — Detailed context for Claude Code agent
-- `../repository-files/initial-only/AGENTS.md` — General agent guidance
+- `../sync-files/initial-only/global/AGENTS.md` — General agent guidance
