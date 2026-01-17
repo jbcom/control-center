@@ -172,7 +172,7 @@ control-center/
 │   ├── delegator/
 │   └── gardener/
 ├── docs/site/              # Hugo + doc2go
-└── repository-files/       # Files synced to managed repos
+└── sync-files/             # Files synced to managed repos
 ```
 
 ---
@@ -203,12 +203,8 @@ jbcom/control-center (THE PROGENITOR)
 │   ALL repos inherit these defaults (merge queue, branch protection, etc.)
 │   Individual repos OVERRIDE with their own .github/settings.yml
 │
-├── global-sync/* → ALL repo roots (DIRECT)
-│   AI workflows, ecosystem workflows, agent configs
-│
-└── repository-files/* → org control-centers (CASCADE)
-    ↓
-    org/* repos
+└── sync-files/* → ALL repo roots (DIRECT)
+    AI workflows, ecosystem workflows, agent configs, and org-specific files
 ```
 
 ### Settings Inheritance (repository-settings/app)
@@ -225,12 +221,12 @@ with a custom release environment that overrides arcade-cabinet org defaults.
 
 | Content | Location | Method |
 |---------|----------|--------|
-| Merge queue, branch protection | `org-github-repo/settings.yml` | INITIAL sync to org/.github |
-| AI workflows (ai-*.yml) | `global-sync/.github/workflows/` | DIRECT to all repos |
-| Ecosystem workflows | `global-sync/.github/workflows/` | DIRECT to all repos |
-| Agent configs | `global-sync/.github/agents/` | DIRECT to all repos |
-| Cursor rules | `repository-files/always-sync/.cursor/` | CASCADE via control-centers |
-| Language templates | `repository-files/initial-only/` | CASCADE (initial only) |
+| Merge queue, branch protection | `sync-files/initial-only/org-github-repo/settings.yml` | INITIAL sync to org/.github |
+| AI workflows (ai-*.yml) | `sync-files/always-sync/global/.github/workflows/` | DIRECT to all repos |
+| Ecosystem workflows | `sync-files/always-sync/global/.github/workflows/` | DIRECT to all repos |
+| Agent configs | `sync-files/always-sync/global/.github/agents/` | DIRECT to all repos |
+| Cursor rules | `sync-files/always-sync/global/.cursor/` | DIRECT to all repos |
+| Language templates | `sync-files/initial-only/` | DIRECT (initial only) |
 
 ---
 

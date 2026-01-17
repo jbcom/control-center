@@ -168,7 +168,7 @@ Each language ecosystem uses its best-fit documentation tooling with jbcom brand
 
 ### Sphinx (Python)
 
-**Scaffold location**: `repository-files/python/docs/`
+**Scaffold location**: `sync-files/always-sync/python/docs/`
 
 | File | Purpose |
 |------|---------|
@@ -182,7 +182,7 @@ Usage:
 
 ### TypeDoc (TypeScript/Node.js)
 
-**Scaffold location**: `repository-files/nodejs/docs/`
+**Scaffold location**: `sync-files/always-sync/nodejs/docs/`
 
 | File | Purpose |
 |------|---------|
@@ -195,7 +195,7 @@ Usage:
 
 ### doc2go (Go)
 
-**Scaffold location**: `repository-files/go/docs/`
+**Scaffold location**: `sync-files/always-sync/go/docs/`
 
 | File | Purpose |
 |------|---------|
@@ -212,7 +212,7 @@ module-aware static documentation with pkg.go.dev-like styling.
 
 ### terraform-docs (Terraform)
 
-**Scaffold location**: `repository-files/terraform/docs/`
+**Scaffold location**: `sync-files/always-sync/terraform/docs/`
 
 | File | Purpose |
 |------|---------|
@@ -225,7 +225,7 @@ Usage:
 
 ### rustdoc (Rust)
 
-**Scaffold location**: `repository-files/rust/docs/`
+**Scaffold location**: `sync-files/always-sync/rust/docs/`
 
 | File | Purpose |
 |------|---------|

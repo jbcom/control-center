@@ -25,7 +25,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 ECOSYSTEM_ROOT="${REPO_ROOT}/ecosystems/oss"
-FILES_ROOT="${REPO_ROOT}/repository-files"
+FILES_ROOT="${REPO_ROOT}/sync-files"
 CONFIG_FILE="${REPO_ROOT}/repo-config.json"
 
 # Options
@@ -128,29 +128,29 @@ sync_repo() {
     rsync_opts="$rsync_opts --dry-run"
   fi
   
-  # Sync always-sync files
-  if [[ -d "${FILES_ROOT}/always-sync" ]]; then
+  # Sync global always-sync files
+  if [[ -d "${FILES_ROOT}/always-sync/global" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
-      log_info "  → always-sync/"
+      log_info "  → always-sync/global/"
     fi
-    rsync $rsync_opts "${FILES_ROOT}/always-sync/" "${target_path}/" 2>/dev/null || true
+    rsync $rsync_opts "${FILES_ROOT}/always-sync/global/" "${target_path}/" 2>/dev/null || true
   fi
   
   # Sync ecosystem-specific files
-  if [[ -d "${FILES_ROOT}/${ecosystem}" ]]; then
+  if [[ -d "${FILES_ROOT}/always-sync/${ecosystem}" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
-      log_info "  → ${ecosystem}/"
+      log_info "  → always-sync/${ecosystem}/"
     fi
-    rsync $rsync_opts "${FILES_ROOT}/${ecosystem}/" "${target_path}/" 2>/dev/null || true
+    rsync $rsync_opts "${FILES_ROOT}/always-sync/${ecosystem}/" "${target_path}/" 2>/dev/null || true
   fi
   
   # Sync initial-only files (only if requested and files don't exist)
-  if [[ "$INCLUDE_INITIAL" == "true" ]] && [[ -d "${FILES_ROOT}/initial-only" ]]; then
+  if [[ "$INCLUDE_INITIAL" == "true" ]] && [[ -d "${FILES_ROOT}/initial-only/global" ]]; then
     if [[ "$VERBOSE" == "true" ]] || [[ "$DRY_RUN" == "true" ]]; then
-      log_info "  → initial-only/ (non-destructive)"
+      log_info "  → initial-only/global/ (non-destructive)"
     fi
     # Use --ignore-existing to not overwrite
-    rsync $rsync_opts --ignore-existing "${FILES_ROOT}/initial-only/" "${target_path}/" 2>/dev/null || true
+    rsync $rsync_opts --ignore-existing "${FILES_ROOT}/initial-only/global/" "${target_path}/" 2>/dev/null || true
   fi
 
   # Sync templated workflows
@@ -192,7 +192,7 @@ show_help() {
   echo ""
   echo "Usage: sync-files [options] [repo...]"
   echo ""
-  echo "Rsync repository files from repository-files/ to ecosystem submodules."
+  echo "Rsync repository files from sync-files/ to ecosystem submodules."
   echo ""
   echo "Options:"
   echo "  --dry-run     Show what would be synced without making changes"
@@ -270,7 +270,7 @@ main() {
   
   echo ""
   echo "═══════════════════════════════════════════════════════════════════════════════"
-  echo "  FILE SYNC: repository-files/ → ecosystems/oss/"
+  echo "  FILE SYNC: sync-files/ → ecosystems/oss/"
   echo "═══════════════════════════════════════════════════════════════════════════════"
   echo ""
   

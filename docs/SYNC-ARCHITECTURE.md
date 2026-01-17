@@ -10,20 +10,10 @@ jbcom/control-center (THE PROGENITOR)
 ├── Phase 0: ENTERPRISE ORG SETTINGS
 │   enterprise/settings.json → jbcom org API
 │
-├── Phase 1a: ORG .GITHUB REPOS (settings inheritance)
-│   repository-files/org-github-repo/settings.yml → org/.github repos
-│   ↓ repository-settings/app
-│   ALL repos in each org inherit these defaults
-│   Individual repos can OVERRIDE with their own settings.yml
-│
-├── Phase 1b: GLOBAL SYNC (direct to all repo roots)
-│   global-sync/* → ALL repos .github/, agents/, etc.
-│   Control-centers USE these (not distribute)
-│
-└── Phase 1c-3: CASCADE SYNC (through org control-centers)
-    repository-files/* → org/control-center/repository-files/
-    ↓ org control-center sync workflow
-    org/* repos
+└── Phase 1: SYNC FILES (direct to all repo roots)
+    sync-files/always-sync/global/* → ALL repos .github/, agents/, etc.
+    sync-files/always-sync/{lang}/* → Language specific repos
+    sync-files/initial-only/* → One-time templates
 ```
 
 ## Release-Triggered Sync
@@ -106,7 +96,7 @@ Configures organization-level settings like:
 - Member repository creation rights
 - Security feature defaults
 
-### 2. Org .github Repos (`repository-files/org-github-repo/`)
+### 2. Org .github Repos (`sync-files/initial-only/org-github-repo/`)
 
 **Target**: `{org}/.github/settings.yml` in each organization  
 **Method**: INITIAL sync only (won't overwrite if exists)  
@@ -114,30 +104,14 @@ Configures organization-level settings like:
 
 This is where merge queues, branch protection, and other repo-level settings are defined as organization defaults.
 
-### 3. Global Sync (`global-sync/`)
+### 3. Unified Sync (`sync-files/`)
 
-**Target**: Root of ALL repos across ALL orgs  
-**Method**: Direct file copy to repo root  
-**What**: AI workflows, ecosystem workflows, agent configs  
+**Target**: Root of managed repos
+**Method**: Direct file copy using `repo-file-sync-action`
+**What**: All configuration, workflows, and templates
 
-Files here go directly to:
-- `.github/workflows/ai-*.yml`
-- `.github/workflows/{triage,review,autoheal,delegator}.yml`
-- `.github/agents/*`
-- `.github/actions/agentic-*`
-
-Control-centers receive these to USE them (not redistribute).
-
-### 4. Cascade Sync (`repository-files/`)
-
-**Target**: Org control-center `repository-files/` directories  
-**Method**: Copy to control-center, then control-center syncs to org repos  
-**What**: Org-specific configs that cascade down  
-
-Subdirectories:
-- `always-sync/` - Overwrite on every sync
-- `initial-only/` - Only create if missing
-- `org-control-center/` - Control-center workflow template
+Files in `sync-files/always-sync/global` go to ALL repos.
+Files in `sync-files/always-sync/{ecosystem}` go to ecosystem-specific repos.
 
 ## Merge Queue Configuration
 
@@ -170,27 +144,10 @@ This is placed in `org/.github/settings.yml` to apply to all repos, or in indivi
 ```
 Phase 0:  Enterprise org settings (API)
           │
-          ├──→ Phase 1a: Org .github repos (INITIAL sync)
-          │         ↓
-          │    repository-settings/app applies to all repos
-          │
-          ├──→ Phase 1b: Global sync (DIRECT to all repos)
-          │         ↓
-          │    AI/ecosystem workflows in all repo roots
-          │
-          └──→ Phase 1c: Ensure org control-centers exist
-                    │
-                    ↓
-               Phase 2: Sync to org control-center repository-files/
-                    │
-                    ↓
-               Phase 3: Trigger org control-center cascade
-                    │
-                    ↓
-               Org repos receive cascaded files
+          └──→ Phase 1: File Sync (DIRECT to all repos)
+                   ↓
+              Settings, workflows, and configs applied
 ```
-
-Phases 1a, 1b, and 1c run in PARALLEL after Phase 0.
 
 ## Adding a New Organization
 
@@ -214,7 +171,7 @@ Phases 1a, 1b, and 1c run in PARALLEL after Phase 0.
 ### Workflows not appearing in repo
 
 1. Check if repo is in the correct org
-2. Verify global-sync contains the workflow
+2. Verify sync-files contains the workflow
 3. Run sync manually with dry_run=false
 4. Check git history for sync commits
 

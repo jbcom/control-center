@@ -43,7 +43,7 @@ jbcom-control-center/
 │   ├── nodejs/               # Node.js/TypeScript repo configs
 │   ├── go/                   # Go repo configs
 │   └── terraform/            # Terraform module configs
-├── repository-files/         # Files synced to managed repos
+├── sync-files/         # Files synced to managed repos
 │   ├── always-sync/          # Always overwrite
 │   ├── initial-only/         # Create if missing
 │   ├── python/               # Python-specific
@@ -111,7 +111,7 @@ Syncs repository files to all managed repos:
 | Trigger | Action |
 |---------|--------|
 | Daily schedule | Sync shared configs |
-| Push to repository-files | Sync updated files |
+| Push to sync-files | Sync updated files |
 | Manual dispatch | Full sync with options |
 
 ## Commands

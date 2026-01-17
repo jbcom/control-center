@@ -2,7 +2,7 @@
 
 ## Policy Statement
 
-**Symlinks must NEVER be used in this repository, especially in the `repository-files/` directory.**
+**Symlinks must NEVER be used in this repository, especially in the `sync-files/` directory.**
 
 This is a hard requirement enforced by automated checks. Pull requests containing symlinks will fail CI validation.
 
@@ -40,13 +40,13 @@ When syncing files to managed repositories:
 
 ❌ **Wrong:**
 ```bash
-cd repository-files/python/.github/workflows/
+cd sync-files/always-sync/python/.github/workflows/
 ln -s ../../shared/ci.yml ci.yml
 ```
 
 ✅ **Correct:**
 ```bash
-cd repository-files/python/.github/workflows/
+cd sync-files/always-sync/python/.github/workflows/
 cp ../../shared/ci.yml ci.yml
 ```
 
@@ -133,8 +133,8 @@ This script:
 ```bash
 # Copy workflow to all ecosystem directories
 for ecosystem in python nodejs go terraform; do
-  cp repository-files/shared/ci.yml \
-     repository-files/$ecosystem/.github/workflows/ci.yml
+  cp sync-files/always-sync/global/ci.yml \
+     sync-files/$ecosystem/.github/workflows/ci.yml
 done
 ```
 
@@ -143,9 +143,9 @@ done
 ```bash
 # Script to update all copies of a file
 #!/bin/bash
-SOURCE="repository-files/shared/pr-template.md"
+SOURCE="sync-files/always-sync/global/pr-template.md"
 
-for target in repository-files/*/.github/PULL_REQUEST_TEMPLATE.md; do
+for target in sync-files/*/.github/PULL_REQUEST_TEMPLATE.md; do
   cp "$SOURCE" "$target"
   echo "Updated: $target"
 done
@@ -156,7 +156,7 @@ done
 ```bash
 # ❌ DON'T DO THIS
 ln -s ../../shared/workflow.yml \
-     repository-files/python/.github/workflows/workflow.yml
+     sync-files/always-sync/python/.github/workflows/workflow.yml
 ```
 
 ## Troubleshooting
@@ -198,13 +198,13 @@ Example:
 # sync-shared-workflows.sh
 # Copies shared workflows to all ecosystems
 
-SHARED_DIR="repository-files/shared"
+SHARED_DIR="sync-files/always-sync/global"
 ECOSYSTEMS=(python nodejs go terraform)
 
 for workflow in "$SHARED_DIR"/*.yml; do
   filename=$(basename "$workflow")
   for ecosystem in "${ECOSYSTEMS[@]}"; do
-    target="repository-files/$ecosystem/.github/workflows/$filename"
+    target="sync-files/$ecosystem/.github/workflows/$filename"
     cp "$workflow" "$target"
     echo "Copied $filename to $ecosystem"
   done

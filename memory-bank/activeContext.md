@@ -741,3 +741,27 @@ Updated `.github/workflows/release-please.yml` to dynamically fetch the latest s
 - If issues occur, check GitHub Actions workflow logs for specific error messages
 - The workflow will automatically update to new stable releases as they're published
 
+
+---
+
+## Session: 2026-01-17 (Consolidate Sync Directories & Merge Dependabot PRs)
+
+### Completed
+- [x] Fixed linting environment issues (downgraded `go.mod` to 1.23.4 to match linter).
+- [x] Merged outstanding dependabot PRs #783 (CodeQL) and #782 (GitHub Actions).
+- [x] Consolidated `repository-files/` and `global-sync/` into `sync-files/` (DRY).
+- [x] Deleted redundant `global-sync/` and `repository-files/` directories.
+- [x] Migrated `repository-files/org-github-repo/settings.yml` to `sync-files/initial-only/org-github-repo/settings.yml`.
+- [x] Updated `scripts/sync-files`, `scripts/check-workflow-consistency`, `fix_shas.py`, and `AGENTS.md` to reference `sync-files/`.
+- [x] Updated `docs/WORKFLOW-SYNC.md`, `docs/SYNC-ARCHITECTURE.md`, `CLAUDE.md`, and others to reflect the new structure.
+- [x] Deleted obsolete config files `.github/sync-always.yml` and `.github/sync-initial.yml`.
+
+### Current State
+- `repository-files/` and `global-sync/` are gone.
+- `sync-files/` is the single source of truth.
+- `go.mod` is set to 1.23.4.
+- No open PRs.
+
+### For Next Agent
+- Verify ecosystem sync works with the new structure (wait for scheduled run or trigger manually).
+- Monitor for any broken links or references to old directories.
