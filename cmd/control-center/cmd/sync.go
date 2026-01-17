@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/google/go-github/v81/github"
+	"github.com/google/go-github/v60/github"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"golang.org/x/oauth2"
@@ -239,19 +239,24 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 	// Create branch for cleanup
 	branchName := fmt.Sprintf("repo-sync/cleanup-kill-list-%d", time.Now().Unix())
-	createRefReq := github.CreateRef{
-		Ref: "refs/heads/" + branchName,
-		SHA: ref.Object.GetSHA(),
+	createRefObj := &github.Reference{
+		Ref: github.String("refs/heads/" + branchName),
+		Object: &github.GitObject{
+			SHA: github.String(ref.Object.GetSHA()),
+		},
 	}
 
-	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefReq)
+	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefObj)
 	if err != nil {
 		// Branch might already exist, try to update it
-		updateRefReq := github.UpdateRef{
-			SHA:   ref.Object.GetSHA(),
-			Force: github.Ptr(false),
+		updateRefObj := &github.Reference{
+			Ref: github.String("refs/heads/" + branchName),
+			Object: &github.GitObject{
+				SHA: github.String(ref.Object.GetSHA()),
+			},
 		}
-		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
+		// v60 UpdateRef signature: (ctx, owner, repo, ref *Reference, force bool)
+		_, _, err = client.Git.UpdateRef(ctx, org, repo, updateRefObj, false)
 		if err != nil {
 			return fmt.Errorf("failed to create/update branch: %w", err)
 		}
@@ -286,22 +291,24 @@ func processKillList(ctx context.Context, client *github.Client, org, repo strin
 
 	// Create commit
 	commitMessage := "chore(sync): cleanup deprecated workflows\n\n[skip ci]"
-	commitReq := github.Commit{
+	commitReq := &github.Commit{
 		Message: github.Ptr(commitMessage),
 		Tree:    newTree,
-		Parents: []*github.Commit{{SHA: commit.SHA}},
+		Parents: []github.Commit{{SHA: commit.SHA}},
 	}
-	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq, nil)
+	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq)
 	if err != nil {
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
 	// Update branch reference
-	updateRefReq := github.UpdateRef{
-		SHA:   newCommit.GetSHA(),
-		Force: github.Ptr(false),
+	updateRefObj := &github.Reference{
+		Ref: github.String("refs/heads/" + branchName),
+		Object: &github.GitObject{
+			SHA: github.String(newCommit.GetSHA()),
+		},
 	}
-	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
+	_, _, err = client.Git.UpdateRef(ctx, org, repo, updateRefObj, false)
 	if err != nil {
 		return fmt.Errorf("failed to update ref: %w", err)
 	}
@@ -382,28 +389,32 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	// Create branch for sync
 	branchName := fmt.Sprintf("repo-sync/control-center-%d", time.Now().Unix())
-	createRefReq := github.CreateRef{
-		Ref: "refs/heads/" + branchName,
-		SHA: targetRef.Object.GetSHA(),
+	createRefObj := &github.Reference{
+		Ref: github.String("refs/heads/" + branchName),
+		Object: &github.GitObject{
+			SHA: github.String(targetRef.Object.GetSHA()),
+		},
 	}
 
-	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefReq)
+	_, _, err = client.Git.CreateRef(ctx, org, repo, createRefObj)
 	if err != nil {
 		// Branch might already exist, try to update it
-		updateRefReq := github.UpdateRef{
-			SHA:   targetRef.Object.GetSHA(),
-			Force: github.Ptr(false),
+		updateRefObj := &github.Reference{
+			Ref: github.String("refs/heads/" + branchName),
+			Object: &github.GitObject{
+				SHA: github.String(targetRef.Object.GetSHA()),
+			},
 		}
-		_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
+		_, _, err = client.Git.UpdateRef(ctx, org, repo, updateRefObj, false)
 		if err != nil {
 			return fmt.Errorf("failed to create/update branch: %w", err)
 		}
 	}
 
 	// Create blobs for each file
-	var treeEntries []*github.TreeEntry
+	var treeEntries []github.TreeEntry
 	for _, file := range filesToSync {
-		blobReq := github.Blob{
+		blobReq := &github.Blob{
 			Content:  github.Ptr(file.content),
 			Encoding: github.Ptr("utf-8"),
 		}
@@ -413,7 +424,7 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 			continue
 		}
 
-		treeEntries = append(treeEntries, &github.TreeEntry{
+		treeEntries = append(treeEntries, github.TreeEntry{
 			Path: github.Ptr(file.path),
 			Mode: github.Ptr("100644"),
 			Type: github.Ptr("blob"),
@@ -435,22 +446,24 @@ func syncFiles(ctx context.Context, client *github.Client, org, repo string) err
 
 	// Create commit
 	commitMessage := "chore(sync): sync files from control-center\n\nSynced from jbcom/control-center\n\n[skip ci]"
-	commitReq := github.Commit{
+	commitReq := &github.Commit{
 		Message: github.Ptr(commitMessage),
 		Tree:    newTree,
-		Parents: []*github.Commit{{SHA: targetCommit.SHA}},
+		Parents: []github.Commit{{SHA: targetCommit.SHA}},
 	}
-	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq, nil)
+	newCommit, _, err := client.Git.CreateCommit(ctx, org, repo, commitReq)
 	if err != nil {
 		return fmt.Errorf("failed to create commit: %w", err)
 	}
 
 	// Update branch reference
-	updateRefReq := github.UpdateRef{
-		SHA:   newCommit.GetSHA(),
-		Force: github.Ptr(false),
+	updateRefObj := &github.Reference{
+		Ref: github.String("refs/heads/" + branchName),
+		Object: &github.GitObject{
+			SHA: github.String(newCommit.GetSHA()),
+		},
 	}
-	_, _, err = client.Git.UpdateRef(ctx, org, repo, "heads/"+branchName, updateRefReq)
+	_, _, err = client.Git.UpdateRef(ctx, org, repo, updateRefObj, false)
 	if err != nil {
 		return fmt.Errorf("failed to update ref: %w", err)
 	}
