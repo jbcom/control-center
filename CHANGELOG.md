@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0](https://github.com/jbcom/control-center/compare/v1.1.0...v1.2.0) (2026-01-17)
+
+
+### 🚀 Features
+
+* unify release workflow, ultra-simplify sync, add formal file versioning, fix Actions marketplace build, pin Actions to SHA, and resolve workflow failures ([#752](https://github.com/jbcom/control-center/issues/752)) ([e1933eb](https://github.com/jbcom/control-center/commit/e1933ebfdaad07d252f05ea1125dad58f82fb0e7))
+* **workflow:** prevent push to archived repositories in ecosystem-surveyor ([#754](https://github.com/jbcom/control-center/issues/754)) ([14c2d7d](https://github.com/jbcom/control-center/commit/14c2d7d1e6154cec04ff79fd1f9eb68fbff3e966))
+
+
+### 🐛 Bug Fixes
+
+* align workflow binary paths with architecture and merge main (${GITHUB_WORKSPACE}/bin/control-center) ([#756](https://github.com/jbcom/control-center/issues/756)) ([f554d16](https://github.com/jbcom/control-center/commit/f554d16ec81a7d8c4b1949066a083e732fe84918))
+* **ci:** patch release workflow syntax and add merge_group support ([#780](https://github.com/jbcom/control-center/issues/780)) ([40d3bba](https://github.com/jbcom/control-center/commit/40d3bba5eed734c930150f0202e65397e5b3a0b6))
+* **ci:** pin actions/checkout to latest SHA (v6.0.1) in sync.yml ([#768](https://github.com/jbcom/control-center/issues/768)) ([161bef2](https://github.com/jbcom/control-center/commit/161bef2cf31f5d500501a2d656ede52ab65c44d2))
+* ship-shape consolidation with critical bug fixes and delegator command ([#771](https://github.com/jbcom/control-center/issues/771)) ([bcfe59c](https://github.com/jbcom/control-center/commit/bcfe59c502a8329b4e00172bbc7c1ef306980318))
+* **sync:** use explicit repo names instead of wildcards ([c5d0620](https://github.com/jbcom/control-center/commit/c5d062018ffb7dd661d27e56c74fb6114589d5f9))
+
+
+### ♻️ Refactoring
+
+* migrate sync configs to directory-based syncing ([#766](https://github.com/jbcom/control-center/issues/766)) ([25f0f3e](https://github.com/jbcom/control-center/commit/25f0f3ed3ac6dc54c9eafddfa7a73554741814b7))
+
 ## [1.1.0](https://github.com/jbcom/control-center/compare/v1.0.0...v1.1.0) (2026-01-02)
 
 
